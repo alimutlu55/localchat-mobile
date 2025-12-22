@@ -56,45 +56,57 @@ const StableMarker = ({
     }, [showCircle, radiusPixels, isSelected]);
 
     return (
-        <Marker
-            key={id}
-            coordinate={{
-                latitude: room.latitude as number,
-                longitude: room.longitude as number,
-            }}
-            onPress={() => onPress(room)}
-            anchor={{ x: 0.5, y: 0.5 }}
-            tracksViewChanges={tracksViewChanges || !isMapMoving}
-            zIndex={isSelected ? 30 : 20}
-            tappable={true}
-        >
-            <View pointerEvents="none" style={styles.container}>
-                {/* Radius Circle - ALWAYS RENDERED, visibility controlled by opacity */}
-                <View
-                    style={[
-                        styles.circle,
-                        {
-                            width: Math.max(1, radiusPixels * 2),
-                            height: Math.max(1, radiusPixels * 2),
-                            borderRadius: Math.max(0.5, radiusPixels),
-                            opacity: showCircle ? 1 : 0,
-                            backgroundColor: room.isExpiringSoon ? 'rgba(254, 215, 170, 0.15)' : 'rgba(254, 205, 211, 0.15)',
-                            borderColor: room.isExpiringSoon ? 'rgba(249, 115, 22, 0.5)' : 'rgba(244, 63, 94, 0.5)',
-                        },
-                    ]}
-                />
+        <>
+            {/* Visual Circle Marker - Non-tappable to avoid hit-area interference */}
+            <Marker
+                key={`${id}-circle`}
+                coordinate={{
+                    latitude: room.latitude as number,
+                    longitude: room.longitude as number,
+                }}
+                anchor={{ x: 0.5, y: 0.5 }}
+                tracksViewChanges={tracksViewChanges || !isMapMoving}
+                zIndex={10}
+                tappable={false}
+            >
+                <View pointerEvents="none" style={styles.container}>
+                    <View
+                        style={[
+                            styles.circle,
+                            {
+                                width: Math.max(1, radiusPixels * 2),
+                                height: Math.max(1, radiusPixels * 2),
+                                borderRadius: Math.max(0.5, radiusPixels),
+                                opacity: showCircle ? 1 : 0,
+                                backgroundColor: room.isExpiringSoon ? 'rgba(254, 215, 170, 0.15)' : 'rgba(254, 205, 211, 0.15)',
+                                borderColor: room.isExpiringSoon ? 'rgba(249, 115, 22, 0.5)' : 'rgba(244, 63, 94, 0.5)',
+                            },
+                        ]}
+                    />
+                </View>
+            </Marker>
 
-                {/* Room Pin - Centered on top of the circle center */}
-                <View
-                    style={styles.pinWrapper}
-                >
+            {/* Interactive Pin Marker - Predictable hit area */}
+            <Marker
+                key={`${id}-pin`}
+                coordinate={{
+                    latitude: room.latitude as number,
+                    longitude: room.longitude as number,
+                }}
+                onPress={() => onPress(room)}
+                anchor={{ x: 0.5, y: 1 }} // Align pin tip with coordinate
+                tracksViewChanges={tracksViewChanges || !isMapMoving}
+                zIndex={isSelected ? 30 : 20}
+                tappable={true}
+            >
+                <View pointerEvents="none" style={styles.pinMarkerContainer}>
                     <RoomPin
                         room={room}
                         isSelected={isSelected}
                     />
                 </View>
-            </View>
-        </Marker>
+            </Marker>
+        </>
     );
 };
 
@@ -103,15 +115,15 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         justifyContent: 'center',
     },
+    pinMarkerContainer: {
+        alignItems: 'center',
+        justifyContent: 'center',
+        // Padding ensures we don't clip shadows or animations
+        paddingBottom: 2,
+    },
     circle: {
         borderWidth: 2,
         position: 'absolute',
-        zIndex: 1,
-    },
-    pinWrapper: {
-        position: 'absolute',
-        bottom: '50%', // Aligns pin bottom tip with center coordinate
-        zIndex: 10,
     },
 });
 
