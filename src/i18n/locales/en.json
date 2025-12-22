@@ -1,0 +1,113 @@
+{
+  "common": {
+    "loading": "Loading...",
+    "cancel": "Cancel",
+    "save": "Save",
+    "delete": "Delete",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "done": "Done",
+    "error": "Error",
+    "success": "Success",
+    "retry": "Retry"
+  },
+  "auth": {
+    "welcome": "Welcome to LocalChat",
+    "welcomeSubtitle": "Connect with people nearby. Share moments, ask questions, make friends.",
+    "continueAnonymous": "Continue Anonymously",
+    "signInWithEmail": "Sign in with Email",
+    "signIn": "Sign In",
+    "signUp": "Sign Up",
+    "signOut": "Sign Out",
+    "createAccount": "Create Account",
+    "forgotPassword": "Forgot password?",
+    "noAccount": "Don't have an account?",
+    "hasAccount": "Already have an account?",
+    "displayName": "Display Name",
+    "email": "Email",
+    "password": "Password",
+    "confirmPassword": "Confirm Password",
+    "termsNotice": "By continuing, you agree to our Terms of Service and Privacy Policy"
+  },
+  "rooms": {
+    "discover": "Discover",
+    "myRooms": "My Rooms",
+    "joined": "Joined",
+    "created": "Created",
+    "createRoom": "Create Room",
+    "roomTitle": "Room Title",
+    "description": "Description",
+    "category": "Category",
+    "duration": "Duration",
+    "maxParticipants": "Max Participants",
+    "participants": "participants",
+    "noRoomsNearby": "No rooms nearby",
+    "beFirstToCreate": "Be the first to start a conversation!",
+    "timeRemaining": "{{time}} left",
+    "roomClosed": "Room Closed",
+    "leaveRoom": "Leave Room",
+    "closeRoom": "Close Room",
+    "reportRoom": "Report Room"
+  },
+  "chat": {
+    "typeMessage": "Type a message...",
+    "send": "Send",
+    "isTyping": "{{name}} is typing...",
+    "areTyping": "{{names}} are typing...",
+    "noMessages": "No messages yet. Start the conversation!",
+    "offline": "Offline"
+  },
+  "profile": {
+    "profile": "Profile",
+    "editProfile": "Edit Profile",
+    "settings": "Settings",
+    "anonymous": "Anonymous",
+    "upgradeAccount": "Upgrade Account",
+    "upgradeDescription": "Sync across devices and never lose your chats",
+    "roomsJoined": "Rooms Joined",
+    "roomsCreated": "Rooms Created"
+  },
+  "settings": {
+    "settings": "Settings",
+    "notifications": "Notifications",
+    "pushNotifications": "Push Notifications",
+    "pushDescription": "Receive alerts for new messages",
+    "privacy": "Privacy",
+    "locationServices": "Location Services",
+    "locationDescription": "Allow app to access your location",
+    "appearance": "Appearance",
+    "darkMode": "Dark Mode",
+    "darkModeDescription": "Use dark color theme",
+    "language": "Language",
+    "data": "Data",
+    "clearData": "Clear App Data",
+    "clearDataDescription": "Remove cached data",
+    "account": "Account",
+    "deleteAccount": "Delete Account",
+    "deleteAccountDescription": "Permanently delete your account"
+  },
+  "categories": {
+    "GENERAL": "General",
+    "TRAFFIC": "Traffic",
+    "EVENTS": "Events",
+    "EMERGENCY": "Emergency",
+    "LOST_FOUND": "Lost & Found",
+    "SPORTS": "Sports",
+    "FOOD": "Food",
+    "NEIGHBORHOOD": "Neighborhood"
+  },
+  "durations": {
+    "short": "1 hour",
+    "medium": "3 hours",
+    "long": "8 hours",
+    "extended": "24 hours"
+  },
+  "errors": {
+    "networkError": "Network error. Please check your connection.",
+    "authRequired": "Please sign in to continue.",
+    "locationRequired": "Location permission is required.",
+    "somethingWentWrong": "Something went wrong. Please try again."
+  }
+}
+
