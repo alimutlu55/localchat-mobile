@@ -425,7 +425,7 @@ export default function DiscoveryScreen() {
                 [maxLng + lngPadding, maxLat + latPadding],
                 [minLng - lngPadding, minLat - latPadding],
                 50,
-                600  // Fast but stable
+                500  // Fast, snappy expansion
             );
         } else {
             const expansionZoom = getClusterExpansionZoom(clusterIndex, cluster.properties.cluster_id);
@@ -434,11 +434,11 @@ export default function DiscoveryScreen() {
             cameraRef.current.setCamera({
                 centerCoordinate: [lng, lat],
                 zoomLevel: targetZoom,
-                animationDuration: 500,  // Fast but stable
+                animationDuration: 400,  // Fast, responsive zoom
                 animationMode: 'easeTo',
             });
         }
-    }, [clusterIndex, currentZoom, navigation, setSelectedRoom, mapReady]);
+    }, [clusterIndex, currentZoom, navigation, setSelectedRoom, mapReady, calculateMapFlyDuration]);
 
     /**
      * Navigate to create room
