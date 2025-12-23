@@ -46,7 +46,8 @@ import {
   getClusterExpansionZoom,
   getClusterLeaves,
   MapFeature,
-  ClusterFeature
+  ClusterFeature,
+  EventFeature
 } from '../../utils/mapClustering';
 
 // OpenFreeMap Positron style - completely free, no API key required
@@ -116,7 +117,7 @@ export default function MapScreen() {
     }
 
     const circleFeatures = features
-      .filter((f): f is MapFeature => !isCluster(f))
+      .filter((f): f is EventFeature => !isCluster(f))
       .filter(f => f.properties.room.latitude != null && f.properties.room.longitude != null)
       .map(f => {
         const room = f.properties.room;
