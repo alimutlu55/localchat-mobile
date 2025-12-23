@@ -1,7 +1,14 @@
 /**
  * Chat Room Screen
  *
- * Real-time chat interface for a room.
+ * Real-time chat interface for a room with:
+ * - Enhanced message bubbles with status indicators
+ * - Date separators between message groups
+ * - System messages for user events
+ * - Animated typing indicator
+ * - Connection status banner
+ * - Scroll-to-bottom button
+ * - Block/report functionality
  */
 
 import React, { useState, useEffect, useRef, useCallback } from 'react';
@@ -16,8 +23,10 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  NativeSyntheticEvent,
+  NativeScrollEvent,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
@@ -26,88 +35,30 @@ import {
   MoreVertical,
   Users,
   Info,
+  Plus,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/types';
-import { wsService, messageService, WS_EVENTS } from '../services';
+import { wsService, messageService, blockService, roomService, WS_EVENTS } from '../services';
 import { ChatMessage, Room } from '../types';
 import { useAuth } from '../context/AuthContext';
+import {
+  MessageBubble,
+  DateSeparator,
+  shouldShowDateSeparator,
+  TypingIndicator,
+  ConnectionBanner,
+  ScrollToBottomButton,
+  createSystemMessage,
+  ChatRoomMenu,
+  RoomInfoDrawer,
+  ReportModal,
+  ReportReason,
+} from '../components/chat';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'ChatRoom'>;
 type ChatRoomRouteProp = RouteProp<RootStackParamList, 'ChatRoom'>;
 
-/**
- * Message Bubble Component
- */
-interface MessageBubbleProps {
-  message: ChatMessage;
-  isOwn: boolean;
-}
-
-function MessageBubble({ message, isOwn }: MessageBubbleProps) {
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-  };
-
-  if (message.type === 'system') {
-    return (
-      <View style={styles.systemMessage}>
-        <Text style={styles.systemMessageText}>{message.content}</Text>
-      </View>
-    );
-  }
-
-  return (
-    <View style={[styles.messageBubbleContainer, isOwn && styles.messageBubbleContainerOwn]}>
-      {!isOwn && (
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>
-            {message.userName?.charAt(0).toUpperCase() || 'U'}
-          </Text>
-        </View>
-      )}
-      <View style={styles.messageContent}>
-        {!isOwn && (
-          <View style={styles.messageHeader}>
-            <Text style={styles.messageSender}>{message.userName || 'Anonymous'}</Text>
-            <Text style={styles.messageTime}>{formatTime(message.timestamp)}</Text>
-          </View>
-        )}
-        <View style={[styles.messageBubble, isOwn && styles.messageBubbleOwn]}>
-          <Text style={[styles.messageText, isOwn && styles.messageTextOwn]}>
-            {message.content}
-          </Text>
-          {isOwn && (
-            <Text style={styles.messageTimeOwn}>{formatTime(message.timestamp)}</Text>
-          )}
-        </View>
-      </View>
-    </View>
-  );
-}
-
-/**
- * Typing Indicator Component
- */
-function TypingIndicator({ users }: { users: string[] }) {
-  if (users.length === 0) return null;
-
-  const text = users.length === 1
-    ? `${users[0]} is typing...`
-    : users.length === 2
-      ? `${users[0]} and ${users[1]} are typing...`
-      : `${users[0]} and ${users.length - 1} others are typing...`;
-
-  return (
-    <View style={styles.typingIndicator}>
-      <View style={styles.typingDots}>
-        <View style={[styles.typingDot, styles.typingDot1]} />
-        <View style={[styles.typingDot, styles.typingDot2]} />
-        <View style={[styles.typingDot, styles.typingDot3]} />
-      </View>
-      <Text style={styles.typingText}>{text}</Text>
-    </View>
-  );
-}
+type ConnectionState = 'connected' | 'disconnected' | 'reconnecting';
 
 /**
  * Chat Room Screen Component
@@ -117,16 +68,50 @@ export default function ChatRoomScreen() {
   const route = useRoute<ChatRoomRouteProp>();
   const { room } = route.params;
   const { user } = useAuth();
+  const insets = useSafeAreaInsets();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(true);
   const [isSending, setIsSending] = useState(false);
   const [typingUsers, setTypingUsers] = useState<string[]>([]);
-  const [isConnected, setIsConnected] = useState(true);
+  const [connectionState, setConnectionState] = useState<ConnectionState>('connected');
+  const [showScrollButton, setShowScrollButton] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [blockedUserIds, setBlockedUserIds] = useState<Set<string>>(new Set());
+  const [showMenu, setShowMenu] = useState(false);
+  const [showRoomInfo, setShowRoomInfo] = useState(false);
+  const [isMuted, setIsMuted] = useState(false);
+
+  // Report State
+  const [reportConfig, setReportConfig] = useState<{
+    isOpen: boolean;
+    targetType: 'message' | 'room' | 'user';
+    targetData?: any;
+  }>({
+    isOpen: false,
+    targetType: 'message',
+  });
 
   const flatListRef = useRef<FlatList>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const isAtBottomRef = useRef(true);
+
+  /**
+   * Load blocked users on mount
+   */
+  useEffect(() => {
+    const loadBlockedUsers = async () => {
+      try {
+        const blockedUsers = await blockService.getBlockedUsers();
+        const blockedIds = new Set(blockedUsers.map(u => u.blockedId));
+        setBlockedUserIds(blockedIds);
+      } catch (err) {
+        console.error('Failed to load blocked users:', err);
+      }
+    };
+    loadBlockedUsers();
+  }, []);
 
   /**
    * Load message history and subscribe to room
@@ -221,8 +206,90 @@ export default function ChatRoomScreen() {
       }
     });
 
+    // Handle user joined
+    const unsubscribeUserJoined = wsService.on(WS_EVENTS.USER_JOINED, (payload: any) => {
+      if (payload.roomId === room.id && payload.userId !== user?.id) {
+        const systemMessage: ChatMessage = {
+          id: `system-join-${Date.now()}`,
+          type: 'system',
+          content: createSystemMessage('user_joined', payload.displayName || 'Someone'),
+          timestamp: new Date(),
+          userId: 'system',
+          userName: 'System',
+        };
+        setMessages(prev => [...prev, systemMessage]);
+      }
+    });
+
+    // Handle user left
+    const unsubscribeUserLeft = wsService.on(WS_EVENTS.USER_LEFT, (payload: any) => {
+      if (payload.roomId === room.id && payload.userId !== user?.id) {
+        const systemMessage: ChatMessage = {
+          id: `system-leave-${Date.now()}`,
+          type: 'system',
+          content: createSystemMessage('user_left', payload.displayName || 'Someone'),
+          timestamp: new Date(),
+          userId: 'system',
+          userName: 'System',
+        };
+        setMessages(prev => [...prev, systemMessage]);
+      }
+    });
+
+    // Handle user kicked (if current user is kicked)
+    const unsubscribeUserKicked = wsService.on(WS_EVENTS.USER_KICKED, (payload: any) => {
+      if (payload.roomId === room.id) {
+        if (payload.userId === user?.id) {
+          Alert.alert(
+            'Removed from Room',
+            'You have been removed from this room.',
+            [{ text: 'OK', onPress: () => navigation.goBack() }]
+          );
+        } else {
+          const systemMessage: ChatMessage = {
+            id: `system-kick-${Date.now()}`,
+            type: 'system',
+            content: createSystemMessage('user_kicked', payload.displayName || 'Someone'),
+            timestamp: new Date(),
+            userId: 'system',
+            userName: 'System',
+          };
+          setMessages(prev => [...prev, systemMessage]);
+        }
+      }
+    });
+
+    // Handle user banned (if current user is banned)
+    const unsubscribeUserBanned = wsService.on(WS_EVENTS.USER_BANNED, (payload: any) => {
+      if (payload.roomId === room.id) {
+        if (payload.userId === user?.id) {
+          Alert.alert(
+            'Banned from Room',
+            payload.reason || 'You have been banned from this room.',
+            [{ text: 'OK', onPress: () => navigation.goBack() }]
+          );
+        } else {
+          const systemMessage: ChatMessage = {
+            id: `system-ban-${Date.now()}`,
+            type: 'system',
+            content: createSystemMessage('user_banned', payload.displayName || 'Someone'),
+            timestamp: new Date(),
+            userId: 'system',
+            userName: 'System',
+          };
+          setMessages(prev => [...prev, systemMessage]);
+        }
+      }
+    });
+
     const unsubscribeConnection = wsService.on('connectionStateChange', (state: string) => {
-      setIsConnected(state === 'connected');
+      if (state === 'connected') {
+        setConnectionState('connected');
+      } else if (state === 'reconnecting') {
+        setConnectionState('reconnecting');
+      } else {
+        setConnectionState('disconnected');
+      }
     });
 
     return () => {
@@ -230,6 +297,10 @@ export default function ChatRoomScreen() {
       unsubscribeAck();
       unsubscribeTyping();
       unsubscribeRoomClosed();
+      unsubscribeUserJoined();
+      unsubscribeUserLeft();
+      unsubscribeUserKicked();
+      unsubscribeUserBanned();
       unsubscribeConnection();
     };
   }, [room.id, user?.id, navigation]);
@@ -292,21 +363,194 @@ export default function ChatRoomScreen() {
   }, [room.id]);
 
   /**
-   * Navigate to room details
+   * Open room info drawer
    */
   const handleRoomInfo = () => {
-    navigation.navigate('RoomDetails', { room });
+    setShowRoomInfo(true);
   };
 
   /**
-   * Render message item
+   * Handle message report
    */
-  const renderMessage = ({ item }: { item: ChatMessage }) => (
-    <MessageBubble
-      message={item}
-      isOwn={item.userId === user?.id}
-    />
-  );
+  const handleReportMessage = useCallback((message: ChatMessage) => {
+    // Delay slightly if a menu might be closing
+    setTimeout(() => {
+      setReportConfig({
+        isOpen: true,
+        targetType: 'message',
+        targetData: message,
+      });
+    }, 100);
+  }, []);
+
+  /**
+   * Handle block user
+   */
+  const handleBlockUser = useCallback((message: ChatMessage) => {
+    Alert.alert(
+      'Block User',
+      `Are you sure you want to block ${message.userName}? You won't see their messages anymore.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Block',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await blockService.blockUser(message.userId);
+              setBlockedUserIds(prev => new Set([...prev, message.userId]));
+              Alert.alert('Blocked', `${message.userName} has been blocked.`);
+            } catch (error) {
+              Alert.alert('Error', 'Failed to block user. Please try again.');
+            }
+          },
+        },
+      ]
+    );
+  }, []);
+
+  /**
+   * Handle scroll event
+   */
+  const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+    const isAtBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - 100;
+
+    isAtBottomRef.current = isAtBottom;
+    setShowScrollButton(!isAtBottom);
+
+    if (isAtBottom) {
+      setUnreadCount(0);
+    }
+  }, []);
+
+  /**
+   * Scroll to bottom
+   */
+  const scrollToBottom = useCallback(() => {
+    flatListRef.current?.scrollToEnd({ animated: true });
+    setUnreadCount(0);
+  }, []);
+
+  /**
+   * Handle leave room
+   */
+  const handleLeaveRoom = useCallback(() => {
+    Alert.alert(
+      'Leave Room',
+      'Are you sure you want to leave this room?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Leave',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await roomService.leaveRoom(room.id);
+              navigation.popToTop();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to leave room');
+            }
+          },
+        },
+      ]
+    );
+  }, [room.id, navigation]);
+
+  /**
+   * Handle close room (creator only)
+   */
+  const handleCloseRoom = useCallback(() => {
+    Alert.alert(
+      'Close Room',
+      'This will prevent any new messages. The room will become read-only.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Close Room',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await roomService.closeRoom(room.id);
+              Alert.alert('Success', 'Room has been closed');
+              navigation.goBack();
+            } catch (error) {
+              Alert.alert('Error', 'Failed to close room');
+            }
+          },
+        },
+      ]
+    );
+  }, [room.id, navigation]);
+
+  /**
+   * Handle report room
+   */
+  const handleReportRoom = useCallback(() => {
+    // Ensure menu closes first
+    setShowMenu(false);
+
+    setTimeout(() => {
+      setReportConfig({
+        isOpen: true,
+        targetType: 'room',
+        targetData: room,
+      });
+    }, 100);
+  }, [room]);
+
+  const handleSubmitReport = async (data: {
+    reason: ReportReason;
+    details: string;
+    blockUser: boolean;
+    leaveRoom: boolean;
+  }) => {
+    try {
+      if (reportConfig.targetType === 'message' && reportConfig.targetData) {
+        await messageService.reportMessage(room.id, reportConfig.targetData.id, data.reason, data.details);
+        if (data.blockUser) {
+          await blockService.blockUser(reportConfig.targetData.userId);
+          setBlockedUserIds(prev => new Set([...prev, reportConfig.targetData.userId]));
+        }
+      } else if (reportConfig.targetType === 'room') {
+        await roomService.reportRoom(room.id, data.reason, data.details);
+      }
+
+      if (data.leaveRoom) {
+        await roomService.leaveRoom(room.id);
+        navigation.popToTop();
+      }
+    } catch (error) {
+      console.error('Report submission failed:', error);
+      throw error; // Re-throw to show error in modal if needed, though ReportModal handles success state
+    }
+  };
+
+  /**
+   * Render message item with date separator
+   */
+  const renderMessage = ({ item, index }: { item: ChatMessage; index: number }) => {
+    const previousMessage = index > 0 ? messages[index - 1] : null;
+    const showDateSeparator = shouldShowDateSeparator(item, previousMessage);
+    const isOwn = item.userId === user?.id;
+
+    // Filter out messages from blocked users
+    if (blockedUserIds.has(item.userId) && item.type !== 'system') {
+      return null;
+    }
+
+    return (
+      <>
+        {showDateSeparator && <DateSeparator date={item.timestamp} />}
+        <MessageBubble
+          message={item}
+          isOwn={isOwn}
+          onReport={handleReportMessage}
+          onBlock={handleBlockUser}
+        />
+      </>
+    );
+  };
 
   if (isLoading) {
     return (
@@ -317,39 +561,30 @@ export default function ChatRoomScreen() {
   }
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity
-          style={styles.backButton}
-          onPress={() => navigation.goBack()}
-        >
-          <ArrowLeft size={24} color="#1f2937" />
-        </TouchableOpacity>
+    <View style={styles.container}>
+      {/* Header Container with Safe Area */}
+      <View style={styles.headerContainer}>
+        <View style={{ height: insets.top }} />
+        <ConnectionBanner state={connectionState} />
+        <View style={styles.header}>
+          <TouchableOpacity
+            style={styles.backButton}
+            onPress={() => navigation.goBack()}
+          >
+            <ArrowLeft size={24} color="#1f2937" />
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.headerInfo} onPress={handleRoomInfo}>
-          <View style={styles.roomEmoji}>
-            <Text style={styles.emojiText}>{room.emoji}</Text>
-          </View>
-          <View style={styles.headerText}>
-            <Text style={styles.roomTitle} numberOfLines={1}>{room.title}</Text>
-            <View style={styles.roomMeta}>
-              <Users size={12} color="#9ca3af" />
-              <Text style={styles.participantCount}>
-                {room.participantCount} participants
-              </Text>
-              {!isConnected && (
-                <View style={styles.offlineBadge}>
-                  <Text style={styles.offlineText}>Offline</Text>
-                </View>
-              )}
-            </View>
-          </View>
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.headerContent} onPress={handleRoomInfo}>
+            <Text style={styles.headerTitle} numberOfLines={1}>{room.title}</Text>
+            <Text style={styles.headerSubtitle}>
+              {room.participantCount} people • {room.distanceDisplay || 'Nearby'}
+            </Text>
+          </TouchableOpacity>
 
-        <TouchableOpacity style={styles.menuButton} onPress={handleRoomInfo}>
-          <Info size={22} color="#6b7280" />
-        </TouchableOpacity>
+          <TouchableOpacity style={styles.menuButton} onPress={() => setShowMenu(true)}>
+            <MoreVertical size={22} color="#6b7280" />
+          </TouchableOpacity>
+        </View>
       </View>
 
       {/* Messages */}
@@ -365,59 +600,136 @@ export default function ChatRoomScreen() {
           keyExtractor={(item) => item.id}
           contentContainerStyle={styles.messageList}
           showsVerticalScrollIndicator={false}
-          onContentSizeChange={() => flatListRef.current?.scrollToEnd()}
-          onLayout={() => flatListRef.current?.scrollToEnd()}
+          onScroll={handleScroll}
+          scrollEventThrottle={16}
+          onContentSizeChange={() => {
+            if (isAtBottomRef.current) {
+              flatListRef.current?.scrollToEnd({ animated: false });
+            } else {
+              setUnreadCount(prev => prev + 1);
+            }
+          }}
           ListEmptyComponent={
             <View style={styles.emptyState}>
-              <Text style={styles.emptyText}>No messages yet. Start the conversation!</Text>
+              <View style={styles.partyIconContainer}>
+                <Text style={styles.partyIcon}>🎉</Text>
+              </View>
+              <Text style={styles.emptyTitle}>No messages yet</Text>
+              <Text style={styles.emptySubtitle}>Say hi and break the ice!</Text>
+
+              <View style={styles.iceBreakersContainer}>
+                <Text style={styles.iceBreakersLabel}>Ice breakers:</Text>
+                <TouchableOpacity
+                  style={styles.iceBreakerButton}
+                  onPress={() => handleTextChange("Hey everyone! 👋")}
+                >
+                  <Text style={styles.iceBreakerText}>"Hey everyone! 👋"</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.iceBreakerButton}
+                  onPress={() => handleTextChange("What brings you here?")}
+                >
+                  <Text style={styles.iceBreakerText}>"What brings you here?"</Text>
+                </TouchableOpacity>
+              </View>
             </View>
           }
           ListFooterComponent={<TypingIndicator users={typingUsers} />}
         />
 
+        {/* Scroll to bottom button */}
+        <ScrollToBottomButton
+          visible={showScrollButton}
+          unreadCount={unreadCount}
+          onPress={scrollToBottom}
+        />
+
         {/* Input */}
-        <View style={styles.inputContainer}>
-          <TextInput
-            style={styles.input}
-            placeholder="Type a message..."
-            placeholderTextColor="#9ca3af"
-            value={inputText}
-            onChangeText={handleTextChange}
-            multiline
-            maxLength={1000}
-          />
+        <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
+          <TouchableOpacity style={styles.plusButton}>
+            <Plus size={24} color="#64748b" />
+          </TouchableOpacity>
+          <View style={styles.inputWrapper}>
+            <TextInput
+              style={styles.input}
+              placeholder="Type a message..."
+              placeholderTextColor="#94a3b8"
+              value={inputText}
+              onChangeText={handleTextChange}
+              multiline
+              maxLength={1000}
+            />
+          </View>
           <TouchableOpacity
-            style={[styles.sendButton, !inputText.trim() && styles.sendButtonDisabled]}
+            style={styles.sendButton}
             onPress={handleSend}
             disabled={!inputText.trim()}
           >
-            <Send size={20} color={inputText.trim() ? '#ffffff' : '#9ca3af'} />
+            <Send
+              size={22}
+              color={inputText.trim() ? '#3b82f6' : '#94a3b8'}
+              style={{ marginLeft: 2 }}
+            />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+
+      {/* Chat Room Menu */}
+      <ChatRoomMenu
+        isOpen={showMenu}
+        onClose={() => setShowMenu(false)}
+        onRoomInfo={handleRoomInfo}
+        onLeave={handleLeaveRoom}
+        onReport={handleReportRoom}
+        onMute={() => setIsMuted(!isMuted)}
+        isCreator={room.isCreator || false}
+        onCloseRoom={room.isCreator ? handleCloseRoom : undefined}
+      />
+
+      {/* Room Info Drawer */}
+      <RoomInfoDrawer
+        room={room}
+        isOpen={showRoomInfo}
+        onClose={() => setShowRoomInfo(false)}
+        isCreator={room.isCreator || false}
+        currentUserId={user?.id}
+        onCloseRoom={room.isCreator ? handleCloseRoom : undefined}
+      />
+
+      {/* Report Modal */}
+      <ReportModal
+        isOpen={reportConfig.isOpen}
+        onClose={() => setReportConfig(prev => ({ ...prev, isOpen: false }))}
+        onSubmit={handleSubmitReport}
+        targetType={reportConfig.targetType}
+        targetName={reportConfig.targetType === 'message' ? reportConfig.targetData?.userName : room.title}
+      />
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#ffffff',
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#ffffff',
+  },
+  headerContainer: {
+    backgroundColor: '#ffffff',
+    borderBottomWidth: 1,
+    borderBottomColor: '#f1f5f9',
+    zIndex: 10,
   },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 8,
-    paddingVertical: 12,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    paddingVertical: 10,
   },
   backButton: {
     width: 44,
@@ -425,52 +737,21 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerInfo: {
+  headerContent: {
     flex: 1,
-    flexDirection: 'row',
     alignItems: 'center',
-  },
-  roomEmoji: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: '#fff7ed',
     justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 10,
+    paddingHorizontal: 50, // To avoid overlap with buttons
   },
-  emojiText: {
-    fontSize: 20,
-  },
-  headerText: {
-    flex: 1,
-  },
-  roomTitle: {
-    fontSize: 16,
+  headerTitle: {
+    fontSize: 18,
     fontWeight: '600',
-    color: '#1f2937',
+    color: '#0f172a',
   },
-  roomMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+  headerSubtitle: {
+    fontSize: 13,
+    color: '#64748b',
     marginTop: 2,
-  },
-  participantCount: {
-    fontSize: 12,
-    color: '#9ca3af',
-  },
-  offlineBadge: {
-    backgroundColor: '#fef2f2',
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    marginLeft: 8,
-  },
-  offlineText: {
-    fontSize: 10,
-    color: '#ef4444',
-    fontWeight: '500',
   },
   menuButton: {
     width: 44,
@@ -484,161 +765,99 @@ const styles = StyleSheet.create({
   messageList: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-  },
-  messageBubbleContainer: {
-    flexDirection: 'row',
-    marginBottom: 12,
-    maxWidth: '85%',
-  },
-  messageBubbleContainerOwn: {
-    alignSelf: 'flex-end',
-    flexDirection: 'row-reverse',
-  },
-  avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#e5e7eb',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 8,
-  },
-  avatarText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6b7280',
-  },
-  messageContent: {
-    flex: 1,
-  },
-  messageHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 4,
-    gap: 8,
-  },
-  messageSender: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#374151',
-  },
-  messageTime: {
-    fontSize: 11,
-    color: '#9ca3af',
-  },
-  messageBubble: {
-    backgroundColor: '#ffffff',
-    borderRadius: 18,
-    borderTopLeftRadius: 4,
-    paddingHorizontal: 14,
-    paddingVertical: 10,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 1,
-  },
-  messageBubbleOwn: {
-    backgroundColor: '#f97316',
-    borderTopLeftRadius: 18,
-    borderTopRightRadius: 4,
-  },
-  messageText: {
-    fontSize: 15,
-    color: '#1f2937',
-    lineHeight: 20,
-  },
-  messageTextOwn: {
-    color: '#ffffff',
-  },
-  messageTimeOwn: {
-    fontSize: 10,
-    color: 'rgba(255, 255, 255, 0.7)',
-    alignSelf: 'flex-end',
-    marginTop: 4,
-  },
-  systemMessage: {
-    alignItems: 'center',
-    marginVertical: 12,
-  },
-  systemMessageText: {
-    fontSize: 12,
-    color: '#9ca3af',
-    backgroundColor: '#f3f4f6',
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
-  },
-  typingIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  typingDots: {
-    flexDirection: 'row',
-    gap: 4,
-    marginRight: 8,
-  },
-  typingDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#9ca3af',
-  },
-  typingDot1: {
-    opacity: 0.4,
-  },
-  typingDot2: {
-    opacity: 0.6,
-  },
-  typingDot3: {
-    opacity: 0.8,
-  },
-  typingText: {
-    fontSize: 12,
-    color: '#9ca3af',
-    fontStyle: 'italic',
+    flexGrow: 1,
   },
   emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 48,
+    paddingVertical: 60,
   },
-  emptyText: {
+  partyIconContainer: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: '#fff1f2',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+  },
+  partyIcon: {
+    fontSize: 32,
+  },
+  emptyTitle: {
+    fontSize: 20,
+    fontWeight: '600',
+    color: '#1e293b',
+    marginBottom: 8,
+  },
+  emptySubtitle: {
+    fontSize: 16,
+    color: '#64748b',
+    marginBottom: 32,
+  },
+  iceBreakersContainer: {
+    alignItems: 'center',
+    gap: 12,
+    width: '100%',
+  },
+  iceBreakersLabel: {
     fontSize: 14,
-    color: '#9ca3af',
+    color: '#94a3b8',
+    marginBottom: 4,
+  },
+  iceBreakerButton: {
+    backgroundColor: '#f8fafc',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 16,
+    width: 'auto',
+    minWidth: 200,
+    alignItems: 'center',
+  },
+  iceBreakerText: {
+    fontSize: 15,
+    color: '#475569',
+    fontWeight: '500',
   },
   inputContainer: {
     flexDirection: 'row',
-    alignItems: 'flex-end',
+    alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 8,
+    paddingVertical: 12,
     backgroundColor: '#ffffff',
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: '#f1f5f9',
     gap: 8,
   },
-  input: {
-    flex: 1,
-    backgroundColor: '#f3f4f6',
+  plusButton: {
+    width: 40,
+    height: 40,
     borderRadius: 20,
+    backgroundColor: '#f1f5f9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  inputWrapper: {
+    flex: 1,
+    backgroundColor: '#f1f5f9',
+    borderRadius: 16,
     paddingHorizontal: 16,
-    paddingVertical: 10,
-    fontSize: 15,
-    color: '#1f2937',
-    maxHeight: 100,
+    paddingVertical: 4,
+  },
+  input: {
+    fontSize: 16,
+    color: '#0f172a',
+    maxHeight: 120,
+    paddingVertical: 8,
   },
   sendButton: {
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#f97316',
+    backgroundColor: '#f1f5f9',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  sendButtonDisabled: {
-    backgroundColor: '#e5e7eb',
   },
 });
 

@@ -24,6 +24,10 @@ import {
   Moon,
   Trash2,
   ChevronRight,
+  Shield,
+  UserX,
+  FileText,
+  HelpCircle,
 } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
 import { storage, STORAGE_KEYS } from '../services';
@@ -225,6 +229,13 @@ export default function SettingsScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Privacy</Text>
           <View style={styles.sectionCard}>
+            <SettingLink
+              icon={<Shield size={20} color="#6b7280" />}
+              label="Privacy & Security"
+              description="Visibility, location, blocked users"
+              onPress={() => navigation.navigate('PrivacySettings' as never)}
+            />
+            <View style={styles.divider} />
             <SettingToggle
               icon={<MapPin size={20} color="#6b7280" />}
               label="Location Services"

@@ -292,7 +292,12 @@ class RoomService {
    * Report a room
    */
   async reportRoom(roomId: string, reason: string, details?: string): Promise<void> {
-    await api.post(`/rooms/${roomId}/report`, { reason, details });
+    await api.post('/reports', {
+      targetType: 'ROOM',
+      targetId: roomId,
+      reason: reason.toUpperCase().replace('-', '_'),
+      details,
+    });
   }
 }
 

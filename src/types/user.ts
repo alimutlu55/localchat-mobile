@@ -10,6 +10,7 @@ export interface User {
   email?: string;
   displayName: string;
   profilePhotoUrl?: string;
+  bio?: string;
   isAnonymous: boolean;
   createdAt: Date;
   lastActiveAt?: Date;
@@ -23,6 +24,7 @@ export interface UserDTO {
   email?: string;
   displayName: string;
   profilePhotoUrl?: string;
+  bio?: string;
   isAnonymous: boolean;
   createdAt: string;
   lastActiveAt?: string;
@@ -69,8 +71,7 @@ export interface AnonymousLoginRequest {
 }
 
 /**
- * Auth Response from backend (inner data of ApiResponse)
- * Backend returns: { data: AuthResponse } via ApiResponse wrapper
+ * Auth Response from backend
  */
 export interface AuthResponse {
   accessToken: string;
@@ -86,4 +87,6 @@ export interface AuthResponse {
 export interface ProfileUpdateRequest {
   displayName?: string;
   profilePhotoUrl?: string;
+  bio?: string;
 }
+

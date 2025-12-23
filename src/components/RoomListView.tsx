@@ -5,7 +5,7 @@
  * Matches web RoomListView.tsx design.
  */
 
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, memo } from 'react';
 import {
     View,
     Text,
@@ -278,8 +278,9 @@ function EmptyState({
 
 /**
  * Main RoomListView Component
+ * Wrapped in React.memo for performance - prevents re-renders when parent state changes
  */
-export function RoomListView({
+export const RoomListView = memo(function RoomListView({
     rooms,
     joinedRooms = [],
     isLoading = false,
@@ -492,7 +493,7 @@ export function RoomListView({
             )}
         </View>
     );
-}
+});
 
 const styles = StyleSheet.create({
     container: {

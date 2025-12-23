@@ -14,8 +14,7 @@ export { default as ForgotPasswordScreen } from './auth/ForgotPasswordScreen';
 export { default as OnboardingScreen } from './auth/OnboardingScreen';
 
 // Main screens
-export { default as MapScreen } from './main/MapScreen';
-export { default as ListScreen } from './main/ListScreen';
+export { default as DiscoveryScreen } from './main/DiscoveryScreen';
 export { default as RoomsScreen } from './main/RoomsScreen';
 export { default as ProfileScreen } from './main/ProfileScreen';
 

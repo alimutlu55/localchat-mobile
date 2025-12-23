@@ -14,6 +14,7 @@ import {
   FlatList,
   ActivityIndicator,
   Alert,
+  Share,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -30,11 +31,15 @@ import {
   Flag,
   UserX,
   Shield,
+  Share2,
+  MessageCircle,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/types';
-import { roomService, ParticipantDTO } from '../services';
-import { Room } from '../types';
+import { roomService, ParticipantDTO, messageService } from '../services';
+import { Room, ChatMessage } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { BannedUsersModal } from '../components/room/BannedUsersModal';
+import { ReportModal, ReportReason } from '../components/chat/ReportModal';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'RoomDetails'>;
 type RoomDetailsRouteProp = RouteProp<RootStackParamList, 'RoomDetails'>;
@@ -111,9 +116,23 @@ export default function RoomDetailsScreen() {
   const { user } = useAuth();
 
   const [participants, setParticipants] = useState<ParticipantDTO[]>([]);
+  const [recentMessages, setRecentMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
+  const [isJoining, setIsJoining] = useState(false);
+  const [showBannedUsersModal, setShowBannedUsersModal] = useState(false);
+
+  // Report State
+  const [reportConfig, setReportConfig] = useState<{
+    isOpen: boolean;
+    targetType: 'message' | 'room' | 'user';
+    targetData?: any;
+  }>({
+    isOpen: false,
+    targetType: 'room',
+  });
 
   const isCreator = room.isCreator || false;
   const hasJoined = room.hasJoined || false;
@@ -135,6 +154,36 @@ export default function RoomDetailsScreen() {
 
     loadParticipants();
   }, [room.id]);
+
+  /**
+   * Load recent messages - only if user has joined
+   */
+  useEffect(() => {
+    const loadRecentMessages = async () => {
+      console.log('[RoomDetailsScreen] loadRecentMessages called, hasJoined:', hasJoined, 'roomId:', room.id);
+
+      // Only load messages if user has joined the room
+      if (!hasJoined) {
+        console.log('[RoomDetailsScreen] Skipping message fetch - user has not joined');
+        setRecentMessages([]);
+        return;
+      }
+
+      console.log('[RoomDetailsScreen] Fetching messages for joined user');
+      setIsLoadingMessages(true);
+      try {
+        const { messages } = await messageService.getHistory(room.id, { limit: 3 });
+        setRecentMessages(messages);
+      } catch (error) {
+        console.error('Failed to load recent messages:', error);
+        setRecentMessages([]);
+      } finally {
+        setIsLoadingMessages(false);
+      }
+    };
+
+    loadRecentMessages();
+  }, [room.id, hasJoined]);
 
   /**
    * Handle leave room
@@ -247,24 +296,67 @@ export default function RoomDetailsScreen() {
    * Handle report room
    */
   const handleReport = () => {
-    Alert.alert(
-      'Report Room',
-      'Why are you reporting this room?',
-      [
-        { text: 'Spam', onPress: () => submitReport('spam') },
-        { text: 'Harassment', onPress: () => submitReport('harassment') },
-        { text: 'Inappropriate', onPress: () => submitReport('inappropriate') },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
+    setReportConfig({
+      isOpen: true,
+      targetType: 'room',
+      targetData: room,
+    });
   };
 
-  const submitReport = async (reason: string) => {
+  const handleSubmitReport = async (data: {
+    reason: ReportReason;
+    details: string;
+    blockUser: boolean;
+    leaveRoom: boolean;
+  }) => {
     try {
-      await roomService.reportRoom(room.id, reason);
-      Alert.alert('Thank you', 'Your report has been submitted.');
+      if (reportConfig.targetType === 'room') {
+        await roomService.reportRoom(room.id, data.reason, data.details);
+      }
+
+      if (data.leaveRoom) {
+        await roomService.leaveRoom(room.id);
+        navigation.popToTop();
+      }
     } catch (error) {
-      Alert.alert('Error', 'Failed to submit report');
+      console.error('Report submission failed:', error);
+      throw error;
+    }
+  };
+
+  /**
+   * Handle join room
+   */
+  const handleJoin = async () => {
+    setIsJoining(true);
+    try {
+      // We need user location to join (privacy randomization happens in service)
+      // Since map already has it, we might want to pass it or get it again
+      // For now, let's assume we can use a default or get it if available
+      // In a real app, we'd probably have a LocationContext
+      await roomService.joinRoom(room.id, room.latitude || 0, room.longitude || 0);
+      Alert.alert('Success', 'Joined room successfully!', [
+        { text: 'OK', onPress: () => navigation.navigate('ChatRoom', { room: { ...room, hasJoined: true } }) }
+      ]);
+    } catch (error) {
+      console.error('Join error:', error);
+      Alert.alert('Error', 'Failed to join room. Please try again.');
+    } finally {
+      setIsJoining(false);
+    }
+  };
+
+  /**
+   * Handle share room
+   */
+  const handleShare = async () => {
+    try {
+      await Share.share({
+        message: `Join "${room.title}" on LocalChat!\nhttps://localchat.app/room/${room.id}`,
+        title: room.title,
+      });
+    } catch (error) {
+      console.log('Share error:', error);
     }
   };
 
@@ -311,6 +403,13 @@ export default function RoomDetailsScreen() {
             <Text style={styles.roomDescription}>{room.description}</Text>
           )}
 
+          {room.isHighActivity && (
+            <View style={styles.highActivityBadge}>
+              <View style={styles.pulseDot} />
+              <Text style={styles.highActivityText}>High Activity</Text>
+            </View>
+          )}
+
           <View style={styles.roomStats}>
             <View style={styles.statItem}>
               <Users size={16} color="#6b7280" />
@@ -330,6 +429,38 @@ export default function RoomDetailsScreen() {
             )}
           </View>
         </View>
+
+        {/* Recent Messages Section - Only show when user has joined */}
+        {hasJoined && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>Recent Messages</Text>
+            </View>
+            {isLoadingMessages ? (
+              <ActivityIndicator size="small" color="#f97316" style={styles.loader} />
+            ) : recentMessages.length > 0 ? (
+              <View style={styles.recentMessagesList}>
+                {recentMessages.map((msg) => (
+                  <View key={msg.id} style={styles.recentMessageItem}>
+                    <View style={styles.recentMessageHeader}>
+                      <Text style={styles.recentMessageUser}>{msg.userName}</Text>
+                      <Text style={styles.recentMessageTime}>
+                        {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                      </Text>
+                    </View>
+                    <Text style={styles.recentMessageText} numberOfLines={2}>
+                      {msg.content}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <View style={styles.emptyRecentMessages}>
+                <Text style={styles.emptyRecentMessagesText}>No messages yet. Be the first!</Text>
+              </View>
+            )}
+          </View>
+        )}
 
         {/* Participants Section */}
         <View style={styles.section}>
@@ -363,21 +494,38 @@ export default function RoomDetailsScreen() {
           <Text style={styles.sectionTitle}>Actions</Text>
 
           {/* Creator Actions */}
-          {isCreator && room.status !== 'closed' && (
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={handleCloseRoom}
-              disabled={isClosing}
-            >
-              <View style={[styles.actionIcon, styles.actionIconWarning]}>
-                <Lock size={20} color="#f59e0b" />
-              </View>
-              <View style={styles.actionContent}>
-                <Text style={styles.actionText}>Close Room</Text>
-                <Text style={styles.actionSubtext}>Make room read-only</Text>
-              </View>
-              {isClosing && <ActivityIndicator size="small" color="#f59e0b" />}
-            </TouchableOpacity>
+          {isCreator && (
+            <>
+              {room.status !== 'closed' && (
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={handleCloseRoom}
+                  disabled={isClosing}
+                >
+                  <View style={[styles.actionIcon, styles.actionIconWarning]}>
+                    <Lock size={20} color="#f59e0b" />
+                  </View>
+                  <View style={styles.actionContent}>
+                    <Text style={styles.actionText}>Close Room</Text>
+                    <Text style={styles.actionSubtext}>Make room read-only</Text>
+                  </View>
+                  {isClosing && <ActivityIndicator size="small" color="#f59e0b" />}
+                </TouchableOpacity>
+              )}
+
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => setShowBannedUsersModal(true)}
+              >
+                <View style={[styles.actionIcon, { backgroundColor: '#fee2e2' }]}>
+                  <Ban size={20} color="#ef4444" />
+                </View>
+                <View style={styles.actionContent}>
+                  <Text style={styles.actionText}>Manage Bans</Text>
+                  <Text style={styles.actionSubtext}>View and unban users</Text>
+                </View>
+              </TouchableOpacity>
+            </>
           )}
 
           {/* Leave Room */}
@@ -398,6 +546,17 @@ export default function RoomDetailsScreen() {
             </TouchableOpacity>
           )}
 
+          {/* Share Room */}
+          <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
+            <View style={[styles.actionIcon, { backgroundColor: '#eff6ff' }]}>
+              <Share2 size={20} color="#3b82f6" />
+            </View>
+            <View style={styles.actionContent}>
+              <Text style={styles.actionText}>Share Room</Text>
+              <Text style={styles.actionSubtext}>Invite friends to this chat</Text>
+            </View>
+          </TouchableOpacity>
+
           {/* Report Room */}
           <TouchableOpacity style={styles.actionButton} onPress={handleReport}>
             <View style={styles.actionIcon}>
@@ -409,7 +568,55 @@ export default function RoomDetailsScreen() {
             </View>
           </TouchableOpacity>
         </View>
+
+        {/* Join Button (Sticky at bottom if not joined) */}
+        {!hasJoined && (
+          <View style={styles.footerAction}>
+            <TouchableOpacity
+              style={styles.joinButton}
+              onPress={handleJoin}
+              disabled={isJoining}
+            >
+              {isJoining ? (
+                <ActivityIndicator size="small" color="#ffffff" />
+              ) : (
+                <>
+                  <Text style={styles.joinButtonText}>Join Room</Text>
+                </>
+              )}
+            </TouchableOpacity>
+          </View>
+        )}
+
+        {/* Enter Room Button (for users who have already joined) */}
+        {hasJoined && (
+          <View style={styles.footerAction}>
+            <TouchableOpacity
+              style={styles.enterButton}
+              onPress={() => navigation.navigate('ChatRoom', { room })}
+            >
+              <View style={styles.enterButtonContent}>
+                <MessageCircle size={20} color="#ffffff" />
+                <Text style={styles.enterButtonText}>Enter Room</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
+        )}
       </ScrollView>
+
+      <BannedUsersModal
+        roomId={room.id}
+        isOpen={showBannedUsersModal}
+        onClose={() => setShowBannedUsersModal(false)}
+      />
+
+      <ReportModal
+        isOpen={reportConfig.isOpen}
+        onClose={() => setReportConfig(prev => ({ ...prev, isOpen: false }))}
+        onSubmit={handleSubmitReport}
+        targetType={reportConfig.targetType}
+        targetName={room.title}
+      />
     </SafeAreaView>
   );
 }
@@ -622,6 +829,110 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#9ca3af',
     marginTop: 2,
+  },
+  recentMessagesList: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 12,
+  },
+  recentMessageItem: {
+    marginBottom: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#f3f4f6',
+    paddingBottom: 8,
+  },
+  recentMessageHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 4,
+  },
+  recentMessageUser: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  recentMessageTime: {
+    fontSize: 11,
+    color: '#9ca3af',
+  },
+  recentMessageText: {
+    fontSize: 14,
+    color: '#4b5563',
+    lineHeight: 18,
+  },
+  emptyRecentMessages: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+  },
+  emptyRecentMessagesText: {
+    fontSize: 14,
+    color: '#9ca3af',
+  },
+  footerAction: {
+    marginTop: 8,
+    marginBottom: 24,
+  },
+  joinButton: {
+    backgroundColor: '#f97316',
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    shadowColor: '#f97316',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  joinButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  enterButton: {
+    backgroundColor: '#22c55e',
+    paddingVertical: 16,
+    borderRadius: 16,
+    alignItems: 'center',
+    shadowColor: '#22c55e',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  enterButtonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  enterButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  highActivityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#f0fdf4',
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 12,
+    marginBottom: 16,
+    borderWidth: 1,
+    borderColor: '#dcfce7',
+  },
+  pulseDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#22c55e',
+    marginRight: 6,
+  },
+  highActivityText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#166534',
   },
 });
 

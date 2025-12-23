@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, memo } from 'react';
 import {
     Text,
     StyleSheet,
@@ -13,7 +13,7 @@ interface MapClusterProps {
     count: number;
 }
 
-export function MapCluster({ count }: MapClusterProps) {
+export const MapCluster = memo(({ count }: MapClusterProps) => {
     const sizeCategory = getClusterSizeCategory(count);
 
     // Animations
@@ -23,7 +23,7 @@ export function MapCluster({ count }: MapClusterProps) {
 
     useEffect(() => {
         // Initial entry animation
-        Animated.parallel([
+        const entryAnim = Animated.parallel([
             Animated.spring(scale, {
                 toValue: 1,
                 tension: 50,
@@ -35,10 +35,12 @@ export function MapCluster({ count }: MapClusterProps) {
                 duration: 300,
                 useNativeDriver: true,
             }),
-        ]).start();
+        ]);
+
+        entryAnim.start();
 
         // Subtle ripple/pulse animation
-        Animated.loop(
+        const loopAnim = Animated.loop(
             Animated.sequence([
                 Animated.timing(pulseAnim, {
                     toValue: 1.15,
@@ -51,7 +53,14 @@ export function MapCluster({ count }: MapClusterProps) {
                     useNativeDriver: true,
                 }),
             ])
-        ).start();
+        );
+
+        loopAnim.start();
+
+        return () => {
+            entryAnim.stop();
+            loopAnim.stop();
+        };
     }, []);
 
     const getColors = (): [string, string] => {
@@ -148,7 +157,7 @@ export function MapCluster({ count }: MapClusterProps) {
             </Animated.View>
         </View>
     );
-}
+});
 
 const styles = StyleSheet.create({
     container: {

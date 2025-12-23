@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, memo } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
 import { MessageCircle, Lock, Clock } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -9,10 +9,12 @@ interface RoomPinProps {
     isSelected: boolean;
 }
 
-export const RoomPin = ({ room, isSelected }: RoomPinProps) => {
+export const RoomPin = memo(({ room, isSelected }: RoomPinProps) => {
     const scaleAnim = useRef(new Animated.Value(isSelected ? 1.1 : 1)).current;
     const pulseAnim = useRef(new Animated.Value(1)).current;
     const clockPulseAnim = useRef(new Animated.Value(1)).current;
+    const loopAnimRef = useRef<Animated.CompositeAnimation | null>(null);
+    const clockLoopAnimRef = useRef<Animated.CompositeAnimation | null>(null);
 
     useEffect(() => {
         Animated.spring(scaleAnim, {
@@ -25,7 +27,7 @@ export const RoomPin = ({ room, isSelected }: RoomPinProps) => {
 
     useEffect(() => {
         if (room.isHighActivity) {
-            Animated.loop(
+            loopAnimRef.current = Animated.loop(
                 Animated.sequence([
                     Animated.timing(pulseAnim, {
                         toValue: 1.25,
@@ -38,15 +40,26 @@ export const RoomPin = ({ room, isSelected }: RoomPinProps) => {
                         useNativeDriver: true,
                     }),
                 ])
-            ).start();
+            );
+            loopAnimRef.current.start();
         } else {
+            if (loopAnimRef.current) {
+                loopAnimRef.current.stop();
+                loopAnimRef.current = null;
+            }
             pulseAnim.setValue(1);
         }
+
+        return () => {
+            if (loopAnimRef.current) {
+                loopAnimRef.current.stop();
+            }
+        };
     }, [room.isHighActivity]);
 
     useEffect(() => {
         if (room.isExpiringSoon) {
-            Animated.loop(
+            clockLoopAnimRef.current = Animated.loop(
                 Animated.sequence([
                     Animated.timing(clockPulseAnim, {
                         toValue: 1.1,
@@ -59,10 +72,21 @@ export const RoomPin = ({ room, isSelected }: RoomPinProps) => {
                         useNativeDriver: true,
                     }),
                 ])
-            ).start();
+            );
+            clockLoopAnimRef.current.start();
         } else {
+            if (clockLoopAnimRef.current) {
+                clockLoopAnimRef.current.stop();
+                clockLoopAnimRef.current = null;
+            }
             clockPulseAnim.setValue(1);
         }
+
+        return () => {
+            if (clockLoopAnimRef.current) {
+                clockLoopAnimRef.current.stop();
+            }
+        };
     }, [room.isExpiringSoon]);
 
     const getPinSize = () => {
@@ -156,7 +180,7 @@ export const RoomPin = ({ room, isSelected }: RoomPinProps) => {
             />
         </Animated.View>
     );
-};
+});
 
 const styles = StyleSheet.create({
     container: {

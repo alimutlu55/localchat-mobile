@@ -13,18 +13,15 @@ import { Room } from '../types';
  */
 export type RootStackParamList = {
   Splash: undefined;
-  Welcome: undefined;
-  Onboarding: undefined;
-  Login: undefined;
   Auth: NavigatorScreenParams<AuthStackParamList>;
-  Main: undefined;
-  List: undefined;
+  Discovery: undefined;
   ChatRoom: { room: Room };
   RoomDetails: { room: Room };
   CreateRoom: undefined;
   Settings: undefined;
   Profile: undefined;
   EditProfile: undefined;
+  Onboarding: undefined;
 };
 
 /**
@@ -38,17 +35,9 @@ export type AuthStackParamList = {
   ForgotPassword: undefined;
 };
 
-/**
- * Main Tab Navigator Params
- */
-export type MainTabParamList = {
-  MapTab: undefined;
-  RoomsTab: undefined;
-  ProfileTab: undefined;
-};
 
 /**
- * Type helper for useNavigation hook
+    interface RootParamList extends RootStackParamList { }
  */
 declare global {
   namespace ReactNavigation {

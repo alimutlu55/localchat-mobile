@@ -16,6 +16,9 @@ import {
     Dimensions,
     Alert,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import { RootStackParamList } from '../navigation/types';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
     User,
@@ -127,6 +130,7 @@ function Section({
  * Main ProfileDrawer Component
  */
 export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps) {
+    const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const insets = useSafeAreaInsets();
     const { user } = useAuth();
     const [currentPage, setCurrentPage] = useState<SubPage>('main');
@@ -228,7 +232,13 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
                 <Text style={styles.profileEmail}>
                     {user?.email || 'Anonymous User'}
                 </Text>
-                <TouchableOpacity style={styles.editProfileButton}>
+                <TouchableOpacity
+                    style={styles.editProfileButton}
+                    onPress={() => {
+                        onClose();
+                        navigation.navigate('EditProfile');
+                    }}
+                >
                     <Text style={styles.editProfileText}>Edit Profile</Text>
                 </TouchableOpacity>
             </View>

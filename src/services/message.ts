@@ -109,8 +109,8 @@ class MessageService {
    * Get a single message by ID
    */
   async getMessage(roomId: string, messageId: string): Promise<ChatMessage> {
-    const dto = await api.get<MessageDTO>(`/rooms/${roomId}/messages/${messageId}`);
-    return transformMessage(dto);
+    const response = await api.get<{ data: MessageDTO }>(`/rooms/${roomId}/messages/${messageId}`);
+    return transformMessage(response.data);
   }
 
   /**
@@ -122,8 +122,10 @@ class MessageService {
     reason: string,
     details?: string
   ): Promise<void> {
-    await api.post(`/rooms/${roomId}/messages/${messageId}/report`, {
-      reason,
+    await api.post('/reports', {
+      targetType: 'MESSAGE',
+      targetId: messageId,
+      reason: reason.toUpperCase().replace('-', '_'),
       details,
     });
   }

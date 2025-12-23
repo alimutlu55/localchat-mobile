@@ -40,7 +40,7 @@ interface AuthContextActions {
   register: (email: string, password: string, displayName: string) => Promise<void>;
   loginAnonymous: (displayName: string) => Promise<void>;
   logout: () => Promise<void>;
-  updateProfile: (updates: { displayName?: string; profilePhotoUrl?: string }) => Promise<void>;
+  updateProfile: (updates: { displayName?: string; profilePhotoUrl?: string; bio?: string }) => Promise<void>;
   clearError: () => void;
 }
 
@@ -202,7 +202,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   /**
    * Update user profile
    */
-  const updateProfile = useCallback(async (updates: { displayName?: string; profilePhotoUrl?: string }) => {
+  const updateProfile = useCallback(async (updates: { displayName?: string; profilePhotoUrl?: string; bio?: string }) => {
     try {
       const updatedUser = await authService.updateProfile(updates);
       setUser(updatedUser);

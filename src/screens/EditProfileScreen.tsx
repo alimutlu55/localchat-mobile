@@ -1,7 +1,10 @@
 /**
  * Edit Profile Screen
  *
- * User profile editing form.
+ * User profile editing form with:
+ * - Avatar picker (DiceBear)
+ * - Display name editing
+ * - Bio field
  */
 
 import React, { useState } from 'react';
@@ -20,23 +23,45 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { ArrowLeft, Camera, User, Mail, Shield } from 'lucide-react-native';
+import { ArrowLeft, Camera, User, Mail, Shield, FileText } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
+import { AvatarPicker, UpgradeBenefitsModal } from '../components/profile';
+
+const MAX_DISPLAY_NAME_LENGTH = 30;
+const MAX_BIO_LENGTH = 150;
 
 export default function EditProfileScreen() {
   const navigation = useNavigation();
   const { user, updateProfile } = useAuth();
 
   const [displayName, setDisplayName] = useState(user?.displayName || '');
+  const [bio, setBio] = useState(user?.bio || '');
+  const [avatarUrl, setAvatarUrl] = useState(user?.profilePhotoUrl || '');
   const [isLoading, setIsLoading] = useState(false);
-  const [hasChanges, setHasChanges] = useState(false);
+  const [showAvatarPicker, setShowAvatarPicker] = useState(false);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+
+  const hasChanges =
+    displayName !== (user?.displayName || '') ||
+    bio !== (user?.bio || '') ||
+    avatarUrl !== (user?.profilePhotoUrl || '');
 
   /**
    * Handle display name change
    */
   const handleDisplayNameChange = (text: string) => {
-    setDisplayName(text);
-    setHasChanges(text !== user?.displayName);
+    if (text.length <= MAX_DISPLAY_NAME_LENGTH) {
+      setDisplayName(text);
+    }
+  };
+
+  /**
+   * Handle bio change
+   */
+  const handleBioChange = (text: string) => {
+    if (text.length <= MAX_BIO_LENGTH) {
+      setBio(text);
+    }
   };
 
   /**
@@ -56,7 +81,11 @@ export default function EditProfileScreen() {
     setIsLoading(true);
 
     try {
-      await updateProfile({ displayName: displayName.trim() });
+      await updateProfile({
+        displayName: displayName.trim(),
+        bio: bio.trim(),
+        profilePhotoUrl: avatarUrl,
+      });
       Alert.alert('Success', 'Profile updated successfully.');
       navigation.goBack();
     } catch (error) {
@@ -67,18 +96,19 @@ export default function EditProfileScreen() {
   };
 
   /**
-   * Handle avatar change
+   * Handle avatar selection
    */
-  const handleAvatarChange = () => {
-    Alert.alert(
-      'Change Photo',
-      'Choose a source',
-      [
-        { text: 'Take Photo', onPress: () => console.log('Camera') },
-        { text: 'Choose from Library', onPress: () => console.log('Library') },
-        { text: 'Cancel', style: 'cancel' },
-      ]
-    );
+  const handleAvatarSelect = (url: string) => {
+    setAvatarUrl(url);
+  };
+
+  /**
+   * Handle upgrade
+   */
+  const handleUpgrade = () => {
+    setShowUpgradeModal(false);
+    // Navigate to registration or upgrade flow
+    Alert.alert('Coming Soon', 'Account upgrade feature coming soon!');
   };
 
   return (
@@ -117,10 +147,10 @@ export default function EditProfileScreen() {
         >
           {/* Avatar Section */}
           <View style={styles.avatarSection}>
-            <TouchableOpacity style={styles.avatarContainer} onPress={handleAvatarChange}>
+            <TouchableOpacity style={styles.avatarContainer} onPress={() => setShowAvatarPicker(true)}>
               <View style={styles.avatar}>
-                {user?.profilePhotoUrl ? (
-                  <Image source={{ uri: user.profilePhotoUrl }} style={styles.avatarImage} />
+                {avatarUrl ? (
+                  <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
                 ) : (
                   <Text style={styles.avatarText}>
                     {displayName.charAt(0).toUpperCase() || 'U'}
@@ -131,14 +161,17 @@ export default function EditProfileScreen() {
                 <Camera size={14} color="#ffffff" />
               </View>
             </TouchableOpacity>
-            <Text style={styles.avatarHint}>Tap to change photo</Text>
+            <Text style={styles.avatarHint}>Tap to change avatar</Text>
           </View>
 
           {/* Form Fields */}
           <View style={styles.form}>
             {/* Display Name */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Display Name</Text>
+              <View style={styles.labelRow}>
+                <Text style={styles.label}>Display Name</Text>
+                <Text style={styles.charCount}>{displayName.length}/{MAX_DISPLAY_NAME_LENGTH}</Text>
+              </View>
               <View style={styles.inputContainer}>
                 <User size={20} color="#9ca3af" />
                 <TextInput
@@ -147,11 +180,36 @@ export default function EditProfileScreen() {
                   placeholderTextColor="#9ca3af"
                   value={displayName}
                   onChangeText={handleDisplayNameChange}
-                  maxLength={20}
+                  maxLength={MAX_DISPLAY_NAME_LENGTH}
                 />
               </View>
               <Text style={styles.inputHint}>
                 This is how others will see you in chat rooms.
+              </Text>
+            </View>
+
+            {/* Bio */}
+            <View style={styles.inputGroup}>
+              <View style={styles.labelRow}>
+                <Text style={styles.label}>Bio</Text>
+                <Text style={styles.charCount}>{bio.length}/{MAX_BIO_LENGTH}</Text>
+              </View>
+              <View style={[styles.inputContainer, styles.bioInputContainer]}>
+                <FileText size={20} color="#9ca3af" style={styles.bioIcon} />
+                <TextInput
+                  style={[styles.input, styles.bioInput]}
+                  placeholder="Tell others about yourself..."
+                  placeholderTextColor="#9ca3af"
+                  value={bio}
+                  onChangeText={handleBioChange}
+                  maxLength={MAX_BIO_LENGTH}
+                  multiline
+                  numberOfLines={3}
+                  textAlignVertical="top"
+                />
+              </View>
+              <Text style={styles.inputHint}>
+                Optional. Visible to others in rooms you join.
               </Text>
             </View>
 
@@ -190,7 +248,7 @@ export default function EditProfileScreen() {
             {user?.isAnonymous && (
               <TouchableOpacity
                 style={styles.upgradeButton}
-                onPress={() => Alert.alert('Coming Soon', 'Account upgrade feature coming soon!')}
+                onPress={() => setShowUpgradeModal(true)}
               >
                 <Text style={styles.upgradeButtonText}>Upgrade Account</Text>
               </TouchableOpacity>
@@ -198,6 +256,21 @@ export default function EditProfileScreen() {
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
+
+      {/* Avatar Picker Modal */}
+      <AvatarPicker
+        isOpen={showAvatarPicker}
+        onClose={() => setShowAvatarPicker(false)}
+        currentAvatarUrl={avatarUrl}
+        onSelect={handleAvatarSelect}
+      />
+
+      {/* Upgrade Benefits Modal */}
+      <UpgradeBenefitsModal
+        isOpen={showUpgradeModal}
+        onClose={() => setShowUpgradeModal(false)}
+        onUpgrade={handleUpgrade}
+      />
     </SafeAreaView>
   );
 }
@@ -304,10 +377,19 @@ const styles = StyleSheet.create({
   inputGroup: {
     gap: 8,
   },
+  labelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
   label: {
     fontSize: 14,
     fontWeight: '600',
     color: '#374151',
+  },
+  charCount: {
+    fontSize: 12,
+    color: '#9ca3af',
   },
   inputContainer: {
     flexDirection: 'row',
@@ -318,6 +400,17 @@ const styles = StyleSheet.create({
     borderColor: '#e5e7eb',
     paddingHorizontal: 14,
     gap: 12,
+  },
+  bioInputContainer: {
+    alignItems: 'flex-start',
+    paddingVertical: 10,
+  },
+  bioIcon: {
+    marginTop: 4,
+  },
+  bioInput: {
+    minHeight: 80,
+    paddingTop: 0,
   },
   input: {
     flex: 1,
