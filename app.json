@@ -51,6 +51,9 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Allow LocalChat to use your location to discover nearby rooms."
         }
+      ],
+      [
+        "@maplibre/maplibre-react-native"
       ]
     ]
   }

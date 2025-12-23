@@ -1,7 +1,8 @@
 /**
- * Map Screen
+ * Map Screen (MapLibre Version)
  *
  * Main discovery screen showing nearby rooms on a map.
+ * Uses MapLibre for consistent grayscale map rendering across iOS and Android.
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
@@ -13,27 +14,30 @@ import {
   ActivityIndicator,
   Alert,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import MapView, {
-  Marker,
-  MapMarker,
-  Region,
-  UrlTile,
-} from 'react-native-maps';
+import {
+  MapView,
+  Camera,
+  MarkerView,
+  ShapeSource,
+  CircleLayer,
+  type MapViewRef,
+  type CameraRef,
+} from '@maplibre/maplibre-react-native';
 import * as Location from 'expo-location';
-import { Plus, Minus, Navigation, RefreshCw, Menu, Map as MapIcon, List, Globe } from 'lucide-react-native';
+import { Plus, Minus, Navigation, Menu, Map as MapIcon, List, Globe } from 'lucide-react-native';
 import { RootStackParamList } from '../../navigation/types';
 import { Room } from '../../types';
 import { ROOM_CONFIG, MAP_CONFIG } from '../../constants';
-import StableMarker from './StableMarker';
 import { useAuth } from '../../context/AuthContext';
 import { useRooms, useSidebarRooms } from '../../context/RoomContext';
 import { Sidebar } from '../../components/Sidebar';
 import { ProfileDrawer } from '../../components/ProfileDrawer';
-
+import { RoomPin } from '../../components/RoomPin';
 import { MapCluster } from '../../components/MapCluster';
 import {
   createClusterIndex,
@@ -45,13 +49,17 @@ import {
   ClusterFeature
 } from '../../utils/mapClustering';
 
+// OpenFreeMap Positron style - completely free, no API key required
+const MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/positron';
+
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 const { width, height } = Dimensions.get('window');
 
 export default function MapScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const mapRef = useRef<MapView>(null);
+  const mapRef = useRef<MapViewRef>(null);
+  const cameraRef = useRef<CameraRef>(null);
 
   const { user, logout } = useAuth();
 
@@ -71,23 +79,20 @@ export default function MapScreen() {
   // Local UI state
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [mapReady, setMapReady] = useState(false);
   const [userLocation, setUserLocation] = useState<{
     latitude: number;
     longitude: number;
   } | null>(null);
-  const [region, setRegion] = useState<Region>({
-    ...MAP_CONFIG.DEFAULT_CENTER,
-    latitudeDelta: 0.05,
-    longitudeDelta: 0.05,
-  });
-  const [currentZoom, setCurrentZoom] = useState(13); // Track zoom level for UI
+  const [currentZoom, setCurrentZoom] = useState(13);
+  const [bounds, setBounds] = useState<[number, number, number, number]>([-180, -85, 180, 85]);
+  const [centerCoord, setCenterCoord] = useState<[number, number]>([
+    MAP_CONFIG.DEFAULT_CENTER.longitude,
+    MAP_CONFIG.DEFAULT_CENTER.latitude,
+  ]);
 
-  // Map movement tracking - prevents Circle crash during zoom/pan
+  // Map movement tracking
   const [isMapMoving, setIsMapMoving] = useState(false);
-  const circleIdleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  // Debounce timer for smooth zooming - prevents crash from rapid updates
-  const regionDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Sidebar and profile drawer state
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -98,18 +103,47 @@ export default function MapScreen() {
 
   // Get clusters/features for current viewport
   const features = useMemo(() => {
-    // Convert region to westLng, southLat, eastLng, northLat
-    const westLng = region.longitude - region.longitudeDelta / 2;
-    const southLat = region.latitude - region.latitudeDelta / 2;
-    const eastLng = region.longitude + region.longitudeDelta / 2;
-    const northLat = region.latitude + region.latitudeDelta / 2;
+    return getClustersForBounds(clusterIndex, bounds, currentZoom);
+  }, [clusterIndex, bounds, currentZoom]);
 
-    return getClustersForBounds(
-      clusterIndex,
-      [westLng, southLat, eastLng, northLat],
-      currentZoom
-    );
-  }, [clusterIndex, region, currentZoom]);
+  // Create a single GeoJSON FeatureCollection for all room circles
+  const circlesGeoJSON = useMemo(() => {
+    if (!mapReady || isMapMoving || currentZoom < 10) {
+      return {
+        type: 'FeatureCollection' as const,
+        features: [],
+      };
+    }
+
+    const circleFeatures = features
+      .filter((f): f is MapFeature => !isCluster(f))
+      .filter(f => f.properties.room.latitude != null && f.properties.room.longitude != null)
+      .map(f => {
+        const room = f.properties.room;
+        const [lng, lat] = f.geometry.coordinates;
+        const radiusMeters = room.radius || 500;
+        const metersPerPixel = 156543.03392 * Math.cos(lat * Math.PI / 180) / Math.pow(2, currentZoom);
+        const circleRadiusPixels = Math.max(radiusMeters / metersPerPixel, 20);
+
+        return {
+          type: 'Feature' as const,
+          geometry: {
+            type: 'Point' as const,
+            coordinates: [lng, lat],
+          },
+          properties: {
+            id: room.id,
+            radius: circleRadiusPixels,
+            isExpiringSoon: room.isExpiringSoon || false,
+          },
+        };
+      });
+
+    return {
+      type: 'FeatureCollection' as const,
+      features: circleFeatures,
+    };
+  }, [features, currentZoom, isMapMoving, mapReady]);
 
   /**
    * Fetch nearby rooms using context
@@ -151,10 +185,7 @@ export default function MapScreen() {
         };
 
         setUserLocation(coords);
-        setRegion(prev => ({
-          ...prev,
-          ...coords,
-        }));
+        setCenterCoord([coords.longitude, coords.latitude]);
 
         await fetchRooms(coords.latitude, coords.longitude);
 
@@ -189,8 +220,6 @@ export default function MapScreen() {
     };
   }, [fetchRooms]);
 
-  // Note: User's rooms are fetched automatically by RoomContext when user logs in
-
   /**
    * Refresh rooms
    */
@@ -200,144 +229,169 @@ export default function MapScreen() {
     await fetchRooms(userLocation.latitude, userLocation.longitude);
   };
 
-  // Calculate pixel radius for the simulated circle marker
-  // Based on the approximate meters per degree of longitude at a given latitude
-  const getRadiusInPixels = (meters: number, lat: number, lngDelta: number) => {
-    // 111320 is meters per degree at equator
-    const metersPerDegree = 111320 * Math.cos(lat * Math.PI / 180);
-    const pixelsPerDegree = Dimensions.get('window').width / lngDelta;
-    return (meters / metersPerDegree) * pixelsPerDegree;
-  };
+  /**
+   * Handle map ready
+   */
+  const handleMapReady = useCallback(() => {
+    setMapReady(true);
+  }, []);
 
   /**
-   * Center map on user location (matching web: fly to zoom 14)
+   * Handle region change
    */
-  const centerOnUser = () => {
-    if (userLocation && mapRef.current) {
-      mapRef.current.animateToRegion({
-        ...userLocation,
-        latitudeDelta: 0.01, // ~zoom 14
-        longitudeDelta: 0.01,
-      }, 1000);
+  const handleRegionDidChange = useCallback(async () => {
+    if (!mapRef.current) return;
+
+    try {
+      const zoom = await mapRef.current.getZoom();
+      const visibleBounds = await mapRef.current.getVisibleBounds();
+      const center = await mapRef.current.getCenter();
+
+      if (visibleBounds && visibleBounds.length === 2) {
+        const [ne, sw] = visibleBounds;
+        setBounds([sw[0], sw[1], ne[0], ne[1]]);
+      }
+
+      if (center) {
+        setCenterCoord(center as [number, number]);
+      }
+
+      setCurrentZoom(Math.round(zoom));
+      setIsMapMoving(false);
+    } catch (error) {
+      console.error('Error getting map state:', error);
     }
-  };
+  }, []);
 
   /**
-   * Zoom in - reduce delta by half
+   * Calculate adaptive map fly animation duration based on zoom difference
    */
-  const handleZoomIn = () => {
-    if (mapRef.current) {
-      const newDelta = Math.max(region.latitudeDelta / 2, 0.001);
-      mapRef.current.animateToRegion({
-        ...region,
-        latitudeDelta: newDelta,
-        longitudeDelta: newDelta,
-      }, 300);
-      setRegion(prev => ({ ...prev, latitudeDelta: newDelta, longitudeDelta: newDelta }));
-      setCurrentZoom(prev => Math.min(prev + 1, 18));
-    }
-  };
-
-  /**
-   * Zoom out - double delta
-   */
-  const handleZoomOut = () => {
-    if (mapRef.current) {
-      const newDelta = Math.min(region.latitudeDelta * 2, 100);
-      mapRef.current.animateToRegion({
-        ...region,
-        latitudeDelta: newDelta,
-        longitudeDelta: newDelta,
-      }, 300);
-      setRegion(prev => ({ ...prev, latitudeDelta: newDelta, longitudeDelta: newDelta }));
-      setCurrentZoom(prev => Math.max(prev - 1, 3));
-    }
-  };
-
-  /**
-   * Reset to world view (matching web: [20, 0] at zoom 3)
-   */
-  const handleResetView = () => {
-    if (mapRef.current) {
-      mapRef.current.animateToRegion({
-        latitude: 20,
-        longitude: 0,
-        latitudeDelta: 80, // ~zoom 3
-        longitudeDelta: 80,
-      }, 1500);
-      setRegion({ latitude: 20, longitude: 0, latitudeDelta: 80, longitudeDelta: 80 });
-      setCurrentZoom(3);
-    }
-  };
-
-  /**
-   * Calculate adaptive map fly animation duration based on zoom difference (matching web)
-   */
-  const calculateMapFlyDuration = (targetZoom: number) => {
+  const calculateMapFlyDuration = useCallback((targetZoom: number) => {
     const zoomDiff = Math.abs(targetZoom - currentZoom);
-    const duration = 0.5 + zoomDiff * 0.15; // MIN_DURATION + diff * DURATION_PER_LEVEL
-    return Math.min(duration, 1.5) * 1000; // Convert to ms, MAX_DURATION = 1.5s
-  };
+    // Smoother base (0.8s) and more gradual per-level (0.2s)
+    const duration = 0.8 + zoomDiff * 0.2;
+    // Capped at 2.5s for long distances (e.g. world to city)
+    return Math.min(duration, 2.5) * 1000;
+  }, [currentZoom]);
 
   /**
-   * Handle room marker press
+   * Center map on user location with smooth fly animation
+   */
+  const centerOnUser = useCallback(() => {
+    if (!mapReady || !userLocation || !cameraRef.current) return;
+
+    const targetZoom = 14;
+    const duration = calculateMapFlyDuration(targetZoom);
+
+    cameraRef.current.setCamera({
+      centerCoordinate: [userLocation.longitude, userLocation.latitude],
+      zoomLevel: targetZoom,
+      animationDuration: duration,
+      animationMode: 'flyTo',
+    });
+  }, [userLocation, mapReady, calculateMapFlyDuration]);
+
+  /**
+   * Zoom in with smooth animation
+   */
+  const handleZoomIn = useCallback(() => {
+    if (!mapReady || !cameraRef.current) return;
+
+    const newZoom = Math.min(currentZoom + 1, 18);
+    cameraRef.current.setCamera({
+      zoomLevel: newZoom,
+      animationDuration: 500,
+      animationMode: 'easeTo',
+    });
+  }, [currentZoom, mapReady]);
+
+  /**
+   * Zoom out with smooth animation
+   */
+  const handleZoomOut = useCallback(() => {
+    if (!mapReady || !cameraRef.current) return;
+
+    const newZoom = Math.max(currentZoom - 1, 1);
+    cameraRef.current.setCamera({
+      zoomLevel: newZoom,
+      animationDuration: 500,
+      animationMode: 'easeTo',
+    });
+  }, [currentZoom, mapReady]);
+
+  /**
+   * Reset to world view with smooth fly animation
+   */
+  const handleResetView = useCallback(() => {
+    if (!mapReady || !cameraRef.current) return;
+    const targetZoom = 1;
+    const duration = calculateMapFlyDuration(targetZoom);
+
+    cameraRef.current.setCamera({
+      centerCoordinate: [0, 20],
+      zoomLevel: targetZoom,
+      animationDuration: duration,
+      animationMode: 'flyTo',
+    });
+  }, [mapReady, calculateMapFlyDuration]);
+
+
+
+  /**
+   * Handle room marker press - smart behavior based on zoom difference
+   * If already close, open immediately. If far, zoom first then open.
    */
   const handleRoomPress = useCallback((room: Room) => {
     console.log('Huddle: [handleRoomPress] room id:', room.id);
-    if (!mapRef.current || !room.latitude || !room.longitude) {
+
+    if (mapReady && cameraRef.current && room.latitude != null && room.longitude != null) {
+      const targetZoom = Math.min(Math.max(currentZoom + 2, 14), 16);
+      const zoomDiff = Math.abs(targetZoom - currentZoom);
+
+      // If already at a good zoom level (within 1.5 levels), open immediately
+      if (zoomDiff <= 1.5) {
+        setSelectedRoom(room);
+        navigation.navigate('RoomDetails', { room });
+        return;
+      }
+
+      // Need significant zoom - fly to room first, then open details
+      const duration = calculateMapFlyDuration(targetZoom);
+
+      cameraRef.current.setCamera({
+        centerCoordinate: [room.longitude, room.latitude],
+        zoomLevel: targetZoom,
+        animationDuration: duration,
+        animationMode: 'flyTo',
+      });
+
+      // CRITICAL: We DO NOT call setCurrentZoom(targetZoom) here.
+      // This prevents the map from re-clustering/re-rendering markers during the Jump,
+      // which is what causes the native EXC_BAD_ACCESS on Fabric.
+      // currentZoom will be updated automatically in handleRegionDidChange when finished.
+
+      // Open details after zoom completes (with buffer)
+      setTimeout(() => {
+        setSelectedRoom(room);
+        navigation.navigate('RoomDetails', { room });
+      }, duration + 150);
+    } else {
       setSelectedRoom(room);
       navigation.navigate('RoomDetails', { room });
-      return;
     }
-
-    const currentZoomVal = currentZoom;
-    const targetZoom = Math.min(Math.max(currentZoomVal + 2, 14), 16);
-    const zoomDiff = Math.abs(targetZoom - currentZoomVal);
-
-    // If already at a good zoom level (within 1.5 levels), open immediately (matching web)
-    if (zoomDiff <= 1.5) {
-      setSelectedRoom(room);
-      navigation.navigate('RoomDetails', { room });
-      return;
-    }
-
-    // Otherwise zoom in first
-    const duration = calculateMapFlyDuration(targetZoom);
-
-    mapRef.current.animateToRegion({
-      latitude: room.latitude,
-      longitude: room.longitude,
-      latitudeDelta: 360 / Math.pow(2, targetZoom),
-      longitudeDelta: 360 / Math.pow(2, targetZoom),
-    }, duration);
-
-    // Update state to match animation target
-    setRegion({
-      latitude: room.latitude,
-      longitude: room.longitude,
-      latitudeDelta: 360 / Math.pow(2, targetZoom),
-      longitudeDelta: 360 / Math.pow(2, targetZoom),
-    });
-    setCurrentZoom(targetZoom);
-
-    // Delay navigation to allow animation (buffer of 150ms matching web)
-    setTimeout(() => {
-      setSelectedRoom(room);
-      navigation.navigate('RoomDetails', { room });
-    }, duration + 150);
-  }, [currentZoom, navigation]);
+  }, [navigation, setSelectedRoom, mapReady, currentZoom, calculateMapFlyDuration]);
 
   /**
    * Handle cluster press - zoom in to expand
    */
   const handleClusterPress = useCallback((cluster: ClusterFeature) => {
     console.log('Huddle: [handleClusterPress] cluster id:', cluster.properties.cluster_id);
-    if (!mapRef.current) return;
+    if (!mapReady || !cameraRef.current) return;
 
     const [lng, lat] = cluster.geometry.coordinates;
     const leaves = getClusterLeaves(clusterIndex, cluster.properties.cluster_id, Infinity);
 
-    // Logic for clusters that won't expand (matching web)
+    // Logic for clusters that won't expand
     if (currentZoom >= 17 && leaves.length > 0) {
       const expansionZoom = getClusterExpansionZoom(clusterIndex, cluster.properties.cluster_id);
       if (expansionZoom > 18) {
@@ -349,7 +403,7 @@ export default function MapScreen() {
     }
 
     if (leaves.length > 0) {
-      // Calculate bounds of all points in cluster for precise zoom (matching web)
+      // Calculate bounds of all points in cluster
       let minLng = leaves[0].geometry.coordinates[0];
       let maxLng = leaves[0].geometry.coordinates[0];
       let minLat = leaves[0].geometry.coordinates[1];
@@ -363,50 +417,31 @@ export default function MapScreen() {
         maxLat = Math.max(maxLat, lLat);
       });
 
-      // Add 15% padding (matching web)
+      // Add 15% padding
       const latPadding = Math.max((maxLat - minLat) * 0.15, 0.001);
       const lngPadding = Math.max((maxLng - minLng) * 0.15, 0.001);
 
-      const targetBounds = {
-        latitude: (minLat + maxLat) / 2,
-        longitude: (minLng + maxLng) / 2,
-        latitudeDelta: (maxLat - minLat) + (latPadding * 2),
-        longitudeDelta: (maxLng - minLng) + (lngPadding * 2),
-      };
-
-      // Estimate target zoom from bounds delta
-      const targetZoom = Math.min(
-        Math.floor(Math.log2(360 / targetBounds.longitudeDelta)),
-        16 // Cap at 16 (matching web)
+      // Fit to bounds with smoother duration
+      cameraRef.current.fitBounds(
+        [maxLng + lngPadding, maxLat + latPadding],
+        [minLng - lngPadding, minLat - latPadding],
+        50,
+        1200 // More deliberate expansion
       );
-
-      const duration = calculateMapFlyDuration(targetZoom);
-
-      mapRef.current.animateToRegion(targetBounds, duration);
-      setCurrentZoom(targetZoom);
     } else {
-      // Fallback
+      // Fallback - fly to cluster location
       const expansionZoom = getClusterExpansionZoom(clusterIndex, cluster.properties.cluster_id);
       const targetZoom = Math.min(Math.max(expansionZoom, currentZoom + 2), 16);
-      const nextDelta = 360 / Math.pow(2, targetZoom);
       const duration = calculateMapFlyDuration(targetZoom);
 
-      mapRef.current.animateToRegion({
-        latitude: lat,
-        longitude: lng,
-        latitudeDelta: nextDelta,
-        longitudeDelta: nextDelta,
-      }, duration);
-
-      setRegion({
-        latitude: lat,
-        longitude: lng,
-        latitudeDelta: nextDelta,
-        longitudeDelta: nextDelta,
+      cameraRef.current.setCamera({
+        centerCoordinate: [lng, lat],
+        zoomLevel: targetZoom,
+        animationDuration: duration,
+        animationMode: 'flyTo',
       });
-      setCurrentZoom(targetZoom);
     }
-  }, [clusterIndex, currentZoom, navigation]);
+  }, [clusterIndex, currentZoom, navigation, setSelectedRoom, mapReady, calculateMapFlyDuration]);
 
   /**
    * Navigate to create room
@@ -426,80 +461,72 @@ export default function MapScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Map - using OpenStreetMap with CartoDB Positron tiles (matching web) */}
+      {/* MapLibre Map */}
       <MapView
         ref={mapRef}
         style={styles.map}
-        mapType="none"
-        initialRegion={region}
-        showsUserLocation={false} // Use custom marker only like web for privacy/customization
-        showsMyLocationButton={false}
-        userLocationCalloutEnabled={false}
-        showsPointsOfInterest={false}
-        showsBuildings={false}
-        showsTraffic={false}
-        showsScale={false}
-        pitchEnabled={false}
-        rotateEnabled={false}
-        onRegionChange={() => {
-          // Mark map as moving to disable Circle rendering during gestures
-          if (!isMapMoving) {
-            setIsMapMoving(true);
-          }
-          // Clear any pending idle timer
-          if (circleIdleTimerRef.current) {
-            clearTimeout(circleIdleTimerRef.current);
-            circleIdleTimerRef.current = null;
-          }
-        }}
-        onRegionChangeComplete={(newRegion) => {
-          // Debounce region updates to prevent crash from rapid zoom gestures
-          if (regionDebounceRef.current) {
-            clearTimeout(regionDebounceRef.current);
-          }
-          regionDebounceRef.current = setTimeout(() => {
-            setRegion(newRegion);
-            // Calculate approximate zoom from delta (inverse relationship)
-            const zoom = Math.round(Math.log(360 / newRegion.longitudeDelta) / Math.LN2);
-            setCurrentZoom(Math.max(3, Math.min(18, zoom)));
-          }, 100); // 100ms debounce for smooth experience
-
-          // Wait for map to settle before enabling circles again
-          if (circleIdleTimerRef.current) {
-            clearTimeout(circleIdleTimerRef.current);
-          }
-          circleIdleTimerRef.current = setTimeout(() => {
-            setIsMapMoving(false);
-          }, 300); // 300ms delay after gesture ends to stabilize
-        }}
+        mapStyle={MAP_STYLE_URL}
+        logoEnabled={false}
+        attributionEnabled={true}
+        attributionPosition={{ bottom: 8, right: 8 }}
+        onDidFinishLoadingMap={handleMapReady}
+        onRegionWillChange={() => setIsMapMoving(true)}
+        onRegionDidChange={handleRegionDidChange}
       >
-        {/* CartoDB Positron no-labels tiles - clean minimal view like web */}
-        <UrlTile
-          urlTemplate="https://a.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png"
-          maximumZ={19}
-          flipY={false}
-          tileSize={256}
+        <Camera
+          ref={cameraRef}
+          defaultSettings={{
+            centerCoordinate: centerCoord,
+            zoomLevel: currentZoom,
+          }}
+          minZoomLevel={1}
+          maxZoomLevel={18}
         />
-        {/* Custom User Location Marker - matching web pulse */}
-        {userLocation && (
-          <Marker
-            coordinate={{
-              latitude: userLocation.latitude,
-              longitude: userLocation.longitude,
-            }}
-            anchor={{ x: 0.5, y: 0.5 }}
-            tracksViewChanges={false}
-            zIndex={5} // Below pins
-            tappable={false} // User indicator shouldn't intercept map touches
+
+        {/* Single ShapeSource for all room circles - prevents crash from dynamic children */}
+        {mapReady && circlesGeoJSON.features.length > 0 && (
+          <ShapeSource
+            id="room-circles-source"
+            shape={circlesGeoJSON}
           >
-            <View pointerEvents="none" style={styles.userLocationMarkerContainer}>
+            <CircleLayer
+              id="room-circles-layer"
+              style={{
+                circleRadius: ['get', 'radius'],
+                circleColor: [
+                  'case',
+                  ['get', 'isExpiringSoon'],
+                  'rgba(254, 215, 170, 0.2)',
+                  'rgba(254, 205, 211, 0.2)',
+                ],
+                circleStrokeColor: [
+                  'case',
+                  ['get', 'isExpiringSoon'],
+                  'rgba(249, 115, 22, 0.6)',
+                  'rgba(244, 63, 94, 0.6)',
+                ],
+                circleStrokeWidth: 2,
+              }}
+            />
+          </ShapeSource>
+        )}
+
+        {/* User Location Marker - using MarkerView for stability */}
+        {mapReady && userLocation && (
+          <MarkerView
+            id="user-location"
+            coordinate={[userLocation.longitude, userLocation.latitude]}
+            anchor={{ x: 0.5, y: 0.5 }}
+          >
+            <View style={styles.userLocationMarkerContainer}>
               <View style={styles.userLocationPulse} />
               <View style={styles.userLocationDot} />
             </View>
-          </Marker>
+          </MarkerView>
         )}
 
-        {features.map((feature: MapFeature) => {
+        {/* Room Markers and Clusters - using MarkerView for stability */}
+        {mapReady && features.map((feature: MapFeature) => {
           const [lng, lat] = feature.geometry.coordinates;
           const id = isCluster(feature)
             ? `cluster-${feature.properties.cluster_id}`
@@ -507,19 +534,19 @@ export default function MapScreen() {
 
           if (isCluster(feature)) {
             return (
-              <Marker
+              <MarkerView
                 key={id}
-                coordinate={{ latitude: lat, longitude: lng }}
-                onPress={() => handleClusterPress(feature as ClusterFeature)}
+                id={id}
+                coordinate={[lng, lat]}
                 anchor={{ x: 0.5, y: 0.5 }}
-                tracksViewChanges={!isMapMoving}
-                zIndex={20}
-                tappable={true}
               >
-                <MapCluster
-                  count={feature.properties.point_count}
-                />
-              </Marker>
+                <TouchableOpacity
+                  onPress={() => handleClusterPress(feature as ClusterFeature)}
+                  activeOpacity={0.8}
+                >
+                  <MapCluster count={feature.properties.point_count} />
+                </TouchableOpacity>
+              </MarkerView>
             );
           }
 
@@ -528,29 +555,29 @@ export default function MapScreen() {
             return null;
           }
 
-          const showCircle = !isMapMoving && currentZoom >= 12;
-          const radiusMeters = room.radius || 500;
-          const radiusPixels = getRadiusInPixels(radiusMeters, room.latitude, region.longitudeDelta);
-
           return (
-            <StableMarker
+            <MarkerView
               key={id}
-              room={room}
               id={id}
-              showCircle={showCircle}
-              radiusPixels={radiusPixels}
-              isSelected={selectedRoom?.id === room.id}
-              onPress={handleRoomPress}
-              isMapMoving={isMapMoving}
-            />
+              coordinate={[lng, lat]}
+              anchor={{ x: 0.5, y: 1 }}
+            >
+              <TouchableOpacity
+                onPress={() => handleRoomPress(room)}
+                activeOpacity={0.8}
+              >
+                <View style={styles.pinMarkerContainer}>
+                  <RoomPin room={room} isSelected={selectedRoom?.id === room.id} />
+                </View>
+              </TouchableOpacity>
+            </MarkerView>
           );
         })}
       </MapView>
 
-      {/* Header - matching web MapDiscovery */}
-      < SafeAreaView style={styles.header} edges={['top']} >
+      {/* Header */}
+      <SafeAreaView style={styles.header} edges={['top']}>
         <View style={styles.headerContent}>
-          {/* Left: Hamburger */}
           <TouchableOpacity
             style={styles.hamburgerButton}
             onPress={() => setIsSidebarOpen(true)}
@@ -559,10 +586,8 @@ export default function MapScreen() {
             <Menu size={24} color="#374151" />
           </TouchableOpacity>
 
-          {/* Center: Title */}
           <Text style={styles.headerTitle}>Huddle</Text>
 
-          {/* Right: Create Room */}
           <TouchableOpacity
             style={styles.headerCreateButton}
             onPress={handleCreateRoom}
@@ -571,12 +596,11 @@ export default function MapScreen() {
             <Plus size={20} color="#ffffff" />
           </TouchableOpacity>
         </View>
-      </SafeAreaView >
+      </SafeAreaView>
 
-      {/* Map Controls - matching web InteractiveMap */}
-      < View style={styles.mapControls} >
-        {/* Zoom Controls Card */}
-        < View style={styles.zoomCard} >
+      {/* Map Controls */}
+      <View style={styles.mapControls}>
+        <View style={styles.zoomCard}>
           <TouchableOpacity
             style={styles.zoomButton}
             onPress={handleZoomIn}
@@ -592,15 +616,13 @@ export default function MapScreen() {
           >
             <Minus size={20} color="#374151" />
           </TouchableOpacity>
-        </View >
+        </View>
 
-        {/* Center on User Button */}
-        < TouchableOpacity
-          style={
-            [
-              styles.controlButton,
-              userLocation && styles.controlButtonActive,
-            ]}
+        <TouchableOpacity
+          style={[
+            styles.controlButton,
+            userLocation && styles.controlButtonActive,
+          ]}
           onPress={centerOnUser}
           activeOpacity={0.7}
         >
@@ -608,31 +630,28 @@ export default function MapScreen() {
             size={20}
             color={userLocation ? '#2563eb' : '#6b7280'}
           />
-        </TouchableOpacity >
+        </TouchableOpacity>
 
-        {/* World View Reset - only show when zoomed in past world view */}
-        {
-          region.latitudeDelta < 30 && (
-            <TouchableOpacity
-              style={styles.controlButton}
-              onPress={handleResetView}
-              activeOpacity={0.7}
-            >
-              <Globe size={20} color="#f97316" />
-            </TouchableOpacity>
-          )
-        }
-      </View >
+        {currentZoom > 5 && (
+          <TouchableOpacity
+            style={styles.controlButton}
+            onPress={handleResetView}
+            activeOpacity={0.7}
+          >
+            <Globe size={20} color="#f97316" />
+          </TouchableOpacity>
+        )}
+      </View>
 
-      {/* Events Counter - bottom left (matching web) */}
-      < View style={styles.eventsCounter} >
+      {/* Events Counter */}
+      <View style={styles.eventsCounter}>
         <Text style={styles.eventsCounterText}>
           {activeRooms.length} {activeRooms.length === 1 ? 'event' : 'events'} in view
         </Text>
-      </View >
+      </View>
 
-      {/* Floating Map/List Toggle - Bottom Center (matching web) */}
-      < View style={styles.viewToggleContainer} >
+      {/* View Toggle */}
+      <View style={styles.viewToggleContainer}>
         <View style={styles.viewToggle}>
           <TouchableOpacity
             style={[styles.viewToggleButton, styles.viewToggleButtonActive]}
@@ -650,25 +669,23 @@ export default function MapScreen() {
             <Text style={styles.viewToggleText}>List</Text>
           </TouchableOpacity>
         </View>
-      </View >
+      </View>
 
       {/* Empty State */}
-      {
-        activeRooms.length === 0 && !isLoading && (
-          <View style={styles.emptyState}>
-            <Text style={styles.emptyTitle}>No rooms nearby</Text>
-            <Text style={styles.emptyText}>
-              Be the first to start a conversation!
-            </Text>
-            <TouchableOpacity
-              style={styles.createButton}
-              onPress={handleCreateRoom}
-            >
-              <Text style={styles.createButtonText}>Create Room</Text>
-            </TouchableOpacity>
-          </View>
-        )
-      }
+      {activeRooms.length === 0 && !isLoading && (
+        <View style={styles.emptyState}>
+          <Text style={styles.emptyTitle}>No rooms nearby</Text>
+          <Text style={styles.emptyText}>
+            Be the first to start a conversation!
+          </Text>
+          <TouchableOpacity
+            style={styles.createButton}
+            onPress={handleCreateRoom}
+          >
+            <Text style={styles.createButtonText}>Create Room</Text>
+          </TouchableOpacity>
+        </View>
+      )}
 
       {/* Sidebar */}
       <Sidebar
@@ -690,7 +707,7 @@ export default function MapScreen() {
         onClose={() => setIsProfileDrawerOpen(false)}
         onSignOut={logout}
       />
-    </View >
+    </View>
   );
 }
 
@@ -848,6 +865,11 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: 'rgba(59, 130, 246, 0.3)',
   },
+  pinMarkerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingBottom: 2,
+  },
   viewToggleContainer: {
     position: 'absolute',
     bottom: 32,
@@ -924,10 +946,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#ffffff',
-  },
-  simulatedCircle: {
-    borderWidth: 2,
-    position: 'absolute',
   },
 });
 
