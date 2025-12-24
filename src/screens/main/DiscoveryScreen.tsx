@@ -35,9 +35,7 @@ import { RootStackParamList } from '../../navigation/types';
 import { Room } from '../../types';
 import { ROOM_CONFIG, MAP_CONFIG } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
-import { useRooms, useSidebarRooms, useActiveRooms } from '../../context/RoomContext';
-import { Sidebar } from '../../components/Sidebar';
-import { ProfileDrawer } from '../../components/ProfileDrawer';
+import { RoomProvider, useRooms, useSidebarRooms, useActiveRooms, useUIActions } from '../../context';
 import { RoomPin } from '../../components/RoomPin';
 import { MapCluster } from '../../components/MapCluster';
 import { RoomListView } from '../../components/RoomListView';
@@ -119,9 +117,8 @@ export default function DiscoveryScreen() {
     // Map movement tracking
     const [isMapMoving, setIsMapMoving] = useState(false);
 
-    // Sidebar and profile drawer state
-    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-    const [isProfileDrawerOpen, setIsProfileDrawerOpen] = useState(false);
+    // Sidebar and profile drawer state from global UI context
+    const { openSidebar } = useUIActions();
 
     // Use activeRooms from context for clustering
     const clusterIndex = useMemo(() => createClusterIndex(activeRooms), [activeRooms]);
@@ -679,7 +676,7 @@ export default function DiscoveryScreen() {
                 <View style={styles.headerContent}>
                     <TouchableOpacity
                         style={styles.hamburgerButton}
-                        onPress={() => setIsSidebarOpen(true)}
+                        onPress={openSidebar}
                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
                         <Menu size={24} color="#374151" />
@@ -717,26 +714,6 @@ export default function DiscoveryScreen() {
                 </View>
             </View>
 
-            {/* Sidebar */}
-            <Sidebar
-                isOpen={isSidebarOpen}
-                onClose={() => setIsSidebarOpen(false)}
-                rooms={myRooms}
-                onRoomSelect={(room) => {
-                    navigation.navigate('ChatRoom', { room });
-                }}
-                onProfilePress={() => {
-                    setIsSidebarOpen(false);
-                    setIsProfileDrawerOpen(true);
-                }}
-            />
-
-            {/* Profile Drawer */}
-            <ProfileDrawer
-                isOpen={isProfileDrawerOpen}
-                onClose={() => setIsProfileDrawerOpen(false)}
-                onSignOut={logout}
-            />
         </View>
     );
 }

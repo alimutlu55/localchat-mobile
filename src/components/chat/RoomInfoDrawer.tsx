@@ -33,6 +33,7 @@ import {
 import { Room } from '../../types';
 import { ParticipantList } from './ParticipantList';
 import { roomService, ParticipantDTO } from '../../services';
+import { AvatarDisplay } from '../profile';
 
 const SCREEN_HEIGHT = Dimensions.get('window').height;
 const DRAWER_HEIGHT = SCREEN_HEIGHT * 0.85;
@@ -127,7 +128,8 @@ export function RoomInfoDrawer({
         }
     };
 
-    if (!isOpen && translateY?.__getValue && translateY.__getValue() === DRAWER_HEIGHT) return null;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    if (!isOpen && (translateY as any).__getValue() === DRAWER_HEIGHT) return null;
 
     return (
         <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
@@ -286,7 +288,12 @@ export function RoomInfoDrawer({
                             {participants.map((participant) => (
                                 <View key={participant.userId} style={styles.participantRow}>
                                     <View style={styles.avatar}>
-                                        <Text style={styles.avatarText}>{participant.displayName.charAt(0).toUpperCase()}</Text>
+                                        <AvatarDisplay
+                                            avatarUrl={participant.profilePhotoUrl}
+                                            displayName={participant.displayName}
+                                            size="md"
+                                            style={{ width: 44, height: 44, borderRadius: 12 }}
+                                        />
                                     </View>
                                     <View style={styles.participantInfoText}>
                                         <View style={styles.nameRow}>

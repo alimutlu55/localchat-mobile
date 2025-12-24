@@ -33,6 +33,7 @@ import {
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChatMessage } from '../../types';
+import { AvatarDisplay } from '../profile';
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -127,21 +128,14 @@ export function MessageBubble({ message, isOwn, onReport, onBlock, hasBlocked }:
    * Get avatar initial or display image
    */
   const renderAvatar = () => {
-    if (message.userProfilePhoto) {
-      return (
-        <Image
-          source={{ uri: message.userProfilePhoto }}
-          style={styles.avatarImage}
-        />
-      );
-    }
-
-    const userName = message.userName || 'A';
-    const initials = userName.charAt(0).toUpperCase();
-
     return (
-      <View style={[styles.avatar, { backgroundColor: getAvatarColor(userName) }]}>
-        <Text style={styles.avatarText}>{initials}</Text>
+      <View style={{ marginRight: 10, marginTop: 2 }}>
+        <AvatarDisplay
+          avatarUrl={message.userProfilePhoto}
+          displayName={message.userName || 'A'}
+          size="sm"
+          style={{ width: 36, height: 36, borderRadius: 18 }}
+        />
       </View>
     );
   };

@@ -27,6 +27,7 @@ import {
 } from 'lucide-react-native';
 import { Room } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { AvatarDisplay } from './profile';
 
 const SIDEBAR_WIDTH = Dimensions.get('window').width * 0.85;
 
@@ -41,7 +42,7 @@ interface SidebarProps {
 /**
  * Room Item Component
  */
-function RoomItem({
+const RoomItem = React.memo(function RoomItem({
     room,
     isCreator,
     isExpired,
@@ -82,19 +83,19 @@ function RoomItem({
             <ChevronRight size={16} color="#9ca3af" />
         </TouchableOpacity>
     );
-}
+});
 
 /**
  * Section Header Component
  */
-function SectionHeader({ title }: { title: string }) {
+const SectionHeader = React.memo(function SectionHeader({ title }: { title: string }) {
     return (
         <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>{title}</Text>
             <View style={styles.sectionLine} />
         </View>
     );
-}
+});
 
 /**
  * Empty State Component
@@ -133,35 +134,20 @@ export function Sidebar({
 
     // Animate open/close
     React.useEffect(() => {
-        if (isOpen) {
-            Animated.parallel([
-                Animated.spring(translateX, {
-                    toValue: 0,
-                    damping: 25,
-                    stiffness: 300,
-                    useNativeDriver: true,
-                }),
-                Animated.timing(backdropOpacity, {
-                    toValue: 1,
-                    duration: 200,
-                    useNativeDriver: true,
-                }),
-            ]).start();
-        } else {
-            Animated.parallel([
-                Animated.spring(translateX, {
-                    toValue: -SIDEBAR_WIDTH,
-                    damping: 25,
-                    stiffness: 300,
-                    useNativeDriver: true,
-                }),
-                Animated.timing(backdropOpacity, {
-                    toValue: 0,
-                    duration: 200,
-                    useNativeDriver: true,
-                }),
-            ]).start();
-        }
+        Animated.parallel([
+            Animated.spring(translateX, {
+                toValue: isOpen ? 0 : -SIDEBAR_WIDTH,
+                damping: 28,
+                stiffness: 280,
+                mass: 0.8,
+                useNativeDriver: true,
+            }),
+            Animated.timing(backdropOpacity, {
+                toValue: isOpen ? 1 : 0,
+                duration: 250,
+                useNativeDriver: true,
+            }),
+        ]).start();
     }, [isOpen]);
 
     // Pan gesture for swipe-to-close
@@ -224,10 +210,8 @@ export function Sidebar({
         joinedRooms.length === 0 &&
         expiredRooms.length === 0;
 
-    if (!isOpen) return null;
-
     return (
-        <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+        <View style={[StyleSheet.absoluteFill, { zIndex: 1000 }]} pointerEvents="box-none">
             {/* Backdrop */}
             <Animated.View
                 style={[styles.backdrop, { opacity: backdropOpacity }]}
@@ -338,13 +322,12 @@ export function Sidebar({
                     activeOpacity={0.7}
                 >
                     <View style={styles.profileAvatar}>
-                        {user?.profilePhotoUrl ? (
-                            <Text style={styles.profileAvatarText}>
-                                {user.displayName?.charAt(0)?.toUpperCase() || 'U'}
-                            </Text>
-                        ) : (
-                            <User size={20} color="#ffffff" />
-                        )}
+                        <AvatarDisplay
+                            avatarUrl={user?.profilePhotoUrl}
+                            displayName={user?.displayName || 'User'}
+                            size="sm"
+                            style={{ width: 40, height: 40, borderRadius: 20 }}
+                        />
                     </View>
                     <View style={styles.profileInfo}>
                         <Text style={styles.profileName} numberOfLines={1}>
@@ -567,4 +550,4 @@ const styles = StyleSheet.create({
     },
 });
 
-export default Sidebar;
+export default React.memo(Sidebar);

@@ -206,6 +206,15 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       const updatedUser = await authService.updateProfile(updates);
       setUser(updatedUser);
+
+      // Sync changes via WebSocket for real-time updates
+      // This matches Web App behavior in UserContext.tsx
+      if (updates.displayName !== undefined || updates.profilePhotoUrl !== undefined) {
+        wsService.updateProfile({
+          displayName: updates.displayName,
+          profilePhotoUrl: updates.profilePhotoUrl
+        });
+      }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Profile update failed';
       setError(message);

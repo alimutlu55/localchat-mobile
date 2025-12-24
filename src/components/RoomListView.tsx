@@ -48,8 +48,9 @@ interface RoomListViewProps {
 
 /**
  * Category Chip Component
+ * Memoized to prevent unnecessary re-renders
  */
-function CategoryChip({
+const CategoryChip = memo(function CategoryChip({
     label,
     isSelected,
     onPress,
@@ -71,12 +72,13 @@ function CategoryChip({
             </Text>
         </TouchableOpacity>
     );
-}
+});
 
 /**
  * Room List Item Component
+ * Memoized with custom comparison to prevent unnecessary re-renders
  */
-function RoomListItem({
+const RoomListItem = memo(function RoomListItem({
     room,
     hasJoined,
     onJoin,
@@ -227,12 +229,21 @@ function RoomListItem({
             </TouchableOpacity>
         </View>
     );
-}
+}, (prevProps, nextProps) => {
+    // Custom comparison function for optimal re-render control
+    return (
+        prevProps.room.id === nextProps.room.id &&
+        prevProps.room.participantCount === nextProps.room.participantCount &&
+        prevProps.room.isExpiringSoon === nextProps.room.isExpiringSoon &&
+        prevProps.hasJoined === nextProps.hasJoined
+    );
+});
 
 /**
  * Empty State Component
+ * Memoized to prevent re-renders
  */
-function EmptyState({
+const EmptyState = memo(function EmptyState({
     hasSearch,
     onClearSearch,
     onCreateRoom,
@@ -274,7 +285,7 @@ function EmptyState({
             )}
         </View>
     );
-}
+});
 
 /**
  * Main RoomListView Component

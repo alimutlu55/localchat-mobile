@@ -29,6 +29,7 @@ function transformUserDTO(dto: UserDTO): User {
     email: dto.email,
     displayName: dto.displayName,
     profilePhotoUrl: dto.profilePhotoUrl,
+    bio: dto.bio,
     isAnonymous: dto.isAnonymous,
     createdAt: new Date(dto.createdAt),
     lastActiveAt: dto.lastActiveAt ? new Date(dto.lastActiveAt) : undefined,

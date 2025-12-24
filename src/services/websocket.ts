@@ -477,6 +477,14 @@ class WebSocketService {
   }
 
   /**
+   * Update user profile via WebSocket
+   * Broadcasts changes to all connected clients immediately
+   */
+  updateProfile(updates: { displayName?: string; profilePhotoUrl?: string }): void {
+    this.send(WS_EVENTS.UPDATE_PROFILE, updates);
+  }
+
+  /**
    * Mark messages as read
    */
   markRead(roomId: string, messageIds: string[]): void {

@@ -7,7 +7,7 @@
  * - Bio field
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -23,12 +23,13 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
-import { ArrowLeft, Camera, User, Mail, Shield, FileText } from 'lucide-react-native';
+import { ArrowLeft, Camera, User, Mail, Shield, FileText, Check } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
-import { AvatarPicker, UpgradeBenefitsModal } from '../components/profile';
+import { AvatarPicker, UpgradeBenefitsModal, AvatarDisplay } from '../components/profile';
 
 const MAX_DISPLAY_NAME_LENGTH = 30;
 const MAX_BIO_LENGTH = 150;
+const AUTO_SAVE_DELAY = 1000;
 
 export default function EditProfileScreen() {
   const navigation = useNavigation();
@@ -41,10 +42,42 @@ export default function EditProfileScreen() {
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
   const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
-  const hasChanges =
-    displayName !== (user?.displayName || '') ||
-    bio !== (user?.bio || '') ||
-    avatarUrl !== (user?.profilePhotoUrl || '');
+  const [isSavingName, setIsSavingName] = useState(false);
+  const [isSavingBio, setIsSavingBio] = useState(false);
+
+  const nameChanged = displayName.trim() !== (user?.displayName || '');
+  const bioChanged = bio.trim() !== (user?.bio || '');
+  const hasUnsavedChanges = nameChanged || bioChanged;
+
+  /**
+   * Navigation Guard
+   */
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('beforeRemove', (e) => {
+      if (!hasUnsavedChanges) {
+        return;
+      }
+
+      // Prevent default behavior of leaving the screen
+      e.preventDefault();
+
+      // Prompt the user before leaving
+      Alert.alert(
+        'Unsaved Changes',
+        'You have unsaved changes. Are you sure you want to discard them and leave?',
+        [
+          { text: "Don't leave", style: 'cancel', onPress: () => { } },
+          {
+            text: 'Discard',
+            style: 'destructive',
+            onPress: () => navigation.dispatch(e.data.action),
+          },
+        ]
+      );
+    });
+
+    return unsubscribe;
+  }, [navigation, hasUnsavedChanges]);
 
   /**
    * Handle display name change
@@ -65,50 +98,75 @@ export default function EditProfileScreen() {
   };
 
   /**
-   * Handle save
+   * Save Display Name
    */
-  const handleSave = async () => {
+  const handleSaveName = async () => {
     if (!displayName.trim()) {
       Alert.alert('Error', 'Display name cannot be empty.');
       return;
     }
-
     if (displayName.trim().length < 2) {
       Alert.alert('Error', 'Display name must be at least 2 characters.');
       return;
     }
 
-    setIsLoading(true);
-
+    setIsSavingName(true);
     try {
-      await updateProfile({
-        displayName: displayName.trim(),
-        bio: bio.trim(),
-        profilePhotoUrl: avatarUrl,
-      });
-      Alert.alert('Success', 'Profile updated successfully.');
-      navigation.goBack();
+      await updateProfile({ displayName: displayName.trim() });
+      Alert.alert('Success', 'Display name updated.');
     } catch (error) {
-      Alert.alert('Error', 'Failed to update profile. Please try again.');
+      Alert.alert('Error', 'Failed to update display name.');
+    } finally {
+      setIsSavingName(false);
+    }
+  };
+
+  /**
+   * Save Bio
+   */
+  const handleSaveBio = async () => {
+    setIsSavingBio(true);
+    try {
+      await updateProfile({ bio: bio.trim() });
+      Alert.alert('Success', 'Bio updated.');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update bio.');
+    } finally {
+      setIsSavingBio(false);
+    }
+  };
+
+  /**
+   * Handle avatar selection - Saves immediately
+   */
+  const handleAvatarSelect = async (url: string) => {
+    setIsLoading(true);
+    try {
+      await updateProfile({ profilePhotoUrl: url });
+      setAvatarUrl(url);
+      Alert.alert('Success', 'Avatar updated successfully.');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to update avatar.');
     } finally {
       setIsLoading(false);
     }
   };
 
   /**
-   * Handle avatar selection
-   */
-  const handleAvatarSelect = (url: string) => {
-    setAvatarUrl(url);
-  };
-
-  /**
    * Handle upgrade
    */
-  const handleUpgrade = () => {
+  const handleUpgrade = async () => {
     setShowUpgradeModal(false);
-    // Navigate to registration or upgrade flow
-    Alert.alert('Coming Soon', 'Account upgrade feature coming soon!');
+    setIsLoading(true);
+    try {
+      // @ts-ignore
+      await user?.isAnonymous ? Alert.alert('Info', 'In a real app, this would start the registration flow.') : null;
+      navigation.navigate('Onboarding');
+    } catch (error) {
+      Alert.alert('Error', 'Failed to initiate upgrade.');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -126,17 +184,7 @@ export default function EditProfileScreen() {
             <ArrowLeft size={24} color="#1f2937" />
           </TouchableOpacity>
           <Text style={styles.headerTitle}>Edit Profile</Text>
-          <TouchableOpacity
-            style={[styles.saveButton, (!hasChanges || isLoading) && styles.saveButtonDisabled]}
-            onPress={handleSave}
-            disabled={!hasChanges || isLoading}
-          >
-            {isLoading ? (
-              <ActivityIndicator size="small" color="#ffffff" />
-            ) : (
-              <Text style={styles.saveButtonText}>Save</Text>
-            )}
-          </TouchableOpacity>
+          <View style={{ width: 44 }} />
         </View>
 
         <ScrollView
@@ -149,13 +197,12 @@ export default function EditProfileScreen() {
           <View style={styles.avatarSection}>
             <TouchableOpacity style={styles.avatarContainer} onPress={() => setShowAvatarPicker(true)}>
               <View style={styles.avatar}>
-                {avatarUrl ? (
-                  <Image source={{ uri: avatarUrl }} style={styles.avatarImage} />
-                ) : (
-                  <Text style={styles.avatarText}>
-                    {displayName.charAt(0).toUpperCase() || 'U'}
-                  </Text>
-                )}
+                <AvatarDisplay
+                  avatarUrl={avatarUrl}
+                  displayName={displayName}
+                  size="xl"
+                  style={{ width: 100, height: 100, borderRadius: 50 }}
+                />
               </View>
               <View style={styles.avatarEditBadge}>
                 <Camera size={14} color="#ffffff" />
@@ -182,6 +229,19 @@ export default function EditProfileScreen() {
                   onChangeText={handleDisplayNameChange}
                   maxLength={MAX_DISPLAY_NAME_LENGTH}
                 />
+                {(nameChanged || isSavingName) && (
+                  <TouchableOpacity
+                    onPress={handleSaveName}
+                    disabled={isSavingName}
+                    style={styles.saveButton}
+                  >
+                    {isSavingName ? (
+                      <ActivityIndicator size="small" color="#ffffff" />
+                    ) : (
+                      <Text style={styles.saveButtonText}>Save</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
               </View>
               <Text style={styles.inputHint}>
                 This is how others will see you in chat rooms.
@@ -207,6 +267,19 @@ export default function EditProfileScreen() {
                   numberOfLines={3}
                   textAlignVertical="top"
                 />
+                {(bioChanged || isSavingBio) && (
+                  <TouchableOpacity
+                    onPress={handleSaveBio}
+                    disabled={isSavingBio}
+                    style={[styles.saveButton, { position: 'absolute', bottom: 10, right: 10 }]}
+                  >
+                    {isSavingBio ? (
+                      <ActivityIndicator size="small" color="#ffffff" />
+                    ) : (
+                      <Text style={styles.saveButtonText}>Save</Text>
+                    )}
+                  </TouchableOpacity>
+                )}
               </View>
               <Text style={styles.inputHint}>
                 Optional. Visible to others in rooms you join.
@@ -306,17 +379,17 @@ const styles = StyleSheet.create({
   },
   saveButton: {
     backgroundColor: '#f97316',
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 8,
-    minWidth: 60,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
     alignItems: 'center',
+    justifyContent: 'center',
   },
   saveButtonDisabled: {
     backgroundColor: '#fdba74',
   },
   saveButtonText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     color: '#ffffff',
   },
@@ -404,6 +477,7 @@ const styles = StyleSheet.create({
   bioInputContainer: {
     alignItems: 'flex-start',
     paddingVertical: 10,
+    paddingBottom: 40, // More space for the button
   },
   bioIcon: {
     marginTop: 4,
@@ -472,6 +546,27 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#ffffff',
+  },
+  inlineSaveButton: {
+    padding: 8,
+    borderRadius: 8,
+    backgroundColor: '#fff7ed',
+  },
+  statusContainer: {
+    paddingHorizontal: 8,
+    minWidth: 50,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
+  savedText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6b7280',
+  },
+  errorText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#ef4444',
   },
 });
 

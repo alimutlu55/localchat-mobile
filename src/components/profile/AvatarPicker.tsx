@@ -5,6 +5,7 @@
  * - Multiple avatar styles
  * - Shuffle functionality
  * - Preview
+ * - SVG Support via react-native-svg
  */
 
 import React, { useState, useMemo } from 'react';
@@ -19,6 +20,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { X, Shuffle, Check } from 'lucide-react-native';
+import { SvgUri } from 'react-native-svg';
 
 // DiceBear avatar styles
 const AVATAR_STYLES = [
@@ -70,7 +72,6 @@ export function AvatarPicker({
     return initialSeeds;
   });
   const [selectedAvatarUrl, setSelectedAvatarUrl] = useState<string | null>(null);
-  const [loadingImages, setLoadingImages] = useState<Set<string>>(new Set());
 
   // Generate avatar options for selected style (8 options)
   const avatarOptions = useMemo(() => {
@@ -140,10 +141,10 @@ export function AvatarPicker({
           {/* Preview */}
           <View style={styles.previewContainer}>
             <View style={styles.previewWrapper}>
-              <Image
-                source={{ uri: previewUrl }}
-                style={styles.previewImage}
-                resizeMode="contain"
+              <SvgUri
+                uri={previewUrl}
+                width="100%"
+                height="100%"
               />
             </View>
           </View>
@@ -196,11 +197,13 @@ export function AvatarPicker({
                   ]}
                   onPress={() => handleSelectAvatar(option.url)}
                 >
-                  <Image
-                    source={{ uri: option.url }}
-                    style={styles.avatarImage}
-                    resizeMode="contain"
-                  />
+                  <View style={styles.avatarImageContainer}>
+                    <SvgUri
+                      uri={option.url}
+                      width="100%"
+                      height="100%"
+                    />
+                  </View>
                   {selectedAvatarUrl === option.url && (
                     <View style={styles.selectedCheck}>
                       <Check size={12} color="#ffffff" />
@@ -231,14 +234,16 @@ export function AvatarPicker({
  * Avatar Display Component
  *
  * Reusable avatar display with fallback to initials.
+ * Supports SVG URLs via SvgUri.
  */
 interface AvatarDisplayProps {
   avatarUrl?: string;
   displayName: string;
   size?: 'sm' | 'md' | 'lg' | 'xl';
+  style?: any;
 }
 
-export function AvatarDisplay({ avatarUrl, displayName, size = 'md' }: AvatarDisplayProps) {
+export function AvatarDisplay({ avatarUrl, displayName, size = 'md', style }: AvatarDisplayProps) {
   const sizeStyles = {
     sm: { container: 32, text: 14 },
     md: { container: 44, text: 18 },
@@ -249,30 +254,45 @@ export function AvatarDisplay({ avatarUrl, displayName, size = 'md' }: AvatarDis
   const dimensions = sizeStyles[size];
 
   if (avatarUrl) {
+    const isSvg = avatarUrl.toLowerCase().endsWith('.svg') || avatarUrl.includes('dicebear');
+
     return (
-      <Image
-        source={{ uri: avatarUrl }}
-        style={{
+      <View
+        style={[{
           width: dimensions.container,
           height: dimensions.container,
           borderRadius: dimensions.container / 2,
           backgroundColor: '#f3f4f6',
-        }}
-        resizeMode="cover"
-      />
+          overflow: 'hidden', // Essential for masking
+        }, style]}
+      >
+        {isSvg ? (
+          <SvgUri
+            uri={avatarUrl}
+            width="100%"
+            height="100%"
+          />
+        ) : (
+          <Image
+            source={{ uri: avatarUrl }}
+            style={{ width: '100%', height: '100%' }}
+            resizeMode="cover"
+          />
+        )}
+      </View>
     );
   }
 
   return (
     <View
-      style={{
+      style={[{
         width: dimensions.container,
         height: dimensions.container,
         borderRadius: dimensions.container / 2,
         backgroundColor: '#e5e7eb',
         justifyContent: 'center',
         alignItems: 'center',
-      }}
+      }, style]}
     >
       <Text style={{ fontSize: dimensions.text, fontWeight: '600', color: '#6b7280' }}>
         {displayName?.charAt(0).toUpperCase() || 'U'}
@@ -407,10 +427,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     borderWidth: 2,
     borderColor: 'transparent',
+    overflow: 'hidden',
   },
   avatarOptionSelected: {
     borderColor: '#f97316',
     backgroundColor: '#fff7ed',
+  },
+  avatarImageContainer: {
+    width: '80%',
+    height: '80%',
   },
   avatarImage: {
     width: '80%',
@@ -450,4 +475,3 @@ const styles = StyleSheet.create({
 });
 
 export default AvatarPicker;
-

@@ -190,13 +190,15 @@ export const WS_EVENTS = {
  * Category Configuration
  */
 export const CATEGORIES = [
-  { id: 'GENERAL', emoji: '💬', color: '#6366f1' },
-  { id: 'TRAFFIC', emoji: '🚗', color: '#ef4444' },
-  { id: 'EVENTS', emoji: '🎉', color: '#f59e0b' },
-  { id: 'EMERGENCY', emoji: '🚨', color: '#dc2626' },
-  { id: 'LOST_FOUND', emoji: '🔍', color: '#8b5cf6' },
-  { id: 'SPORTS', emoji: '⚽', color: '#22c55e' },
-  { id: 'FOOD', emoji: '🍕', color: '#f97316' },
-  { id: 'NEIGHBORHOOD', emoji: '🏘️', color: '#06b6d4' },
+  { id: 'FOOD', emoji: '☕', label: 'Food', color: '#f97316' },
+  { id: 'EVENTS', emoji: '🎵', label: 'Music', color: '#f59e0b' },
+  { id: 'SPORTS', emoji: '⚽', label: 'Sports', color: '#22c55e' },
+  { id: 'GENERAL', emoji: '💼', label: 'Work', color: '#6366f1' },
+  { id: 'GENERAL', emoji: '🎨', label: 'Art', color: '#6366f1' },
+  { id: 'GENERAL', emoji: '📚', label: 'Books', color: '#6366f1' },
+  { id: 'EVENTS', emoji: '🎉', label: 'Events', color: '#f59e0b' },
+  { id: 'GENERAL', emoji: '💬', label: 'Social', color: '#6366f1' },
+  { id: 'GENERAL', emoji: '🎮', label: 'Gaming', color: '#6366f1' },
+  { id: 'GENERAL', emoji: '✨', label: 'Other', color: '#6366f1' },
 ] as const;
 

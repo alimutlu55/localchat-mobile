@@ -10,8 +10,9 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
-import { AuthProvider, RoomProvider, SettingsProvider } from './src/context';
+import { AuthProvider, RoomProvider, SettingsProvider, UIProvider } from './src/context';
 import { RootNavigator } from './src/navigation';
+import { GlobalDrawers } from './src/components/GlobalDrawers';
 
 // Initialize i18n
 import './src/i18n';
@@ -25,12 +26,15 @@ export default function App() {
       <SafeAreaProvider>
         <NavigationContainer>
           <AuthProvider>
-            <SettingsProvider>
-              <RoomProvider>
-                <StatusBar style="dark" />
-                <RootNavigator />
-              </RoomProvider>
-            </SettingsProvider>
+            <UIProvider>
+              <SettingsProvider>
+                <RoomProvider>
+                  <StatusBar style="dark" />
+                  <RootNavigator />
+                  <GlobalDrawers />
+                </RoomProvider>
+              </SettingsProvider>
+            </UIProvider>
           </AuthProvider>
         </NavigationContainer>
       </SafeAreaProvider>

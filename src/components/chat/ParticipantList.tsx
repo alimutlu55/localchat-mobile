@@ -29,6 +29,7 @@ import {
   Ban,
 } from 'lucide-react-native';
 import { roomService, ParticipantDTO } from '../../services';
+import { AvatarDisplay } from '../profile';
 
 interface ParticipantListProps {
   roomId: string;
@@ -161,13 +162,12 @@ export function ParticipantList({
     return (
       <View style={styles.participantItem}>
         <View style={styles.avatar}>
-          {item.profilePhotoUrl ? (
-            <Image source={{ uri: item.profilePhotoUrl }} style={styles.avatarImage} />
-          ) : (
-            <Text style={styles.avatarText}>
-              {item.displayName.charAt(0).toUpperCase()}
-            </Text>
-          )}
+          <AvatarDisplay
+            avatarUrl={item.profilePhotoUrl}
+            displayName={item.displayName}
+            size="md"
+            style={{ width: 44, height: 44, borderRadius: 22 }}
+          />
         </View>
 
         <View style={styles.participantInfo}>
