@@ -46,6 +46,7 @@ import {
   isCluster,
   getClusterExpansionZoom,
   getClusterLeaves,
+  getStableFeatureKey,
   MapFeature,
   ClusterFeature,
   EventFeature
@@ -119,9 +120,6 @@ export default function MapScreen() {
     MAP_CONFIG.DEFAULT_CENTER.latitude,
   ]);
 
-  // Map movement tracking
-  const [isMapMoving, setIsMapMoving] = useState(false);
-
   // Sidebar and profile drawer state
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileDrawerOpen, setIsProfileDrawerOpen] = useState(false);
@@ -130,13 +128,15 @@ export default function MapScreen() {
   const clusterIndex = useMemo(() => createClusterIndex(activeRooms), [activeRooms]);
 
   // Get clusters/features for current viewport
+  // getClustersForBounds already uses expanded bounds internally for stability
   const features = useMemo(() => {
     return getClustersForBounds(clusterIndex, bounds, currentZoom);
   }, [clusterIndex, bounds, currentZoom]);
 
   // Create a single GeoJSON FeatureCollection for all room circles
+  // REMOVED isMapMoving check - circles now stay visible during map movement
   const circlesGeoJSON = useMemo(() => {
-    if (!mapReady || isMapMoving || currentZoom < 10) {
+    if (!mapReady || currentZoom < 10) {
       return {
         type: 'FeatureCollection' as const,
         features: [],
@@ -171,7 +171,7 @@ export default function MapScreen() {
       type: 'FeatureCollection' as const,
       features: circleFeatures,
     };
-  }, [features, currentZoom, isMapMoving, mapReady]);
+  }, [features, currentZoom, mapReady]);
 
   /**
    * Fetch nearby rooms using context
@@ -265,7 +265,7 @@ export default function MapScreen() {
   }, []);
 
   /**
-   * Handle region change
+   * Handle region change - updates viewport for clustering
    */
   const handleRegionDidChange = useCallback(async () => {
     if (!mapRef.current) return;
@@ -276,8 +276,11 @@ export default function MapScreen() {
       const center = await mapRef.current.getCenter();
 
       if (visibleBounds && visibleBounds.length === 2) {
-        const [ne, sw] = visibleBounds;
-        setBounds([sw[0], sw[1], ne[0], ne[1]]);
+        const newBounds: [number, number, number, number] = [
+          visibleBounds[1][0], visibleBounds[1][1], 
+          visibleBounds[0][0], visibleBounds[0][1]
+        ];
+        setBounds(newBounds);
       }
 
       if (center) {
@@ -285,7 +288,6 @@ export default function MapScreen() {
       }
 
       setCurrentZoom(Math.round(zoom));
-      setIsMapMoving(false);
     } catch (error) {
       console.error('Error getting map state:', error);
     }
@@ -410,7 +412,74 @@ export default function MapScreen() {
   }, [navigation, setSelectedRoom, mapReady, currentZoom, calculateMapFlyDuration]);
 
   /**
-   * Handle cluster press - zoom in to expand
+   * Force viewport refresh - directly updates bounds/zoom from current map state
+   */
+  const forceViewportRefresh = useCallback(async () => {
+    if (!mapRef.current) return;
+    
+    try {
+      const zoom = await mapRef.current.getZoom();
+      const visibleBounds = await mapRef.current.getVisibleBounds();
+      
+      if (visibleBounds && visibleBounds.length === 2) {
+        const newBounds: [number, number, number, number] = [
+          visibleBounds[1][0], visibleBounds[1][1], 
+          visibleBounds[0][0], visibleBounds[0][1]
+        ];
+        const roundedZoom = Math.round(zoom);
+        
+        // Force state update to trigger re-clustering
+        setCurrentZoom(roundedZoom);
+        setBounds(newBounds);
+      }
+    } catch (error) {
+      console.error('Error forcing viewport refresh:', error);
+    }
+  }, []);
+
+  /**
+   * Calculate optimal zoom level to fit bounds with proper padding
+   * Uses screen dimensions and accounts for UI elements (header, controls)
+   */
+  const calculateOptimalZoom = useCallback((
+    boundsToFit: { minLng: number; maxLng: number; minLat: number; maxLat: number },
+    paddingPercent: number = 0.25 // 25% padding on each side
+  ): number => {
+    const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
+    
+    // Account for UI elements (header ~100px, bottom toggle ~80px)
+    const usableHeight = screenHeight - 180;
+    const usableWidth = screenWidth - 40; // Side controls
+    
+    const lngSpan = boundsToFit.maxLng - boundsToFit.minLng;
+    const latSpan = boundsToFit.maxLat - boundsToFit.minLat;
+    
+    // Add padding to spans
+    const paddedLngSpan = lngSpan * (1 + paddingPercent * 2);
+    const paddedLatSpan = latSpan * (1 + paddingPercent * 2);
+    
+    // Web Mercator: at zoom z, world width = 256 * 2^z pixels
+    // Calculate zoom needed to fit each dimension
+    const WORLD_SIZE = 256;
+    
+    // Longitude: simple linear mapping
+    const zoomForLng = Math.log2((usableWidth / WORLD_SIZE) * (360 / paddedLngSpan));
+    
+    // Latitude: need to account for Mercator distortion at center latitude
+    const centerLat = (boundsToFit.minLat + boundsToFit.maxLat) / 2;
+    const latRadians = centerLat * Math.PI / 180;
+    const mercatorScale = Math.cos(latRadians);
+    const zoomForLat = Math.log2((usableHeight / WORLD_SIZE) * (180 / paddedLatSpan) * mercatorScale);
+    
+    // Use the smaller zoom to ensure both dimensions fit
+    const optimalZoom = Math.min(zoomForLng, zoomForLat);
+    
+    // Clamp to valid zoom range and round down to be safe
+    return Math.max(1, Math.min(Math.floor(optimalZoom), 18));
+  }, []);
+
+  /**
+   * Handle cluster press - zoom in to expand with smart bounds fitting
    */
   const handleClusterPress = useCallback((cluster: ClusterFeature) => {
     console.log('Huddle: [handleClusterPress] cluster id:', cluster.properties.cluster_id);
@@ -445,17 +514,41 @@ export default function MapScreen() {
         maxLat = Math.max(maxLat, lLat);
       });
 
-      // Add 15% padding
-      const latPadding = Math.max((maxLat - minLat) * 0.15, 0.001);
-      const lngPadding = Math.max((maxLng - minLng) * 0.15, 0.001);
-
-      // Fit to bounds with smoother duration
-      cameraRef.current.fitBounds(
-        [maxLng + lngPadding, maxLat + latPadding],
-        [minLng - lngPadding, minLat - latPadding],
-        50,
-        1200 // More deliberate expansion
+      // Calculate optimal zoom to fit all points with generous padding (30%)
+      const optimalZoom = calculateOptimalZoom(
+        { minLng, maxLng, minLat, maxLat },
+        0.30 // 30% padding ensures nothing is at edges
       );
+
+      // Add visual padding for fitBounds (in pixels)
+      // Use larger padding to ensure points aren't at screen edges
+      const edgePadding = 80;
+
+      // Calculate padded bounds for state update
+      const lngPadding = (maxLng - minLng) * 0.30 || 0.002;
+      const latPadding = (maxLat - minLat) * 0.30 || 0.002;
+      
+      const targetBounds: [number, number, number, number] = [
+        minLng - lngPadding,
+        minLat - latPadding,
+        maxLng + lngPadding,
+        maxLat + latPadding
+      ];
+
+      // IMMEDIATELY update state with target values so features render
+      setBounds(targetBounds);
+      setCurrentZoom(optimalZoom);
+
+      // Fit to bounds with proper edge padding
+      cameraRef.current.fitBounds(
+        [maxLng + lngPadding, maxLat + latPadding], // NE corner
+        [minLng - lngPadding, minLat - latPadding], // SW corner
+        edgePadding, // Padding in pixels
+        1200 // Animation duration
+      );
+
+      // Refresh viewport after animation to get accurate values
+      setTimeout(forceViewportRefresh, 1400);
     } else {
       // Fallback - fly to cluster location
       const expansionZoom = getClusterExpansionZoom(clusterIndex, cluster.properties.cluster_id);
@@ -468,8 +561,11 @@ export default function MapScreen() {
         animationDuration: duration,
         animationMode: 'flyTo',
       });
+
+      // Force viewport refresh after animation
+      setTimeout(forceViewportRefresh, duration + 200);
     }
-  }, [clusterIndex, currentZoom, navigation, setSelectedRoom, mapReady, calculateMapFlyDuration]);
+  }, [clusterIndex, currentZoom, navigation, setSelectedRoom, mapReady, calculateMapFlyDuration, calculateOptimalZoom, forceViewportRefresh]);
 
   /**
    * Navigate to create room
@@ -498,7 +594,6 @@ export default function MapScreen() {
         attributionEnabled={true}
         attributionPosition={{ bottom: 8, right: 8 }}
         onDidFinishLoadingMap={handleMapReady}
-        onRegionWillChange={() => setIsMapMoving(true)}
         onRegionDidChange={handleRegionDidChange}
       >
         <Camera
@@ -556,6 +651,8 @@ export default function MapScreen() {
         {/* Room Markers and Clusters - using MarkerView for stability */}
         {mapReady && features.map((feature: MapFeature) => {
           const [lng, lat] = feature.geometry.coordinates;
+          // Use stable keys that survive re-clustering
+          const stableKey = getStableFeatureKey(feature);
           const id = isCluster(feature)
             ? `cluster-${feature.properties.cluster_id}`
             : `room-${feature.properties.eventId}`;
@@ -563,7 +660,7 @@ export default function MapScreen() {
           if (isCluster(feature)) {
             return (
               <MarkerView
-                key={id}
+                key={stableKey}
                 id={id}
                 coordinate={[lng, lat]}
                 anchor={{ x: 0.5, y: 0.5 }}
@@ -585,7 +682,7 @@ export default function MapScreen() {
 
           return (
             <MarkerView
-              key={id}
+              key={stableKey}
               id={id}
               coordinate={[lng, lat]}
               anchor={{ x: 0.5, y: 1 }}
