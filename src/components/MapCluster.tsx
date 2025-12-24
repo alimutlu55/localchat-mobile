@@ -77,7 +77,7 @@ export const MapCluster = memo(({ count }: MapClusterProps) => {
         };
     }, []);
 
-    // Colors matching web exactly
+    // Colors matching web exactly (more vivid, saturated)
     const getColors = (): [string, string] => {
         switch (sizeCategory) {
             case 'small':
@@ -176,26 +176,27 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.15,
-        shadowRadius: 4,
-        elevation: 4,
+        shadowOffset: { width: 0, height: 4 }, // Stronger shadow for more vivid look
+        shadowOpacity: 0.25, // Increased from 0.15
+        shadowRadius: 6, // Increased from 4
+        elevation: 6, // Increased from 4
     },
     gradient: {
         justifyContent: 'center',
         alignItems: 'center',
-        borderWidth: 3,
-        borderColor: '#ffffff',
+        borderWidth: 0, // No white border (matching web)
+        borderColor: 'transparent',
         overflow: 'hidden',
     },
     text: {
         color: '#ffffff',
-        fontWeight: '600', // Match web font-semibold
-        // Text shadow matching web drop-shadow-sm
-        textShadowColor: 'rgba(0, 0, 0, 0.2)',
+        fontWeight: '400', // Thinner font weight (regular)
+        // Lighter text shadow for cleaner look
+        textShadowColor: 'rgba(0, 0, 0, 0.15)',
         textShadowOffset: { width: 0, height: 1 },
-        textShadowRadius: 2,
+        textShadowRadius: 1,
         zIndex: 10,
+        letterSpacing: 0.5, // Add spacing for cleaner look
     },
     glow: {
         position: 'absolute',

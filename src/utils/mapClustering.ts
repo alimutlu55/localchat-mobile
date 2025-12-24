@@ -52,14 +52,14 @@ export function roomsToGeoJSON(rooms: Room[]): EventFeature[] {
 
 /**
  * Create and configure Supercluster instance
- * Radius 60 is a good default for mobile screens as well.
+ * Optimized for better expansion behavior on mobile
  */
 export function createClusterIndex(rooms: Room[]): Supercluster<EventFeature['properties'], ClusterFeature['properties']> {
     const index = new Supercluster<EventFeature['properties'], ClusterFeature['properties']>({
-        radius: 60, // Larger radius = more aggressive clustering
-        maxZoom: 20,
+        radius: 50, // Reduced from 60 for less aggressive clustering
+        maxZoom: 16, // Stop clustering at zoom 16 (was 20) - rooms visible at 17+
         minZoom: 0,
-        minPoints: 2,
+        minPoints: 2, // Minimum 2 rooms to form a cluster
         extent: 256,
         nodeSize: 64,
     });

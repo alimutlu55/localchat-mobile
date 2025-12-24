@@ -39,6 +39,8 @@ import { RoomProvider, useRooms, useSidebarRooms, useActiveRooms, useUIActions }
 import { RoomPin } from '../../components/RoomPin';
 import { MapCluster } from '../../components/MapCluster';
 import { RoomListView } from '../../components/RoomListView';
+import { RoomMarker, ClusterMarker } from '../../components/OptimizedMarkers';
+import { HUDDLE_MAP_STYLE } from '../../styles/mapStyle';
 import {
     createClusterIndex,
     getClustersForBounds,
@@ -50,8 +52,8 @@ import {
     EventFeature
 } from '../../utils/mapClustering';
 
-// OpenFreeMap Positron style
-const MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/positron';
+// Optimized map style with soft colors and subtle labels
+const MAP_STYLE = HUDDLE_MAP_STYLE;
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type ViewMode = 'map' | 'list';
@@ -125,18 +127,23 @@ export default function DiscoveryScreen() {
 
     // Get clusters/features for current viewport
     const features = useMemo(() => {
-        return getClustersForBounds(clusterIndex, bounds, currentZoom);
-    }, [clusterIndex, bounds, currentZoom]);
+        if (!mapReady) return [];
+        const newFeatures = getClustersForBounds(clusterIndex, bounds, currentZoom);
+        console.log('Huddle: [DiscoveryScreen] Features recalculated, count:', newFeatures.length, 'zoom:', currentZoom);
+        return newFeatures;
+    }, [clusterIndex, bounds, currentZoom, mapReady]);
 
     // Create a single GeoJSON FeatureCollection for all room circles
+    // Hide circles only at low zoom levels
     const circlesGeoJSON = useMemo(() => {
-        if (!mapReady || isMapMoving || currentZoom < 10) {
+        if (!mapReady || currentZoom < 10) {
             return {
                 type: 'FeatureCollection' as const,
                 features: [],
             };
         }
 
+        // Always use latest features for circles
         const circleFeatures = features
             .filter((f): f is EventFeature => !isCluster(f))
             .filter(f => f.properties.room.latitude != null && f.properties.room.longitude != null)
@@ -165,7 +172,7 @@ export default function DiscoveryScreen() {
             type: 'FeatureCollection' as const,
             features: circleFeatures,
         };
-    }, [features, currentZoom, isMapMoving, mapReady]);
+    }, [features, currentZoom, mapReady]);
 
     /**
      * Fetch nearby rooms using context
@@ -250,15 +257,18 @@ export default function DiscoveryScreen() {
     }, []);
 
     /**
-     * Handle region change
+     * Handle region change with debouncing to prevent crash
      */
     const handleRegionDidChange = useCallback(async () => {
         if (!mapRef.current) return;
 
         try {
-            const zoom = await mapRef.current.getZoom();
-            const visibleBounds = await mapRef.current.getVisibleBounds();
-            const center = await mapRef.current.getCenter();
+            // Get map state in a single batch to minimize calls
+            const [zoom, visibleBounds, center] = await Promise.all([
+                mapRef.current.getZoom(),
+                mapRef.current.getVisibleBounds(),
+                mapRef.current.getCenter()
+            ]);
 
             if (visibleBounds && visibleBounds.length === 2) {
                 const [ne, sw] = visibleBounds;
@@ -270,9 +280,15 @@ export default function DiscoveryScreen() {
             }
 
             setCurrentZoom(Math.round(zoom));
+            
+            // Immediately re-enable rendering for stable markers
             setIsMapMoving(false);
+            
+            // Force features recalculation after zoom completes
+            console.log('Huddle: [handleRegionDidChange] Zoom:', Math.round(zoom), 'Bounds updated');
         } catch (error) {
             console.error('Error getting map state:', error);
+            setIsMapMoving(false);
         }
     }, []);
 
@@ -382,59 +398,58 @@ export default function DiscoveryScreen() {
     }, [navigation, setSelectedRoom, mapReady, currentZoom, calculateMapFlyDuration]);
 
     /**
-     * Handle cluster press
+     * Handle cluster press - Aggressive expansion for small clusters
      */
     const handleClusterPress = useCallback((cluster: ClusterFeature) => {
-        console.log('Huddle: [handleClusterPress] cluster id:', cluster.properties.cluster_id);
+        console.log('Huddle: [handleClusterPress] cluster id:', cluster.properties.cluster_id, 'count:', cluster.properties.point_count);
         if (!mapReady || !cameraRef.current) return;
 
         const [lng, lat] = cluster.geometry.coordinates;
         const leaves = getClusterLeaves(clusterIndex, cluster.properties.cluster_id, Infinity);
+        const expansionZoom = getClusterExpansionZoom(clusterIndex, cluster.properties.cluster_id);
 
-        if (currentZoom >= 17 && leaves.length > 0) {
-            const expansionZoom = getClusterExpansionZoom(clusterIndex, cluster.properties.cluster_id);
-            if (expansionZoom > 18) {
-                const firstRoom = leaves[0].properties.room;
-                setSelectedRoom(firstRoom);
-                navigation.navigate('RoomDetails', { room: firstRoom });
-                return;
-            }
+        console.log('Huddle: [handleClusterPress] currentZoom:', currentZoom, 'expansionZoom:', expansionZoom, 'leaves:', leaves.length);
+
+        // Special case: At max zoom and can't expand further
+        if (currentZoom >= 17 && expansionZoom > 18) {
+            // Show first room details instead
+            const firstRoom = leaves[0].properties.room;
+            setSelectedRoom(firstRoom);
+            navigation.navigate('RoomDetails', { room: firstRoom });
+            return;
         }
 
-        if (leaves.length > 0) {
-            let minLng = leaves[0].geometry.coordinates[0];
-            let maxLng = leaves[0].geometry.coordinates[0];
-            let minLat = leaves[0].geometry.coordinates[1];
-            let maxLat = leaves[0].geometry.coordinates[1];
-
-            leaves.forEach(leaf => {
-                const [lLng, lLat] = leaf.geometry.coordinates;
-                minLng = Math.min(minLng, lLng);
-                maxLng = Math.max(maxLng, lLng);
-                minLat = Math.min(minLat, lLat);
-                maxLat = Math.max(maxLat, lLat);
-            });
-
-            const latPadding = Math.max((maxLat - minLat) * 0.15, 0.001);
-            const lngPadding = Math.max((maxLng - minLng) * 0.15, 0.001);
-
-            cameraRef.current.fitBounds(
-                [maxLng + lngPadding, maxLat + latPadding],
-                [minLng - lngPadding, minLat - latPadding],
-                50,
-                500  // Fast, snappy expansion
-            );
+        // Calculate target zoom level based on cluster size
+        let targetZoom: number;
+        
+        if (leaves.length <= 3) {
+            // Small cluster (2-3 rooms): zoom to expansion level to fully expand
+            targetZoom = Math.min(expansionZoom + 1, 18); // +1 to ensure full expansion
+        } else if (leaves.length <= 10) {
+            // Medium cluster: use expansion zoom
+            targetZoom = Math.min(expansionZoom, 17);
         } else {
-            const expansionZoom = getClusterExpansionZoom(clusterIndex, cluster.properties.cluster_id);
-            const targetZoom = Math.min(Math.max(expansionZoom, currentZoom + 2), 16);
-
-            cameraRef.current.setCamera({
-                centerCoordinate: [lng, lat],
-                zoomLevel: targetZoom,
-                animationDuration: 400,  // Fast, responsive zoom
-                animationMode: 'easeTo',
-            });
+            // Large cluster: zoom progressively
+            targetZoom = Math.min(Math.max(expansionZoom - 1, currentZoom + 2), 16);
         }
+
+        // Ensure we always zoom in at least +2 levels
+        targetZoom = Math.max(targetZoom, currentZoom + 2);
+
+        console.log('Huddle: [handleClusterPress] targetZoom:', targetZoom);
+
+        // Consistent animation for all clusters
+        const duration = calculateMapFlyDuration(targetZoom);
+
+        cameraRef.current.setCamera({
+            centerCoordinate: [lng, lat],
+            zoomLevel: targetZoom,
+            animationDuration: Math.min(duration, 1000), // Max 1s for smooth experience
+            animationMode: 'easeTo',
+        });
+
+        // Note: handleRegionDidChange will be called automatically when animation completes
+        // via onRegionDidChange callback
     }, [clusterIndex, currentZoom, navigation, setSelectedRoom, mapReady, calculateMapFlyDuration]);
 
     /**
@@ -477,7 +492,7 @@ export default function DiscoveryScreen() {
                 <MapView
                     ref={mapRef}
                     style={styles.map}
-                    mapStyle={MAP_STYLE_URL}
+                    mapStyle={MAP_STYLE}
                     logoEnabled={false}
                     attributionEnabled={true}
                     attributionPosition={{ bottom: 8, right: 8 }}
@@ -537,52 +552,26 @@ export default function DiscoveryScreen() {
                         </MarkerView>
                     )}
 
-                    {/* Room Markers and Clusters */}
+                    {/* Room Markers and Clusters - Always render latest features */}
                     {mapReady && features.map((feature: MapFeature) => {
-                        const [lng, lat] = feature.geometry.coordinates;
-                        const id = isCluster(feature)
-                            ? `cluster-${feature.properties.cluster_id}`
-                            : `room-${feature.properties.eventId}`;
-
                         if (isCluster(feature)) {
                             return (
-                                <MarkerView
-                                    key={id}
-                                    id={id}
-                                    coordinate={[lng, lat]}
-                                    anchor={{ x: 0.5, y: 0.5 }}
-                                >
-                                    <TouchableOpacity
-                                        onPress={() => handleClusterPress(feature as ClusterFeature)}
-                                        activeOpacity={0.8}
-                                    >
-                                        <MapCluster count={feature.properties.point_count} />
-                                    </TouchableOpacity>
-                                </MarkerView>
+                                <ClusterMarker
+                                    key={`cluster-${feature.properties.cluster_id}`}
+                                    cluster={feature as ClusterFeature}
+                                    onPress={handleClusterPress}
+                                />
                             );
                         }
 
                         const room = feature.properties.room;
-                        if (room.latitude == null || room.longitude == null) {
-                            return null;
-                        }
-
                         return (
-                            <MarkerView
-                                key={id}
-                                id={id}
-                                coordinate={[lng, lat]}
-                                anchor={{ x: 0.5, y: 1 }}
-                            >
-                                <TouchableOpacity
-                                    onPress={() => handleRoomPress(room)}
-                                    activeOpacity={0.8}
-                                >
-                                    <View style={styles.pinMarkerContainer}>
-                                        <RoomPin room={room} isSelected={selectedRoom?.id === room.id} />
-                                    </View>
-                                </TouchableOpacity>
-                            </MarkerView>
+                            <RoomMarker
+                                key={`room-${room.id}`}
+                                room={room}
+                                isSelected={selectedRoom?.id === room.id}
+                                onPress={handleRoomPress}
+                            />
                         );
                     })}
                 </MapView>
@@ -621,7 +610,7 @@ export default function DiscoveryScreen() {
                         />
                     </TouchableOpacity>
 
-                    {currentZoom > 5 && (
+                    {currentZoom > 3 && (
                         <TouchableOpacity
                             style={styles.controlButton}
                             onPress={handleResetView}
