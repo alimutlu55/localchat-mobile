@@ -23,13 +23,14 @@ import { randomizeForRoomCreation, randomizeForRoomJoin, randomizeForDiscovery }
 
 /**
  * Room DTO from backend
+ * Matches backend RoomSummaryDTO structure
  */
 interface RoomDTO {
   id: string;
   title: string;
   description?: string;
   category: string;
-  emoji: string;
+  categoryIcon: string; // Backend sends categoryIcon (persistent emoji from room.category.icon)
   participantCount: number;
   maxParticipants: number;
   distanceMeters: number;
@@ -94,7 +95,7 @@ function transformRoom(dto: RoomDTO): Room {
     title: dto.title,
     description: dto.description,
     category: dto.category as RoomCategory,
-    emoji: dto.emoji,
+    emoji: dto.categoryIcon, // Map backend's categoryIcon to frontend's emoji field
     participantCount: dto.participantCount,
     maxParticipants: dto.maxParticipants,
     distance: dto.distanceMeters,

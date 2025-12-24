@@ -34,6 +34,7 @@ interface RoomCreatedPayload {
     };
     radiusMeters: number;
     category: string;
+    categoryIcon?: string; // Optional: backend may add this in future
     participantCount: number;
     expiresAt?: string;
     creatorId: string;
@@ -97,10 +98,22 @@ interface RoomProviderProps {
 
 /**
  * Get category emoji from category ID
+ * Matches backend RoomCategory enum icons exactly
  */
 function getCategoryEmoji(category: string): string {
-  const cat = CATEGORIES.find(c => c.id === category || c.id === category.toUpperCase());
-  return cat?.emoji || '💬';
+  const emojiMap: Record<string, string> = {
+    TRAFFIC: '🚗',
+    EVENTS: '🎉',
+    EMERGENCY: '🚨',
+    LOST_FOUND: '🔍',
+    SPORTS: '⚽',
+    FOOD: '🍕',
+    NEIGHBORHOOD: '🏘️',
+    GENERAL: '💬',
+  };
+  
+  const normalizedCategory = category.toUpperCase();
+  return emojiMap[normalizedCategory] || '💬';
 }
 
 /**
@@ -435,7 +448,7 @@ export function RoomProvider({ children }: RoomProviderProps) {
         longitude: newRoomData.location.longitude,
         radius: newRoomData.radiusMeters,
         category: newRoomData.category as any,
-        emoji: getCategoryEmoji(newRoomData.category),
+        emoji: newRoomData.categoryIcon || getCategoryEmoji(newRoomData.category), // Use backend icon if available
         participantCount: newRoomData.participantCount,
         maxParticipants: 500, // Default
         expiresAt: newRoomData.expiresAt ? new Date(newRoomData.expiresAt) : new Date(Date.now() + 3600000 * 24),

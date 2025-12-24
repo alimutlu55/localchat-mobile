@@ -45,19 +45,17 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'CreateRoom'
 const { width } = Dimensions.get('window');
 
 /**
- * Category option data (matching web)
+ * Category option data (matching backend RoomCategory enum)
  */
 const CATEGORY_OPTIONS = [
-  { emoji: '☕', label: 'Food', id: 'FOOD' as RoomCategory },
-  { emoji: '🎵', label: 'Music', id: 'EVENTS' as RoomCategory },
-  { emoji: '⚽', label: 'Sports', id: 'SPORTS' as RoomCategory },
-  { emoji: '💼', label: 'Work', id: 'GENERAL' as RoomCategory },
-  { emoji: '🎨', label: 'Art', id: 'GENERAL' as RoomCategory },
-  { emoji: '📚', label: 'Books', id: 'GENERAL' as RoomCategory },
+  { emoji: '🍕', label: 'Food & Dining', id: 'FOOD' as RoomCategory },
   { emoji: '🎉', label: 'Events', id: 'EVENTS' as RoomCategory },
-  { emoji: '💬', label: 'Social', id: 'GENERAL' as RoomCategory },
-  { emoji: '🎮', label: 'Gaming', id: 'GENERAL' as RoomCategory },
-  { emoji: '✨', label: 'Other', id: 'GENERAL' as RoomCategory },
+  { emoji: '⚽', label: 'Sports', id: 'SPORTS' as RoomCategory },
+  { emoji: '🚗', label: 'Traffic', id: 'TRAFFIC' as RoomCategory },
+  { emoji: '🏘️', label: 'Neighborhood', id: 'NEIGHBORHOOD' as RoomCategory },
+  { emoji: '🔍', label: 'Lost & Found', id: 'LOST_FOUND' as RoomCategory },
+  { emoji: '🚨', label: 'Emergency', id: 'EMERGENCY' as RoomCategory },
+  { emoji: '💬', label: 'General', id: 'GENERAL' as RoomCategory },
 ];
 
 /**

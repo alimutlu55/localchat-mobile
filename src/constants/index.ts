@@ -188,17 +188,16 @@ export const WS_EVENTS = {
 
 /**
  * Category Configuration
+ * Matches backend RoomCategory enum exactly
  */
 export const CATEGORIES = [
-  { id: 'FOOD', emoji: '☕', label: 'Food', color: '#f97316' },
-  { id: 'EVENTS', emoji: '🎵', label: 'Music', color: '#f59e0b' },
-  { id: 'SPORTS', emoji: '⚽', label: 'Sports', color: '#22c55e' },
-  { id: 'GENERAL', emoji: '💼', label: 'Work', color: '#6366f1' },
-  { id: 'GENERAL', emoji: '🎨', label: 'Art', color: '#6366f1' },
-  { id: 'GENERAL', emoji: '📚', label: 'Books', color: '#6366f1' },
-  { id: 'EVENTS', emoji: '🎉', label: 'Events', color: '#f59e0b' },
-  { id: 'GENERAL', emoji: '💬', label: 'Social', color: '#6366f1' },
-  { id: 'GENERAL', emoji: '🎮', label: 'Gaming', color: '#6366f1' },
-  { id: 'GENERAL', emoji: '✨', label: 'Other', color: '#6366f1' },
+  { id: 'FOOD', emoji: '🍕', label: 'Food & Dining', color: '#f97316' },
+  { id: 'EVENTS', emoji: '🎉', label: 'Events & Gatherings', color: '#f59e0b' },
+  { id: 'SPORTS', emoji: '⚽', label: 'Sports & Recreation', color: '#22c55e' },
+  { id: 'TRAFFIC', emoji: '🚗', label: 'Traffic & Transit', color: '#3b82f6' },
+  { id: 'NEIGHBORHOOD', emoji: '🏘️', label: 'Neighborhood', color: '#8b5cf6' },
+  { id: 'LOST_FOUND', emoji: '🔍', label: 'Lost & Found', color: '#ec4899' },
+  { id: 'EMERGENCY', emoji: '🚨', label: 'Emergency & Safety', color: '#ef4444' },
+  { id: 'GENERAL', emoji: '💬', label: 'General', color: '#6366f1' },
 ] as const;
 
