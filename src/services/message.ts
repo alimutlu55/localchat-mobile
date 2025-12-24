@@ -16,6 +16,7 @@
 
 import { api } from './api';
 import { ChatMessage, MessageStatus } from '../types';
+import { generateUUID } from '../utils/uuid';
 
 /**
  * Message DTO from backend
@@ -24,14 +25,19 @@ import { ChatMessage, MessageStatus } from '../types';
 interface MessageDTO {
   id: string;
   roomId: string;
+  senderId: string;
+  senderDisplayName?: string;
+  senderProfilePhotoUrl?: string;
   content: string;
   createdAt: string;
-  sender: {
-    id: string;
-    displayName: string;
-    profilePhotoUrl?: string;
-  };
+  type: 'USER' | 'SYSTEM';
+  status: 'SENT' | 'DELIVERED' | 'READ' | 'FAILED';
   clientMessageId?: string;
+  reactions?: Array<{
+    emoji: string;
+    count: number;
+    userReacted: boolean;
+  }>;
   isDeleted?: boolean;
 }
 
@@ -57,16 +63,30 @@ interface MessageHistoryResponse {
  * Transform backend DTO to frontend ChatMessage model
  */
 function transformMessage(dto: MessageDTO): ChatMessage {
+  // Normalize type
+  const type = dto.type?.toLowerCase() === 'system' ? 'system' : 'user';
+
+  // Normalize status
+  let status: MessageStatus = 'delivered';
+  if (dto.status) {
+    const s = dto.status.toLowerCase();
+    if (s === 'sent') status = 'sent';
+    else if (s === 'delivered') status = 'delivered';
+    else if (s === 'read') status = 'read';
+    else if (s === 'failed') status = 'failed';
+  }
+
   return {
     id: dto.id,
-    type: 'user',
+    type,
     content: dto.content,
     timestamp: new Date(dto.createdAt),
-    userId: dto.sender.id,
-    userName: dto.sender.displayName,
-    userProfilePhoto: dto.sender.profilePhotoUrl,
-    status: 'delivered',
+    userId: dto.senderId,
+    userName: dto.senderDisplayName || 'Anonymous User',
+    userProfilePhoto: dto.senderProfilePhotoUrl,
+    status,
     clientMessageId: dto.clientMessageId,
+    reactions: dto.reactions,
     isDeleted: dto.isDeleted,
   };
 }
@@ -98,10 +118,16 @@ class MessageService {
       };
     }>(`/messages/room/${roomId}?${params}`);
 
+    const messages = response.data.messages.map(transformMessage);
+    // The backend returns messages in chronological order (oldest first)
+    // So messages[0] is the oldest message in this batch.
+    // Its timestamp is the 'before' cursor for the next (older) batch.
+    const cursor = messages.length > 0 ? messages[0].timestamp.toISOString() : undefined;
+
     return {
-      messages: response.data.messages.map(transformMessage),
+      messages,
       hasMore: response.data.hasMore,
-      cursor: response.data.oldestMessageId,
+      cursor,
     };
   }
 
@@ -109,8 +135,14 @@ class MessageService {
    * Get a single message by ID
    */
   async getMessage(roomId: string, messageId: string): Promise<ChatMessage> {
-    const response = await api.get<{ data: MessageDTO }>(`/rooms/${roomId}/messages/${messageId}`);
-    return transformMessage(response.data);
+    // Backend doesn't have /messages/{messageId} endpoint yet
+    // For now, we fetch history and find the message
+    const { messages } = await this.getHistory(roomId, { limit: 50 });
+    const message = messages.find(m => m.id === messageId);
+    if (!message) {
+      throw new Error('Message not found');
+    }
+    return message;
   }
 
   /**
@@ -134,14 +166,14 @@ class MessageService {
    * Delete a message (sender or room creator only)
    */
   async deleteMessage(roomId: string, messageId: string): Promise<void> {
-    await api.delete(`/rooms/${roomId}/messages/${messageId}`);
+    await api.delete(`/messages/${messageId}`);
   }
 
   /**
    * Generate a unique client message ID for optimistic updates
    */
   generateClientMessageId(): string {
-    return `${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+    return generateUUID();
   }
 
   /**

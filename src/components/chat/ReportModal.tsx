@@ -33,6 +33,7 @@ interface ReportModalProps {
   }) => Promise<void>;
   targetType: 'message' | 'room' | 'user';
   targetName?: string;
+  isUserAlreadyBlocked?: boolean;
 }
 
 const REPORT_REASONS: { value: ReportReason; label: string }[] = [
@@ -59,17 +60,17 @@ function RadioOption({ label, isSelected, onSelect }: { label: string; isSelecte
   );
 }
 
-function CheckboxOption({ label, isChecked, onToggle }: { label: string; isChecked: boolean; onToggle: () => void }) {
+function CheckboxOption({ label, isChecked, onToggle, disabled = false }: { label: string; isChecked: boolean; onToggle: () => void; disabled?: boolean }) {
   return (
     <TouchableOpacity
-      onPress={onToggle}
-      style={styles.checkboxItem}
-      activeOpacity={0.7}
+      onPress={disabled ? undefined : onToggle}
+      style={[styles.checkboxItem, disabled && styles.checkboxItemDisabled]}
+      activeOpacity={disabled ? 1 : 0.7}
     >
-      <View style={[styles.checkboxOuter, isChecked && styles.checkboxOuterSelected]}>
-        {isChecked && <Check size={14} color="#ffffff" />}
+      <View style={[styles.checkboxOuter, isChecked && styles.checkboxOuterSelected, disabled && styles.checkboxOuterDisabled]}>
+        {isChecked && <Check size={14} color={disabled ? "#9ca3af" : "#ffffff"} />}
       </View>
-      <Text style={styles.checkboxLabel}>{label}</Text>
+      <Text style={[styles.checkboxLabel, disabled && styles.checkboxLabelDisabled]}>{label}</Text>
     </TouchableOpacity>
   );
 }
@@ -80,6 +81,7 @@ export function ReportModal({
   onSubmit,
   targetType,
   targetName,
+  isUserAlreadyBlocked = false,
 }: ReportModalProps) {
   const insets = useSafeAreaInsets();
   const [selectedReason, setSelectedReason] = useState<ReportReason | null>(null);
@@ -216,9 +218,10 @@ export function ReportModal({
               <View style={styles.section}>
                 <View style={styles.card}>
                   <CheckboxOption
-                    label="Block this user"
-                    isChecked={blockUser}
-                    onToggle={() => setBlockUser(!blockUser)}
+                    label={isUserAlreadyBlocked ? "User already blocked" : "Block this user"}
+                    isChecked={isUserAlreadyBlocked || blockUser}
+                    onToggle={() => !isUserAlreadyBlocked && setBlockUser(!blockUser)}
+                    disabled={isUserAlreadyBlocked}
                   />
                   <View style={styles.divider} />
                   <CheckboxOption
@@ -387,6 +390,16 @@ const styles = StyleSheet.create({
   checkboxLabel: {
     fontSize: 15,
     color: '#334155',
+  },
+  checkboxItemDisabled: {
+    opacity: 0.6,
+  },
+  checkboxOuterDisabled: {
+    borderColor: '#9ca3af',
+    backgroundColor: '#e5e7eb',
+  },
+  checkboxLabelDisabled: {
+    color: '#9ca3af',
   },
   detailsInput: {
     paddingHorizontal: 16,

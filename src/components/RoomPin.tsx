@@ -199,10 +199,10 @@ const styles = StyleSheet.create({
         borderWidth: 2,
         borderColor: '#ffffff',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 4,
-        elevation: 6,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 3,
+        elevation: 4,
     },
     pinSelected: {
         borderWidth: 3,
@@ -216,8 +216,8 @@ const styles = StyleSheet.create({
         right: -4,
         backgroundColor: '#ffffff',
         borderRadius: 12,
-        minWidth: 22,
-        height: 22,
+        minWidth: 24,
+        height: 24,
         alignItems: 'center',
         justifyContent: 'center',
         shadowColor: '#000',
@@ -227,8 +227,8 @@ const styles = StyleSheet.create({
         elevation: 4,
     },
     badgeText: {
-        fontSize: 10,
-        fontWeight: '700',
+        fontSize: 11,
+        fontWeight: '500',
         color: '#111827',
     },
     newBadge: {
@@ -249,8 +249,8 @@ const styles = StyleSheet.create({
     },
     newBadgeText: {
         color: '#ffffff',
-        fontSize: 9,
-        fontWeight: '700',
+        fontSize: 10,
+        fontWeight: '500',
     },
     clockIconContainer: {
         position: 'absolute',
@@ -284,12 +284,12 @@ const styles = StyleSheet.create({
     tail: {
         width: 0,
         height: 0,
-        borderLeftWidth: 8,
-        borderRightWidth: 8,
-        borderTopWidth: 12,
+        borderLeftWidth: 6,
+        borderRightWidth: 6,
+        borderTopWidth: 10,
         borderLeftColor: 'transparent',
         borderRightColor: 'transparent',
-        marginTop: -4, // Overlap slightly for seamless transition
+        marginTop: -2, // Match web overlap
         zIndex: 1,
     },
 });

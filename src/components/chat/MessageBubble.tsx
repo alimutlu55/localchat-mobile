@@ -19,6 +19,7 @@ import {
   Pressable,
   Image,
   Alert,
+  Platform,
 } from 'react-native';
 import {
   Check,
@@ -28,7 +29,9 @@ import {
   Ban,
   Clock,
   AlertCircle,
+  MoreVertical,
 } from 'lucide-react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 import { ChatMessage } from '../../types';
 
 interface MessageBubbleProps {
@@ -36,9 +39,10 @@ interface MessageBubbleProps {
   isOwn: boolean;
   onReport?: (message: ChatMessage) => void;
   onBlock?: (message: ChatMessage) => void;
+  hasBlocked?: boolean;
 }
 
-export function MessageBubble({ message, isOwn, onReport, onBlock }: MessageBubbleProps) {
+export function MessageBubble({ message, isOwn, onReport, onBlock, hasBlocked }: MessageBubbleProps) {
   const [showContextMenu, setShowContextMenu] = useState(false);
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
@@ -79,6 +83,7 @@ export function MessageBubble({ message, isOwn, onReport, onBlock }: MessageBubb
   };
 
   const handleBlock = () => {
+    if (hasBlocked) return;
     onBlock?.(message);
     setShowContextMenu(false);
   };
@@ -95,18 +100,27 @@ export function MessageBubble({ message, isOwn, onReport, onBlock }: MessageBubb
 
     switch (message.status) {
       case 'sending':
-        return <Clock size={14} color="rgba(255, 255, 255, 0.6)" />;
+        return <Clock size={12} color="rgba(255, 255, 255, 0.6)" />;
       case 'sent':
-        return <Check size={14} color="rgba(255, 255, 255, 0.7)" />;
+        return <Check size={12} color="rgba(255, 255, 255, 0.7)" />;
       case 'delivered':
-        return <CheckCheck size={14} color="rgba(255, 255, 255, 0.7)" />;
+        return <CheckCheck size={12} color="rgba(255, 255, 255, 0.7)" />;
       case 'read':
-        return <CheckCheck size={14} color="#93c5fd" />;
+        return <CheckCheck size={12} color="#ffffff" />;
       case 'failed':
         return <AlertCircle size={14} color="#fca5a5" />;
       default:
         return null;
     }
+  };
+
+  const getAvatarColor = (name: string) => {
+    const colors = ['#f97316', '#8b5cf6', '#ec4899', '#10b981', '#3b82f6'];
+    let hash = 0;
+    for (let i = 0; i < name.length; i++) {
+      hash = name.charCodeAt(i) + ((hash << 5) - hash);
+    }
+    return colors[Math.abs(hash) % colors.length];
   };
 
   /**
@@ -122,10 +136,13 @@ export function MessageBubble({ message, isOwn, onReport, onBlock }: MessageBubb
       );
     }
 
+    const userName = message.userName || 'A';
+    const initials = userName.charAt(0).toUpperCase();
+
     return (
-      <Text style={styles.avatarText}>
-        {message.userName?.charAt(0).toUpperCase() || 'U'}
-      </Text>
+      <View style={[styles.avatar, { backgroundColor: getAvatarColor(userName) }]}>
+        <Text style={styles.avatarText}>{initials}</Text>
+      </View>
     );
   };
 
@@ -151,19 +168,10 @@ export function MessageBubble({ message, isOwn, onReport, onBlock }: MessageBubb
         ]}
       >
         {/* Avatar for incoming messages */}
-        {!isOwn && (
-          <View style={styles.avatar}>
-            {renderAvatar()}
-          </View>
-        )}
+        {!isOwn && renderAvatar()}
 
-        <TouchableOpacity
-          style={styles.messageContent}
-          onLongPress={handleLongPress}
-          activeOpacity={0.8}
-          delayLongPress={300}
-        >
-          {/* Sender name and time for incoming messages */}
+        <View style={styles.messageContent}>
+          {/* Sender name for incoming messages */}
           {!isOwn && (
             <View style={styles.messageHeader}>
               <Text style={styles.messageSender}>
@@ -173,23 +181,48 @@ export function MessageBubble({ message, isOwn, onReport, onBlock }: MessageBubb
             </View>
           )}
 
-          {/* Message bubble */}
-          <View style={[styles.bubble, isOwn && styles.bubbleOwn]}>
-            <Text style={[styles.messageText, isOwn && styles.messageTextOwn]}>
-              {message.content}
-            </Text>
-
-            {/* Time and status for own messages */}
-            {isOwn && (
-              <View style={styles.ownMessageMeta}>
-                <Text style={styles.messageTimeOwn}>
-                  {formatTime(message.timestamp)}
-                </Text>
-                {getStatusIcon()}
+          <View style={[styles.bubbleWrapper, isOwn && styles.bubbleWrapperOwn]}>
+            {isOwn ? (
+              <TouchableOpacity
+                onLongPress={handleLongPress}
+                activeOpacity={0.85}
+              >
+                <LinearGradient
+                  colors={['#f97316', '#ef4444']}
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={[styles.bubble, styles.bubbleOwn]}
+                >
+                  <Text style={[styles.messageText, styles.messageTextOwn]}>
+                    {message.content}
+                  </Text>
+                  <View style={styles.ownMessageMeta}>
+                    <Text style={styles.messageTimeOwn}>
+                      {formatTime(message.timestamp)}
+                    </Text>
+                    {getStatusIcon()}
+                  </View>
+                </LinearGradient>
+              </TouchableOpacity>
+            ) : (
+              <View style={styles.incomingContainer}>
+                <TouchableOpacity
+                  style={styles.bubble}
+                  onLongPress={handleLongPress}
+                  activeOpacity={0.8}
+                >
+                  <Text style={styles.messageText}>{message.content}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={handleLongPress}
+                >
+                  <MoreVertical size={16} color="#94a3b8" />
+                </TouchableOpacity>
               </View>
             )}
           </View>
-        </TouchableOpacity>
+        </View>
       </Animated.View>
 
       {/* Context Menu Modal */}
@@ -212,15 +245,22 @@ export function MessageBubble({ message, isOwn, onReport, onBlock }: MessageBubb
             {!isOwn && (
               <>
                 <View style={styles.menuDivider} />
-                <TouchableOpacity style={styles.menuItem} onPress={handleReport}>
+                <TouchableOpacity
+                  style={styles.menuItem}
+                  onPress={handleReport}
+                >
                   <Flag size={18} color="#374151" />
                   <Text style={styles.menuItemText}>Report</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity style={styles.menuItem} onPress={handleBlock}>
-                  <Ban size={18} color="#ef4444" />
-                  <Text style={[styles.menuItemText, styles.menuItemDanger]}>
-                    Block User
+                <TouchableOpacity
+                  style={[styles.menuItem, hasBlocked && styles.menuItemDisabled]}
+                  onPress={handleBlock}
+                  disabled={hasBlocked}
+                >
+                  <Ban size={18} color={hasBlocked ? '#9ca3af' : '#ef4444'} />
+                  <Text style={[styles.menuItemText, hasBlocked ? styles.menuItemDisabledText : styles.menuItemDanger]}>
+                    {hasBlocked ? 'Already Blocked' : 'Block User'}
                   </Text>
                 </TouchableOpacity>
               </>
@@ -235,57 +275,70 @@ export function MessageBubble({ message, isOwn, onReport, onBlock }: MessageBubb
 const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
-    marginBottom: 12,
-    maxWidth: '85%',
+    marginBottom: 16,
+    paddingHorizontal: 16,
+    width: '100%',
   },
   containerOwn: {
-    alignSelf: 'flex-end',
-    flexDirection: 'row-reverse',
+    justifyContent: 'flex-end',
   },
   avatar: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#e5e7eb',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 8,
-    overflow: 'hidden',
+    marginRight: 10,
+    marginTop: 2,
   },
   avatarImage: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    marginRight: 10,
+    marginTop: 2,
   },
   avatarText: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#6b7280',
+    fontSize: 15,
+    fontWeight: 'bold',
+    color: '#ffffff',
   },
   messageContent: {
-    flex: 1,
+    maxWidth: '80%',
   },
   messageHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'baseline',
     marginBottom: 4,
-    gap: 8,
+    gap: 6,
   },
   messageSender: {
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: '#334155',
   },
   messageTime: {
-    fontSize: 11,
-    color: '#9ca3af',
+    fontSize: 12,
+    color: '#94a3b8',
+  },
+  bubbleWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  bubbleWrapperOwn: {
+    justifyContent: 'flex-end',
+  },
+  incomingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   bubble: {
     backgroundColor: '#ffffff',
-    borderRadius: 18,
-    borderTopLeftRadius: 4,
+    borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
@@ -294,13 +347,13 @@ const styles = StyleSheet.create({
   },
   bubbleOwn: {
     backgroundColor: '#f97316',
-    borderTopLeftRadius: 18,
-    borderBottomRightRadius: 4,
+    borderWidth: 0,
+    borderColor: 'transparent',
   },
   messageText: {
-    fontSize: 15,
-    color: '#1f2937',
-    lineHeight: 20,
+    fontSize: 16,
+    color: '#1e293b',
+    lineHeight: 22,
   },
   messageTextOwn: {
     color: '#ffffff',
@@ -313,8 +366,12 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   messageTimeOwn: {
-    fontSize: 10,
-    color: 'rgba(255, 255, 255, 0.7)',
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.8)',
+  },
+  actionButton: {
+    padding: 8,
+    marginLeft: 4,
   },
   systemMessage: {
     alignItems: 'center',
@@ -364,6 +421,30 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#e5e7eb',
     marginVertical: 4,
+  },
+  menuItemDisabled: {
+    opacity: 0.6,
+  },
+  menuItemDisabledText: {
+    color: '#9ca3af',
+  },
+  reportedIndicator: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    marginLeft: 4,
+    backgroundColor: '#fef2f2',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fee2e2',
+  },
+  reportedText: {
+    fontSize: 9,
+    fontWeight: '700',
+    color: '#ef4444',
+    textTransform: 'uppercase',
   },
 });
 

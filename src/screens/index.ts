@@ -2,8 +2,9 @@
  * Screen Exports
  */
 
-// Splash
+// Splash & Loading
 export { default as SplashScreen } from './SplashScreen';
+export { default as LoadingScreen } from './LoadingScreen';
 
 // Auth screens
 export { default as WelcomeScreen } from './auth/WelcomeScreen';

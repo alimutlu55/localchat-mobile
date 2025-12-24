@@ -63,7 +63,45 @@ export const ROOM_CONFIG = {
 
   // Refresh interval for room list (ms)
   REFRESH_INTERVAL: 30000,
+
+  /**
+   * Timing constants for room card join flow
+   * Matches web implementation for consistency
+   */
+  TIMING: {
+    MIN_LOADING_MS: 1500,
+    SUCCESS_DISPLAY_MS: 1500,
+    ERROR_DISPLAY_MS: 2500,
+  },
+
+  /**
+   * Button colors for room joining flow
+   */
+  COLORS: {
+    JOIN: '#f97316',       // Orange
+    ENTER: '#22c55e',      // Green
+    JOINING: '#f97316',    // Orange (with opacity in UI)
+    SUCCESS: '#22c55e',    // Green
+    ERROR: '#ef4444',      // Red
+    DISABLED: '#d1d5db',   // Gray
+    DISABLED_TEXT: '#6b7280',
+  },
 };
+
+/**
+ * Helper to execute join with minimum loading time
+ * Prevents jarring quick flashes of loading states
+ */
+export async function executeJoinWithMinLoading<T>(
+  joinPromise: Promise<T>,
+  minLoadingMs: number = ROOM_CONFIG.TIMING.MIN_LOADING_MS
+): Promise<T> {
+  const [result] = await Promise.all([
+    joinPromise,
+    new Promise((resolve) => setTimeout(resolve, minLoadingMs))
+  ]);
+  return result;
+}
 
 /**
  * Map Configuration

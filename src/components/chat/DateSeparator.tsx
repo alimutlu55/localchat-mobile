@@ -48,11 +48,9 @@ export function DateSeparator({ date }: DateSeparatorProps) {
 
   return (
     <View style={styles.container}>
-      <View style={styles.line} />
       <View style={styles.badge}>
         <Text style={styles.text}>{formatDate(date)}</Text>
       </View>
-      <View style={styles.line} />
     </View>
   );
 }
@@ -78,27 +76,20 @@ export function shouldShowDateSeparator(
 
 const styles = StyleSheet.create({
   container: {
-    flexDirection: 'row',
     alignItems: 'center',
-    marginVertical: 16,
-    paddingHorizontal: 16,
-  },
-  line: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#e5e7eb',
+    marginVertical: 20,
+    width: '100%',
   },
   badge: {
-    backgroundColor: '#f3f4f6',
-    paddingHorizontal: 12,
+    backgroundColor: '#f1f5f9',
+    paddingHorizontal: 16,
     paddingVertical: 6,
-    borderRadius: 12,
-    marginHorizontal: 12,
+    borderRadius: 20,
   },
   text: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#6b7280',
+    color: '#64748b',
   },
 });
 

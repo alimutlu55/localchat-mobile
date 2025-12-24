@@ -2,7 +2,6 @@ import React, { useEffect, useRef, memo } from 'react';
 import {
     Text,
     StyleSheet,
-    TouchableOpacity,
     Animated,
     View,
 } from 'react-native';
@@ -17,52 +16,68 @@ export const MapCluster = memo(({ count }: MapClusterProps) => {
     const sizeCategory = getClusterSizeCategory(count);
 
     // Animations
-    const scale = useRef(new Animated.Value(0.9)).current;
+    const scale = useRef(new Animated.Value(0.85)).current;
     const opacity = useRef(new Animated.Value(0)).current;
-    const pulseAnim = useRef(new Animated.Value(1)).current;
+    const rippleScale = useRef(new Animated.Value(1)).current;
+    const rippleOpacity = useRef(new Animated.Value(0.2)).current;
 
     useEffect(() => {
-        // Initial entry animation
+        // Initial entry animation - matching web spring
         const entryAnim = Animated.parallel([
             Animated.spring(scale, {
                 toValue: 1,
-                tension: 50,
-                friction: 7,
+                tension: 300,
+                friction: 20,
                 useNativeDriver: true,
             }),
             Animated.timing(opacity, {
                 toValue: 1,
-                duration: 300,
+                duration: 200,
                 useNativeDriver: true,
             }),
         ]);
 
         entryAnim.start();
 
-        // Subtle ripple/pulse animation
-        const loopAnim = Animated.loop(
-            Animated.sequence([
-                Animated.timing(pulseAnim, {
-                    toValue: 1.15,
-                    duration: 1500,
-                    useNativeDriver: true,
-                }),
-                Animated.timing(pulseAnim, {
-                    toValue: 1,
-                    duration: 1000,
-                    useNativeDriver: true,
-                }),
+        // Subtle ripple animation - matching web (2.5s duration)
+        const rippleAnim = Animated.loop(
+            Animated.parallel([
+                Animated.sequence([
+                    Animated.timing(rippleScale, {
+                        toValue: 1.2,
+                        duration: 1250,
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(rippleScale, {
+                        toValue: 1,
+                        duration: 1250,
+                        useNativeDriver: true,
+                    }),
+                ]),
+                Animated.sequence([
+                    Animated.timing(rippleOpacity, {
+                        toValue: 0,
+                        duration: 1250,
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(rippleOpacity, {
+                        toValue: 0.2,
+                        duration: 1250,
+                        useNativeDriver: true,
+                    }),
+                ]),
             ])
         );
 
-        loopAnim.start();
+        rippleAnim.start();
 
         return () => {
             entryAnim.stop();
-            loopAnim.stop();
+            rippleAnim.stop();
         };
     }, []);
 
+    // Colors matching web exactly
     const getColors = (): [string, string] => {
         switch (sizeCategory) {
             case 'small':
@@ -76,6 +91,7 @@ export const MapCluster = memo(({ count }: MapClusterProps) => {
         }
     };
 
+    // Sizes matching web (w-10=40, w-12=48, w-14=56, w-16=64)
     const getSizeStyle = () => {
         switch (sizeCategory) {
             case 'small':
@@ -89,6 +105,7 @@ export const MapCluster = memo(({ count }: MapClusterProps) => {
         }
     };
 
+    // Font sizes matching web (text-sm=14, text-base=16, text-lg=18, text-xl=20)
     const getFontSize = () => {
         switch (sizeCategory) {
             case 'small': return 14;
@@ -102,10 +119,7 @@ export const MapCluster = memo(({ count }: MapClusterProps) => {
     const size = getSizeStyle();
 
     return (
-        <View
-            pointerEvents="none"
-            style={styles.container}
-        >
+        <View pointerEvents="none" style={styles.container}>
             <Animated.View
                 style={[
                     styles.inner,
@@ -116,16 +130,13 @@ export const MapCluster = memo(({ count }: MapClusterProps) => {
                     },
                 ]}
             >
-                {/* Glow effect for large clusters */}
+                {/* Glow effect for large clusters - matching web */}
                 {(sizeCategory === 'large' || sizeCategory === 'xlarge') && (
-                    <Animated.View
+                    <View
                         style={[
                             styles.glow,
                             size,
-                            {
-                                backgroundColor: colors[0],
-                                transform: [{ scale: pulseAnim }],
-                            },
+                            { backgroundColor: colors[0] },
                         ]}
                     />
                 )}
@@ -136,20 +147,18 @@ export const MapCluster = memo(({ count }: MapClusterProps) => {
                     end={{ x: 1, y: 1 }}
                     style={[styles.gradient, size]}
                 >
-                    {/* Subtle ripple layer */}
+                    {/* Subtle ripple effect - matching web bg-white/15 */}
                     <Animated.View
                         style={[
                             styles.ripple,
                             {
-                                transform: [{ scale: pulseAnim }],
-                                opacity: pulseAnim.interpolate({
-                                    inputRange: [1, 1.15],
-                                    outputRange: [0.2, 0]
-                                })
+                                transform: [{ scale: rippleScale }],
+                                opacity: rippleOpacity,
                             }
                         ]}
                     />
 
+                    {/* Count text with shadow - matching web drop-shadow-sm */}
                     <Text style={[styles.text, { fontSize: getFontSize() }]}>
                         {formatClusterCount(count)}
                     </Text>
@@ -167,10 +176,10 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.25,
-        shadowRadius: 5,
-        elevation: 6,
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.15,
+        shadowRadius: 4,
+        elevation: 4,
     },
     gradient: {
         justifyContent: 'center',
@@ -181,17 +190,23 @@ const styles = StyleSheet.create({
     },
     text: {
         color: '#ffffff',
-        fontWeight: '700',
+        fontWeight: '600', // Match web font-semibold
+        // Text shadow matching web drop-shadow-sm
+        textShadowColor: 'rgba(0, 0, 0, 0.2)',
+        textShadowOffset: { width: 0, height: 1 },
+        textShadowRadius: 2,
+        zIndex: 10,
     },
     glow: {
         position: 'absolute',
-        opacity: 0.3,
+        opacity: 0.4, // Match web opacity-40
     },
     ripple: {
         position: 'absolute',
         width: '100%',
         height: '100%',
         borderRadius: 50,
-        backgroundColor: '#ffffff',
+        backgroundColor: 'rgba(255, 255, 255, 0.15)', // Match web bg-white/15
     }
 });
+

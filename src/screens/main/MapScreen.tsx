@@ -29,6 +29,7 @@ import {
   type CameraRef,
 } from '@maplibre/maplibre-react-native';
 import * as Location from 'expo-location';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Plus, Minus, Navigation, Menu, Map as MapIcon, List, Globe } from 'lucide-react-native';
 import { RootStackParamList } from '../../navigation/types';
 import { Room } from '../../types';
@@ -50,8 +51,34 @@ import {
   EventFeature
 } from '../../utils/mapClustering';
 
-// OpenFreeMap Positron style - completely free, no API key required
-const MAP_STYLE_URL = 'https://tiles.openfreemap.org/styles/positron';
+// CartoDB Positron raster tiles - EXACT same tiles as web version
+// Using inline style to get identical appearance to Leaflet web version
+const MAP_STYLE = {
+  version: 8,
+  name: 'CartoDB Positron',
+  sources: {
+    'carto-positron': {
+      type: 'raster',
+      tiles: [
+        'https://a.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
+        'https://b.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
+        'https://c.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
+        'https://d.basemaps.cartocdn.com/light_all/{z}/{x}/{y}@2x.png',
+      ],
+      tileSize: 256,
+      attribution: '© OpenStreetMap © CARTO',
+    },
+  },
+  layers: [
+    {
+      id: 'carto-positron-layer',
+      type: 'raster',
+      source: 'carto-positron',
+      minzoom: 0,
+      maxzoom: 22,
+    },
+  ],
+};
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -466,7 +493,7 @@ export default function MapScreen() {
       <MapView
         ref={mapRef}
         style={styles.map}
-        mapStyle={MAP_STYLE_URL}
+        mapStyle={MAP_STYLE}
         logoEnabled={false}
         attributionEnabled={true}
         attributionPosition={{ bottom: 8, right: 8 }}
@@ -584,7 +611,7 @@ export default function MapScreen() {
             onPress={() => setIsSidebarOpen(true)}
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
-            <Menu size={24} color="#374151" />
+            <Menu size={20} color="#374151" strokeWidth={1.5} />
           </TouchableOpacity>
 
           <Text style={styles.headerTitle}>Huddle</Text>
@@ -607,7 +634,7 @@ export default function MapScreen() {
             onPress={handleZoomIn}
             activeOpacity={0.7}
           >
-            <Plus size={20} color="#374151" />
+            <Plus size={18} color="#374151" strokeWidth={1.5} />
           </TouchableOpacity>
           <View style={styles.zoomDivider} />
           <TouchableOpacity
@@ -615,7 +642,7 @@ export default function MapScreen() {
             onPress={handleZoomOut}
             activeOpacity={0.7}
           >
-            <Minus size={20} color="#374151" />
+            <Minus size={18} color="#374151" strokeWidth={1.5} />
           </TouchableOpacity>
         </View>
 
@@ -628,18 +655,19 @@ export default function MapScreen() {
           activeOpacity={0.7}
         >
           <Navigation
-            size={20}
+            size={18}
             color={userLocation ? '#2563eb' : '#6b7280'}
+            strokeWidth={1.5}
           />
         </TouchableOpacity>
 
-        {currentZoom > 5 && (
+        {currentZoom > 3 && (
           <TouchableOpacity
             style={styles.controlButton}
             onPress={handleResetView}
             activeOpacity={0.7}
           >
-            <Globe size={20} color="#f97316" />
+            <Globe size={18} color="#f97316" strokeWidth={1.5} />
           </TouchableOpacity>
         )}
       </View>
@@ -654,19 +682,22 @@ export default function MapScreen() {
       {/* View Toggle */}
       <View style={styles.viewToggleContainer}>
         <View style={styles.viewToggle}>
-          <TouchableOpacity
-            style={[styles.viewToggleButton, styles.viewToggleButtonActive]}
+          <LinearGradient
+            colors={['#f97316', '#f43f5e']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={styles.viewToggleButtonActiveGradient}
           >
-            <MapIcon size={18} color="#ffffff" />
+            <MapIcon size={18} color="#ffffff" strokeWidth={1.5} />
             <Text style={styles.viewToggleTextActive}>Map</Text>
-          </TouchableOpacity>
+          </LinearGradient>
           <TouchableOpacity
             style={styles.viewToggleButton}
             onPress={() => {
               navigation.navigate('List');
             }}
           >
-            <List size={18} color="#6b7280" />
+            <List size={18} color="#6b7280" strokeWidth={1.5} />
             <Text style={styles.viewToggleText}>List</Text>
           </TouchableOpacity>
         </View>
@@ -755,9 +786,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 22,
-    fontWeight: '600',
-    color: '#1f2937',
+    fontSize: 20,
+    fontWeight: '400',
+    color: '#111827',
     textAlign: 'center',
     flex: 1,
   },
@@ -768,6 +799,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: '#f97316',
+    // Remove extra shadow to match web's simpler style
   },
   mapControls: {
     position: 'absolute',
@@ -776,17 +808,17 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   controlButton: {
-    width: 48,
-    height: 48,
-    borderRadius: 16,
+    width: 40,
+    height: 40,
+    borderRadius: 12,
     backgroundColor: '#ffffff',
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
     borderWidth: 1,
     borderColor: '#e5e7eb',
   },
@@ -796,47 +828,45 @@ const styles = StyleSheet.create({
   zoomCard: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
-    padding: 4,
+    padding: 2,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 4,
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    elevation: 2,
     borderWidth: 1,
     borderColor: '#e5e7eb',
   },
   zoomButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 36,
+    height: 36,
+    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
   },
   zoomDivider: {
     height: 1,
     backgroundColor: '#e5e7eb',
-    marginVertical: 2,
+    marginVertical: 1,
   },
   eventsCounter: {
     position: 'absolute',
-    bottom: 115,
+    bottom: 100,
     left: 16,
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: 20,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 6,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: 'rgba(229, 231, 235, 0.5)',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 3,
+    elevation: 2,
   },
   eventsCounterText: {
-    fontSize: 13,
+    fontSize: 12,
     color: '#4b5563',
-    fontWeight: '500',
+    fontWeight: '400',
   },
   userLocationMarkerContainer: {
     width: 80,
@@ -897,19 +927,33 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
     paddingHorizontal: 16,
     borderRadius: 12,
-    gap: 6,
+    gap: 8,
   },
   viewToggleButtonActive: {
     backgroundColor: '#f97316',
   },
+  viewToggleButtonActiveGradient: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    gap: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.15,
+    shadowRadius: 4,
+    elevation: 3,
+  },
   viewToggleText: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#6b7280',
+    fontWeight: '400',
   },
   viewToggleTextActive: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#ffffff',
-    fontWeight: '500',
+    fontWeight: '400',
   },
   emptyState: {
     position: 'absolute',

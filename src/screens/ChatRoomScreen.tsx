@@ -25,6 +25,8 @@ import {
   Alert,
   NativeSyntheticEvent,
   NativeScrollEvent,
+  Modal,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -36,10 +38,11 @@ import {
   Users,
   Info,
   Plus,
+  AlertCircle,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/types';
 import { wsService, messageService, blockService, roomService, WS_EVENTS } from '../services';
-import { ChatMessage, Room } from '../types';
+import { ChatMessage, Room, MessageStatus } from '../types';
 import { useAuth } from '../context/AuthContext';
 import {
   MessageBubble,
@@ -82,6 +85,9 @@ export default function ChatRoomScreen() {
   const [showMenu, setShowMenu] = useState(false);
   const [showRoomInfo, setShowRoomInfo] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
+  const [hasShownBlockedWarning, setHasShownBlockedWarning] = useState(false);
+  const [showBlockedWarning, setShowBlockedWarning] = useState(false);
+  const [blockedInChatCount, setBlockedInChatCount] = useState(0);
 
   // Report State
   const [reportConfig, setReportConfig] = useState<{
@@ -120,9 +126,13 @@ export default function ChatRoomScreen() {
     const loadMessages = async () => {
       try {
         const { messages: history } = await messageService.getHistory(room.id);
-        setMessages(history.reverse());
+        // Backend returns messages in chronological order (oldest first).
+        // Since we are NOT using 'inverted' prop on FlatList, this order 
+        // is correct for displaying messages from top to bottom.
+        setMessages(history);
       } catch (error) {
         console.error('Failed to load messages:', error);
+        Alert.alert('Error', 'Failed to load room messages. Please try again.');
       } finally {
         setIsLoading(false);
       }
@@ -139,6 +149,37 @@ export default function ChatRoomScreen() {
   }, [room.id]);
 
   /**
+   * Check for blocked users in room - fetches participants and checks against blocked users
+   */
+  useEffect(() => {
+    // Only check after loading is complete and blocked users are loaded
+    if (isLoading) return;
+    if (hasShownBlockedWarning) return;
+    if (blockedUserIds.size === 0) return;
+
+    const checkForBlockedParticipants = async () => {
+      try {
+        const participants = await roomService.getParticipants(room.id);
+        const participantIds = participants
+          .map(p => p.userId)
+          .filter(id => id !== user?.id);
+
+        const blockedInRoom = participantIds.filter(id => blockedUserIds.has(id));
+
+        if (blockedInRoom.length > 0) {
+          setBlockedInChatCount(blockedInRoom.length);
+          setShowBlockedWarning(true);
+          setHasShownBlockedWarning(true);
+        }
+      } catch (err) {
+        console.error('Failed to check for blocked participants:', err);
+      }
+    };
+
+    checkForBlockedParticipants();
+  }, [room.id, blockedUserIds, hasShownBlockedWarning, user?.id, isLoading]);
+
+  /**
    * Setup WebSocket event listeners
    */
   useEffect(() => {
@@ -146,39 +187,75 @@ export default function ChatRoomScreen() {
     // Backend sends: { id, roomId, content, createdAt, sender: { id, displayName, profilePhotoUrl }, clientMessageId? }
     const unsubscribeMessage = wsService.on(WS_EVENTS.MESSAGE_NEW, (payload: any) => {
       if (payload.roomId === room.id) {
-        // Don't add duplicate messages (our own messages from optimistic updates)
-        if (payload.clientMessageId) {
-          setMessages(prev => prev.map(msg =>
-            msg.clientMessageId === payload.clientMessageId
-              ? { ...msg, id: payload.id, status: 'delivered' as const }
-              : msg
-          ));
-          return;
-        }
+        setMessages(prev => {
+          // Check for duplicate by id or clientMessageId
+          const existingIndex = prev.findIndex(m =>
+            m.id === payload.id ||
+            (payload.clientMessageId && m.clientMessageId === payload.clientMessageId)
+          );
 
-        const newMessage: ChatMessage = {
-          id: payload.id,
-          type: 'user',
-          content: payload.content,
-          timestamp: new Date(payload.createdAt),
-          userId: payload.sender.id,
-          userName: payload.sender.displayName,
-          userProfilePhoto: payload.sender.profilePhotoUrl,
-          status: 'delivered',
-        };
+          if (existingIndex !== -1) {
+            // Update the optimistic message with server data
+            const updated = [...prev];
+            updated[existingIndex] = {
+              ...updated[existingIndex],
+              id: payload.id,
+              status: 'delivered',
+            };
+            return updated;
+          }
 
-        // Don't add if it's our own message
-        if (payload.sender.id !== user?.id) {
-          setMessages(prev => [...prev, newMessage]);
-        }
+          // For own messages without clientMessageId (e.g. sent from another device), 
+          // check if we have a pending message with same content (fallback)
+          if (payload.sender.id === user?.id) {
+            const pendingIndex = prev.findIndex(m =>
+              m.userId === user?.id &&
+              m.content === payload.content &&
+              m.status === 'sending'
+            );
+            if (pendingIndex !== -1) {
+              const updated = [...prev];
+              updated[pendingIndex] = {
+                ...updated[pendingIndex],
+                id: payload.id,
+                status: 'delivered',
+              };
+              return updated;
+            }
+          }
+
+          const newMessage: ChatMessage = {
+            id: payload.id,
+            type: 'user',
+            content: payload.content,
+            timestamp: new Date(payload.createdAt),
+            userId: payload.sender.id,
+            userName: payload.sender.displayName || 'Anonymous User',
+            userProfilePhoto: payload.sender.profilePhotoUrl,
+            status: 'delivered',
+            clientMessageId: payload.clientMessageId,
+          };
+
+          return [...prev, newMessage];
+        });
       }
     });
 
     // Handle message acknowledgments
     const unsubscribeAck = wsService.on(WS_EVENTS.MESSAGE_ACK, (payload: any) => {
+      const { clientMessageId, messageId, status } = payload;
+
+      // Map backend status to frontend MessageStatus
+      const s = status?.toLowerCase();
+      let normalizedStatus: MessageStatus = 'delivered';
+      if (s === 'sent') normalizedStatus = 'sent';
+      else if (s === 'delivered') normalizedStatus = 'delivered';
+      else if (s === 'read') normalizedStatus = 'read';
+      else if (s === 'failed') normalizedStatus = 'failed';
+
       setMessages(prev => prev.map(msg =>
-        msg.clientMessageId === payload.clientMessageId
-          ? { ...msg, id: payload.messageId, status: payload.status === 'SENT' ? 'delivered' as const : 'failed' as const }
+        msg.clientMessageId === clientMessageId
+          ? { ...msg, id: messageId, status: normalizedStatus }
           : msg
       ));
     });
@@ -208,11 +285,15 @@ export default function ChatRoomScreen() {
 
     // Handle user joined
     const unsubscribeUserJoined = wsService.on(WS_EVENTS.USER_JOINED, (payload: any) => {
-      if (payload.roomId === room.id && payload.userId !== user?.id) {
+      // Backend sends: { roomId, user: { id, displayName, profilePhotoUrl? }, participantCount }
+      const joinedUserId = payload.user?.id;
+      const joinedDisplayName = payload.user?.displayName || 'Someone';
+
+      if (payload.roomId === room.id && joinedUserId !== user?.id) {
         const systemMessage: ChatMessage = {
           id: `system-join-${Date.now()}`,
           type: 'system',
-          content: createSystemMessage('user_joined', payload.displayName || 'Someone'),
+          content: createSystemMessage('user_joined', joinedDisplayName),
           timestamp: new Date(),
           userId: 'system',
           userName: 'System',
@@ -387,9 +468,15 @@ export default function ChatRoomScreen() {
    * Handle block user
    */
   const handleBlockUser = useCallback((message: ChatMessage) => {
+    // Check if user is already blocked
+    if (blockedUserIds.has(message.userId)) {
+      Alert.alert('Already Blocked', `${message.userName} is already blocked.`);
+      return;
+    }
+
     Alert.alert(
       'Block User',
-      `Are you sure you want to block ${message.userName}? You won't see their messages anymore.`,
+      `Are you sure you want to block ${message.userName}? You will still see their messages, but they won't be able to contact you privately.`,
       [
         { text: 'Cancel', style: 'cancel' },
         {
@@ -398,16 +485,41 @@ export default function ChatRoomScreen() {
           onPress: async () => {
             try {
               await blockService.blockUser(message.userId);
-              setBlockedUserIds(prev => new Set([...prev, message.userId]));
-              Alert.alert('Blocked', `${message.userName} has been blocked.`);
-            } catch (error) {
-              Alert.alert('Error', 'Failed to block user. Please try again.');
+              setBlockedUserIds(prev => {
+                const next = new Set(prev);
+                next.add(message.userId);
+                return next;
+              });
+
+              // Show the blocked user warning since we just blocked someone in this chat
+              if (!hasShownBlockedWarning) {
+                setBlockedInChatCount(1);
+                setShowBlockedWarning(true);
+                setHasShownBlockedWarning(true);
+              }
+            } catch (error: any) {
+              // Handle "already blocked" gracefully
+              const isAlreadyBlocked =
+                error?.status === 409 ||
+                error?.message?.toLowerCase().includes('already blocked');
+
+              if (isAlreadyBlocked) {
+                // Just update local state
+                setBlockedUserIds(prev => {
+                  const next = new Set(prev);
+                  next.add(message.userId);
+                  return next;
+                });
+              } else {
+                console.error('Failed to block user:', error);
+                Alert.alert('Error', 'Failed to block user. Please try again.');
+              }
             }
           },
         },
       ]
     );
-  }, []);
+  }, [hasShownBlockedWarning, blockedUserIds]);
 
   /**
    * Handle scroll event
@@ -507,10 +619,51 @@ export default function ChatRoomScreen() {
   }) => {
     try {
       if (reportConfig.targetType === 'message' && reportConfig.targetData) {
-        await messageService.reportMessage(room.id, reportConfig.targetData.id, data.reason, data.details);
-        if (data.blockUser) {
-          await blockService.blockUser(reportConfig.targetData.userId);
-          setBlockedUserIds(prev => new Set([...prev, reportConfig.targetData.userId]));
+        const messageId = reportConfig.targetData.id;
+        const targetUserId = reportConfig.targetData.userId;
+
+        // Attempt to report, handle "already reported" gracefully
+        try {
+          await messageService.reportMessage(room.id, messageId, data.reason, data.details);
+        } catch (reportError: any) {
+          // Check if this is a "already reported" conflict error (HTTP 409)
+          // ApiError has status and message as direct properties
+          const isAlreadyReported =
+            reportError?.status === 409 ||
+            reportError?.message?.toLowerCase().includes('already reported');
+
+          if (!isAlreadyReported) {
+            // Re-throw other errors
+            throw reportError;
+          }
+          // Otherwise, treat as success - the report already exists
+        }
+
+        // Only attempt to block if checkbox is checked AND user is not already blocked
+        if (data.blockUser && !blockedUserIds.has(targetUserId)) {
+          try {
+            await blockService.blockUser(targetUserId);
+            setBlockedUserIds(prev => {
+              const next = new Set(prev);
+              next.add(targetUserId);
+              return next;
+            });
+
+            // Show the blocked user warning since we just blocked someone in this chat
+            if (!hasShownBlockedWarning) {
+              setBlockedInChatCount(1);
+              setShowBlockedWarning(true);
+              setHasShownBlockedWarning(true);
+            }
+          } catch (blockError) {
+            // Silently handle "already blocked" error - just update local state
+            console.log('[ChatRoomScreen] Block user failed (may already be blocked):', blockError);
+            setBlockedUserIds(prev => {
+              const next = new Set(prev);
+              next.add(targetUserId);
+              return next;
+            });
+          }
         }
       } else if (reportConfig.targetType === 'room') {
         await roomService.reportRoom(room.id, data.reason, data.details);
@@ -522,7 +675,7 @@ export default function ChatRoomScreen() {
       }
     } catch (error) {
       console.error('Report submission failed:', error);
-      throw error; // Re-throw to show error in modal if needed, though ReportModal handles success state
+      throw error; // Re-throw to show error in modal if needed
     }
   };
 
@@ -534,11 +687,6 @@ export default function ChatRoomScreen() {
     const showDateSeparator = shouldShowDateSeparator(item, previousMessage);
     const isOwn = item.userId === user?.id;
 
-    // Filter out messages from blocked users
-    if (blockedUserIds.has(item.userId) && item.type !== 'system') {
-      return null;
-    }
-
     return (
       <>
         {showDateSeparator && <DateSeparator date={item.timestamp} />}
@@ -547,6 +695,7 @@ export default function ChatRoomScreen() {
           isOwn={isOwn}
           onReport={handleReportMessage}
           onBlock={handleBlockUser}
+          hasBlocked={blockedUserIds.has(item.userId)}
         />
       </>
     );
@@ -667,7 +816,7 @@ export default function ChatRoomScreen() {
           >
             <Send
               size={22}
-              color={inputText.trim() ? '#3b82f6' : '#94a3b8'}
+              color="#94a3b8"
               style={{ marginLeft: 2 }}
             />
           </TouchableOpacity>
@@ -703,7 +852,53 @@ export default function ChatRoomScreen() {
         onSubmit={handleSubmitReport}
         targetType={reportConfig.targetType}
         targetName={reportConfig.targetType === 'message' ? reportConfig.targetData?.userName : room.title}
+        isUserAlreadyBlocked={
+          reportConfig.targetType === 'message' && reportConfig.targetData?.userId
+            ? blockedUserIds.has(reportConfig.targetData.userId)
+            : false
+        }
       />
+
+      {/* Blocked User Warning Modal */}
+      <Modal
+        visible={showBlockedWarning}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowBlockedWarning(false)}
+      >
+        <View style={styles.modalOverlay}>
+          <Pressable
+            style={styles.modalBackdrop}
+            onPress={() => setShowBlockedWarning(false)}
+          />
+          <View style={styles.warningModal}>
+            <View style={styles.warningIconContainer}>
+              <AlertCircle size={32} color="#f97316" />
+            </View>
+            <Text style={styles.warningTitle}>Someone you blocked is here</Text>
+            <Text style={styles.warningDescription}>
+              A user you've blocked is in this chat. You can still see their messages.
+            </Text>
+
+            <TouchableOpacity
+              style={styles.stayButton}
+              onPress={() => setShowBlockedWarning(false)}
+            >
+              <Text style={styles.stayButtonText}>Stay in Chat</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={styles.leaveButton}
+              onPress={() => {
+                setShowBlockedWarning(false);
+                navigation.goBack();
+              }}
+            >
+              <Text style={styles.leaveButtonText}>Leave Chat</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
@@ -728,8 +923,8 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 8,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
   },
   backButton: {
     width: 44,
@@ -741,7 +936,6 @@ const styles = StyleSheet.create({
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 50, // To avoid overlap with buttons
   },
   headerTitle: {
     fontSize: 18,
@@ -749,9 +943,9 @@ const styles = StyleSheet.create({
     color: '#0f172a',
   },
   headerSubtitle: {
-    fontSize: 13,
-    color: '#64748b',
-    marginTop: 2,
+    fontSize: 12,
+    color: '#94a3b8',
+    marginTop: 1,
   },
   menuButton: {
     width: 44,
@@ -828,7 +1022,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderTopWidth: 1,
     borderTopColor: '#f1f5f9',
-    gap: 8,
+    gap: 12,
   },
   plusButton: {
     width: 40,
@@ -841,9 +1035,9 @@ const styles = StyleSheet.create({
   inputWrapper: {
     flex: 1,
     backgroundColor: '#f1f5f9',
-    borderRadius: 16,
+    borderRadius: 12,
     paddingHorizontal: 16,
-    paddingVertical: 4,
+    paddingVertical: 2,
   },
   input: {
     fontSize: 16,
@@ -858,6 +1052,79 @@ const styles = StyleSheet.create({
     backgroundColor: '#f1f5f9',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  modalOverlay: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  modalBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+  },
+  warningModal: {
+    backgroundColor: '#ffffff',
+    borderRadius: 24,
+    padding: 24,
+    width: '100%',
+    maxWidth: 340,
+    alignItems: 'center',
+    elevation: 5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.1,
+    shadowRadius: 20,
+  },
+  warningIconContainer: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#fff7ed',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  warningTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#0f172a',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  warningDescription: {
+    fontSize: 15,
+    color: '#64748b',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 22,
+  },
+  stayButton: {
+    width: '100%',
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: '#f97316',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  stayButtonText: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  leaveButton: {
+    width: '100%',
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: '#f1f5f9',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  leaveButtonText: {
+    color: '#475569',
+    fontSize: 16,
+    fontWeight: '600',
   },
 });
 

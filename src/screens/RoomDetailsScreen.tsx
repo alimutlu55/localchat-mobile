@@ -4,7 +4,7 @@
  * Shows room information, participants, and actions.
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -33,13 +33,19 @@ import {
   Shield,
   Share2,
   MessageCircle,
+  Check,
+  AlertCircle,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/types';
 import { roomService, ParticipantDTO, messageService } from '../services';
 import { Room, ChatMessage } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useRooms } from '../context/RoomContext';
+import { ROOM_CONFIG, executeJoinWithMinLoading } from '../constants';
 import { BannedUsersModal } from '../components/room/BannedUsersModal';
 import { ReportModal, ReportReason } from '../components/chat/ReportModal';
+
+type JoinButtonState = 'default' | 'joining' | 'join-success' | 'joined' | 'error';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'RoomDetails'>;
 type RoomDetailsRouteProp = RouteProp<RootStackParamList, 'RoomDetails'>;
@@ -112,8 +118,13 @@ function ParticipantItem({
 export default function RoomDetailsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RoomDetailsRouteProp>();
-  const { room } = route.params;
+  const { room: initialRoom } = route.params;
   const { user } = useAuth();
+  const { myRooms, joinRoom: contextJoinRoom } = useRooms();
+
+  // Get the latest room data from context if available, otherwise use initial
+  const { rooms: contextRooms } = useRooms();
+  const room = contextRooms.find(r => r.id === initialRoom.id) || initialRoom;
 
   const [participants, setParticipants] = useState<ParticipantDTO[]>([]);
   const [recentMessages, setRecentMessages] = useState<ChatMessage[]>([]);
@@ -124,7 +135,7 @@ export default function RoomDetailsScreen() {
   const [isJoining, setIsJoining] = useState(false);
   const [showBannedUsersModal, setShowBannedUsersModal] = useState(false);
 
-  // Report State
+  // ... (Report state remains same)
   const [reportConfig, setReportConfig] = useState<{
     isOpen: boolean;
     targetType: 'message' | 'room' | 'user';
@@ -135,7 +146,22 @@ export default function RoomDetailsScreen() {
   });
 
   const isCreator = room.isCreator || false;
-  const hasJoined = room.hasJoined || false;
+
+  // Determine joined status based on global myRooms state
+  const hasJoined = useMemo(() =>
+    room.hasJoined || myRooms.some(r => r.id === room.id),
+    [room.id, room.hasJoined, myRooms]);
+
+  const [joinButtonState, setJoinButtonState] = useState<JoinButtonState>(
+    hasJoined ? 'joined' : 'default'
+  );
+
+  /**
+   * Sync joinButtonState with room.hasJoined
+   */
+  useEffect(() => {
+    setJoinButtonState(hasJoined ? 'joined' : 'default');
+  }, [hasJoined]);
 
   /**
    * Load participants
@@ -328,21 +354,37 @@ export default function RoomDetailsScreen() {
    * Handle join room
    */
   const handleJoin = async () => {
-    setIsJoining(true);
+    // If already joined, direct navigation
+    if (hasJoined || joinButtonState === 'joined') {
+      navigation.navigate('ChatRoom', { room });
+      return;
+    }
+
+    if (joinButtonState !== 'default') return;
+
+    setJoinButtonState('joining');
     try {
-      // We need user location to join (privacy randomization happens in service)
-      // Since map already has it, we might want to pass it or get it again
-      // For now, let's assume we can use a default or get it if available
-      // In a real app, we'd probably have a LocationContext
-      await roomService.joinRoom(room.id, room.latitude || 0, room.longitude || 0);
-      Alert.alert('Success', 'Joined room successfully!', [
-        { text: 'OK', onPress: () => navigation.navigate('ChatRoom', { room: { ...room, hasJoined: true } }) }
-      ]);
+      // Use helper for consistent minimum loading time (1.5s)
+      // Call contextJoinRoom instead of roomService.joinRoom directly
+      await executeJoinWithMinLoading(
+        contextJoinRoom(room)
+      );
+
+      // If no error was thrown, it's a success
+      setJoinButtonState('join-success');
+
+      // Wait for success display duration (1.5s)
+      await new Promise(resolve => setTimeout(resolve, ROOM_CONFIG.TIMING.SUCCESS_DISPLAY_MS));
+
+      setJoinButtonState('joined');
     } catch (error) {
       console.error('Join error:', error);
-      Alert.alert('Error', 'Failed to join room. Please try again.');
-    } finally {
-      setIsJoining(false);
+      setJoinButtonState('error');
+
+      // Wait for error display duration (2.5s)
+      await new Promise(resolve => setTimeout(resolve, ROOM_CONFIG.TIMING.ERROR_DISPLAY_MS));
+
+      setJoinButtonState('default');
     }
   };
 
@@ -569,39 +611,44 @@ export default function RoomDetailsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Join Button (Sticky at bottom if not joined) */}
-        {!hasJoined && (
-          <View style={styles.footerAction}>
-            <TouchableOpacity
-              style={styles.joinButton}
-              onPress={handleJoin}
-              disabled={isJoining}
-            >
-              {isJoining ? (
+        {/* Unified Bottom Button (Join/Enter) */}
+        <View style={styles.footerAction}>
+          <TouchableOpacity
+            style={[
+              (hasJoined || joinButtonState === 'joined') ? styles.enterButton : styles.joinButton,
+              joinButtonState === 'joining' && { opacity: 0.8 },
+              joinButtonState === 'join-success' && { backgroundColor: ROOM_CONFIG.COLORS.SUCCESS },
+              joinButtonState === 'error' && { backgroundColor: ROOM_CONFIG.COLORS.ERROR },
+            ]}
+            onPress={handleJoin}
+            disabled={joinButtonState === 'joining' || joinButtonState === 'join-success'}
+            activeOpacity={0.8}
+          >
+            {joinButtonState === 'joining' ? (
+              <View style={styles.buttonContent}>
                 <ActivityIndicator size="small" color="#ffffff" />
-              ) : (
-                <>
-                  <Text style={styles.joinButtonText}>Join Room</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </View>
-        )}
-
-        {/* Enter Room Button (for users who have already joined) */}
-        {hasJoined && (
-          <View style={styles.footerAction}>
-            <TouchableOpacity
-              style={styles.enterButton}
-              onPress={() => navigation.navigate('ChatRoom', { room })}
-            >
+                <Text style={styles.joinButtonText}>Joining...</Text>
+              </View>
+            ) : joinButtonState === 'join-success' ? (
+              <View style={styles.buttonContent}>
+                <Check size={20} color="#ffffff" />
+                <Text style={styles.joinButtonText}>Joined!</Text>
+              </View>
+            ) : joinButtonState === 'error' ? (
+              <View style={styles.buttonContent}>
+                <AlertCircle size={20} color="#ffffff" />
+                <Text style={styles.joinButtonText}>Failed to join</Text>
+              </View>
+            ) : (hasJoined || joinButtonState === 'joined') ? (
               <View style={styles.enterButtonContent}>
                 <MessageCircle size={20} color="#ffffff" />
                 <Text style={styles.enterButtonText}>Enter Room</Text>
               </View>
-            </TouchableOpacity>
-          </View>
-        )}
+            ) : (
+              <Text style={styles.joinButtonText}>Join Room</Text>
+            )}
+          </TouchableOpacity>
+        </View>
       </ScrollView>
 
       <BannedUsersModal
@@ -873,6 +920,11 @@ const styles = StyleSheet.create({
   footerAction: {
     marginTop: 8,
     marginBottom: 24,
+  },
+  buttonContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   joinButton: {
     backgroundColor: '#f97316',

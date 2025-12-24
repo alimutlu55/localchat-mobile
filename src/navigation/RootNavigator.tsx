@@ -20,6 +20,7 @@ import {
     SettingsScreen,
     EditProfileScreen,
     DiscoveryScreen,
+    LoadingScreen,
 } from '../screens';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -30,9 +31,9 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 export function RootNavigator() {
     const { isLoading, isAuthenticated } = useAuth();
 
-    // Show splash screen while auth is initializing
+    // Show loading screen while auth is initializing
     if (isLoading) {
-        return <SplashScreen />;
+        return <LoadingScreen />;
     }
 
     return (
