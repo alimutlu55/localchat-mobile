@@ -44,6 +44,8 @@ export default function EditProfileScreen() {
 
   const [isSavingName, setIsSavingName] = useState(false);
   const [isSavingBio, setIsSavingBio] = useState(false);
+  const [isNameSaved, setIsNameSaved] = useState(false);
+  const [isBioSaved, setIsBioSaved] = useState(false);
 
   const nameChanged = displayName.trim() !== (user?.displayName || '');
   const bioChanged = bio.trim() !== (user?.bio || '');
@@ -113,7 +115,8 @@ export default function EditProfileScreen() {
     setIsSavingName(true);
     try {
       await updateProfile({ displayName: displayName.trim() });
-      Alert.alert('Success', 'Display name updated.');
+      setIsNameSaved(true);
+      setTimeout(() => setIsNameSaved(false), 2000);
     } catch (error) {
       Alert.alert('Error', 'Failed to update display name.');
     } finally {
@@ -128,7 +131,8 @@ export default function EditProfileScreen() {
     setIsSavingBio(true);
     try {
       await updateProfile({ bio: bio.trim() });
-      Alert.alert('Success', 'Bio updated.');
+      setIsBioSaved(true);
+      setTimeout(() => setIsBioSaved(false), 2000);
     } catch (error) {
       Alert.alert('Error', 'Failed to update bio.');
     } finally {
@@ -229,16 +233,18 @@ export default function EditProfileScreen() {
                   onChangeText={handleDisplayNameChange}
                   maxLength={MAX_DISPLAY_NAME_LENGTH}
                 />
-                {(nameChanged || isSavingName) && (
+                {(nameChanged || isSavingName || isNameSaved) && (
                   <TouchableOpacity
                     onPress={handleSaveName}
-                    disabled={isSavingName}
-                    style={styles.saveButton}
+                    disabled={isSavingName || isNameSaved}
+                    style={[styles.saveButton, isNameSaved && styles.saveButtonSuccess]}
                   >
                     {isSavingName ? (
                       <ActivityIndicator size="small" color="#ffffff" />
                     ) : (
-                      <Text style={styles.saveButtonText}>Save</Text>
+                      <Text style={styles.saveButtonText}>
+                        {isNameSaved ? 'Saved' : 'Save'}
+                      </Text>
                     )}
                   </TouchableOpacity>
                 )}
@@ -267,16 +273,22 @@ export default function EditProfileScreen() {
                   numberOfLines={3}
                   textAlignVertical="top"
                 />
-                {(bioChanged || isSavingBio) && (
+                {(bioChanged || isSavingBio || isBioSaved) && (
                   <TouchableOpacity
                     onPress={handleSaveBio}
-                    disabled={isSavingBio}
-                    style={[styles.saveButton, { position: 'absolute', bottom: 10, right: 10 }]}
+                    disabled={isSavingBio || isBioSaved}
+                    style={[
+                      styles.saveButton,
+                      { position: 'absolute', bottom: 10, right: 10 },
+                      isBioSaved && styles.saveButtonSuccess
+                    ]}
                   >
                     {isSavingBio ? (
                       <ActivityIndicator size="small" color="#ffffff" />
                     ) : (
-                      <Text style={styles.saveButtonText}>Save</Text>
+                      <Text style={styles.saveButtonText}>
+                        {isBioSaved ? 'Saved' : 'Save'}
+                      </Text>
                     )}
                   </TouchableOpacity>
                 )}
@@ -384,6 +396,9 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  saveButtonSuccess: {
+    backgroundColor: '#6b7280',
   },
   saveButtonDisabled: {
     backgroundColor: '#fdba74',

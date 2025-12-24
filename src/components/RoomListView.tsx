@@ -476,13 +476,11 @@ export const RoomListView = memo(function RoomListView({
                     onCreateRoom={onCreateRoom}
                 />
             ) : (
-                <ScrollView
-                    style={styles.roomList}
-                    contentContainerStyle={styles.roomListContent}
-                    showsVerticalScrollIndicator={false}
-                >
-                    {groupedRooms.map((group) => (
-                        <View key={group.title} style={styles.group}>
+                <FlatList
+                    data={groupedRooms}
+                    keyExtractor={(item) => item.title}
+                    renderItem={({ item: group }) => (
+                        <View style={styles.group}>
                             <Text style={styles.groupTitle}>{group.title}</Text>
                             {group.rooms.map((room) => (
                                 <RoomListItem
@@ -494,13 +492,20 @@ export const RoomListView = memo(function RoomListView({
                                 />
                             ))}
                         </View>
-                    ))}
-
-                    {/* Footer */}
-                    <Text style={styles.footer}>
-                        {filteredRooms.length} {filteredRooms.length === 1 ? 'room' : 'rooms'} found
-                    </Text>
-                </ScrollView>
+                    )}
+                    ListFooterComponent={() => (
+                        <Text style={styles.footer}>
+                            {filteredRooms.length} {filteredRooms.length === 1 ? 'room' : 'rooms'} found
+                        </Text>
+                    )}
+                    contentContainerStyle={styles.roomListContent}
+                    showsVerticalScrollIndicator={false}
+                    removeClippedSubviews={true}
+                    maxToRenderPerBatch={5}
+                    updateCellsBatchingPeriod={50}
+                    windowSize={10}
+                    initialNumToRender={5}
+                />
             )}
         </View>
     );
