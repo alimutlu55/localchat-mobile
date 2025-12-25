@@ -37,10 +37,10 @@ import {
   AlertCircle,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/types';
-import { roomService, ParticipantDTO, messageService } from '../services';
+import { roomService, ParticipantDTO, messageService, wsService, WS_EVENTS } from '../services';
 import { Room, ChatMessage } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { useRooms, useIsRoomJoined, useIsJoiningRoom } from '../context/RoomContext';
+import { useRooms, useIsRoomJoined, useIsJoiningRoom, useRoomById } from '../context/RoomContext';
 import { ROOM_CONFIG, executeJoinWithMinLoading } from '../constants';
 import { BannedUsersModal } from '../components/room/BannedUsersModal';
 import { ReportModal, ReportReason } from '../components/chat/ReportModal';
@@ -120,14 +120,15 @@ export default function RoomDetailsScreen() {
   const route = useRoute<RoomDetailsRouteProp>();
   const { room: initialRoom } = route.params;
   const { user } = useAuth();
-  const { joinRoom: contextJoinRoom, leaveRoom: contextLeaveRoom, getRoomById } = useRooms();
+  const { joinRoom: contextJoinRoom, leaveRoom: contextLeaveRoom, updateRoom } = useRooms();
 
   // Use centralized hooks for joined status and optimistic UI
   const hasJoined = useIsRoomJoined(initialRoom.id);
   const isJoiningOptimistic = useIsJoiningRoom(initialRoom.id);
 
   // Get the latest room data from context if available, otherwise use initial
-  const room = getRoomById(initialRoom.id) || initialRoom;
+  // Use the reactive hook to ensure participant count updates in real-time
+  const room = useRoomById(initialRoom.id) || initialRoom;
 
   const [participants, setParticipants] = useState<ParticipantDTO[]>([]);
   const [recentMessages, setRecentMessages] = useState<ChatMessage[]>([]);
@@ -151,13 +152,17 @@ export default function RoomDetailsScreen() {
   const isCreator = room.isCreator || false;
 
   /**
-   * Load participants
+   * Load participants and keep updated via WebSocket events
    */
   useEffect(() => {
     const loadParticipants = async () => {
       try {
         const data = await roomService.getParticipants(room.id);
         setParticipants(data);
+
+        // SYNC: Update RoomContext cache with actual participant count
+        // This ensures room.participantCount matches the actual list
+        updateRoom(room.id, { participantCount: data.length });
       } catch (error) {
         console.error('Failed to load participants:', error);
       } finally {
@@ -166,6 +171,26 @@ export default function RoomDetailsScreen() {
     };
 
     loadParticipants();
+
+    // Re-fetch participants when users join or leave
+    const unsubJoined = wsService.on(WS_EVENTS.USER_JOINED, (payload: any) => {
+      if (payload.roomId === room.id) {
+        console.log('[RoomDetailsScreen] User joined, refreshing participants');
+        loadParticipants();
+      }
+    });
+
+    const unsubLeft = wsService.on(WS_EVENTS.USER_LEFT, (payload: any) => {
+      if (payload.roomId === room.id) {
+        console.log('[RoomDetailsScreen] User left, refreshing participants');
+        loadParticipants();
+      }
+    });
+
+    return () => {
+      unsubJoined();
+      unsubLeft();
+    };
   }, [room.id]);
 
   /**
@@ -521,33 +546,6 @@ export default function RoomDetailsScreen() {
           </View>
         )}
 
-        {/* Participants Section */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>
-              Participants ({participants.length})
-            </Text>
-          </View>
-
-          {isLoading ? (
-            <ActivityIndicator size="small" color="#f97316" style={styles.loader} />
-          ) : (
-            <View style={styles.participantList}>
-              {participants.map((participant) => (
-                <ParticipantItem
-                  key={participant.userId}
-                  participant={participant}
-                  isCreator={participant.role === 'creator'}
-                  isCurrentUser={participant.userId === user?.id}
-                  canModerate={isCreator}
-                  onKick={() => handleKick(participant)}
-                  onBan={() => handleBan(participant)}
-                />
-              ))}
-            </View>
-          )}
-        </View>
-
         {/* Actions Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Actions</Text>
@@ -610,51 +608,78 @@ export default function RoomDetailsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Unified Bottom Button (Join/Enter) - with optimistic UI */}
-        <View style={styles.footerAction}>
-          <TouchableOpacity
-            style={[
-              hasJoined ? styles.enterButton : styles.joinButton,
-              isJoiningOptimistic && { opacity: 0.8 },
-            ]}
-            onPress={handleJoin}
-            disabled={isJoiningOptimistic}
-            activeOpacity={0.8}
-          >
-            {isJoiningOptimistic ? (
-              <View style={styles.buttonContent}>
-                <ActivityIndicator size="small" color="#ffffff" />
-                <Text style={styles.joinButtonText}>Joining...</Text>
-              </View>
-            ) : hasJoined ? (
-              <View style={styles.enterButtonContent}>
-                <MessageCircle size={20} color="#ffffff" />
-                <Text style={styles.enterButtonText}>Enter Room</Text>
-              </View>
-            ) : (
-              <Text style={styles.joinButtonText}>Join Room</Text>
-            )}
-          </TouchableOpacity>
+        {/* Participants Section - moved to end */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>
+              Participants ({participants.length})
+            </Text>
+          </View>
 
-          {/* Small Leave link below main button - only for joined members */}
-          {hasJoined && !isCreator && (
-            <TouchableOpacity
-              style={styles.leaveLinkContainer}
-              onPress={handleLeave}
-              disabled={isLeaving}
-              activeOpacity={0.7}
-            >
-              {isLeaving ? (
-                <ActivityIndicator size="small" color="#64748b" />
-              ) : (
-                <Text style={styles.leaveLink}>
-                  Leave Room • You can rejoin anytime
-                </Text>
-              )}
-            </TouchableOpacity>
+          {isLoading ? (
+            <ActivityIndicator size="small" color="#f97316" style={styles.loader} />
+          ) : (
+            <View style={styles.participantList}>
+              {participants.map((participant) => (
+                <ParticipantItem
+                  key={participant.userId}
+                  participant={participant}
+                  isCreator={participant.role === 'creator'}
+                  isCurrentUser={participant.userId === user?.id}
+                  canModerate={isCreator}
+                  onKick={() => handleKick(participant)}
+                  onBan={() => handleBan(participant)}
+                />
+              ))}
+            </View>
           )}
         </View>
       </ScrollView>
+
+      {/* Unified Bottom Button (Join/Enter) - STICKY - Moved outside ScrollView */}
+      <View style={styles.stickyFooter}>
+        <TouchableOpacity
+          style={[
+            hasJoined ? styles.enterButton : styles.joinButton,
+            isJoiningOptimistic && { opacity: 0.8 },
+          ]}
+          onPress={handleJoin}
+          disabled={isJoiningOptimistic}
+          activeOpacity={0.8}
+        >
+          {isJoiningOptimistic ? (
+            <View style={styles.buttonContent}>
+              <ActivityIndicator size="small" color="#ffffff" />
+              <Text style={styles.joinButtonText}>Joining...</Text>
+            </View>
+          ) : hasJoined ? (
+            <View style={styles.enterButtonContent}>
+              <MessageCircle size={20} color="#ffffff" />
+              <Text style={styles.enterButtonText}>Enter Room</Text>
+            </View>
+          ) : (
+            <Text style={styles.joinButtonText}>Join Room</Text>
+          )}
+        </TouchableOpacity>
+
+        {/* Small Leave link below main button - only for joined members */}
+        {hasJoined && !isCreator && (
+          <TouchableOpacity
+            style={styles.leaveLinkContainer}
+            onPress={handleLeave}
+            disabled={isLeaving}
+            activeOpacity={0.7}
+          >
+            {isLeaving ? (
+              <ActivityIndicator size="small" color="#64748b" />
+            ) : (
+              <Text style={styles.leaveLink}>
+                Leave Room • You can rejoin anytime
+              </Text>
+            )}
+          </TouchableOpacity>
+        )}
+      </View>
 
       <BannedUsersModal
         roomId={room.id}
@@ -925,6 +950,19 @@ const styles = StyleSheet.create({
   footerAction: {
     marginTop: 8,
     marginBottom: 24,
+  },
+  stickyFooter: {
+    backgroundColor: '#ffffff',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingBottom: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#e5e7eb',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 8,
   },
   leaveLinkContainer: {
     paddingVertical: 12,

@@ -44,6 +44,7 @@ import { RootStackParamList } from '../navigation/types';
 import { wsService, messageService, blockService, roomService, WS_EVENTS } from '../services';
 import { ChatMessage, Room, MessageStatus } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useRoomById } from '../context/RoomContext';
 import { useRooms } from '../context/RoomContext';
 import {
   MessageBubble,
@@ -70,10 +71,14 @@ type ConnectionState = 'connected' | 'disconnected' | 'reconnecting';
 export default function ChatRoomScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<ChatRoomRouteProp>();
-  const { room } = route.params;
+  const { room: initialRoom } = route.params;
   const { user } = useAuth();
   const { leaveRoom: contextLeaveRoom } = useRooms();
   const insets = useSafeAreaInsets();
+
+  // Get the latest room data from context if available, otherwise use initial
+  // Use reactive hook to ensure participant count and other fields update in real-time
+  const room = useRoomById(initialRoom.id) || initialRoom;
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
@@ -680,7 +685,7 @@ export default function ChatRoomScreen() {
           const isAlreadyReported =
             reportError?.status === 409 ||
             reportError?.message?.toLowerCase().includes('already reported');
-          
+
           if (!isAlreadyReported) {
             // Re-throw other errors
             throw reportError;
@@ -688,7 +693,7 @@ export default function ChatRoomScreen() {
           // Otherwise, treat as success - the report already exists
           console.log('[ChatRoomScreen] Room already reported - treating as success');
         }
-        
+
         // Auto-leave after reporting room (UX improvement)
         const success = await contextLeaveRoom(room.id);
         if (success) {

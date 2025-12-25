@@ -50,6 +50,7 @@ interface RoomContextValue {
 
   // Helpers
   getRoomById: (roomId: string) => Room | null;
+  updateRoom: (roomId: string, updates: Partial<Room>) => void;
   isRoomJoined: (roomId: string) => boolean;
   isJoiningRoom: (roomId: string) => boolean;
   isLeavingRoom: (roomId: string) => boolean;
@@ -278,6 +279,17 @@ export function RoomProvider({ children }: { children: ReactNode }) {
 
     try {
       await roomService.joinRoom(roomId, room.latitude ?? 0, room.longitude ?? 0);
+
+      // Fetch fresh room data to get updated participantCount and other fields
+      try {
+        const freshRoom = await roomService.getRoom(roomId);
+        upsertRoom(freshRoom);
+        console.log('[RoomContext] Updated room data after join, participantCount:', freshRoom.participantCount);
+      } catch (fetchError) {
+        console.warn('[RoomContext] Failed to fetch fresh room data:', fetchError);
+        // Keep the optimistic update from before
+      }
+
       // Note: ChatRoomScreen will handle wsService.subscribe() when it mounts
       // This separation is cleaner: RoomContext manages membership state, 
       // ChatRoomScreen manages WebSocket connection
@@ -395,7 +407,18 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       updateRoom(roomId, updates as Partial<Room>);
     };
 
-    const handleUserLeft = (payload: { roomId: string; userId: string }) => {
+    const handleUserLeft = (payload: {
+      roomId: string;
+      userId: string;
+      participantCount?: number;
+    }) => {
+      console.log('[RoomContext] User left room:', payload.roomId, 'participantCount:', payload.participantCount);
+
+      // Update participant count if provided (for all users, not just current user)
+      if (payload.participantCount !== undefined) {
+        updateRoom(payload.roomId, { participantCount: payload.participantCount });
+      }
+
       // If current user left (from another device/screen)
       if (payload.userId === user?.id) {
         console.log('[RoomContext] Current user left room:', payload.roomId);
@@ -421,9 +444,21 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    const handleUserJoined = (payload: { roomId: string; userId: string }) => {
+    const handleUserJoined = (payload: {
+      roomId: string;
+      userId: string;
+      user?: { id: string; displayName: string };
+      participantCount?: number;
+    }) => {
+      console.log('[RoomContext] User joined room:', payload.roomId, 'participantCount:', payload.participantCount);
+
+      // Update participant count if provided (for all users, not just current user)
+      if (payload.participantCount !== undefined) {
+        updateRoom(payload.roomId, { participantCount: payload.participantCount });
+      }
+
       // If current user joined (from another device)
-      if (payload.userId === user?.id) {
+      if (payload.userId === user?.id || payload.user?.id === user?.id) {
         console.log('[RoomContext] Current user joined room:', payload.roomId);
         setJoinedRoomIds(prev => new Set(prev).add(payload.roomId));
         wsService.subscribe(payload.roomId);
@@ -505,6 +540,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     joinRoom,
     leaveRoom,
     getRoomById,
+    updateRoom,
     isRoomJoined,
     isJoiningRoom,
     isLeavingRoom,
@@ -521,6 +557,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     joinRoom,
     leaveRoom,
     getRoomById,
+    updateRoom,
     isRoomJoined,
     isJoiningRoom,
     isLeavingRoom,
