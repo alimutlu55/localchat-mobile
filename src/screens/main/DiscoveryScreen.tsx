@@ -277,10 +277,10 @@ export default function DiscoveryScreen() {
             }
 
             setCurrentZoom(Math.round(zoom));
-            
+
             // Immediately re-enable rendering for stable markers
             setIsMapMoving(false);
-            
+
             // Force features recalculation after zoom completes
             console.log('Huddle: [handleRegionDidChange] Zoom:', Math.round(zoom), 'Bounds updated');
         } catch (error) {
@@ -418,7 +418,7 @@ export default function DiscoveryScreen() {
 
         // Calculate target zoom level based on cluster size
         let targetZoom: number;
-        
+
         if (leaves.length <= 3) {
             // Small cluster (2-3 rooms): zoom to expansion level to fully expand
             targetZoom = Math.min(expansionZoom + 1, 18); // +1 to ensure full expansion

@@ -88,11 +88,11 @@ export function RoomListItem({
 
   const distance = showDistance && userLocation && room.latitude && room.longitude
     ? calculateDistance(
-        userLocation.latitude,
-        userLocation.longitude,
-        room.latitude,
-        room.longitude
-      )
+      userLocation.latitude,
+      userLocation.longitude,
+      room.latitude,
+      room.longitude
+    )
     : null;
 
   return (

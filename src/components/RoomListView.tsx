@@ -15,6 +15,8 @@ import {
     TouchableOpacity,
     FlatList,
     ActivityIndicator,
+    Modal,
+    Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -29,6 +31,7 @@ import {
     Check,
     Zap,
     Sparkles,
+    Plus,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Room } from '../types';
@@ -84,12 +87,12 @@ function RoomListItemWrapper({
     onEnterRoom,
 }: {
     room: Room;
-    onJoin?: (room: Room) => Promise<boolean>;
+    onJoin?: (room: Room) => void;
     onEnterRoom?: (room: Room) => void;
 }) {
     // Use centralized hook to check if room is joined
     const hasJoined = useIsRoomJoined(room.id);
-    
+
     return (
         <RoomListItem
             room={room}
@@ -112,11 +115,11 @@ const RoomListItem = memo(function RoomListItem({
 }: {
     room: Room;
     hasJoined: boolean;
-    onJoin?: (room: Room) => Promise<boolean>;
+    onJoin?: (room: Room) => void;
     onEnterRoom?: (room: Room) => void;
 }) {
     const [isJoining, setIsJoining] = useState(false);
-    
+
     // No local joinSuccess state - rely entirely on hasJoined from context
     // This prevents stale state when user leaves and returns
 
@@ -132,42 +135,25 @@ const RoomListItem = memo(function RoomListItem({
         return `${(meters / 1000).toFixed(1)}km`;
     };
 
-    const handlePress = async () => {
-        // If already joined, enter room
-        if (hasJoined) {
-            onEnterRoom?.(room);
-            return;
-        }
-
-        if (!onJoin) return;
-
-        setIsJoining(true);
-        try {
-            const success = await onJoin(room);
-            if (success) {
-                // Auto-enter after short delay for visual feedback
-                setTimeout(() => {
-                    onEnterRoom?.(room);
-                }, 500);
-            }
-        } catch (error) {
-            console.error('Failed to join:', error);
-        } finally {
-            setIsJoining(false);
-        }
-    };
-
-    const buttonText = hasJoined ? 'Enter Room' : 'Join';
-    const ButtonIcon = hasJoined ? LogIn : isJoining ? null : ChevronRight;
-
     const getGradientColors = () => {
-        if (room.isFull) return ['#9ca3af', '#6b7280'];
         if (room.isExpiringSoon) return ['#f97316', '#ea580c'];
         return ['#fb923c', '#f43f5e'];
     };
 
+    const handlePress = () => {
+        if (hasJoined) {
+            onEnterRoom?.(room);
+        } else {
+            onJoin?.(room);
+        }
+    };
+
     return (
-        <View style={styles.roomCard}>
+        <TouchableOpacity
+            style={styles.roomCard}
+            onPress={handlePress}
+            activeOpacity={0.8}
+        >
             <View style={styles.roomCardContent}>
                 {/* Emoji with Gradient Background */}
                 <View style={styles.emojiContainer}>
@@ -208,6 +194,12 @@ const RoomListItem = memo(function RoomListItem({
                         )}
                     </View>
 
+                    {room.description ? (
+                        <Text style={styles.roomDescription} numberOfLines={2}>
+                            {room.description}
+                        </Text>
+                    ) : null}
+
                     {/* Meta */}
                     <View style={styles.roomMeta}>
                         <View style={styles.metaItem}>
@@ -222,41 +214,23 @@ const RoomListItem = memo(function RoomListItem({
                         </View>
                     </View>
 
-                    {/* Category & Time */}
+                    {/* Bottom Row: Category & Info */}
                     <View style={styles.bottomMetaRow}>
-                        <View style={styles.categoryBadge}>
-                            <Text style={styles.categoryBadgeText}>{room.category}</Text>
-                        </View>
-                        <View style={styles.timeBadge}>
-                            <Clock size={12} color={getTimeColor()} />
-                            <Text style={[styles.timeText, { color: getTimeColor() }]}>
-                                {room.timeRemaining}
-                            </Text>
+                        <View style={styles.badgesWrapper}>
+                            <View style={styles.categoryBadge}>
+                                <Text style={styles.categoryBadgeText}>{room.category}</Text>
+                            </View>
+                            <View style={styles.timeBadge}>
+                                <Clock size={12} color={getTimeColor()} />
+                                <Text style={[styles.timeText, { color: getTimeColor() }]}>
+                                    {room.timeRemaining}
+                                </Text>
+                            </View>
                         </View>
                     </View>
                 </View>
             </View>
-
-            {/* Action Button */}
-            <TouchableOpacity
-                style={[
-                    styles.actionButton,
-                    hasJoined && styles.actionButtonEnter,
-                ]}
-                onPress={handlePress}
-                disabled={isJoining}
-                activeOpacity={0.8}
-            >
-                {isJoining ? (
-                    <ActivityIndicator size="small" color="#ffffff" />
-                ) : (
-                    <>
-                        {ButtonIcon && <ButtonIcon size={18} color="#ffffff" />}
-                        <Text style={styles.actionButtonText}>{buttonText}</Text>
-                    </>
-                )}
-            </TouchableOpacity>
-        </View>
+        </TouchableOpacity>
     );
 }, (prevProps, nextProps) => {
     // Custom comparison function for optimal re-render control
@@ -332,7 +306,11 @@ export function RoomListView({
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [sortBy, setSortBy] = useState<SortOption>('nearest');
     const [showFilters, setShowFilters] = useState(false);
-    
+
+    // Join Confirmation State
+    const [joinPendingRoom, setJoinPendingRoom] = useState<Room | null>(null);
+    const [isJoining, setIsJoining] = useState(false);
+
     // Subscribe to myRooms to force re-render when join/leave state changes
     const { myRooms } = useRooms();
 
@@ -405,6 +383,31 @@ export function RoomListView({
     const handleClearSearch = useCallback(() => {
         setSearchQuery('');
     }, []);
+
+    const handleRoomPress = useCallback((room: Room) => {
+        setJoinPendingRoom(room);
+    }, []);
+
+    const handleConfirmJoin = async () => {
+        if (!joinPendingRoom || !onJoinRoom) return;
+
+        setIsJoining(true);
+        try {
+            const success = await onJoinRoom(joinPendingRoom);
+            if (success) {
+                const room = joinPendingRoom;
+                setJoinPendingRoom(null);
+                // Auto-enter after short delay
+                setTimeout(() => {
+                    onEnterRoom?.(room);
+                }, 300);
+            }
+        } catch (error) {
+            console.error('Failed to join:', error);
+        } finally {
+            setIsJoining(false);
+        }
+    };
 
     if (isLoading) {
         return (
@@ -513,7 +516,7 @@ export function RoomListView({
                                 <RoomListItemWrapper
                                     key={room.id}
                                     room={room}
-                                    onJoin={onJoinRoom}
+                                    onJoin={handleRoomPress}
                                     onEnterRoom={onEnterRoom}
                                 />
                             ))}
@@ -533,6 +536,56 @@ export function RoomListView({
                     initialNumToRender={5}
                 />
             )}
+
+            {/* Join Confirmation Modal */}
+            <Modal
+                visible={joinPendingRoom !== null}
+                transparent={true}
+                animationType="fade"
+                onRequestClose={() => !isJoining && setJoinPendingRoom(null)}
+            >
+                <TouchableOpacity
+                    style={styles.modalOverlay}
+                    activeOpacity={1}
+                    onPress={() => !isJoining && setJoinPendingRoom(null)}
+                >
+                    <View style={styles.modalContent}>
+                        <View style={styles.modalHeader}>
+                            <View style={styles.modalEmojiContainer}>
+                                <Text style={styles.modalEmoji}>{joinPendingRoom?.emoji}</Text>
+                            </View>
+                            <Text style={styles.modalTitle}>{joinPendingRoom?.title}</Text>
+                            <Text style={styles.modalSubtitle}>
+                                Would you like to join this conversation?
+                            </Text>
+                        </View>
+
+                        <View style={styles.modalActions}>
+                            <TouchableOpacity
+                                style={styles.cancelButton}
+                                onPress={() => setJoinPendingRoom(null)}
+                                disabled={isJoining}
+                            >
+                                <Text style={styles.cancelButtonText}>Not now</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                style={styles.confirmButton}
+                                onPress={handleConfirmJoin}
+                                disabled={isJoining}
+                            >
+                                {isJoining ? (
+                                    <ActivityIndicator size="small" color="#ffffff" />
+                                ) : (
+                                    <>
+                                        <Text style={styles.confirmButtonText}>Join Room</Text>
+                                    </>
+                                )}
+                            </TouchableOpacity>
+                        </View>
+                    </View>
+                </TouchableOpacity>
+            </Modal>
         </View>
     );
 }
@@ -701,6 +754,9 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         gap: 12,
     },
+    emojiContainer: {
+        position: 'relative',
+    },
     roomEmoji: {
         width: 48,
         height: 48,
@@ -708,6 +764,20 @@ const styles = StyleSheet.create({
         backgroundColor: '#fff7ed',
         justifyContent: 'center',
         alignItems: 'center',
+    },
+    actionBadge: {
+        position: 'absolute',
+        top: -4,
+        right: -4,
+        width: 18,
+        height: 18,
+        borderRadius: 9,
+        backgroundColor: '#f97316',
+        borderWidth: 2,
+        borderColor: '#ffffff',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 10,
     },
     roomEmojiText: {
         fontSize: 24,
@@ -719,7 +789,13 @@ const styles = StyleSheet.create({
         fontSize: 16,
         fontWeight: '600',
         color: '#1f2937',
+        marginBottom: 4,
+    },
+    roomDescription: {
+        fontSize: 13,
+        color: '#4b5563',
         marginBottom: 8,
+        lineHeight: 18,
     },
     roomMeta: {
         flexDirection: 'row',
@@ -735,9 +811,16 @@ const styles = StyleSheet.create({
         fontSize: 13,
         color: '#6b7280',
     },
-    badgeRow: {
+    bottomMetaRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 10,
+    },
+    badgesWrapper: {
         flexDirection: 'row',
         gap: 6,
+        alignItems: 'center',
     },
     categoryBadge: {
         paddingHorizontal: 8,
@@ -750,17 +833,18 @@ const styles = StyleSheet.create({
         color: '#7c3aed',
         fontWeight: '600',
     },
-    emojiContainer: {
-        position: 'relative',
-    },
-    statusBadgesContainer: {
-        position: 'absolute',
-        bottom: -6,
-        left: -4,
-        right: -4,
+    timeBadge: {
         flexDirection: 'row',
-        justifyContent: 'center',
+        alignItems: 'center',
         gap: 4,
+        backgroundColor: '#f9fafb',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+        borderRadius: 8,
+    },
+    timeText: {
+        fontSize: 11,
+        fontWeight: '500',
     },
     statusBadge: {
         flexDirection: 'row',
@@ -794,42 +878,98 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         marginBottom: 4,
     },
-    bottomMetaRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
+    modalOverlay: {
+        flex: 1,
+        backgroundColor: 'rgba(0, 0, 0, 0.5)',
+        justifyContent: 'center',
         alignItems: 'center',
-        marginTop: 4,
+        padding: 24,
     },
-    timeBadge: {
-        flexDirection: 'row',
+    modalContent: {
+        backgroundColor: '#ffffff',
+        borderRadius: 28,
+        padding: 20,
+        width: '100%',
+        maxWidth: 320,
         alignItems: 'center',
-        gap: 4,
-        backgroundColor: '#f9fafb',
-        paddingHorizontal: 8,
-        paddingVertical: 3,
-        borderRadius: 8,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 10 },
+        shadowOpacity: 0.08,
+        shadowRadius: 15,
+        elevation: 8,
     },
-    timeText: {
-        fontSize: 11,
-        fontWeight: '500',
+    modalHeader: {
+        alignItems: 'center',
+        marginBottom: 20,
     },
-    actionButton: {
+    modalEmojiContainer: {
+        width: 56,
+        height: 56,
+        borderRadius: 18,
+        backgroundColor: '#fff7ed',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 12,
+    },
+    modalEmoji: {
+        fontSize: 28,
+    },
+    modalTitle: {
+        fontSize: 18,
+        fontWeight: '700',
+        color: '#1f2937',
+        textAlign: 'center',
+        marginBottom: 6,
+    },
+    modalSubtitle: {
+        fontSize: 14,
+        color: '#6b7280',
+        textAlign: 'center',
+    },
+    modalActions: {
         flexDirection: 'row',
+        gap: 12,
+        width: '100%',
+    },
+    cancelButton: {
+        flex: 1,
+        paddingVertical: 12,
+        borderRadius: 14,
+        backgroundColor: '#f1f5f9',
         alignItems: 'center',
         justifyContent: 'center',
-        gap: 8,
-        backgroundColor: '#f97316',
+    },
+    cancelButtonText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#64748b',
+    },
+    confirmButton: {
+        flex: 1,
         paddingVertical: 12,
-        borderRadius: 12,
-        marginTop: 12,
+        borderRadius: 14,
+        backgroundColor: '#f97316',
+        alignItems: 'center',
+        justifyContent: 'center',
+        shadowColor: '#f97316',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.2,
+        shadowRadius: 8,
+        elevation: 4,
     },
-    actionButtonEnter: {
-        backgroundColor: '#16a34a',
-    },
-    actionButtonText: {
-        fontSize: 15,
+    confirmButtonText: {
+        fontSize: 14,
         fontWeight: '600',
         color: '#ffffff',
+    },
+    statusBadgesContainer: {
+        position: 'absolute',
+        bottom: -6,
+        left: -4,
+        right: -4,
+        flexDirection: 'row',
+        justifyContent: 'center',
+        gap: 4,
     },
     emptyState: {
         flex: 1,
