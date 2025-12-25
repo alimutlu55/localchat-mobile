@@ -20,6 +20,9 @@ import {
   Image,
   Alert,
   Platform,
+  ScrollView,
+  FlatList,
+  Dimensions,
 } from 'react-native';
 import {
   Check,
@@ -30,6 +33,10 @@ import {
   Clock,
   AlertCircle,
   MoreVertical,
+  CornerUpLeft,
+  ArrowRight,
+  Star,
+  Trash2,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { ChatMessage } from '../../types';
@@ -40,11 +47,37 @@ interface MessageBubbleProps {
   isOwn: boolean;
   onReport?: (message: ChatMessage) => void;
   onBlock?: (message: ChatMessage) => void;
+  onReact?: (messageId: string, emoji: string) => void;
   hasBlocked?: boolean;
 }
 
-export function MessageBubble({ message, isOwn, onReport, onBlock, hasBlocked }: MessageBubbleProps) {
+const EMOJIS = ['❤️', '👍', '😂', '🔥', '😮', '🙏'];
+
+const EMOJI_CATEGORIES = [
+  { title: '🕒', name: 'FREQUENTLY USED', emojis: ['🫶', '😍', '👥', '💯', '😋', '🎊', '🙌', '😂', '😟', '👍', '❤️', '🙏', '😮', '😢'] },
+  { title: '😃', name: 'SMILEYS & PEOPLE', emojis: ['😊', '😇', '🙂', '🙃', '😉', '😌', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️', '😣', '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯', '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤗', '🤔', '🤭', '🤫', '🤥', '😶', '😐', '😑', '😬', '🙄', '😯', '😦', '😧', '😮', '😲', '🥱', '😴', '🤤', '😪', '😵', '🤐', '🥴', '🤢', '🤮', '🤧', '😷', '🤒', '🤕'] },
+  { title: '🐻', name: 'ANIMALS & NATURE', emojis: ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐻‍❄️', '🐨', '🐯', '🦁', '🐮', '🐷', '🐽', '🐸', '🐵', '🙈', '🙊', '🐒', '🐔', '🐧', '🐦', '🐤', '🐣', '🐥', '🦆', '🦅', '🦉', '🦇', '🐺', '🐗', '🐴', '🦄', '🐝', '🪱', '🐛', '🦋', '🐌', '🐞', '🐜', '🦟', '🦗', '🕷', '🕸', '🦂', '🐢', '🐍', '🦎', '🦖', '🦕', '🐙', '🦑', '🦐', '🦞', '🦀', '🐡', '🐠', '🐟', '🐬', '🐳', '🐋', '🦈', '🐊', '🐅', '🐆', '🦓', '🦍', '🦧', '🐘', '🦛', '🦏', '🐪', '🐫', '🦒', '🦘', '🦬', '🐃', '🐂', '🐄', '🐎', '🐖', '🐏', '🐑', '🦙', '🐐', '🦌', '🐕', '🐩', '🦮', '🐕‍🦺', '🐈', '🐈‍⬛', '🐓', '🦃', '🦚', '🦜', '🦢', '🦩', '🕊', '🐇', '🦝', '🦨', '🦡', '🦦', '🦥', '🐁', '🐀', '🐿', '🦔'] },
+  { title: '☕', name: 'FOOD & DRINK', emojis: ['🍏', '🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍈', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🍆', '🥑', '🥦', '🥬', '🥒', '🌽', '🥕', '🫒', '🧄', '🧅', '🥔', '🍠', '🥐', '🥯', '🍞', '🥖', '🥨', '🧀', '🥚', '🍳', '🧈', '🥞', '🧇', '🥓', '🥩', '🍗', '🍖', '🦴', '🌭', '🍔', '🍟', '🍕', '🫓', '🥪', '🌮', '🌯', '🫔', '🥙', '🧆', '🥚', '🍲', '🥣', '🥗', '🍿', '🧈', '🧂', '🥫', '🍱', '🍘', '🍙', '🍚', '🍛', '🍜', '🍝', '🍠', '🍢', '🍣', '🍤', '🍥', '🥮', '🍡', '🥟', ' fortune_cookie', '🥡', '🦀', '🦞', '🦐', '🦑', '🍦', '🍧', '🍨', '🍩', '🍪', '🎂', '🍰', '🧁', '🥧', '🍫', '🍬', '🍭', '🍮', '🍯', '🍼', '🥛', '☕️', '🫖', '🍵', '🍶', '🍾', '🍷', '🍸', '🍹', '🍺', '🍻', '🥂', '🥃', '🥤', '🧋', '🧃', '🧉', '🧊'] },
+  { title: '⚽', name: 'ACTIVITIES', emojis: ['⚽️', '🏀', '🏈', '⚾️', '🥎', '🎾', '🏐', '🏉', '🎱', '🪀', '🏓', '🏸', '🏒', '🏑', '🥍', '🏏', '🪃', '🥅', '⛳️', '🪁', '🏹', '🎣', '🤿', '🥊', '🥋', '🎽', '🛹', '🛼', '🛷', '⛸', '🥌', '🎿', '⛷', '🏂', '🪂', '🏋️‍♀️', '🏋️', '🏋️‍♂️', '🤼‍♀️', '🤼', '🤼‍♂️', '🤸‍♀️', '🤸', '🤸‍♂️', '⛹️‍♀️', '⛹️', '⛹️‍♂️', '🤺', '🤾‍♀️', '🤾', '🤾‍♂️', '🏌️‍♀️', '🏌️', '🏌️‍♂️', '🏇', '🧘‍♀️', '🧘', '🧘‍♂️', '🏄‍♀️', '🏄', '🏄‍♂️', '🏊‍♀️', '脫', '🏊‍♂️', '🤽‍♀️', '🤽', '🤽‍♂️', '🚣‍♀️', '🚣', '🚣‍♂️', '🧗‍♀️', '🧗', '🧗‍♂️', '🚵‍♀️', '🚵', '🚵‍♂️', '🚴‍♀️', '🚴', '🚴‍♂️', '🏆', '🥇', '🥈', '🥉', '🏅', '🎖', '🏵', '🎗', '🎫', '🎟', '🎭', '🩰', '🎨', '🎬', '🎤', '🎧', '🎼', '🎹', '🥁', '🪘', '🎷', '🎺', '🪗', '🎸', '🪕', '🎻', '🎲', '♟', '🎯', '🎳', '🎮', '🎰', '🧩'] },
+  { title: '🚘', name: 'TRAVEL & PLACES', emojis: ['🚗', '🚕', '🚙', '🚌', '🚎', '🏎', '🚓', '🚑', '🚒', '🚐', '🛻', '🚚', '🚛', '🚜', '🛵', '🏍', '🛺', '🚲', '🛴', '🚳', '🛹', '🛼', '⛽️', '🚨', '🚥', '🚦', '🛑', '🚧', '⚓️', '⛵️', '🛶', '🚤', '🛳', '⛴', '🛥', '🚢', '✈️', '🛩', '🛫', '🛬', '🪂', '💺', '🚁', '🚟', '🚠', '🚡', '🛰', '🚀', '🛸', '🛎', '🧳', '⌛️', '⏳', '⌚️', '⏰', '⏱', '⏲', '🕰', '🌡', '☀️', '🌝', '🌛', '🌜', '🌚', '🌕', '🌖', '🌗', '🌘', '🌑', '🌓', '🌔', '🌙', '🌎', '🌍', '🌏', '🪐', '💫', '⭐️', '🌟', '✨', '⚡️', '☄️', '💥', '🔥', '🌪', '🌈', '☀️', '🌤', '⛅️', '🌥', '☁️', '🌦', '🌧', '⛈', '🌩', '🌨', '❄️', '☃️', '⛄️', '🌬', '💨', '💧', '💦', '🫧', '☔️', '☂️', '🌊', '🌫'] },
+  { title: '💡', name: 'OBJECTS', emojis: ['⌚️', '📱', '📲', '💻', '⌨️', '🖱', '🖲', '🕹', '🗜', '💽', '💾', '💿', '📀', '📼', '📷', '📸', '📹', '🎥', '📽', '🎞', '📞', '☎️', '📟', '📠', '📺', '📻', '🎙', '🎚', '🎛', '🧭', '⏱', '⏲', '⏰', '🕰', '⌛️', '⏳', '📡', '🔋', '🔌', '💡', '🔦', '🕯', '🪔', '🧯', '🛢', '💸', '💵', '💴', '💶', '💷', '🪙', '💰', '💳', '💎', '⚖️', '🪜', '🧰', '🪛', '🔧', '🔨', '⚒', '🛠', '⛏', '🪚', '🔩', '⚙️', '🪤', '🧱', '⛓', '🧲', '🔫', '💣', '🧨', '🪓', '🔪', '🗡', '⚔️', '🛡', '🚬', '⚰️', '🪦', '⚱️', '🏺', '🔮', '📿', '🧿', '💈', '⚗️', '🔭', '🔬', '🕳', '🩹', '🩺', '💊', '💉', '🩸', '🧬', '🦠', '🧼', '🧽', '🪥', '🪒', '🧴', '🧷', '🧹', '🧺', '🧻', '🚽', '🚰', '🚿', '🛀', '🧼', '🪠', '🔑', '🗝', '🚪', '🪑', '🛋', '🛏', '🛌', '🧸', '🖼', '🪞', '🪟', '🛍', '🛒', '🎁', '🎈', '🎏', '🎀', '🪄', '🪅', '🎊', '🎉', '🎎', '🏮', '🎐', '🧧', '✉️', '📩', '📨', '📧', '💌', '📥', '📤', '📦', '🏷', '🪧', '📪', '📫', '📬', '📭', '📮', '📯', '📜', '📃', '📄', '📑', '📊', '📈', '📉', '🗒', '🗓', '📅', '🗑', '📇', '🗃', '🗳', '🗄', '📋', '📁', '📂', '🗂', '🗞', '📰', '📓', '📔', '📒', '📕', '📗', '📘', '📙', '📚', '📖', '🔖', '🧷', '🔗', '📎', '🖇', '📐', '📏', '🧮', '📌', '📍', '✂️', '🖊', '🖋', '✒️', '🖌', '🖍', '📝', '✏️', '🔍', '🔎', '🔏', '🔐', '🔒', '🔓'] },
+  { title: '🔣', name: 'SYMBOLS', emojis: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟', '☮️', '✝️', '☪️', '🕉', '☸️', '✡️', '🔯', '🕎', '☯️', '☦️', '🛐', '⛎', '♈️', '♉️', '♊️', '♋️', '♌️', '♍️', '♎️', '♏️', '♐️', '♑️', '♒️', '♓️', '🆔', '⚛️', '🉑', '☢️', '☣️', '📴', '📳', '🈶', '🈚️', '🈸', '🈺', '🈷️', '✴️', '🆚', '💮', '🉐', '㊙️', '㊗️', '🈴', '🈵', '🈹', '🈲', '🅰️', '🅱️', '🆎', '🆑', '🅾️', '🆘', '❌', '⭕️', '🛑', '⛔️', '📛', '🚫', '💯', '💢', '♨️', '🚷', '🚯', '🚳', '🚱', '🔞', '📵', '🚭', '❗️', '❕', '❓', '❔', '‼️', '⁉️', '🔅', '🔆', '〽️', '⚠️', '🚸', '🔱', '⚜️', '🔰', '♻️', '✅', '🈯️', '💹', '❇️', '✳️', '❎', '🌐', '💠', 'Ⓜ️', '🌀', '💤', '🏧', '🚾', '♿️', '🅿️', '🈳', '🈂️', '🛂', '🛃', '🛄', '🛅', '🚹', '🚺', '🚼', '⚧', '🚻', '🚮', '🎦', '📶', '🈁', '🔣', 'ℹ️', '🔤', '🔡', '🔠', '🆖', '🆗', '🆙', '🆒', '🆕', '🆓', '0️⃣', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟', '🔢', '▶️', '⏸', '⏯', '⏹', '⏺', '⏏️', '⏭', '⏮', '⏩', '⏪', '⏫', '⏬', '◀️', '🔼', '🔽', '➡️', '⬅️', '⬆️', '⬇️', '↗️', '↘️', '↙️', '↖️', '↕️', '↔️', '↪️', '↩️', '⤴️', '⤵️', '🔀', '🔁', '🔂', '🔄', '🔃', '🎵', '🎶', '➕', '➖', '➗', '✖️', '♾', '💲', '💱', '™️', '©️', '®️', '👁‍🗨', '🔚', '🔙', '🔛', '🔝', '🔜', '〰️', '➰', '➿', '✔️', '☑️', '🔘', '🔴', '🟠', '🟡', '🟢', '🔵', '🟣', '⚫️', '⚪️', '🟤', '🔺', '🔻', '🔸', '🔹', '🔶', '🔷', '🔳', '🔲', '▪️', '▫️', '◾️', '◽️', '◼️', '◻️', '🟥', '🟧', '🟨', '🟩', '🟦', '🟪', '⬛️', '⬜️', '🟫', '🔈', '🔇', '🔉', '🔊', '🔔', '🔕', '📣', '📢', '💬', '💭', '🗯', '♠️', '♣️', '♥️', '♦️', '🃏', '🎴', '🀄️', '🕐', '🕑', '🕒', '🕓', '🕔', '🕕', '🕖', '🕗', '🕘', '🕙', '🕚', '🕛', '🕜', '🕝', '🕞', '🕟', '🕠', '🕡', '🕢', '🕣', '🕤', '🕥', '🕦', '🕧'] },
+  { title: '🚩', name: 'FLAGS', emojis: ['🏁', '🚩', '🎌', '🏴', '🏳️', '🏳️‍🌈', '🏳️‍⚧️', '🏴‍☠️', '🇦🇫', '🇦🇽', '🇦🇱', '🇩🇿', '🇦🇸', '🇦🇩', '🇦🇴', '🇦🇮', '🇦🇶', '🇦🇬', '🇦🇷', '🇦🇲', '🇦🇼', '🇦🇺', '🇦🇹', '🇦🇿', '🇧🇸', '🇧🇭', '🇧🇩', '🇧🇧', '🇧🇾', '🇧🇪', '🇧🇿', '🇧🇯', '🇧🇲', '🇧🇹', '🇧🇴', '🇧🇦', '🇧🇼', '🇧🇷', '🇮🇴', '🇻🇬', '🇧🇳', '🇧🇬', '🇧🇫', '🇧🇮', '🇰🇭', '🇨🇲', '🇨🇦', '🇮🇨', '🇨🇻', '🇧🇶', '🇰🇾', '🇨🇫', '🇹🇩', '🇨🇱', '🇨🇳', '🇨🇽', '🇨🇨', '🇨🇴', '🇰🇲', '🇨🇬', '🇨🇩', '🇨🇰', '🇨🇷', '🇨🇮', '🇭🇷', '🇨🇺', '🇨🇼', '🇨🇾', '🇨🇿', '🇩🇰', '🇩🇯', '🇩🇲', '🇩🇴', '🇪🇨', '🇪🇬', '🇸🇻', '🇬🇶', '🇪🇷', '🇪🇪', '🇸🇿', '🇪🇹', '🇪🇺', '🇫🇰', '🇫🇴', '🇫🇯', '🇫🇮', '🇫🇷', '🇬🇫', '🇵🇫', '🇹🇫', '🇬🇦', '🇬🇲', '🇬🇪', '🇩🇪', '🇬🇭', '🇬🇮', '🇬🇷', '🇬🇱', '🇬🇩', '🇬🇵', '🇬🇺', '🇬🇹', '🇬🇬', '🇬🇳', '🇬🇼', '🇬🇾', '🇭🇹', '🇭🇳', '🇭🇰', '🇭🇺', '🇮🇸', '🇮🇳', '🇮🇩', '🇮🇷', '🇮🇶', '🇮🇪', '🇮🇲', '🇮🇱', '🇮🇹', '🇯🇲', '🇯🇵', '🇯🇪', '🇯🇴', '🇰🇿', '🇰🇪', '🇰🇮', '🇽🇰', '🇰🇼', '🇰🇬', '🇱🇦', '🇱🇻', '🇱🇧', '🇱🇸', '🇱🇷', '🇱🇾', '🇱🇮', '🇱🇹', '🇱🇺', '🇲🇴', '🇲🇬', '🇲🇼', '🇲🇾', '🇲🇻', '🇲🇱', '🇲🇹', '🇲🇭', '🇲🇶', '🇲🇷', '🇲🇺', '🇾🇹', '🇲🇽', '🇫🇲', '🇲🇩', '🇲🇨', '🇲🇳', '🇲🇪', '🇲🇸', '🇲🇦', '🇲🇿', '🇲🇲', '🇳🇦', '🇳🇷', '🇳🇵', '🇳🇱', '🇳🇨', '🇳🇿', '🇳🇮', '🇳🇪', '🇳🇬', '🇳🇺', '🇳🇫', '🇰🇵', '🇲🇰', '🇲🇵', '🇳🇴', '🇴🇲', '🇵🇰', '🇵🇼', '🇵🇸', '🇵🇦', '🇵🇬', '🇵🇾', '🇵🇪', '🇵🇭', '🇵🇳', '🇵🇱', '🇵🇹', '🇵🇷', '🇶🇦', '🇷🇪', '🇷🇴', '🇷🇺', '🇷🇼', '🇼🇸', '🇸🇲', '🇸🇹', '🇸🇦', '🇸🇳', '🇸🇷', '🇸🇨', '🇸🇱', '🇸🇬', '🇸🇽', '🇸🇰', '🇸🇮', '🇬🇸', '🇸🇧', '🇸🇴', '🇿🇦', '🇰🇷', '🇸🇸', '🇪🇸', '🇱🇰', '🇧🇱', '🇸🇭', '🇰🇳', '🇱🇨', '🇲🇫', '🇵🇲', '🇻🇨', '🇸🇩', '🇸🇷', '🇸🇿', '🇸🇪', '🇨🇭', '🇸🇾', '🇹🇼', '🇹🇯', '🇹🇿', '🇹🇭', '🇹🇱', '🇹🇬', '🇹🇰', '🇹🇴', '🇹🇹', '🇹🇳', '🇹🇷', '🇹🇲', '🇹🇨', '🇹🇻', '🇻🇮', '🇺🇬', '🇺🇦', '🇦🇪', '🇬🇧', '🏴󠁧󠁢󠁥󠁮󠁧󠁿', '🏴󠁧󠁢󠁳󠁣󠁴󠁿', '🏴󠁧󠁢󠁷󠁬󠁳󠁿', '🇺🇸', '🇺🇾', '🇺🇿', '🇻🇺', '🇻🇦', '🇻🇪', '🇻🇳', '🇼🇫', '🇪🇭', '🇾🇪', '🇿🇲', '🇿🇼'] },
+];
+
+export function MessageBubble({
+  message,
+  isOwn,
+  onReport,
+  onBlock,
+  onReact,
+  hasBlocked
+}: MessageBubbleProps) {
   const [showContextMenu, setShowContextMenu] = useState(false);
+  const [showEmojiDrawer, setShowEmojiDrawer] = useState(false);
+  const [selectedCategory, setSelectedCategory] = useState(0);
+  const scrollRef = useRef<ScrollView>(null);
+  const categoryOffsets = useRef<{ [key: string]: number }>({}).current;
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
@@ -91,6 +124,15 @@ export function MessageBubble({ message, isOwn, onReport, onBlock, hasBlocked }:
 
   const handleLongPress = () => {
     setShowContextMenu(true);
+  };
+
+  const handlePress = () => {
+    setShowContextMenu(true);
+  };
+
+  const handleReactPress = (emoji: string) => {
+    onReact?.(message.id, emoji);
+    setShowContextMenu(false);
   };
 
   /**
@@ -171,22 +213,22 @@ export function MessageBubble({ message, isOwn, onReport, onBlock, hasBlocked }:
               <Text style={styles.messageSender}>
                 {message.userName || 'Anonymous'}
               </Text>
-              <Text style={styles.messageTime}>{formatTime(message.timestamp)}</Text>
             </View>
           )}
 
-          <View style={[styles.bubbleWrapper, isOwn && styles.bubbleWrapperOwn]}>
-            {isOwn ? (
-              <TouchableOpacity
-                onLongPress={handleLongPress}
-                activeOpacity={0.85}
+          {isOwn ? (
+            <TouchableOpacity
+              onPress={handlePress}
+              onLongPress={handleLongPress}
+              activeOpacity={0.85}
+            >
+              <LinearGradient
+                colors={['#f97316', '#ef4444']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                style={[styles.bubble, styles.bubbleOwn]}
               >
-                <LinearGradient
-                  colors={['#f97316', '#ef4444']}
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={[styles.bubble, styles.bubbleOwn]}
-                >
+                <View style={styles.bubbleContentRow}>
                   <Text style={[styles.messageText, styles.messageTextOwn]}>
                     {message.content}
                   </Text>
@@ -196,26 +238,76 @@ export function MessageBubble({ message, isOwn, onReport, onBlock, hasBlocked }:
                     </Text>
                     {getStatusIcon()}
                   </View>
-                </LinearGradient>
+                </View>
+              </LinearGradient>
+              {message.reactions && message.reactions.length > 0 && (
+                <View style={styles.reactionsContainer}>
+                  {message.reactions.map((reaction, idx) => (
+                    <TouchableOpacity
+                      key={idx}
+                      style={[
+                        styles.reactionPill,
+                        styles.reactionPillOwn,
+                        reaction.userReacted && styles.reactionPillActiveOwn
+                      ]}
+                      onPress={() => onReact?.(message.id, reaction.emoji)}
+                    >
+                      <Text style={styles.reactionEmoji}>{reaction.emoji}</Text>
+                      <Text style={[
+                        styles.reactionCount,
+                        styles.reactionCountOwn,
+                        reaction.userReacted && styles.reactionCountActiveOwn
+                      ]}>
+                        {reaction.count}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </TouchableOpacity>
+          ) : (
+            <View style={styles.incomingContainer}>
+              <TouchableOpacity
+                style={styles.bubble}
+                onPress={handlePress}
+                onLongPress={handleLongPress}
+                activeOpacity={0.8}
+              >
+                <View style={styles.bubbleContentRow}>
+                  <Text style={styles.messageText}>
+                    {message.content}
+                  </Text>
+                  <Text style={styles.messageTimeInside}>
+                    {formatTime(message.timestamp)}
+                  </Text>
+                </View>
               </TouchableOpacity>
-            ) : (
-              <View style={styles.incomingContainer}>
-                <TouchableOpacity
-                  style={styles.bubble}
-                  onLongPress={handleLongPress}
-                  activeOpacity={0.8}
-                >
-                  <Text style={styles.messageText}>{message.content}</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.actionButton}
-                  onPress={handleLongPress}
-                >
-                  <MoreVertical size={16} color="#94a3b8" />
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
+              {message.reactions && message.reactions.length > 0 && (
+                <View style={styles.reactionsContainer}>
+                  {message.reactions.map((reaction, idx) => (
+                    <TouchableOpacity
+                      key={idx}
+                      style={[
+                        styles.reactionPill,
+                        styles.reactionPillIncoming,
+                        reaction.userReacted && styles.reactionPillActiveIncoming
+                      ]}
+                      onPress={() => onReact?.(message.id, reaction.emoji)}
+                    >
+                      <Text style={styles.reactionEmoji}>{reaction.emoji}</Text>
+                      <Text style={[
+                        styles.reactionCount,
+                        styles.reactionCountIncoming,
+                        reaction.userReacted && styles.reactionCountActiveIncoming
+                      ]}>
+                        {reaction.count}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
+          )}
         </View>
       </Animated.View>
 
@@ -230,37 +322,132 @@ export function MessageBubble({ message, isOwn, onReport, onBlock, hasBlocked }:
           style={styles.modalOverlay}
           onPress={() => setShowContextMenu(false)}
         >
-          <View style={styles.contextMenu}>
-            <TouchableOpacity style={styles.menuItem} onPress={handleCopy}>
-              <Copy size={18} color="#374151" />
-              <Text style={styles.menuItemText}>Copy</Text>
-            </TouchableOpacity>
-
-            {!isOwn && (
-              <>
-                <View style={styles.menuDivider} />
+          <View style={styles.overlayInner}>
+            <View style={styles.emojiBar}>
+              {EMOJIS.map((emoji) => (
                 <TouchableOpacity
-                  style={styles.menuItem}
-                  onPress={handleReport}
+                  key={emoji}
+                  style={styles.emojiButton}
+                  onPress={() => handleReactPress(emoji)}
                 >
-                  <Flag size={18} color="#374151" />
-                  <Text style={styles.menuItemText}>Report</Text>
+                  <Text style={styles.emojiText}>{emoji}</Text>
                 </TouchableOpacity>
+              ))}
+              <TouchableOpacity
+                style={styles.emojiButton}
+                onPress={() => {
+                  setShowContextMenu(false);
+                  setShowEmojiDrawer(true);
+                }}
+              >
+                <View style={styles.plusCircle}>
+                  <Text style={styles.plusIcon}>+</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
 
-                <TouchableOpacity
-                  style={[styles.menuItem, hasBlocked && styles.menuItemDisabled]}
-                  onPress={handleBlock}
-                  disabled={hasBlocked}
-                >
-                  <Ban size={18} color={hasBlocked ? '#9ca3af' : '#ef4444'} />
-                  <Text style={[styles.menuItemText, hasBlocked ? styles.menuItemDisabledText : styles.menuItemDanger]}>
-                    {hasBlocked ? 'Already Blocked' : 'Block User'}
-                  </Text>
-                </TouchableOpacity>
-              </>
-            )}
+            <View style={styles.contextMenu}>
+              <TouchableOpacity style={styles.menuItem} onPress={handleCopy}>
+                <Text style={styles.menuItemText}>Copy</Text>
+                <Copy size={20} color="#334155" />
+              </TouchableOpacity>
+
+              {!isOwn && (
+                <>
+                  <View style={styles.menuDivider} />
+                  <TouchableOpacity
+                    style={styles.menuItem}
+                    onPress={handleReport}
+                  >
+                    <Text style={styles.menuItemText}>Report</Text>
+                    <Flag size={20} color="#334155" />
+                  </TouchableOpacity>
+
+                  <View style={styles.menuDivider} />
+
+                  <TouchableOpacity
+                    style={[styles.menuItem, hasBlocked && styles.menuItemDisabled]}
+                    onPress={handleBlock}
+                    disabled={hasBlocked}
+                  >
+                    <Text style={[styles.menuItemText, hasBlocked ? styles.menuItemDisabledText : styles.menuItemDanger]}>
+                      {hasBlocked ? 'Already Blocked' : 'Block User'}
+                    </Text>
+                    <Ban size={20} color={hasBlocked ? '#9ca3af' : '#ef4444'} />
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
           </View>
         </Pressable>
+      </Modal>
+
+      {/* Emoji Selector Drawer */}
+      <Modal
+        visible={showEmojiDrawer}
+        transparent
+        animationType="none"
+        onRequestClose={() => setShowEmojiDrawer(false)}
+      >
+        <View style={styles.drawerOverlay}>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={() => setShowEmojiDrawer(false)}
+          />
+          <Animated.View style={styles.drawerContent}>
+            <View style={styles.drawerHandle} />
+
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>
+                {EMOJI_CATEGORIES[selectedCategory].name}
+              </Text>
+            </View>
+            <FlatList
+              data={EMOJI_CATEGORIES[selectedCategory].emojis}
+              renderItem={({ item: emoji }) => (
+                <TouchableOpacity
+                  style={styles.gridEmojiButton}
+                  onPress={() => {
+                    onReact?.(message.id, emoji);
+                    setShowEmojiDrawer(false);
+                  }}
+                >
+                  <Text style={styles.gridEmojiText}>{emoji}</Text>
+                </TouchableOpacity>
+              )}
+              keyExtractor={(item, index) => `${selectedCategory}-${index}`}
+              numColumns={8}
+              contentContainerStyle={styles.flatListContent}
+              removeClippedSubviews={true}
+              initialNumToRender={24}
+              maxToRenderPerBatch={16}
+              windowSize={5}
+              getItemLayout={(data, index) => ({
+                length: 40,
+                offset: 40 * Math.floor(index / 8),
+                index,
+              })}
+              showsVerticalScrollIndicator={false}
+            />
+
+            <View style={styles.drawerFooter}>
+              {EMOJI_CATEGORIES.map((category, idx) => (
+                <TouchableOpacity
+                  key={idx}
+                  style={styles.footerIcon}
+                  onPress={() => setSelectedCategory(idx)}
+                >
+                  <Text style={[
+                    styles.footerIconText,
+                    selectedCategory === idx && styles.footerIconActive
+                  ]}>
+                    {category.title}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </Animated.View>
+        </View>
       </Modal>
     </>
   );
@@ -352,24 +539,280 @@ const styles = StyleSheet.create({
   messageTextOwn: {
     color: '#ffffff',
   },
+  bubbleContent: {
+    paddingBottom: 4,
+  },
+  bubbleContentRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  timestampSpacer: {
+    fontSize: 12,
+  },
+  reactionsContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    position: 'absolute',
+    bottom: -12,
+    left: -8,
+    zIndex: 10,
+    gap: 4,
+  },
+  reactionPill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+    borderRadius: 12,
+    gap: 2,
+    borderWidth: 1.5,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 1,
+    elevation: 2,
+  },
+  reactionPillOwn: {
+    backgroundColor: '#ffffff',
+    borderColor: '#e2e8f0',
+  },
+  reactionPillIncoming: {
+    backgroundColor: '#ffffff',
+    borderColor: '#e2e8f0',
+  },
+  reactionPillActiveOwn: {
+    backgroundColor: '#fff7ed',
+    borderColor: '#fdba74',
+  },
+  reactionPillActiveIncoming: {
+    backgroundColor: '#fff7ed',
+    borderColor: '#fdba74',
+  },
+  reactionEmoji: {
+    fontSize: 12,
+  },
+  reactionCount: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  reactionCountOwn: {
+    color: '#475569',
+  },
+  reactionCountIncoming: {
+    color: '#475569',
+  },
+  reactionCountActiveOwn: {
+    color: '#f97316',
+  },
+  reactionCountActiveIncoming: {
+    color: '#f97316',
+  },
   ownMessageMeta: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'flex-end',
     gap: 4,
-    marginTop: 4,
+    marginLeft: 'auto',
   },
   messageTimeOwn: {
     fontSize: 11,
     color: 'rgba(255, 255, 255, 0.8)',
   },
-  actionButton: {
-    padding: 8,
-    marginLeft: 4,
+  messageTimeInside: {
+    fontSize: 11,
+    color: '#94a3b8',
+    marginLeft: 'auto',
+  },
+  overlayInner: {
+    width: '85%',
+    maxWidth: 320,
+    alignItems: 'center',
+  },
+  emojiBar: {
+    flexDirection: 'row',
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 30,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    marginBottom: 12,
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  emojiButton: {
+    paddingHorizontal: 6,
+  },
+  emojiText: {
+    fontSize: 24,
+  },
+  plusCircle: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  plusIcon: {
+    color: '#64748b',
+    fontSize: 18,
+    fontWeight: '300',
+  },
+  contextMenu: {
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    borderRadius: 16,
+    width: '100%',
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  menuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  menuItemText: {
+    fontSize: 16,
+    color: '#334155',
+    fontWeight: '400',
+  },
+  menuItemDisabledText: {
+    color: '#94a3b8',
+  },
+  menuItemDanger: {
+    color: '#ef4444',
+  },
+  menuDivider: {
+    height: 0.5,
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    marginHorizontal: 16,
+  },
+  menuItemDisabled: {
+    opacity: 0.5,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  drawerOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    justifyContent: 'flex-end',
+  },
+  drawerContent: {
+    backgroundColor: '#ffffff',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    height: '50%',
+    paddingBottom: 60,
+    paddingHorizontal: 16,
+  },
+  drawerHandle: {
+    width: 40,
+    height: 5,
+    backgroundColor: '#e5e5ea',
+    borderRadius: 2.5,
+    alignSelf: 'center',
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  drawerHeader: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    marginBottom: 8,
+  },
+  sectionHeader: {
+    backgroundColor: '#ffffff',
+    paddingVertical: 8,
+    marginBottom: 4,
+  },
+  searchBar: {
+    backgroundColor: '#f2f2f7',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    height: 36,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 16,
+    color: '#000000',
+    padding: 0,
+  },
+  drawerBody: {
+    flex: 1,
+  },
+  drawerSection: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    color: '#8e8e93',
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 12,
+    textTransform: 'uppercase',
+  },
+  emojiGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'flex-start',
+    gap: 15,
+  },
+  flatListContent: {
+    paddingBottom: 20,
+  },
+  gridEmojiButton: {
+    width: Dimensions.get('window').width / 8 - 4,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  gridEmojiText: {
+    fontSize: 28,
+  },
+  drawerFooter: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    paddingVertical: 10,
+    borderTopWidth: 0.5,
+    borderTopColor: '#e5e5ea',
+    backgroundColor: '#ffffff',
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
+    paddingHorizontal: 20,
+  },
+  footerIcon: {
+    padding: 10,
+  },
+  footerIconText: {
+    fontSize: 20,
+    opacity: 0.6,
+  },
+  footerIconActive: {
+    opacity: 1,
+    transform: [{ scale: 1.2 }],
   },
   systemMessage: {
     alignItems: 'center',
     marginVertical: 12,
+    width: '100%',
   },
   systemMessageText: {
     fontSize: 12,
@@ -378,49 +821,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
-  },
-  // Context Menu
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  contextMenu: {
-    backgroundColor: '#ffffff',
-    borderRadius: 14,
-    minWidth: 180,
-    paddingVertical: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 8,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    gap: 12,
-  },
-  menuItemText: {
-    fontSize: 15,
-    color: '#374151',
-  },
-  menuItemDanger: {
-    color: '#ef4444',
-  },
-  menuDivider: {
-    height: 1,
-    backgroundColor: '#e5e7eb',
-    marginVertical: 4,
-  },
-  menuItemDisabled: {
-    opacity: 0.6,
-  },
-  menuItemDisabledText: {
-    color: '#9ca3af',
   },
   reportedIndicator: {
     flexDirection: 'row',

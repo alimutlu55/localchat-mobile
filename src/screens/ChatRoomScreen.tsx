@@ -81,7 +81,7 @@ export default function ChatRoomScreen() {
 
   // State to track if user is creator (can be set from participant list)
   const [isCreatorOverride, setIsCreatorOverride] = useState<boolean | null>(null);
-  
+
   // Determine if user is creator: use override if set, otherwise use room flag
   const isCreator = isCreatorOverride !== null ? isCreatorOverride : (room.isCreator || false);
 
@@ -140,7 +140,7 @@ export default function ChatRoomScreen() {
         // If isCreator is already set, trust it
         return;
       }
-      
+
       try {
         const participants = await roomService.getParticipants(room.id);
         const currentUserParticipant = participants.find(p => p.userId === user?.id);
@@ -412,6 +412,18 @@ export default function ChatRoomScreen() {
       }
     });
 
+    // Handle message reactions
+    // Backend sends: { roomId, messageId, reactions: [{ emoji, count, userReacted }] }
+    const unsubscribeReaction = wsService.on(WS_EVENTS.MESSAGE_REACTION, (payload: any) => {
+      if (payload.roomId === room.id) {
+        setMessages(prev => prev.map(msg =>
+          msg.id === payload.messageId
+            ? { ...msg, reactions: payload.reactions }
+            : msg
+        ));
+      }
+    });
+
     return () => {
       unsubscribeMessage();
       unsubscribeAck();
@@ -422,6 +434,7 @@ export default function ChatRoomScreen() {
       unsubscribeUserKicked();
       unsubscribeUserBanned();
       unsubscribeConnection();
+      unsubscribeReaction();
     };
   }, [room.id, user?.id, navigation]);
 
@@ -483,9 +496,46 @@ export default function ChatRoomScreen() {
   }, [room.id]);
 
   /**
+   * Handle message reaction
+   */
+  const handleReact = useCallback((messageId: string, emoji: string) => {
+    // Optimistic update
+    setMessages(prev => prev.map(msg => {
+      if (msg.id !== messageId) return msg;
+
+      const reactions = [...(msg.reactions || [])];
+      const existingReactionIndex = reactions.findIndex(r => r.emoji === emoji);
+
+      if (existingReactionIndex !== -1) {
+        const reaction = { ...reactions[existingReactionIndex] };
+        if (reaction.userReacted) {
+          reaction.count = Math.max(0, reaction.count - 1);
+          reaction.userReacted = false;
+        } else {
+          reaction.count += 1;
+          reaction.userReacted = true;
+        }
+
+        if (reaction.count === 0) {
+          reactions.splice(existingReactionIndex, 1);
+        } else {
+          reactions[existingReactionIndex] = reaction;
+        }
+      } else {
+        reactions.push({ emoji, count: 1, userReacted: true });
+      }
+
+      return { ...msg, reactions };
+    }));
+
+    // Send to server
+    wsService.sendReaction(room.id, messageId, emoji);
+  }, [room.id]);
+
+  /**
    * Open room info drawer
    */
-  const handleRoomInfo = () => {
+  const handleRoomInfo = useCallback(() => {
     navigation.navigate('RoomInfo', {
       room,
       isCreator,
@@ -495,7 +545,7 @@ export default function ChatRoomScreen() {
         handleCloseRoom();
       } : undefined,
     });
-  };
+  }, [room, isCreator, user?.id, navigation]);
 
   /**
    * Handle message report
@@ -766,6 +816,7 @@ export default function ChatRoomScreen() {
           isOwn={isOwn}
           onReport={handleReportMessage}
           onBlock={handleBlockUser}
+          onReact={handleReact}
           hasBlocked={blockedUserIds.has(item.userId)}
         />
       </>

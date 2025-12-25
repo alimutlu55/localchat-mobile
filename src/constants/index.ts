@@ -160,6 +160,7 @@ export const WS_EVENTS = {
   UPDATE_PROFILE: 'update_profile',
   PING: 'ping',
   PONG: 'pong',
+  SEND_REACTION: 'send_reaction',
 
   // Incoming events (server -> client)
   AUTH_REQUIRED: 'auth_required',
@@ -184,6 +185,7 @@ export const WS_EVENTS = {
   ERROR: 'error',
   SERVER_PING: 'ping',
   SERVER_PONG: 'pong',
+  MESSAGE_REACTION: 'message_reaction',
 };
 
 /**

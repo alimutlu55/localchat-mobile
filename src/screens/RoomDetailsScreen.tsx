@@ -29,7 +29,6 @@ import {
   Lock,
   Ban,
   Flag,
-  UserX,
   Shield,
   Share2,
   MessageCircle,
@@ -58,21 +57,13 @@ interface ParticipantItemProps {
   participant: ParticipantDTO;
   isCreator: boolean;
   isCurrentUser: boolean;
-  canModerate: boolean;
-  onKick: () => void;
-  onBan: () => void;
 }
 
 function ParticipantItem({
   participant,
   isCreator,
   isCurrentUser,
-  canModerate,
-  onKick,
-  onBan,
 }: ParticipantItemProps) {
-  const showModActions = canModerate && !isCurrentUser && participant.role !== 'creator';
-
   return (
     <View style={styles.participantItem}>
       <AvatarDisplay
@@ -95,19 +86,6 @@ function ParticipantItem({
           {participant.role === 'creator' ? 'Room Creator' : 'Participant'}
         </Text>
       </View>
-
-      {showModActions && (
-        <View style={styles.participantActions}>
-          <TouchableOpacity style={styles.kickButton} onPress={onKick}>
-            <UserX size={16} color="#f97316" />
-            <Text style={styles.actionButtonText}>Kick</Text>
-          </TouchableOpacity>
-          <TouchableOpacity style={styles.banButton} onPress={onBan}>
-            <Ban size={16} color="#ef4444" />
-            <Text style={styles.actionButtonText}>Ban</Text>
-          </TouchableOpacity>
-        </View>
-      )}
     </View>
   );
 }
@@ -309,56 +287,6 @@ export default function RoomDetailsScreen() {
   };
 
   /**
-   * Handle kick user
-   */
-  const handleKick = (participant: ParticipantDTO) => {
-    Alert.alert(
-      'Remove User',
-      `Remove ${participant.displayName} from this room?`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Remove',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await roomService.kickUser(room.id, participant.userId);
-              setParticipants(prev => prev.filter(p => p.userId !== participant.userId));
-            } catch (error) {
-              Alert.alert('Error', 'Failed to remove user');
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  /**
-   * Handle ban user
-   */
-  const handleBan = (participant: ParticipantDTO) => {
-    Alert.alert(
-      'Ban User',
-      `Ban ${participant.displayName} from this room? They won't be able to rejoin.`,
-      [
-        { text: 'Cancel', style: 'cancel' },
-        {
-          text: 'Ban',
-          style: 'destructive',
-          onPress: async () => {
-            try {
-              await roomService.banUser(room.id, participant.userId);
-              setParticipants(prev => prev.filter(p => p.userId !== participant.userId));
-            } catch (error) {
-              Alert.alert('Error', 'Failed to ban user');
-            }
-          },
-        },
-      ]
-    );
-  };
-
-  /**
    * Handle report room
    */
   const handleReport = () => {
@@ -442,20 +370,6 @@ export default function RoomDetailsScreen() {
       console.log('Share error:', error);
     }
   };
-
-  /**
-   * Render participant item
-   */
-  const renderParticipant = ({ item }: { item: ParticipantDTO }) => (
-    <ParticipantItem
-      participant={item}
-      isCreator={item.role === 'creator'}
-      isCurrentUser={item.userId === user?.id}
-      canModerate={isCreator}
-      onKick={() => handleKick(item)}
-      onBan={() => handleBan(item)}
-    />
-  );
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -625,9 +539,6 @@ export default function RoomDetailsScreen() {
                   participant={participant}
                   isCreator={participant.role === 'creator'}
                   isCurrentUser={participant.userId === user?.id}
-                  canModerate={isCreator}
-                  onKick={() => handleKick(participant)}
-                  onBan={() => handleBan(participant)}
                 />
               ))}
             </View>

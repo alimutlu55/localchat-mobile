@@ -481,6 +481,17 @@ class WebSocketService {
   }
 
   /**
+   * Send a message reaction
+   */
+  sendReaction(roomId: string, messageId: string, emoji: string): void {
+    this.send(WS_EVENTS.SEND_REACTION, {
+      roomId,
+      messageId,
+      emoji,
+    });
+  }
+
+  /**
    * Send typing indicator
    */
   sendTyping(roomId: string, isTyping: boolean): void {
