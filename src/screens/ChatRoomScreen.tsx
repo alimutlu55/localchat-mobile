@@ -343,10 +343,12 @@ export default function ChatRoomScreen() {
     // Handle user left
     const unsubscribeUserLeft = wsService.on(WS_EVENTS.USER_LEFT, (payload: any) => {
       if (payload.roomId === room.id && payload.userId !== user?.id) {
+        const displayNameToUse = payload.displayName || 'Someone';
+
         const systemMessage: ChatMessage = {
           id: `system-leave-${Date.now()}`,
           type: 'system',
-          content: createSystemMessage('user_left', payload.displayName || 'Someone'),
+          content: createSystemMessage('user_left', displayNameToUse),
           timestamp: new Date(),
           userId: 'system',
           userName: 'System',

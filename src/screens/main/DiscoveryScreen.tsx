@@ -290,6 +290,19 @@ export default function DiscoveryScreen() {
     }, []);
 
     /**
+     * Calculate total events in view (summing cluster counts)
+     * Matches web implementation for consistency
+     */
+    const totalEventsInView = useMemo(() => {
+        return features.reduce((sum, feature) => {
+            if (isCluster(feature)) {
+                return sum + (feature.properties.point_count || 0);
+            }
+            return sum + 1;
+        }, 0);
+    }, [features]);
+
+    /**
      * Calculate adaptive map fly animation duration
      */
     const calculateMapFlyDuration = useCallback((targetZoom: number) => {
@@ -621,7 +634,7 @@ export default function DiscoveryScreen() {
                 {/* Events Counter */}
                 <View style={styles.eventsCounter}>
                     <Text style={styles.eventsCounterText}>
-                        {activeRooms.length} {activeRooms.length === 1 ? 'event' : 'events'} in view
+                        {totalEventsInView} {totalEventsInView === 1 ? 'event' : 'events'} in view
                     </Text>
                 </View>
 
