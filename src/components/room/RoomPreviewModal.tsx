@@ -212,6 +212,12 @@ const styles = StyleSheet.create({
         color: '#0f172a',
         paddingRight: 32,
     },
+    description: {
+        fontSize: 14,
+        color: '#64748b',
+        lineHeight: 20,
+        marginTop: 2,
+    },
     categoryBadge: {
         backgroundColor: '#f3e8ff',
         paddingHorizontal: 8,
