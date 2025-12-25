@@ -85,6 +85,14 @@ interface RoomContextValue {
   addToMyRooms: (room: Room) => void;
   removeFromMyRooms: (roomId: string) => void;
   syncMyRooms: (rooms: Room[]) => void;
+  
+  // Helpers
+  isRoomJoined: (roomId: string) => boolean;
+  getRoomById: (roomId: string) => Room | null;
+  
+  // Optimistic UI state
+  isJoiningRoom: (roomId: string) => boolean;
+  isLeavingRoom: (roomId: string) => boolean;
 }
 
 const RoomContext = createContext<RoomContextValue | null>(null);
@@ -142,6 +150,13 @@ export function RoomProvider({ children }: RoomProviderProps) {
 
   // Tombstones for recently closed rooms (prevent resurrection by polling)
   const closedRoomTombstonesRef = useRef<Set<string>>(new Set());
+  
+  // Optimistic UI: Track rooms currently being joined/left
+  const [joiningRooms, setJoiningRooms] = useState<Set<string>>(new Set());
+  const [leavingRooms, setLeavingRooms] = useState<Set<string>>(new Set());
+  
+  // Track rooms that were just left to prevent immediate re-fetch
+  const justLeftRoomsRef = useRef<Set<string>>(new Set());
 
   // Refs for stable access in callbacks
   const selectedRoomRef = useRef<Room | null>(selectedRoom);
@@ -359,46 +374,194 @@ export function RoomProvider({ children }: RoomProviderProps) {
   }, []);
 
   /**
-   * Join a room
+   * Helper: Get room by ID from either discovered rooms or myRooms
+   * Prioritizes myRooms as they have most up-to-date state
+   */
+  const getRoomById = useCallback((roomId: string): Room | null => {
+    // Check myRooms first (most up-to-date), then discovered rooms
+    const myRoom = myRoomsRef.current.find(r => r.id === roomId);
+    if (myRoom) return myRoom;
+    
+    return rooms.find(r => r.id === roomId) || null;
+  }, [rooms]);
+
+  /**
+   * Helper: Check if user has already joined a room
+   */
+  const isRoomJoined = useCallback((roomId: string): boolean => {
+    return myRoomsRef.current.some(r => r.id === roomId);
+  }, []);
+
+  /**
+   * Helper: Check if room is currently being joined (optimistic UI)
+   */
+  const isJoiningRoom = useCallback((roomId: string): boolean => {
+    return joiningRooms.has(roomId);
+  }, [joiningRooms]);
+
+  /**
+   * Helper: Check if room is currently being left (optimistic UI)
+   */
+  const isLeavingRoom = useCallback((roomId: string): boolean => {
+    return leavingRooms.has(roomId);
+  }, [leavingRooms]);
+  
+  /**
+   * Helper: Check if a room was just left (to prevent race conditions)
+   */
+  const wasJustLeft = useCallback((roomId: string): boolean => {
+    return justLeftRoomsRef.current.has(roomId);
+  }, []);
+
+  /**
+   * Join a room with optimistic UI updates
    */
   const joinRoom = useCallback(async (room: Room): Promise<boolean> => {
+    console.log('[RoomContext] joinRoom called for:', room.id);
+    
+    // Prevent joining if currently leaving
+    if (leavingRooms.has(room.id)) {
+      console.warn('[RoomContext] Cannot join - leave operation in progress:', room.id);
+      return false;
+    }
+    
+    // Prevent duplicate joins
+    if (isRoomJoined(room.id)) {
+      console.warn('[RoomContext] Already joined room:', room.id);
+      return true; // Return success since already joined
+    }
+
+    // Prevent joining if already in progress
+    if (joiningRooms.has(room.id)) {
+      console.warn('[RoomContext] Join already in progress for room:', room.id);
+      return false;
+    }
+
+    console.log('[RoomContext] Starting join operation for:', room.id);
+
+    // Mark as joining (optimistic state)
+    setJoiningRooms(prev => new Set(prev).add(room.id));
+
+    // Optimistically update UI immediately
+    const optimisticRoom = { ...room, hasJoined: true };
+    updateRoom(room.id, { hasJoined: true });
+    addToMyRooms(optimisticRoom);
+
     try {
       // Backend requires user location when joining
       await roomService.joinRoom(room.id, room.latitude ?? 0, room.longitude ?? 0);
 
-      const updatedRoom = { ...room, hasJoined: true };
-      updateRoom(room.id, { hasJoined: true });
-      addToMyRooms(updatedRoom);
-
       // Subscribe to WebSocket
       wsService.subscribe(room.id);
 
+      console.log('[RoomContext] Successfully joined room:', room.id);
       return true;
-    } catch (error) {
-      console.error('[RoomContext] Failed to join room:', error);
+    } catch (error: any) {
+      // Handle "already joined" error gracefully (backend may already have user as participant)
+      const errorMessage = error?.message || error?.toString() || '';
+      const errorCode = error?.code || '';
+      
+      if (errorCode === 'CONFLICT' ||
+          errorMessage.includes('Resource already exists') ||
+          errorMessage.includes('already joined') || 
+          errorMessage.includes('already a participant') ||
+          errorMessage.includes('duplicate')) {
+        console.log('[RoomContext] Backend says already joined (conflict), keeping optimistic state:', room.id);
+        
+        // Keep optimistic updates, subscribe to WebSocket
+        wsService.subscribe(room.id);
+        return true; // Treat as success
+      }
+      
+      // Rollback optimistic updates on real failure
+      console.error('[RoomContext] Failed to join room, rolling back:', error);
+      updateRoom(room.id, { hasJoined: false });
+      removeFromMyRooms(room.id);
       return false;
+    } finally {
+      // Clear joining state
+      setJoiningRooms(prev => {
+        const next = new Set(prev);
+        next.delete(room.id);
+        return next;
+      });
     }
-  }, [updateRoom, addToMyRooms]);
+  }, [isRoomJoined, joiningRooms, leavingRooms, updateRoom, addToMyRooms, removeFromMyRooms]);
 
   /**
-   * Leave a room
+   * Leave a room with optimistic UI updates
    */
   const leaveRoom = useCallback(async (roomId: string): Promise<boolean> => {
-    try {
-      await roomService.leaveRoom(roomId);
-
-      updateRoom(roomId, { hasJoined: false });
-      removeFromMyRooms(roomId);
-
-      // Unsubscribe from WebSocket
-      wsService.unsubscribe(roomId);
-
-      return true;
-    } catch (error) {
-      console.error('[RoomContext] Failed to leave room:', error);
+    console.log('[RoomContext] leaveRoom called for:', roomId);
+    
+    // Prevent duplicate leave operations
+    if (leavingRooms.has(roomId)) {
+      console.warn('[RoomContext] Leave already in progress for room:', roomId);
       return false;
     }
-  }, [updateRoom, removeFromMyRooms]);
+    
+    // Check if user is actually in the room
+    const isInRoom = myRoomsRef.current.some(r => r.id === roomId);
+    if (!isInRoom) {
+      console.warn('[RoomContext] User not in room, nothing to leave:', roomId);
+      return true; // Already left, return success
+    }
+
+    console.log('[RoomContext] Starting leave operation for:', roomId);
+    
+    // Mark as leaving BEFORE any state changes
+    setLeavingRooms(prev => {
+      const next = new Set(prev);
+      next.add(roomId);
+      return next;
+    });
+    
+    // Add to "just left" tracking to prevent race conditions with API calls
+    justLeftRoomsRef.current.add(roomId);
+
+    try {
+      // First, unsubscribe from WebSocket to stop receiving events
+      wsService.unsubscribe(roomId);
+      console.log('[RoomContext] Unsubscribed from WebSocket:', roomId);
+      
+      // Then, call backend to leave room
+      await roomService.leaveRoom(roomId);
+      console.log('[RoomContext] Backend leave successful:', roomId);
+
+      // Only update UI state after successful backend response
+      updateRoom(roomId, { hasJoined: false });
+      removeFromMyRooms(roomId);
+      
+      // Clear from "just left" after a delay to prevent race conditions
+      setTimeout(() => {
+        justLeftRoomsRef.current.delete(roomId);
+      }, 2000);
+
+      console.log('[RoomContext] Successfully left room:', roomId);
+      return true;
+    } catch (error: any) {
+      console.error('[RoomContext] Failed to leave room:', error);
+      
+      // Remove from "just left" on error
+      justLeftRoomsRef.current.delete(roomId);
+      
+      // Rollback: Re-subscribe to WebSocket
+      wsService.subscribe(roomId);
+      
+      // Don't rollback UI state since we haven't changed it yet
+      // (we moved the UI update to after successful backend call)
+      
+      return false;
+    } finally {
+      // Always clear leaving state
+      setLeavingRooms(prev => {
+        const next = new Set(prev);
+        next.delete(roomId);
+        return next;
+      });
+      console.log('[RoomContext] Cleared leaving state for:', roomId);
+    }
+  }, [leavingRooms, updateRoom, removeFromMyRooms]);
 
   // ============================================================================
   // WebSocket Event Handlers
@@ -515,6 +678,10 @@ export function RoomProvider({ children }: RoomProviderProps) {
     addToMyRooms,
     removeFromMyRooms,
     syncMyRooms,
+    isRoomJoined,
+    getRoomById,
+    isJoiningRoom,
+    isLeavingRoom,
   }), [
     rooms,
     activeRooms,
@@ -533,6 +700,10 @@ export function RoomProvider({ children }: RoomProviderProps) {
     addToMyRooms,
     removeFromMyRooms,
     syncMyRooms,
+    isRoomJoined,
+    getRoomById,
+    isJoiningRoom,
+    isLeavingRoom,
   ]);
 
   return (
@@ -582,6 +753,49 @@ export function useSidebarRooms(): { activeRooms: Room[]; expiredRooms: Room[] }
       expiredRooms: sorted.filter(room => room.expiresAt <= now),
     };
   }, [myRooms]);
+}
+
+/**
+ * useJoinedRooms - Get only joined rooms (excludes rooms user only discovered but didn't join)
+ */
+export function useJoinedRooms(): Room[] {
+  const { myRooms } = useRooms();
+  return useMemo(
+    () => myRooms.filter(r => r.hasJoined || r.isCreator),
+    [myRooms]
+  );
+}
+
+/**
+ * useIsRoomJoined - Check if user has joined a specific room
+ */
+export function useIsRoomJoined(roomId: string): boolean {
+  const { isRoomJoined } = useRooms();
+  return isRoomJoined(roomId);
+}
+
+/**
+ * useRoomById - Get a specific room by ID (prioritizes myRooms for latest state)
+ */
+export function useRoomById(roomId: string): Room | null {
+  const { getRoomById } = useRooms();
+  return useMemo(() => getRoomById(roomId), [getRoomById, roomId]);
+}
+
+/**
+ * useIsJoiningRoom - Check if a room is currently being joined (optimistic UI)
+ */
+export function useIsJoiningRoom(roomId: string): boolean {
+  const { isJoiningRoom } = useRooms();
+  return isJoiningRoom(roomId);
+}
+
+/**
+ * useIsLeavingRoom - Check if a room is currently being left (optimistic UI)
+ */
+export function useIsLeavingRoom(roomId: string): boolean {
+  const { isLeavingRoom } = useRooms();
+  return isLeavingRoom(roomId);
 }
 
 export default RoomContext;

@@ -40,7 +40,7 @@ import { RootStackParamList } from '../navigation/types';
 import { roomService, ParticipantDTO, messageService } from '../services';
 import { Room, ChatMessage } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { useRooms } from '../context/RoomContext';
+import { useRooms, useIsRoomJoined, useIsJoiningRoom } from '../context/RoomContext';
 import { ROOM_CONFIG, executeJoinWithMinLoading } from '../constants';
 import { BannedUsersModal } from '../components/room/BannedUsersModal';
 import { ReportModal, ReportReason } from '../components/chat/ReportModal';
@@ -120,10 +120,13 @@ export default function RoomDetailsScreen() {
   const route = useRoute<RoomDetailsRouteProp>();
   const { room: initialRoom } = route.params;
   const { user } = useAuth();
-  const { myRooms, joinRoom: contextJoinRoom } = useRooms();
+  const { joinRoom: contextJoinRoom, leaveRoom: contextLeaveRoom, rooms: contextRooms } = useRooms();
+  
+  // Use centralized hooks for joined status and optimistic UI
+  const hasJoined = useIsRoomJoined(initialRoom.id);
+  const isJoiningOptimistic = useIsJoiningRoom(initialRoom.id);
 
   // Get the latest room data from context if available, otherwise use initial
-  const { rooms: contextRooms } = useRooms();
   const room = contextRooms.find(r => r.id === initialRoom.id) || initialRoom;
 
   const [participants, setParticipants] = useState<ParticipantDTO[]>([]);
@@ -132,7 +135,7 @@ export default function RoomDetailsScreen() {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isLeaving, setIsLeaving] = useState(false);
   const [isClosing, setIsClosing] = useState(false);
-  const [isJoining, setIsJoining] = useState(false);
+  // Remove local isJoining state - use optimistic from context instead
   const [showBannedUsersModal, setShowBannedUsersModal] = useState(false);
 
   // ... (Report state remains same)
@@ -146,22 +149,6 @@ export default function RoomDetailsScreen() {
   });
 
   const isCreator = room.isCreator || false;
-
-  // Determine joined status based on global myRooms state
-  const hasJoined = useMemo(() =>
-    room.hasJoined || myRooms.some(r => r.id === room.id),
-    [room.id, room.hasJoined, myRooms]);
-
-  const [joinButtonState, setJoinButtonState] = useState<JoinButtonState>(
-    hasJoined ? 'joined' : 'default'
-  );
-
-  /**
-   * Sync joinButtonState with room.hasJoined
-   */
-  useEffect(() => {
-    setJoinButtonState(hasJoined ? 'joined' : 'default');
-  }, [hasJoined]);
 
   /**
    * Load participants
@@ -200,9 +187,20 @@ export default function RoomDetailsScreen() {
       try {
         const { messages } = await messageService.getHistory(room.id, { limit: 3 });
         setRecentMessages(messages);
-      } catch (error) {
-        console.error('Failed to load recent messages:', error);
-        setRecentMessages([]);
+      } catch (error: any) {
+        console.error('[RoomDetailsScreen] Failed to load recent messages:', error);
+        
+        // If error is "not in room", it might be because user just left
+        // Silently clear messages instead of showing error
+        const errorMessage = error?.message || '';
+        if (errorMessage.includes('must be in the room') || 
+            errorMessage.includes('not in room') ||
+            error?.code === 'FORBIDDEN') {
+          console.log('[RoomDetailsScreen] User not in room (may have just left), clearing messages');
+          setRecentMessages([]);
+        } else {
+          setRecentMessages([]);
+        }
       } finally {
         setIsLoadingMessages(false);
       }
@@ -215,6 +213,12 @@ export default function RoomDetailsScreen() {
    * Handle leave room
    */
   const handleLeave = () => {
+    // Prevent if already leaving
+    if (isLeaving) {
+      console.warn('[RoomDetailsScreen] Leave already in progress');
+      return;
+    }
+    
     Alert.alert(
       'Leave Room',
       'Are you sure you want to leave this room?',
@@ -226,9 +230,15 @@ export default function RoomDetailsScreen() {
           onPress: async () => {
             setIsLeaving(true);
             try {
-              await roomService.leaveRoom(room.id);
-              navigation.popToTop();
+              // Use context's leaveRoom to update state properly
+              const success = await contextLeaveRoom(room.id);
+              if (success) {
+                navigation.popToTop();
+              } else {
+                Alert.alert('Error', 'Failed to leave room');
+              }
             } catch (error) {
+              console.error('[RoomDetailsScreen] Leave error:', error);
               Alert.alert('Error', 'Failed to leave room');
             } finally {
               setIsLeaving(false);
@@ -341,8 +351,14 @@ export default function RoomDetailsScreen() {
       }
 
       if (data.leaveRoom) {
-        await roomService.leaveRoom(room.id);
-        navigation.popToTop();
+        // Use context's leaveRoom to update state properly
+        const success = await contextLeaveRoom(room.id);
+        if (success) {
+          navigation.popToTop();
+        } else {
+          // Don't throw, just log - report was submitted successfully
+          console.error('[RoomDetailsScreen] Failed to leave room after report');
+        }
       }
     } catch (error) {
       console.error('Report submission failed:', error);
@@ -351,40 +367,26 @@ export default function RoomDetailsScreen() {
   };
 
   /**
-   * Handle join room
+   * Handle join room - simplified with optimistic updates from context
    */
   const handleJoin = async () => {
-    // If already joined, direct navigation
-    if (hasJoined || joinButtonState === 'joined') {
+    // If already joined, navigate to chat
+    if (hasJoined) {
       navigation.navigate('ChatRoom', { room });
       return;
     }
 
-    if (joinButtonState !== 'default') return;
-
-    setJoinButtonState('joining');
-    try {
-      // Use helper for consistent minimum loading time (1.5s)
-      // Call contextJoinRoom instead of roomService.joinRoom directly
-      await executeJoinWithMinLoading(
-        contextJoinRoom(room)
-      );
-
-      // If no error was thrown, it's a success
-      setJoinButtonState('join-success');
-
-      // Wait for success display duration (1.5s)
-      await new Promise(resolve => setTimeout(resolve, ROOM_CONFIG.TIMING.SUCCESS_DISPLAY_MS));
-
-      setJoinButtonState('joined');
-    } catch (error) {
-      console.error('Join error:', error);
-      setJoinButtonState('error');
-
-      // Wait for error display duration (2.5s)
-      await new Promise(resolve => setTimeout(resolve, ROOM_CONFIG.TIMING.ERROR_DISPLAY_MS));
-
-      setJoinButtonState('default');
+    // Context handles optimistic updates, just call and navigate on success
+    const success = await contextJoinRoom(room);
+    
+    if (success) {
+      // Small delay for visual feedback
+      setTimeout(() => {
+        navigation.navigate('ChatRoom', { room });
+      }, 300);
+    } else {
+      // Show error alert on failure
+      Alert.alert('Error', 'Failed to join room. Please try again.');
     }
   };
 
@@ -611,35 +613,23 @@ export default function RoomDetailsScreen() {
           </TouchableOpacity>
         </View>
 
-        {/* Unified Bottom Button (Join/Enter) */}
+        {/* Unified Bottom Button (Join/Enter) - with optimistic UI */}
         <View style={styles.footerAction}>
           <TouchableOpacity
             style={[
-              (hasJoined || joinButtonState === 'joined') ? styles.enterButton : styles.joinButton,
-              joinButtonState === 'joining' && { opacity: 0.8 },
-              joinButtonState === 'join-success' && { backgroundColor: ROOM_CONFIG.COLORS.SUCCESS },
-              joinButtonState === 'error' && { backgroundColor: ROOM_CONFIG.COLORS.ERROR },
+              hasJoined ? styles.enterButton : styles.joinButton,
+              isJoiningOptimistic && { opacity: 0.8 },
             ]}
             onPress={handleJoin}
-            disabled={joinButtonState === 'joining' || joinButtonState === 'join-success'}
+            disabled={isJoiningOptimistic}
             activeOpacity={0.8}
           >
-            {joinButtonState === 'joining' ? (
+            {isJoiningOptimistic ? (
               <View style={styles.buttonContent}>
                 <ActivityIndicator size="small" color="#ffffff" />
                 <Text style={styles.joinButtonText}>Joining...</Text>
               </View>
-            ) : joinButtonState === 'join-success' ? (
-              <View style={styles.buttonContent}>
-                <Check size={20} color="#ffffff" />
-                <Text style={styles.joinButtonText}>Joined!</Text>
-              </View>
-            ) : joinButtonState === 'error' ? (
-              <View style={styles.buttonContent}>
-                <AlertCircle size={20} color="#ffffff" />
-                <Text style={styles.joinButtonText}>Failed to join</Text>
-              </View>
-            ) : (hasJoined || joinButtonState === 'joined') ? (
+            ) : hasJoined ? (
               <View style={styles.enterButtonContent}>
                 <MessageCircle size={20} color="#ffffff" />
                 <Text style={styles.enterButtonText}>Enter Room</Text>

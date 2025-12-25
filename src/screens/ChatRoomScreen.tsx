@@ -44,6 +44,7 @@ import { RootStackParamList } from '../navigation/types';
 import { wsService, messageService, blockService, roomService, WS_EVENTS } from '../services';
 import { ChatMessage, Room, MessageStatus } from '../types';
 import { useAuth } from '../context/AuthContext';
+import { useRooms } from '../context/RoomContext';
 import {
   MessageBubble,
   DateSeparator,
@@ -71,6 +72,7 @@ export default function ChatRoomScreen() {
   const route = useRoute<ChatRoomRouteProp>();
   const { room } = route.params;
   const { user } = useAuth();
+  const { leaveRoom: contextLeaveRoom } = useRooms();
   const insets = useSafeAreaInsets();
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -558,16 +560,22 @@ export default function ChatRoomScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              await roomService.leaveRoom(room.id);
-              navigation.popToTop();
+              // Use context's leaveRoom to update state properly
+              const success = await contextLeaveRoom(room.id);
+              if (success) {
+                navigation.popToTop();
+              } else {
+                Alert.alert('Error', 'Failed to leave room');
+              }
             } catch (error) {
+              console.error('[ChatRoomScreen] Leave error:', error);
               Alert.alert('Error', 'Failed to leave room');
             }
           },
         },
       ]
     );
-  }, [room.id, navigation]);
+  }, [room.id, navigation, contextLeaveRoom]);
 
   /**
    * Handle close room (creator only)
@@ -670,8 +678,14 @@ export default function ChatRoomScreen() {
       }
 
       if (data.leaveRoom) {
-        await roomService.leaveRoom(room.id);
-        navigation.popToTop();
+        // Use context's leaveRoom to update state properly
+        const success = await contextLeaveRoom(room.id);
+        if (success) {
+          navigation.popToTop();
+        } else {
+          // Don't throw - report/block operations succeeded
+          console.error('[ChatRoomScreen] Failed to leave room after report');
+        }
       }
     } catch (error) {
       console.error('Report submission failed:', error);

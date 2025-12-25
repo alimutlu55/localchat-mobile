@@ -32,6 +32,7 @@ import {
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Room } from '../types';
+import { useIsRoomJoined } from '../context';
 
 const CATEGORIES = ['All', 'Food', 'Social', 'Technology', 'Music', 'Gaming', 'Health', 'Education'];
 
@@ -105,6 +106,7 @@ const RoomListItem = memo(function RoomListItem({
     };
 
     const handlePress = async () => {
+        // If already joined (either from prop or local success), enter room
         if (hasJoined || joinSuccess) {
             onEnterRoom?.(room);
             return;
@@ -117,6 +119,7 @@ const RoomListItem = memo(function RoomListItem({
             const success = await onJoin(room);
             if (success) {
                 setJoinSuccess(true);
+                // Auto-enter after short delay for visual feedback
                 setTimeout(() => {
                     onEnterRoom?.(room);
                 }, 500);
