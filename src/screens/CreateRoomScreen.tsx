@@ -67,6 +67,24 @@ const DURATION_OPTIONS: Array<{ label: string; value: number; id: '1h' | '3h' | 
   { label: '6h', value: 6, id: '6h' },
 ];
 
+/**
+ * Allowed radius values in meters (matching backend validation)
+ * These predefined values ensure consistent UX and backend validation
+ * 0 = global (visible everywhere)
+ * Others = nearby visibility with specific range
+ */
+const ALLOWED_RADII_METERS = [50, 500, 1000, 5000, 10000, 50000, 100000];
+
+/**
+ * Radius options for UI display (converting meters to km)
+ */
+const RADIUS_OPTIONS = ALLOWED_RADII_METERS.map(meters => ({
+  value: meters,
+  label: meters >= 1000 
+    ? `${meters / 1000}km` 
+    : `${meters}m`
+}));
+
 const MAX_TITLE_LENGTH = 60;
 const MAX_DESCRIPTION_LENGTH = 200;
 
@@ -78,17 +96,13 @@ export default function CreateRoomScreen() {
   const [categoryLabel, setCategoryLabel] = useState('');
   const [durationValue, setDurationValue] = useState(3);
   const [visibilityType, setVisibilityType] = useState<'global' | 'nearby'>('global');
-  const [radius, setRadius] = useState(10);
+  const [radiusMeters, setRadiusMeters] = useState(1000); // Default to 1km
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [maxParticipants, setMaxParticipants] = useState(100);
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(true);
   const [roomsCreatedToday] = useState(2);
-
-  // For slider stability
-  const sliderRef = React.useRef<View>(null);
-  const [sliderLayout, setSliderLayout] = useState({ x: 0, width: 0 });
 
   /**
    * Get current location on mount
@@ -165,7 +179,7 @@ export default function CreateRoomScreen() {
         maxParticipants,
         latitude: location.latitude,
         longitude: location.longitude,
-        radiusMeters: visibilityType === 'global' ? 0 : radius * 1000,
+        radiusMeters: visibilityType === 'global' ? 0 : radiusMeters,
       });
 
       // Ensure isCreator is set to true since we just created this room
@@ -183,27 +197,6 @@ export default function CreateRoomScreen() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  /**
-   * Handle Slider touch with pageX for stability
-   */
-  const handleSliderTouch = (event: any) => {
-    const { pageX } = event.nativeEvent;
-    // Calculate relative X inside the track
-    const relativeX = pageX - sliderLayout.x;
-    const percentage = Math.max(0, Math.min(1, relativeX / sliderLayout.width));
-    const newValue = Math.round(percentage * 99) + 1;
-    setRadius(newValue);
-  };
-
-  /**
-   * On slider layout change
-   */
-  const onSliderLayout = () => {
-    sliderRef.current?.measure((x, y, width, height, pageX, pageY) => {
-      setSliderLayout({ x: pageX, width });
-    });
   };
 
   if (isGettingLocation) {
@@ -404,46 +397,45 @@ export default function CreateRoomScreen() {
               </TouchableOpacity>
             </View>
 
-            {/* Distance Slider (Matching Web) */}
+            {/* Radius Picker (Predefined Values) */}
             {visibilityType === 'nearby' && (
-              <View style={styles.sliderContainer}>
-                <View style={styles.sliderHeader}>
-                  <View style={styles.sliderLabelRow}>
+              <View style={styles.radiusContainer}>
+                <View style={styles.radiusHeader}>
+                  <View style={styles.radiusLabelRow}>
                     <MapPin size={16} color="#f97316" />
-                    <Text style={styles.sliderLabel}>Search Range</Text>
-                  </View>
-                  <View style={styles.sliderValueBox}>
-                    <Text style={styles.sliderValueText}>{radius} km</Text>
+                    <Text style={styles.radiusLabel}>Visibility Range</Text>
                   </View>
                 </View>
 
-                <View
-                  ref={sliderRef}
-                  style={styles.sliderTrackWrapper}
-                  onLayout={onSliderLayout}
-                  onStartShouldSetResponder={() => true}
-                  onMoveShouldSetResponder={() => true}
-                  onResponderGrant={handleSliderTouch}
-                  onResponderMove={handleSliderTouch}
-                >
-                  <View style={styles.sliderTrackBase}>
-                    <LinearGradient
-                      colors={['#f97316', '#f43f5e']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={[styles.sliderTrackActive, { width: `${((radius - 1) / 99) * 100}%` }]}
-                    />
-                  </View>
-                  <View style={[styles.sliderThumb, { left: `${((radius - 1) / 99) * 100}%` }]}>
-                    <View style={styles.sliderThumbInner} />
-                  </View>
+                <View style={styles.radiusGrid}>
+                  {RADIUS_OPTIONS.map((option) => (
+                    <TouchableOpacity
+                      key={option.value}
+                      style={[
+                        styles.radiusOption,
+                        radiusMeters === option.value && styles.radiusOptionActive,
+                      ]}
+                      onPress={() => setRadiusMeters(option.value)}
+                      activeOpacity={0.7}
+                    >
+                      {radiusMeters === option.value && (
+                        <View style={styles.radiusCheckmark}>
+                          <Check size={12} color="#fff" />
+                        </View>
+                      )}
+                      <Text style={[
+                        styles.radiusOptionText,
+                        radiusMeters === option.value && styles.radiusOptionTextActive,
+                      ]}>
+                        {option.label}
+                      </Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
-
-                <View style={styles.sliderMarkers}>
-                  <Text style={styles.sliderMarkerText}>1 km</Text>
-                  <Text style={styles.sliderMarkerText}>50 km</Text>
-                  <Text style={styles.sliderMarkerText}>100 km</Text>
-                </View>
+                
+                <Text style={styles.radiusHint}>
+                  Users must be within this range to see and join your room
+                </Text>
               </View>
             )}
           </View>
@@ -714,7 +706,7 @@ const styles = StyleSheet.create({
     color: '#94a3b8',
     marginTop: 2,
   },
-  sliderContainer: {
+  radiusContainer: {
     marginTop: 16,
     padding: 16,
     backgroundColor: '#f8fafc',
@@ -722,79 +714,63 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#f1f5f9',
   },
-  sliderHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 16,
+  radiusHeader: {
+    marginBottom: 12,
   },
-  sliderLabelRow: {
+  radiusLabelRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
   },
-  sliderLabel: {
+  radiusLabel: {
     fontSize: 14,
     fontWeight: '600',
     color: '#475569',
   },
-  sliderValueBox: {
-    backgroundColor: '#fff7ed',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 8,
+  radiusGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 12,
   },
-  sliderValueText: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: '#f97316',
-  },
-  sliderTrackWrapper: {
-    height: 30,
-    justifyContent: 'center',
+  radiusOption: {
     position: 'relative',
-  },
-  sliderTrackBase: {
-    height: 6,
-    backgroundColor: '#e2e8f0',
-    borderRadius: 3,
-    width: '100%',
-    overflow: 'hidden',
-  },
-  sliderTrackActive: {
-    height: '100%',
-  },
-  sliderThumb: {
-    position: 'absolute',
-    width: 24,
-    height: 24,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderRadius: 12,
     backgroundColor: '#fff',
-    borderWidth: 2,
+    borderWidth: 1.5,
+    borderColor: '#e2e8f0',
+    minWidth: '30%',
+    alignItems: 'center',
+  },
+  radiusOptionActive: {
+    backgroundColor: '#fff7ed',
     borderColor: '#f97316',
-    marginLeft: -12,
+  },
+  radiusCheckmark: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: '#f97316',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
   },
-  sliderThumbInner: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: '#f97316',
+  radiusOptionText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#64748b',
   },
-  sliderMarkers: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 8,
+  radiusOptionTextActive: {
+    color: '#f97316',
   },
-  sliderMarkerText: {
-    fontSize: 11,
+  radiusHint: {
+    fontSize: 12,
     color: '#94a3b8',
+    fontStyle: 'italic',
   },
   advancedSection: {
     marginTop: 8,
