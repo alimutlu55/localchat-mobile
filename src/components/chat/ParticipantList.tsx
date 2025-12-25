@@ -187,16 +187,18 @@ export function ParticipantList({
             ) : (
               <>
                 <TouchableOpacity
-                  style={styles.actionButton}
+                  style={styles.actionButtonWithLabel}
                   onPress={() => handleKick(item.userId, item.displayName)}
                 >
-                  <UserX size={18} color="#f97316" />
+                  <UserX size={16} color="#f97316" />
+                  <Text style={styles.actionButtonText}>Kick</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  style={styles.actionButton}
+                  style={styles.actionButtonWithLabel}
                   onPress={() => handleBanClick(item.userId, item.displayName)}
                 >
-                  <Ban size={18} color="#ef4444" />
+                  <Ban size={16} color="#ef4444" />
+                  <Text style={styles.actionButtonText}>Ban</Text>
                 </TouchableOpacity>
               </>
             )}
@@ -458,6 +460,20 @@ const styles = StyleSheet.create({
     backgroundColor: '#f3f4f6',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  actionButtonWithLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: '#f3f4f6',
+    gap: 6,
+  },
+  actionButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#374151',
   },
   // Ban Dialog
   dialogOverlay: {

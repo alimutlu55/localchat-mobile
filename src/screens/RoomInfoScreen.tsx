@@ -1,8 +1,8 @@
 /**
- * RoomInfoDrawer Component
+ * Room Info Screen
  *
- * Bottom sheet drawer for chat room details and management.
- * Designed to match the provided screenshot design exactly.
+ * Full screen for room details and management.
+ * Displays room info, participants, and creator controls.
  */
 
 import React, { useState, useCallback, useEffect } from 'react';
@@ -12,71 +12,49 @@ import {
     StyleSheet,
     TouchableOpacity,
     ScrollView,
-    Animated,
     Share,
     Alert,
-    useWindowDimensions,
 } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
     Users,
     Clock,
     MapPin,
     MessageCircle,
     Share2,
-    X,
+    ArrowLeft,
     Crown,
     Lock,
     Ban,
-    Info,
     Shield,
-    PlusCircle,
+    UserX,
 } from 'lucide-react-native';
-import { Room } from '../../types';
-import { ParticipantList } from './ParticipantList';
-import { roomService, ParticipantDTO } from '../../services';
-import { AvatarDisplay } from '../profile';
-import { BannedUsersModal } from '../room/BannedUsersModal';
+import { RootStackParamList } from '../navigation/types';
+import { Room } from '../types';
+import { roomService, ParticipantDTO } from '../services';
+import { AvatarDisplay } from '../components/profile';
+import { BannedUsersModal } from '../components/room/BannedUsersModal';
 
-interface RoomInfoDrawerProps {
-    room: Room;
-    isOpen: boolean;
-    onClose: () => void;
-    isCreator: boolean;
-    currentUserId?: string;
-    onCloseRoom?: () => void;
-    onRoomExtended?: () => void;
-}
+type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'RoomInfo'>;
+type RoomInfoRouteProp = RouteProp<RootStackParamList, 'RoomInfo'>;
 
-export function RoomInfoDrawer({
-    room,
-    isOpen,
-    onClose,
-    isCreator,
-    currentUserId,
-    onCloseRoom,
-    onRoomExtended,
-}: RoomInfoDrawerProps) {
-    const insets = useSafeAreaInsets();
-    const { height: SCREEN_HEIGHT } = useWindowDimensions();
-    const DRAWER_HEIGHT = SCREEN_HEIGHT * 0.95; // 95% of screen height for nearly fullscreen
+export default function RoomInfoScreen() {
+    const navigation = useNavigation<NavigationProp>();
+    const route = useRoute<RoomInfoRouteProp>();
+    const { room, isCreator, currentUserId, onCloseRoom } = route.params;
     
     const [participants, setParticipants] = useState<ParticipantDTO[]>([]);
     const [isLoadingParticipants, setIsLoadingParticipants] = useState(false);
-    const [showParticipantList, setShowParticipantList] = useState(false);
     const [showBannedUsers, setShowBannedUsers] = useState(false);
-
-    const translateY = React.useRef(new Animated.Value(SCREEN_HEIGHT)).current;
-    const backdropOpacity = React.useRef(new Animated.Value(0)).current;
 
     /**
      * Fetch participants for inline display
      */
     useEffect(() => {
-        if (isOpen && room.id) {
-            fetchParticipants();
-        }
-    }, [isOpen, room.id]);
+        fetchParticipants();
+    }, [room.id]);
 
     const fetchParticipants = async () => {
         setIsLoadingParticipants(true);
@@ -90,124 +68,86 @@ export function RoomInfoDrawer({
         }
     };
 
-    // Animate open/close
-    useEffect(() => {
-        if (isOpen) {
-            Animated.parallel([
-                Animated.spring(translateY, {
-                    toValue: 0,
-                    damping: 25,
-                    stiffness: 300,
-                    useNativeDriver: true,
-                }),
-                Animated.timing(backdropOpacity, {
-                    toValue: 1,
-                    duration: 250,
-                    useNativeDriver: true,
-                }),
-            ]).start();
-        } else {
-            Animated.parallel([
-                Animated.spring(translateY, {
-                    toValue: DRAWER_HEIGHT,
-                    damping: 25,
-                    stiffness: 300,
-                    useNativeDriver: true,
-                }),
-                Animated.timing(backdropOpacity, {
-                    toValue: 0,
-                    duration: 200,
-                    useNativeDriver: true,
-                }),
-            ]).start();
-        }
-    }, [isOpen]);
-
     const handleShare = async () => {
         try {
             await Share.share({
                 message: `Join "${room.title}" on LocalChat! Nearby rooms for local conversations.`,
-                url: 'https://localchat.app', // Fallback URL
+                url: 'https://localchat.app',
             });
         } catch (error) {
             console.error('Error sharing room:', error);
         }
     };
 
-    const handleExtendRoom = useCallback(() => {
+    const handleKickUser = (userId: string, displayName: string) => {
         Alert.alert(
-            'Extend Room Duration',
-            'Choose how long to extend this room:',
+            'Remove User',
+            `Are you sure you want to remove ${displayName} from this room?`,
             [
                 { text: 'Cancel', style: 'cancel' },
                 {
-                    text: '+1 Hour',
+                    text: 'Remove',
+                    style: 'destructive',
                     onPress: async () => {
                         try {
-                            await roomService.extendRoom(room.id, '1h');
-                            Alert.alert('Success', 'Room extended by 1 hour');
-                            onRoomExtended?.();
+                            await roomService.kickUser(room.id, userId);
+                            // Refresh participants list
+                            fetchParticipants();
+                            Alert.alert('Success', `${displayName} has been removed`);
                         } catch (error) {
-                            Alert.alert('Error', 'Failed to extend room');
-                        }
-                    },
-                },
-                {
-                    text: '+3 Hours',
-                    onPress: async () => {
-                        try {
-                            await roomService.extendRoom(room.id, '3h');
-                            Alert.alert('Success', 'Room extended by 3 hours');
-                            onRoomExtended?.();
-                        } catch (error) {
-                            Alert.alert('Error', 'Failed to extend room');
+                            Alert.alert('Error', 'Failed to remove user');
                         }
                     },
                 },
             ]
         );
-    }, [room.id, onRoomExtended]);
+    };
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    if (!isOpen && (translateY as any).__getValue() === SCREEN_HEIGHT) return null;
+    const handleBanUser = (userId: string, displayName: string) => {
+        Alert.alert(
+            'Ban User',
+            `${displayName} will not be able to rejoin this room. Add a reason (optional):`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Ban',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await roomService.banUser(room.id, userId);
+                            // Refresh participants list
+                            fetchParticipants();
+                            Alert.alert('Success', `${displayName} has been banned`);
+                        } catch (error) {
+                            Alert.alert('Error', 'Failed to ban user');
+                        }
+                    },
+                },
+            ]
+        );
+    };
 
     return (
-        <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
-            {/* Backdrop */}
-            <Animated.View
-                style={[styles.backdrop, { opacity: backdropOpacity }]}
-                pointerEvents={isOpen ? 'auto' : 'none'}
-            >
+        <SafeAreaView style={styles.container} edges={['top']}>
+            {/* Header */}
+            <View style={styles.header}>
                 <TouchableOpacity
-                    style={StyleSheet.absoluteFill}
-                    onPress={onClose}
-                    activeOpacity={1}
-                />
-            </Animated.View>
-
-            {/* Drawer */}
-            <Animated.View
-                style={[
-                    styles.drawer,
-                    {
-                        height: DRAWER_HEIGHT,
-                        paddingBottom: insets.bottom,
-                        transform: [{ translateY }],
-                    },
-                ]}
-            >
-                {/* Horizontal Handle Only */}
-                <View style={styles.handleContainer}>
-                    <View style={styles.handle} />
-                </View>
-
-                <ScrollView
-                    style={styles.content}
-                    contentContainerStyle={styles.contentContainer}
-                    showsVerticalScrollIndicator={false}
+                    style={styles.backButton}
+                    onPress={() => navigation.goBack()}
                 >
-                    {/* Header */}
-                    <View style={styles.header}>
+                    <ArrowLeft size={24} color="#1f2937" />
+                </TouchableOpacity>
+                <Text style={styles.headerTitle}>Room Info</Text>
+                <View style={styles.headerRight} />
+            </View>
+
+            <ScrollView
+                style={styles.content}
+                contentContainerStyle={styles.contentContainer}
+                showsVerticalScrollIndicator={false}
+            >
+                    {/* Room Header */}
+                    <View style={styles.roomHeader}>
                         <View style={[styles.emojiContainer, { backgroundColor: '#fff5f5' }]}>
                             <Text style={styles.emoji}>💬</Text>
                         </View>
@@ -294,22 +234,6 @@ export function RoomInfoDrawer({
                                     <>
                                         <TouchableOpacity
                                             style={styles.creatorActionButton}
-                                            onPress={handleExtendRoom}
-                                        >
-                                            <PlusCircle size={20} color="#22c55e" />
-                                            <Text style={styles.creatorActionText}>Extend Time</Text>
-                                        </TouchableOpacity>
-
-                                        <TouchableOpacity
-                                            style={styles.creatorActionButton}
-                                            onPress={() => setShowParticipantList(true)}
-                                        >
-                                            <Users size={20} color="#3b82f6" />
-                                            <Text style={styles.creatorActionText}>Manage Users</Text>
-                                        </TouchableOpacity>
-
-                                        <TouchableOpacity
-                                            style={styles.creatorActionButton}
                                             onPress={() => setShowBannedUsers(true)}
                                         >
                                             <Ban size={20} color="#ef4444" />
@@ -337,45 +261,67 @@ export function RoomInfoDrawer({
                         </View>
 
                         <View style={styles.participantsContainer}>
-                            {participants.map((participant) => (
-                                <View key={participant.userId} style={styles.participantRow}>
-                                    <View style={styles.avatar}>
-                                        <AvatarDisplay
-                                            avatarUrl={participant.profilePhotoUrl}
-                                            displayName={participant.displayName}
-                                            size="md"
-                                            style={{ width: 44, height: 44, borderRadius: 12 }}
-                                        />
-                                    </View>
-                                    <View style={styles.participantInfoText}>
-                                        <View style={styles.nameRow}>
-                                            <Text style={styles.participantName}>{participant.displayName}</Text>
-                                            <Shield size={14} color="#3b82f6" />
-                                            {participant.userId === currentUserId && (
-                                                <View style={styles.youBadge}>
-                                                    <Text style={styles.youBadgeText}>You</Text>
-                                                </View>
-                                            )}
+                            {participants.map((participant) => {
+                                const isCurrentUser = participant.userId === currentUserId;
+                                const canModerate = isCreator && !isCurrentUser && participant.role !== 'creator';
+                                
+                                return (
+                                    <View key={participant.userId} style={styles.participantRow}>
+                                        <View style={styles.avatar}>
+                                            <AvatarDisplay
+                                                avatarUrl={participant.profilePhotoUrl}
+                                                displayName={participant.displayName}
+                                                size="md"
+                                                style={{ width: 44, height: 44, borderRadius: 22 }}
+                                            />
                                         </View>
-                                        <View style={styles.modBadge}>
-                                            <Text style={styles.modBadgeText}>Mod</Text>
+                                        <View style={styles.participantInfoText}>
+                                            <View style={styles.nameRow}>
+                                                <Text style={styles.participantName}>{participant.displayName}</Text>
+                                                {participant.role === 'creator' && (
+                                                    <View style={[styles.roleBadge, styles.creatorRoleBadge]}>
+                                                        <Crown size={10} color="#f59e0b" />
+                                                        <Text style={styles.creatorRoleText}>Creator</Text>
+                                                    </View>
+                                                )}
+                                                {participant.role === 'moderator' && (
+                                                    <View style={[styles.roleBadge, styles.modRoleBadge]}>
+                                                        <Shield size={10} color="#3b82f6" />
+                                                        <Text style={styles.modRoleText}>Mod</Text>
+                                                    </View>
+                                                )}
+                                                {isCurrentUser && (
+                                                    <View style={styles.youBadge}>
+                                                        <Text style={styles.youBadgeText}>You</Text>
+                                                    </View>
+                                                )}
+                                            </View>
                                         </View>
+                                        
+                                        {canModerate && (
+                                            <View style={styles.inlineActions}>
+                                                <TouchableOpacity
+                                                    style={styles.inlineActionButton}
+                                                    onPress={() => handleKickUser(participant.userId, participant.displayName)}
+                                                >
+                                                    <UserX size={16} color="#f97316" />
+                                                    <Text style={styles.inlineActionText}>Kick</Text>
+                                                </TouchableOpacity>
+                                                <TouchableOpacity
+                                                    style={styles.inlineActionButton}
+                                                    onPress={() => handleBanUser(participant.userId, participant.displayName)}
+                                                >
+                                                    <Ban size={16} color="#ef4444" />
+                                                    <Text style={styles.inlineActionText}>Ban</Text>
+                                                </TouchableOpacity>
+                                            </View>
+                                        )}
                                     </View>
-                                </View>
-                            ))}
+                                );
+                            })}
                         </View>
                     </View>
-                </ScrollView>
-            </Animated.View>
-
-            {/* Participant List Modal */}
-            <ParticipantList
-                roomId={room.id}
-                isCreator={isCreator}
-                currentUserId={currentUserId || ''}
-                isOpen={showParticipantList}
-                onClose={() => setShowParticipantList(false)}
-            />
+            </ScrollView>
 
             {/* Banned Users Modal */}
             <BannedUsersModal
@@ -383,51 +329,47 @@ export function RoomInfoDrawer({
                 isOpen={showBannedUsers}
                 onClose={() => setShowBannedUsers(false)}
             />
-        </View>
+        </SafeAreaView>
     );
 }
 
 const styles = StyleSheet.create({
-    backdrop: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    },
-    drawer: {
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
+    container: {
+        flex: 1,
         backgroundColor: '#ffffff',
-        borderTopLeftRadius: 24,
-        borderTopRightRadius: 24,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: -4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-        elevation: 20,
     },
-    handleContainer: {
+    header: {
+        flexDirection: 'row',
         alignItems: 'center',
-        paddingTop: 12,
-        paddingBottom: 8,
+        paddingHorizontal: 16,
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: '#f3f4f6',
     },
-    handle: {
-        width: 36,
-        height: 5,
-        backgroundColor: '#94a3b8',
-        borderRadius: 3,
+    backButton: {
+        padding: 8,
+        marginRight: 8,
+    },
+    headerTitle: {
+        flex: 1,
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#1f2937',
+    },
+    headerRight: {
+        width: 40,
     },
     content: {
         flex: 1,
     },
     contentContainer: {
         paddingHorizontal: 20,
+        paddingTop: 20,
         paddingBottom: 40,
     },
-    header: {
+    roomHeader: {
         flexDirection: 'row',
         alignItems: 'center',
-        marginTop: 12,
         marginBottom: 24,
     },
     emojiContainer: {
@@ -618,31 +560,62 @@ const styles = StyleSheet.create({
         gap: 8,
     },
     participantName: {
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '500',
         color: '#1f2937',
     },
-    youBadge: {
-        backgroundColor: '#e2e8f0',
+    roleBadge: {
+        flexDirection: 'row',
+        alignItems: 'center',
         paddingHorizontal: 6,
         paddingVertical: 2,
-        borderRadius: 4,
+        borderRadius: 6,
+        gap: 4,
+    },
+    creatorRoleBadge: {
+        backgroundColor: '#fef3c7',
+    },
+    creatorRoleText: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: '#f59e0b',
+    },
+    modRoleBadge: {
+        backgroundColor: '#dbeafe',
+    },
+    modRoleText: {
+        fontSize: 11,
+        fontWeight: '600',
+        color: '#3b82f6',
+    },
+    youBadge: {
+        backgroundColor: '#e0e7ff',
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 6,
     },
     youBadgeText: {
-        fontSize: 12,
-        color: '#64748b',
-        fontWeight: '500',
-    },
-    modBadge: {
-        backgroundColor: '#dbeafe',
-        paddingHorizontal: 8,
-        paddingVertical: 2,
-        borderRadius: 4,
-        alignSelf: 'flex-start',
-    },
-    modBadgeText: {
         fontSize: 11,
-        color: '#2563eb',
-        fontWeight: '500',
+        fontWeight: '600',
+        color: '#4f46e5',
+    },
+    inlineActions: {
+        flexDirection: 'row',
+        gap: 8,
+        marginLeft: 8,
+    },
+    inlineActionButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        paddingHorizontal: 10,
+        paddingVertical: 6,
+        borderRadius: 8,
+        backgroundColor: '#f1f5f9',
+        gap: 4,
+    },
+    inlineActionText: {
+        fontSize: 12,
+        fontWeight: '600',
+        color: '#475569',
     },
 });

@@ -55,7 +55,6 @@ import {
   ScrollToBottomButton,
   createSystemMessage,
   ChatRoomMenu,
-  RoomInfoDrawer,
   ReportModal,
   ReportReason,
 } from '../components/chat';
@@ -73,12 +72,18 @@ export default function ChatRoomScreen() {
   const route = useRoute<ChatRoomRouteProp>();
   const { room: initialRoom } = route.params;
   const { user } = useAuth();
-  const { leaveRoom: contextLeaveRoom } = useRooms();
+  const { leaveRoom: contextLeaveRoom, updateRoom: contextUpdateRoom } = useRooms();
   const insets = useSafeAreaInsets();
 
   // Get the latest room data from context if available, otherwise use initial
   // Use reactive hook to ensure participant count and other fields update in real-time
   const room = useRoomById(initialRoom.id) || initialRoom;
+
+  // State to track if user is creator (can be set from participant list)
+  const [isCreatorOverride, setIsCreatorOverride] = useState<boolean | null>(null);
+  
+  // Determine if user is creator: use override if set, otherwise use room flag
+  const isCreator = isCreatorOverride !== null ? isCreatorOverride : (room.isCreator || false);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [inputText, setInputText] = useState('');
@@ -90,7 +95,6 @@ export default function ChatRoomScreen() {
   const [unreadCount, setUnreadCount] = useState(0);
   const [blockedUserIds, setBlockedUserIds] = useState<Set<string>>(new Set());
   const [showMenu, setShowMenu] = useState(false);
-  const [showRoomInfo, setShowRoomInfo] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
   const [hasShownBlockedWarning, setHasShownBlockedWarning] = useState(false);
   const [showBlockedWarning, setShowBlockedWarning] = useState(false);
@@ -125,6 +129,34 @@ export default function ChatRoomScreen() {
     };
     loadBlockedUsers();
   }, []);
+
+  /**
+   * Check if user is creator by fetching participant list
+   * This is a fallback in case isCreator flag is not set correctly
+   */
+  useEffect(() => {
+    const checkCreatorStatus = async () => {
+      if (room.isCreator !== undefined) {
+        // If isCreator is already set, trust it
+        return;
+      }
+      
+      try {
+        const participants = await roomService.getParticipants(room.id);
+        const currentUserParticipant = participants.find(p => p.userId === user?.id);
+        if (currentUserParticipant?.role === 'creator') {
+          console.log('[ChatRoomScreen] User is creator (detected from participants)');
+          setIsCreatorOverride(true);
+          // Also update the room in context
+          contextUpdateRoom(room.id, { isCreator: true });
+        }
+      } catch (err) {
+        console.error('[ChatRoomScreen] Failed to check creator status:', err);
+      }
+    };
+
+    checkCreatorStatus();
+  }, [room.id, room.isCreator, user?.id]);
 
   /**
    * Load message history and subscribe to room
@@ -454,7 +486,15 @@ export default function ChatRoomScreen() {
    * Open room info drawer
    */
   const handleRoomInfo = () => {
-    setShowRoomInfo(true);
+    navigation.navigate('RoomInfo', {
+      room,
+      isCreator,
+      currentUserId: user?.id,
+      onCloseRoom: isCreator ? () => {
+        navigation.goBack();
+        handleCloseRoom();
+      } : undefined,
+    });
   };
 
   /**
@@ -862,18 +902,8 @@ export default function ChatRoomScreen() {
         onLeave={handleLeaveRoom}
         onReport={handleReportRoom}
         onMute={() => setIsMuted(!isMuted)}
-        isCreator={room.isCreator || false}
-        onCloseRoom={room.isCreator ? handleCloseRoom : undefined}
-      />
-
-      {/* Room Info Drawer */}
-      <RoomInfoDrawer
-        room={room}
-        isOpen={showRoomInfo}
-        onClose={() => setShowRoomInfo(false)}
-        isCreator={room.isCreator || false}
-        currentUserId={user?.id}
-        onCloseRoom={room.isCreator ? handleCloseRoom : undefined}
+        isCreator={isCreator}
+        onCloseRoom={isCreator ? handleCloseRoom : undefined}
       />
 
       {/* Report Modal */}

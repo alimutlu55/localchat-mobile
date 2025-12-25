@@ -168,8 +168,15 @@ export default function CreateRoomScreen() {
         radiusMeters: visibilityType === 'global' ? 0 : radius * 1000,
       });
 
+      // Ensure isCreator is set to true since we just created this room
+      const roomWithCreatorFlag = {
+        ...room,
+        isCreator: true,
+        hasJoined: true,
+      };
+
       // Navigate to the new room
-      navigation.replace('ChatRoom', { room });
+      navigation.replace('ChatRoom', { room: roomWithCreatorFlag });
     } catch (error) {
       console.error('Failed to create room:', error);
       Alert.alert('Error', 'Failed to create room. Please try again.');

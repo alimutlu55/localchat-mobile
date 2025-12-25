@@ -22,6 +22,7 @@ export { default as ProfileScreen } from './main/ProfileScreen';
 // Chat & Room screens
 export { default as ChatRoomScreen } from './ChatRoomScreen';
 export { default as RoomDetailsScreen } from './RoomDetailsScreen';
+export { default as RoomInfoScreen } from './RoomInfoScreen';
 export { default as CreateRoomScreen } from './CreateRoomScreen';
 
 // Settings screens

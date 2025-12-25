@@ -13,8 +13,8 @@ import { X, UserX, RotateCcw } from 'lucide-react-native';
 import { roomService } from '../../services/room';
 
 interface BannedUserDTO {
-    odId: string;
-    displayName: string;
+    userId: string;
+    displayName?: string;
     bannedAt: string;
     reason?: string;
 }
@@ -70,9 +70,13 @@ export function BannedUsersModal({
     const renderBannedUser = ({ item }: { item: BannedUserDTO }) => (
         <View style={styles.userItem}>
             <View style={styles.userInfo}>
-                <Text style={styles.userId}>User ID: {item.userId.substring(0, 8)}...</Text>
+                {item.displayName ? (
+                    <Text style={styles.displayName}>{item.displayName}</Text>
+                ) : (
+                    <Text style={styles.userId}>User ID: {item.userId.substring(0, 8)}...</Text>
+                )}
                 <Text style={styles.bannedAt}>
-                    Banned on: {new Date(item.bannedAt).toLocaleDateString()}
+                    Banned: {new Date(item.bannedAt).toLocaleDateString()}
                 </Text>
                 {item.reason && <Text style={styles.reason}>Reason: {item.reason}</Text>}
             </View>
@@ -174,6 +178,12 @@ const styles = StyleSheet.create({
     },
     userInfo: {
         flex: 1,
+    },
+    displayName: {
+        fontSize: 16,
+        fontWeight: '600',
+        color: '#1f2937',
+        marginBottom: 2,
     },
     userId: {
         fontSize: 15,

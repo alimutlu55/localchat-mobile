@@ -17,6 +17,12 @@ export type RootStackParamList = {
   Discovery: undefined;
   ChatRoom: { room: Room };
   RoomDetails: { room: Room };
+  RoomInfo: {
+    room: Room;
+    isCreator: boolean;
+    currentUserId?: string;
+    onCloseRoom?: () => void;
+  };
   CreateRoom: undefined;
   Settings: undefined;
   Profile: undefined;

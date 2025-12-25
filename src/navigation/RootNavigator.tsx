@@ -16,6 +16,7 @@ import {
     OnboardingScreen,
     ChatRoomScreen,
     RoomDetailsScreen,
+    RoomInfoScreen,
     CreateRoomScreen,
     SettingsScreen,
     EditProfileScreen,
@@ -62,12 +63,24 @@ export function RootNavigator() {
                     <Stack.Screen
                         name="ChatRoom"
                         component={ChatRoomScreen}
-                        options={{ gestureEnabled: true }}
+                        options={{
+                            headerShown: false,
+                            gestureEnabled: true,
+                            animation: 'slide_from_right', // Standard push animation
+                        }}
                     />
                     <Stack.Screen
                         name="RoomDetails"
                         component={RoomDetailsScreen}
                         options={{ presentation: 'modal' }}
+                    />
+                    <Stack.Screen
+                        name="RoomInfo"
+                        component={RoomInfoScreen}
+                        options={{
+                            headerShown: false,
+                            animation: 'slide_from_right',
+                        }}
                     />
                     <Stack.Screen
                         name="CreateRoom"

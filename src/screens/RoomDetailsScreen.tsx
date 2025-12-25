@@ -44,6 +44,7 @@ import { useRooms, useIsRoomJoined, useIsJoiningRoom, useRoomById } from '../con
 import { ROOM_CONFIG, executeJoinWithMinLoading } from '../constants';
 import { BannedUsersModal } from '../components/room/BannedUsersModal';
 import { ReportModal, ReportReason } from '../components/chat/ReportModal';
+import { AvatarDisplay } from '../components/profile';
 
 type JoinButtonState = 'default' | 'joining' | 'join-success' | 'joined' | 'error';
 
@@ -70,19 +71,16 @@ function ParticipantItem({
   onKick,
   onBan,
 }: ParticipantItemProps) {
-  const [showActions, setShowActions] = useState(false);
+  const showModActions = canModerate && !isCurrentUser && participant.role !== 'creator';
 
   return (
-    <TouchableOpacity
-      style={styles.participantItem}
-      onPress={() => canModerate && !isCurrentUser && setShowActions(!showActions)}
-      activeOpacity={canModerate && !isCurrentUser ? 0.7 : 1}
-    >
-      <View style={styles.participantAvatar}>
-        <Text style={styles.participantAvatarText}>
-          {participant.displayName.charAt(0).toUpperCase()}
-        </Text>
-      </View>
+    <View style={styles.participantItem}>
+      <AvatarDisplay
+        avatarUrl={participant.profilePhotoUrl}
+        displayName={participant.displayName}
+        size="md"
+        style={{ width: 40, height: 40, borderRadius: 20 }}
+      />
       <View style={styles.participantInfo}>
         <View style={styles.participantNameRow}>
           <Text style={styles.participantName}>
@@ -98,17 +96,19 @@ function ParticipantItem({
         </Text>
       </View>
 
-      {showActions && canModerate && !isCurrentUser && participant.role !== 'creator' && (
+      {showModActions && (
         <View style={styles.participantActions}>
           <TouchableOpacity style={styles.kickButton} onPress={onKick}>
             <UserX size={16} color="#f97316" />
+            <Text style={styles.actionButtonText}>Kick</Text>
           </TouchableOpacity>
           <TouchableOpacity style={styles.banButton} onPress={onBan}>
             <Ban size={16} color="#ef4444" />
+            <Text style={styles.actionButtonText}>Ban</Text>
           </TouchableOpacity>
         </View>
       )}
-    </TouchableOpacity>
+    </View>
   );
 }
 
@@ -410,9 +410,10 @@ export default function RoomDetailsScreen() {
    * Handle join room - simplified with optimistic updates from context
    */
   const handleJoin = async () => {
-    // If already joined, navigate to chat
+    // If already joined, replace this modal with chat screen
     if (hasJoined) {
-      navigation.navigate('ChatRoom', { room });
+      // Use replace to swap modal for chat screen
+      navigation.replace('ChatRoom', { room });
       return;
     }
 
@@ -420,10 +421,8 @@ export default function RoomDetailsScreen() {
     const success = await contextJoinRoom(room);
 
     if (success) {
-      // Small delay for visual feedback
-      setTimeout(() => {
-        navigation.navigate('ChatRoom', { room });
-      }, 300);
+      // Replace modal with chat screen for smooth transition
+      navigation.replace('ChatRoom', { room });
     } else {
       // Show error alert on failure
       Alert.alert('Error', 'Failed to join room. Please try again.');
@@ -852,20 +851,27 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   kickButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#fff7ed',
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: '#fff7ed',
+    borderRadius: 8,
+    gap: 4,
   },
   banButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#fef2f2',
-    justifyContent: 'center',
+    flexDirection: 'row',
     alignItems: 'center',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: '#fef2f2',
+    borderRadius: 8,
+    gap: 4,
+  },
+  actionButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#475569',
   },
   actionButton: {
     flexDirection: 'row',

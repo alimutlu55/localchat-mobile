@@ -487,6 +487,9 @@ export function RoomProvider({ children }: { children: ReactNode }) {
         timeRemaining: '1h',
         status: 'active',
         isNew: true,
+        // Set isCreator if current user created this room
+        isCreator: roomData.creatorId === user?.id,
+        hasJoined: roomData.creatorId === user?.id,
       };
 
       upsertRoom(newRoom);
