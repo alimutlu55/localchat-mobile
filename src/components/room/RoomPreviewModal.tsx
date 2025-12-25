@@ -14,7 +14,7 @@ import {
     Modal,
     Dimensions,
     Share,
-} from 'react-native' Pu
+} from 'react-native';
 import {
     X,
     Users,

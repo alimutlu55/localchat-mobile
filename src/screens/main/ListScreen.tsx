@@ -36,8 +36,8 @@ export default function ListScreen() {
     // Use RoomContext for room state management
     const {
         myRooms,
-        isLoadingRooms,
-        fetchRooms,
+        isLoading: isLoadingRooms,
+        fetchDiscoveredRooms,
         joinRoom,
     } = useRooms();
 
@@ -46,9 +46,6 @@ export default function ListScreen() {
 
     // Get sidebar-specific room lists (active vs expired)
     const sidebarRooms = useSidebarRooms();
-
-    // Compute joined rooms from myRooms
-    const joinedRooms = myRooms.filter(r => r.hasJoined || r.isCreator);
 
     // Local UI state
     const [isLoading, setIsLoading] = useState(true);
@@ -83,7 +80,7 @@ export default function ListScreen() {
                 setUserLocation(coords);
 
                 // Fetch rooms using context
-                await fetchRooms(coords.latitude, coords.longitude, ROOM_CONFIG.DEFAULT_RADIUS);
+                await fetchDiscoveredRooms(coords.latitude, coords.longitude, ROOM_CONFIG.DEFAULT_RADIUS);
             } catch (error) {
                 console.error('Failed to get location or rooms:', error);
             } finally {
@@ -92,7 +89,7 @@ export default function ListScreen() {
         };
 
         getLocationAndRooms();
-    }, [fetchRooms]);
+    }, [fetchDiscoveredRooms]);
 
     // Note: User's rooms are fetched automatically by RoomContext when user logs in
 
@@ -143,7 +140,6 @@ export default function ListScreen() {
             {/* Room List View - uses activeRooms (non-expired, non-closed) */}
             <RoomListView
                 rooms={activeRooms}
-                joinedRooms={joinedRooms}
                 isLoading={isLoading || isLoadingRooms}
                 onJoinRoom={handleJoinRoom}
                 onEnterRoom={handleEnterRoom}

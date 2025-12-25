@@ -8,7 +8,6 @@ export {
   useRooms, 
   useSidebarRooms, 
   useActiveRooms,
-  useJoinedRooms,
   useIsRoomJoined,
   useRoomById,
   useIsJoiningRoom,

@@ -120,14 +120,14 @@ export default function RoomDetailsScreen() {
   const route = useRoute<RoomDetailsRouteProp>();
   const { room: initialRoom } = route.params;
   const { user } = useAuth();
-  const { joinRoom: contextJoinRoom, leaveRoom: contextLeaveRoom, rooms: contextRooms } = useRooms();
+  const { joinRoom: contextJoinRoom, leaveRoom: contextLeaveRoom, getRoomById } = useRooms();
   
   // Use centralized hooks for joined status and optimistic UI
   const hasJoined = useIsRoomJoined(initialRoom.id);
   const isJoiningOptimistic = useIsJoiningRoom(initialRoom.id);
 
   // Get the latest room data from context if available, otherwise use initial
-  const room = contextRooms.find(r => r.id === initialRoom.id) || initialRoom;
+  const room = getRoomById(initialRoom.id) || initialRoom;
 
   const [participants, setParticipants] = useState<ParticipantDTO[]>([]);
   const [recentMessages, setRecentMessages] = useState<ChatMessage[]>([]);

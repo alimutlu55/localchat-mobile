@@ -85,8 +85,8 @@ export default function DiscoveryScreen() {
     // Use RoomContext for room state management
     const {
         myRooms,
-        isLoadingRooms,
-        fetchRooms: contextFetchRooms,
+        isLoading: isLoadingRooms,
+        fetchDiscoveredRooms,
         selectedRoom,
         setSelectedRoom,
         joinRoom,
@@ -97,9 +97,6 @@ export default function DiscoveryScreen() {
 
     // Get sidebar-specific room lists
     const sidebarRooms = useSidebarRooms();
-
-    // Memoize joined rooms to prevent unnecessary recalculations
-    const joinedRooms = useMemo(() => myRooms.filter(r => r.hasJoined || r.isCreator), [myRooms]);
 
     // Local UI state
     const [isLoading, setIsLoading] = useState(true);
@@ -179,14 +176,14 @@ export default function DiscoveryScreen() {
      */
     const fetchRooms = useCallback(async (lat: number, lng: number) => {
         try {
-            await contextFetchRooms(lat, lng, ROOM_CONFIG.DEFAULT_RADIUS);
+            await fetchDiscoveredRooms(lat, lng, ROOM_CONFIG.DEFAULT_RADIUS);
         } catch (error) {
             console.error('Failed to fetch rooms:', error);
         } finally {
             setIsLoading(false);
             setIsRefreshing(false);
         }
-    }, [contextFetchRooms]);
+    }, [fetchDiscoveredRooms]);
 
     /**
      * Request location permissions and get current location
@@ -652,7 +649,6 @@ export default function DiscoveryScreen() {
             ]} pointerEvents={viewMode === 'map' ? 'none' : 'auto'}>
                 <RoomListView
                     rooms={activeRooms}
-                    joinedRooms={joinedRooms}
                     isLoading={isLoading || isLoadingRooms}
                     onJoinRoom={handleJoinRoom}
                     onEnterRoom={handleEnterRoom}

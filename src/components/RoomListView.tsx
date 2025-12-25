@@ -32,7 +32,7 @@ import {
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Room } from '../types';
-import { useIsRoomJoined } from '../context';
+import { useRooms, useIsRoomJoined } from '../context';
 
 const CATEGORIES = ['All', 'Food', 'Social', 'Technology', 'Music', 'Gaming', 'Health', 'Education'];
 
@@ -40,7 +40,6 @@ type SortOption = 'nearest' | 'most-active' | 'expiring-soon' | 'newest';
 
 interface RoomListViewProps {
     rooms: Room[];
-    joinedRooms?: Room[];
     isLoading?: boolean;
     onJoinRoom?: (room: Room) => Promise<boolean>;
     onEnterRoom?: (room: Room) => void;
@@ -76,6 +75,35 @@ const CategoryChip = memo(function CategoryChip({
 });
 
 /**
+ * Room List Item Wrapper - connects to RoomContext
+ * NOT memoized because it needs to re-render when RoomContext changes
+ */
+function RoomListItemWrapper({
+    room,
+    onJoin,
+    onEnterRoom,
+}: {
+    room: Room;
+    onJoin?: (room: Room) => Promise<boolean>;
+    onEnterRoom?: (room: Room) => void;
+}) {
+    // Use centralized hook to check if room is joined
+    const hasJoined = useIsRoomJoined(room.id);
+    
+    // Debug logging
+    console.log(`[RoomListItemWrapper] ${room.id} hasJoined=${hasJoined}`);
+    
+    return (
+        <RoomListItem
+            room={room}
+            hasJoined={hasJoined}
+            onJoin={onJoin}
+            onEnterRoom={onEnterRoom}
+        />
+    );
+}
+
+/**
  * Room List Item Component
  * Memoized with custom comparison to prevent unnecessary re-renders
  */
@@ -91,7 +119,9 @@ const RoomListItem = memo(function RoomListItem({
     onEnterRoom?: (room: Room) => void;
 }) {
     const [isJoining, setIsJoining] = useState(false);
-    const [joinSuccess, setJoinSuccess] = useState(false);
+    
+    // No local joinSuccess state - rely entirely on hasJoined from context
+    // This prevents stale state when user leaves and returns
 
     const getTimeColor = () => {
         const hoursLeft = (room.expiresAt.getTime() - Date.now()) / (1000 * 60 * 60);
@@ -106,8 +136,8 @@ const RoomListItem = memo(function RoomListItem({
     };
 
     const handlePress = async () => {
-        // If already joined (either from prop or local success), enter room
-        if (hasJoined || joinSuccess) {
+        // If already joined, enter room
+        if (hasJoined) {
             onEnterRoom?.(room);
             return;
         }
@@ -118,7 +148,6 @@ const RoomListItem = memo(function RoomListItem({
         try {
             const success = await onJoin(room);
             if (success) {
-                setJoinSuccess(true);
                 // Auto-enter after short delay for visual feedback
                 setTimeout(() => {
                     onEnterRoom?.(room);
@@ -131,8 +160,8 @@ const RoomListItem = memo(function RoomListItem({
         }
     };
 
-    const buttonText = hasJoined || joinSuccess ? 'Enter Room' : 'Join';
-    const ButtonIcon = hasJoined || joinSuccess ? LogIn : isJoining ? null : ChevronRight;
+    const buttonText = hasJoined ? 'Enter Room' : 'Join';
+    const ButtonIcon = hasJoined ? LogIn : isJoining ? null : ChevronRight;
 
     const getGradientColors = () => {
         if (room.isFull) return ['#9ca3af', '#6b7280'];
@@ -215,7 +244,7 @@ const RoomListItem = memo(function RoomListItem({
             <TouchableOpacity
                 style={[
                     styles.actionButton,
-                    (hasJoined || joinSuccess) && styles.actionButtonEnter,
+                    hasJoined && styles.actionButtonEnter,
                 ]}
                 onPress={handlePress}
                 disabled={isJoining}
@@ -292,11 +321,10 @@ const EmptyState = memo(function EmptyState({
 
 /**
  * Main RoomListView Component
- * Wrapped in React.memo for performance - prevents re-renders when parent state changes
+ * NOT memoized to ensure context updates trigger re-renders
  */
-export const RoomListView = memo(function RoomListView({
+export function RoomListView({
     rooms,
-    joinedRooms = [],
     isLoading = false,
     onJoinRoom,
     onEnterRoom,
@@ -307,6 +335,9 @@ export const RoomListView = memo(function RoomListView({
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [sortBy, setSortBy] = useState<SortOption>('nearest');
     const [showFilters, setShowFilters] = useState(false);
+    
+    // Subscribe to myRooms to force re-render when join/leave state changes
+    const { myRooms } = useRooms();
 
     // Filter and sort rooms
     const filteredRooms = useMemo(() => {
@@ -377,11 +408,6 @@ export const RoomListView = memo(function RoomListView({
     const handleClearSearch = useCallback(() => {
         setSearchQuery('');
     }, []);
-
-    const isJoined = useCallback(
-        (room: Room) => joinedRooms.some((r) => r.id === room.id),
-        [joinedRooms]
-    );
 
     if (isLoading) {
         return (
@@ -482,14 +508,14 @@ export const RoomListView = memo(function RoomListView({
                 <FlatList
                     data={groupedRooms}
                     keyExtractor={(item) => item.title}
+                    extraData={myRooms}
                     renderItem={({ item: group }) => (
                         <View style={styles.group}>
                             <Text style={styles.groupTitle}>{group.title}</Text>
                             {group.rooms.map((room) => (
-                                <RoomListItem
+                                <RoomListItemWrapper
                                     key={room.id}
                                     room={room}
-                                    hasJoined={isJoined(room)}
                                     onJoin={onJoinRoom}
                                     onEnterRoom={onEnterRoom}
                                 />
@@ -512,7 +538,7 @@ export const RoomListView = memo(function RoomListView({
             )}
         </View>
     );
-});
+}
 
 const styles = StyleSheet.create({
     container: {

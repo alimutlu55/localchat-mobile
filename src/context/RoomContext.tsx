@@ -1,711 +1,522 @@
 /**
- * RoomContext - Centralized Room State Management
+ * RoomContext - Single Source of Truth for Room State
  *
- * Provides a single source of truth for all room-related state:
- * - Discovered rooms (for map/list views)
- * - User's rooms (created + joined, for sidebar)
- * - Selected room state
- * - WebSocket event handling for real-time updates
- *
- * This context matches the web app (localchat-ui) implementation for consistency.
+ * Architecture:
+ * - ONE Map<roomId, Room> stores all room data
+ * - ONE Set<roomId> tracks which rooms user has joined
+ * - All views (map, list, sidebar) derive from these two sources
+ * - No duplicate room objects with different states
  */
 
-import React, { createContext, useContext, useState, useCallback, useEffect, useMemo, useRef, ReactNode } from 'react';
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+  useMemo,
+  ReactNode,
+} from 'react';
 import { Room } from '../types';
 import { roomService, wsService, WS_EVENTS } from '../services';
 import { useAuth } from './AuthContext';
-import { CATEGORIES } from '../constants';
 
 // ============================================================================
 // Types
 // ============================================================================
 
-/**
- * Room Created WebSocket Payload
- */
-interface RoomCreatedPayload {
-  room: {
-    id: string;
-    title: string;
-    description?: string;
-    location: {
-      latitude: number;
-      longitude: number;
-    };
-    radiusMeters: number;
-    category: string;
-    categoryIcon?: string; // Optional: backend may add this in future
-    participantCount: number;
-    expiresAt?: string;
-    creatorId: string;
-  };
-}
-
-/**
- * Room Closed WebSocket Payload
- */
-interface RoomClosedPayload {
-  roomId: string;
-}
-
-/**
- * Room Updated WebSocket Payload
- */
-interface RoomUpdatedPayload {
-  roomId: string;
-  [key: string]: any;
-}
-
-/**
- * Room Context Value
- */
 interface RoomContextValue {
-  // Discovered rooms (for map/list)
-  rooms: Room[];
-  activeRooms: Room[]; // Filtered: non-closed, non-expired
-  isLoadingRooms: boolean;
-  roomsError: string | null;
-
-  // User's rooms (for sidebar)
-  myRooms: Room[];
-  isLoadingMyRooms: boolean;
-
-  // Selection state
+  // All rooms (single source of truth)
+  allRooms: Map<string, Room>;
+  
+  // Derived views
+  discoveredRooms: Room[];      // All discovered rooms (for map)
+  activeRooms: Room[];          // Non-expired, non-closed (for list)
+  myRooms: Room[];              // Rooms user has joined (for sidebar)
+  
+  // Loading states
+  isLoading: boolean;
+  error: string | null;
+  
+  // Selection
   selectedRoom: Room | null;
   setSelectedRoom: (room: Room | null) => void;
-
+  
   // Actions
-  fetchRooms: (lat: number, lng: number, radius?: number) => Promise<void>;
+  fetchDiscoveredRooms: (lat: number, lng: number, radius?: number) => Promise<void>;
   fetchMyRooms: () => Promise<void>;
-  addRoom: (room: Room) => void;
-  removeRoom: (roomId: string) => void;
-  updateRoom: (roomId: string, updates: Partial<Room>) => void;
   joinRoom: (room: Room) => Promise<boolean>;
   leaveRoom: (roomId: string) => Promise<boolean>;
-  addToMyRooms: (room: Room) => void;
-  removeFromMyRooms: (roomId: string) => void;
-  syncMyRooms: (rooms: Room[]) => void;
   
   // Helpers
-  isRoomJoined: (roomId: string) => boolean;
   getRoomById: (roomId: string) => Room | null;
-  
-  // Optimistic UI state
+  isRoomJoined: (roomId: string) => boolean;
   isJoiningRoom: (roomId: string) => boolean;
   isLeavingRoom: (roomId: string) => boolean;
 }
 
 const RoomContext = createContext<RoomContextValue | null>(null);
 
-/**
- * Room Provider Props
- */
-interface RoomProviderProps {
-  children: ReactNode;
-}
+// ============================================================================
+// Provider
+// ============================================================================
 
-/**
- * Get category emoji from category ID
- * Matches backend RoomCategory enum icons exactly
- */
-function getCategoryEmoji(category: string): string {
-  const emojiMap: Record<string, string> = {
-    TRAFFIC: '🚗',
-    EVENTS: '🎉',
-    EMERGENCY: '🚨',
-    LOST_FOUND: '🔍',
-    SPORTS: '⚽',
-    FOOD: '🍕',
-    NEIGHBORHOOD: '🏘️',
-    GENERAL: '💬',
-  };
-  
-  const normalizedCategory = category.toUpperCase();
-  return emojiMap[normalizedCategory] || '💬';
-}
-
-/**
- * Room Provider Component
- */
-export function RoomProvider({ children }: RoomProviderProps) {
+export function RoomProvider({ children }: { children: ReactNode }) {
   const { user } = useAuth();
-  const userRef = useRef(user);
-
-  // Keep userRef in sync
-  useEffect(() => {
-    userRef.current = user;
-  }, [user]);
-
-  // Discovered rooms state
-  const [rooms, setRooms] = useState<Room[]>([]);
-  const [isLoadingRooms, setIsLoadingRooms] = useState(false);
-  const [roomsError, setRoomsError] = useState<string | null>(null);
-
-  // User's rooms state
-  const [myRooms, setMyRooms] = useState<Room[]>([]);
-  const [isLoadingMyRooms, setIsLoadingMyRooms] = useState(false);
-
-  // Selected room state
+  
+  // ============================================================================
+  // SINGLE SOURCE OF TRUTH
+  // ============================================================================
+  
+  // All room data in one place - keyed by room ID
+  const [roomsById, setRoomsById] = useState<Map<string, Room>>(new Map());
+  
+  // Set of room IDs the user has joined (membership state)
+  const [joinedRoomIds, setJoinedRoomIds] = useState<Set<string>>(new Set());
+  
+  // Set of room IDs that were discovered (vs only in myRooms)
+  const [discoveredRoomIds, setDiscoveredRoomIds] = useState<Set<string>>(new Set());
+  
+  // ============================================================================
+  // UI State
+  // ============================================================================
+  
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
-
-  // Tombstones for recently closed rooms (prevent resurrection by polling)
-  const closedRoomTombstonesRef = useRef<Set<string>>(new Set());
   
-  // Optimistic UI: Track rooms currently being joined/left
-  const [joiningRooms, setJoiningRooms] = useState<Set<string>>(new Set());
-  const [leavingRooms, setLeavingRooms] = useState<Set<string>>(new Set());
+  // Optimistic UI tracking
+  const [joiningRoomIds, setJoiningRoomIds] = useState<Set<string>>(new Set());
+  const [leavingRoomIds, setLeavingRoomIds] = useState<Set<string>>(new Set());
   
-  // Track rooms that were just left to prevent immediate re-fetch
-  const justLeftRoomsRef = useRef<Set<string>>(new Set());
-
-  // Refs for stable access in callbacks
-  const selectedRoomRef = useRef<Room | null>(selectedRoom);
-  const myRoomsRef = useRef<Room[]>(myRooms);
-
-  // Keep refs in sync
-  useEffect(() => {
-    selectedRoomRef.current = selectedRoom;
-  }, [selectedRoom]);
-
-  useEffect(() => {
-    myRoomsRef.current = myRooms;
-  }, [myRooms]);
-
   // ============================================================================
-  // Computed: Active Rooms (for map/list display)
+  // DERIVED VIEWS (computed from single source)
   // ============================================================================
-
+  
+  // All discovered rooms (for map view)
+  const discoveredRooms = useMemo(() => {
+    const rooms: Room[] = [];
+    discoveredRoomIds.forEach(id => {
+      const room = roomsById.get(id);
+      if (room) {
+        // Enrich with joined state
+        rooms.push({
+          ...room,
+          hasJoined: joinedRoomIds.has(id),
+        });
+      }
+    });
+    return rooms;
+  }, [roomsById, discoveredRoomIds, joinedRoomIds]);
+  
+  // Active rooms (non-expired, non-closed) for list view
   const activeRooms = useMemo(() => {
     const now = new Date();
-    return rooms.filter(room =>
+    return discoveredRooms.filter(room =>
       room.status !== 'closed' &&
-      room.expiresAt > now &&
-      !closedRoomTombstonesRef.current.has(room.id)
+      room.expiresAt > now
     );
-  }, [rooms]);
-
-  // ============================================================================
-  // Fetch Actions
-  // ============================================================================
-
-  /**
-   * Fetch nearby rooms
-   */
-  const fetchRooms = useCallback(async (lat: number, lng: number, radius?: number) => {
-    console.log('[RoomContext] Fetching discovered rooms');
-    setIsLoadingRooms(true);
-    setRoomsError(null);
-
-    try {
-      const fetchedRooms = await roomService.getNearbyRooms(lat, lng, radius);
-      console.log('[RoomContext] Fetched rooms:', fetchedRooms.length);
-
-      setRooms(prevRooms => {
-        const fetchedRoomIds = new Set(fetchedRooms.map(r => r.id));
-        const now = new Date();
-
-        // Keep locally added rooms that aren't in the fetched results AND are not expired/closed
-        const localRoomsToKeep = prevRooms.filter(r =>
-          !fetchedRoomIds.has(r.id) &&
-          r.status !== 'closed' &&
-          r.expiresAt > now &&
-          !closedRoomTombstonesRef.current.has(r.id)
-        );
-
-        // Preserve selected room if not in fetched results AND not expired/closed
-        const roomsToPreserve = new Map<string, Room>();
-        localRoomsToKeep.forEach(r => roomsToPreserve.set(r.id, r));
-
-        const currentSelectedRoom = selectedRoomRef.current;
-        if (currentSelectedRoom && !fetchedRoomIds.has(currentSelectedRoom.id) &&
-          currentSelectedRoom.status !== 'closed' &&
-          currentSelectedRoom.expiresAt > now &&
-          !closedRoomTombstonesRef.current.has(currentSelectedRoom.id)) {
-          roomsToPreserve.set(currentSelectedRoom.id, currentSelectedRoom);
-        }
-
-        // Preserve active joined rooms
-        const currentMyRooms = myRoomsRef.current;
-        currentMyRooms.forEach((room: Room) => {
-          if (!fetchedRoomIds.has(room.id) &&
-            room.status !== 'closed' &&
-            room.expiresAt > now &&
-            !closedRoomTombstonesRef.current.has(room.id)) {
-            roomsToPreserve.set(room.id, room);
-          }
-        });
-
-        // Filter out tombstoned rooms from fetched results
-        const filteredFetchedRooms = fetchedRooms.filter(
-          r => !closedRoomTombstonesRef.current.has(r.id)
-        );
-
-        return [...filteredFetchedRooms, ...Array.from(roomsToPreserve.values())];
-      });
-
-      // Sync myRooms with fresh data from discover
-      const backendJoinedRooms = fetchedRooms.filter(r => r.hasJoined);
-      if (backendJoinedRooms.length > 0) {
-        setMyRooms(prev => {
-          const roomMap = new Map(prev.map(r => [r.id, r]));
-          backendJoinedRooms.forEach(room => {
-            roomMap.set(room.id, room);
-          });
-          return Array.from(roomMap.values());
-        });
-      }
-    } catch (error) {
-      console.error('[RoomContext] Failed to fetch rooms:', error);
-      setRoomsError(error instanceof Error ? error.message : 'Failed to fetch rooms');
-    } finally {
-      setIsLoadingRooms(false);
-    }
-  }, []);
-
-  /**
-   * Fetch user's rooms
-   */
-  const fetchMyRooms = useCallback(async () => {
-    if (!user) return;
-
-    console.log('[RoomContext] Fetching my rooms');
-    setIsLoadingMyRooms(true);
-
-    try {
-      const rooms = await roomService.getMyRooms();
-      console.log('[RoomContext] Fetched my rooms:', rooms.length);
-      // Filter out closed rooms
-      const validRooms = rooms.filter(room => room.status !== 'closed');
-      setMyRooms(validRooms);
-    } catch (error) {
-      console.error('[RoomContext] Failed to fetch my rooms:', error);
-    } finally {
-      setIsLoadingMyRooms(false);
-    }
-  }, [user]);
-
-  // ============================================================================
-  // Mutation Actions
-  // ============================================================================
-
-  /**
-   * Add a room to the list
-   */
-  const addRoom = useCallback((room: Room) => {
-    // Don't add if tombstoned
-    if (closedRoomTombstonesRef.current.has(room.id)) {
-      console.log('[RoomContext] Ignoring add for tombstoned room:', room.id);
-      return;
-    }
-
-    setRooms(prev => {
-      if (prev.some(r => r.id === room.id)) return prev;
-      return [room, ...prev];
-    });
-  }, []);
-
-  /**
-   * Remove a room from the list
-   */
-  const removeRoom = useCallback((roomId: string) => {
-    console.log('[RoomContext] Removing room:', roomId);
-    setRooms(prev => prev.filter(r => r.id !== roomId));
-    setMyRooms(prev => prev.filter(r => r.id !== roomId));
-
-    if (selectedRoomRef.current?.id === roomId) {
-      setSelectedRoom(null);
-    }
-  }, []);
-
-  /**
-   * Update a room
-   */
-  const updateRoom = useCallback((roomId: string, updates: Partial<Room>) => {
-    const updateList = (rooms: Room[]) =>
-      rooms.map(r => (r.id === roomId ? { ...r, ...updates } : r));
-
-    setRooms(updateList);
-    setMyRooms(updateList);
-
-    if (selectedRoomRef.current?.id === roomId) {
-      setSelectedRoom(prev => (prev ? { ...prev, ...updates } : null));
-    }
-  }, []);
-
-  /**
-   * Add a room to my rooms
-   */
-  const addToMyRooms = useCallback((room: Room) => {
-    // Only add non-closed rooms
-    if (room.status === 'closed') {
-      console.warn('[RoomContext] Cannot add closed room to myRooms:', room.id);
-      return;
-    }
-
-    setMyRooms(prev => {
-      const existingIndex = prev.findIndex(r => r.id === room.id);
-      if (existingIndex !== -1) {
-        // Update existing room if found (upsert pattern)
-        const updated = [...prev];
-        updated[existingIndex] = room;
-        return updated;
-      }
-      // Add to beginning for recent rooms
-      return [room, ...prev];
-    });
-  }, []);
-
-  /**
-   * Remove a room from my rooms
-   */
-  const removeFromMyRooms = useCallback((roomId: string) => {
-    setMyRooms(prev => prev.filter(r => r.id !== roomId));
-  }, []);
-
-  /**
-   * syncMyRooms - Reconcile myRooms with provided list
-   * This replaces the entire list, filtering out closed rooms
-   * Used for initial load and full refresh scenarios
-   */
-  const syncMyRooms = useCallback((rooms: Room[]) => {
-    const validRooms = rooms.filter(room => room.status !== 'closed');
-    console.log('[RoomContext] syncMyRooms called with', rooms.length, 'rooms,', validRooms.length, 'valid');
-    setMyRooms(validRooms);
-  }, []);
-
-  /**
-   * Helper: Get room by ID from either discovered rooms or myRooms
-   * Prioritizes myRooms as they have most up-to-date state
-   */
-  const getRoomById = useCallback((roomId: string): Room | null => {
-    // Check myRooms first (most up-to-date), then discovered rooms
-    const myRoom = myRoomsRef.current.find(r => r.id === roomId);
-    if (myRoom) return myRoom;
-    
-    return rooms.find(r => r.id === roomId) || null;
-  }, [rooms]);
-
-  /**
-   * Helper: Check if user has already joined a room
-   */
-  const isRoomJoined = useCallback((roomId: string): boolean => {
-    return myRoomsRef.current.some(r => r.id === roomId);
-  }, []);
-
-  /**
-   * Helper: Check if room is currently being joined (optimistic UI)
-   */
-  const isJoiningRoom = useCallback((roomId: string): boolean => {
-    return joiningRooms.has(roomId);
-  }, [joiningRooms]);
-
-  /**
-   * Helper: Check if room is currently being left (optimistic UI)
-   */
-  const isLeavingRoom = useCallback((roomId: string): boolean => {
-    return leavingRooms.has(roomId);
-  }, [leavingRooms]);
+  }, [discoveredRooms]);
   
-  /**
-   * Helper: Check if a room was just left (to prevent race conditions)
-   */
-  const wasJustLeft = useCallback((roomId: string): boolean => {
-    return justLeftRoomsRef.current.has(roomId);
-  }, []);
-
-  /**
-   * Join a room with optimistic UI updates
-   */
-  const joinRoom = useCallback(async (room: Room): Promise<boolean> => {
-    console.log('[RoomContext] joinRoom called for:', room.id);
-    
-    // Prevent joining if currently leaving
-    if (leavingRooms.has(room.id)) {
-      console.warn('[RoomContext] Cannot join - leave operation in progress:', room.id);
-      return false;
-    }
-    
-    // Prevent duplicate joins
-    if (isRoomJoined(room.id)) {
-      console.warn('[RoomContext] Already joined room:', room.id);
-      return true; // Return success since already joined
-    }
-
-    // Prevent joining if already in progress
-    if (joiningRooms.has(room.id)) {
-      console.warn('[RoomContext] Join already in progress for room:', room.id);
-      return false;
-    }
-
-    console.log('[RoomContext] Starting join operation for:', room.id);
-
-    // Mark as joining (optimistic state)
-    setJoiningRooms(prev => new Set(prev).add(room.id));
-
-    // Optimistically update UI immediately
-    const optimisticRoom = { ...room, hasJoined: true };
-    updateRoom(room.id, { hasJoined: true });
-    addToMyRooms(optimisticRoom);
-
-    try {
-      // Backend requires user location when joining
-      await roomService.joinRoom(room.id, room.latitude ?? 0, room.longitude ?? 0);
-
-      // Subscribe to WebSocket
-      wsService.subscribe(room.id);
-
-      console.log('[RoomContext] Successfully joined room:', room.id);
-      return true;
-    } catch (error: any) {
-      // Handle "already joined" error gracefully (backend may already have user as participant)
-      const errorMessage = error?.message || error?.toString() || '';
-      const errorCode = error?.code || '';
-      
-      if (errorCode === 'CONFLICT' ||
-          errorMessage.includes('Resource already exists') ||
-          errorMessage.includes('already joined') || 
-          errorMessage.includes('already a participant') ||
-          errorMessage.includes('duplicate')) {
-        console.log('[RoomContext] Backend says already joined (conflict), keeping optimistic state:', room.id);
-        
-        // Keep optimistic updates, subscribe to WebSocket
-        wsService.subscribe(room.id);
-        return true; // Treat as success
+  // User's rooms (for sidebar)
+  const myRooms = useMemo(() => {
+    console.log('[RoomContext] Computing myRooms, joinedRoomIds:', Array.from(joinedRoomIds));
+    const rooms: Room[] = [];
+    joinedRoomIds.forEach(id => {
+      const room = roomsById.get(id);
+      if (room) {
+        rooms.push({
+          ...room,
+          hasJoined: true,
+        });
       }
-      
-      // Rollback optimistic updates on real failure
-      console.error('[RoomContext] Failed to join room, rolling back:', error);
-      updateRoom(room.id, { hasJoined: false });
-      removeFromMyRooms(room.id);
-      return false;
-    } finally {
-      // Clear joining state
-      setJoiningRooms(prev => {
-        const next = new Set(prev);
-        next.delete(room.id);
-        return next;
-      });
-    }
-  }, [isRoomJoined, joiningRooms, leavingRooms, updateRoom, addToMyRooms, removeFromMyRooms]);
-
-  /**
-   * Leave a room with optimistic UI updates
-   */
-  const leaveRoom = useCallback(async (roomId: string): Promise<boolean> => {
-    console.log('[RoomContext] leaveRoom called for:', roomId);
-    
-    // Prevent duplicate leave operations
-    if (leavingRooms.has(roomId)) {
-      console.warn('[RoomContext] Leave already in progress for room:', roomId);
-      return false;
-    }
-    
-    // Check if user is actually in the room
-    const isInRoom = myRoomsRef.current.some(r => r.id === roomId);
-    if (!isInRoom) {
-      console.warn('[RoomContext] User not in room, nothing to leave:', roomId);
-      return true; // Already left, return success
-    }
-
-    console.log('[RoomContext] Starting leave operation for:', roomId);
-    
-    // Mark as leaving BEFORE any state changes
-    setLeavingRooms(prev => {
-      const next = new Set(prev);
-      next.add(roomId);
+    });
+    // Sort by most recent first
+    const sorted = rooms.sort((a, b) => 
+      (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0)
+    );
+    console.log('[RoomContext] myRooms computed:', sorted.length, 'rooms');
+    return sorted;
+  }, [roomsById, joinedRoomIds]);
+  
+  // ============================================================================
+  // Room Data Operations
+  // ============================================================================
+  
+  // Update or add a room to the store
+  const upsertRoom = useCallback((room: Room) => {
+    setRoomsById(prev => {
+      const next = new Map(prev);
+      const existing = next.get(room.id);
+      // Merge with existing data to preserve fields
+      next.set(room.id, existing ? { ...existing, ...room } : room);
       return next;
     });
+  }, []);
+  
+  // Update room fields
+  const updateRoom = useCallback((roomId: string, updates: Partial<Room>) => {
+    setRoomsById(prev => {
+      const room = prev.get(roomId);
+      if (!room) return prev;
+      const next = new Map(prev);
+      next.set(roomId, { ...room, ...updates });
+      return next;
+    });
+  }, []);
+  
+  // Remove a room
+  const removeRoom = useCallback((roomId: string) => {
+    setRoomsById(prev => {
+      const next = new Map(prev);
+      next.delete(roomId);
+      return next;
+    });
+    setDiscoveredRoomIds(prev => {
+      const next = new Set(prev);
+      next.delete(roomId);
+      return next;
+    });
+    setJoinedRoomIds(prev => {
+      const next = new Set(prev);
+      next.delete(roomId);
+      return next;
+    });
+  }, []);
+  
+  // ============================================================================
+  // Fetch Operations
+  // ============================================================================
+  
+  const fetchDiscoveredRooms = useCallback(async (
+    lat: number,
+    lng: number,
+    radius?: number
+  ) => {
+    console.log('[RoomContext] Fetching discovered rooms');
+    setIsLoading(true);
+    setError(null);
     
-    // Add to "just left" tracking to prevent race conditions with API calls
-    justLeftRoomsRef.current.add(roomId);
-
     try {
-      // First, unsubscribe from WebSocket to stop receiving events
-      wsService.unsubscribe(roomId);
-      console.log('[RoomContext] Unsubscribed from WebSocket:', roomId);
+      const fetchedRooms = await roomService.getNearbyRooms(lat, lng, radius);
+      console.log('[RoomContext] Fetched', fetchedRooms.length, 'rooms');
       
-      // Then, call backend to leave room
-      await roomService.leaveRoom(roomId);
-      console.log('[RoomContext] Backend leave successful:', roomId);
-
-      // Only update UI state after successful backend response
-      updateRoom(roomId, { hasJoined: false });
-      removeFromMyRooms(roomId);
+      // Update the room store
+      const newDiscoveredIds = new Set<string>();
+      fetchedRooms.forEach((room: Room) => {
+        upsertRoom(room);
+        newDiscoveredIds.add(room.id);
+        
+        // If room has hasJoined flag from API, update membership
+        if (room.hasJoined || room.isCreator) {
+          setJoinedRoomIds(prev => new Set(prev).add(room.id));
+        }
+      });
       
-      // Clear from "just left" after a delay to prevent race conditions
-      setTimeout(() => {
-        justLeftRoomsRef.current.delete(roomId);
-      }, 2000);
-
-      console.log('[RoomContext] Successfully left room:', roomId);
-      return true;
-    } catch (error: any) {
-      console.error('[RoomContext] Failed to leave room:', error);
-      
-      // Remove from "just left" on error
-      justLeftRoomsRef.current.delete(roomId);
-      
-      // Rollback: Re-subscribe to WebSocket
-      wsService.subscribe(roomId);
-      
-      // Don't rollback UI state since we haven't changed it yet
-      // (we moved the UI update to after successful backend call)
-      
-      return false;
+      setDiscoveredRoomIds(newDiscoveredIds);
+    } catch (err) {
+      console.error('[RoomContext] Failed to fetch rooms:', err);
+      setError(err instanceof Error ? err.message : 'Failed to fetch rooms');
     } finally {
-      // Always clear leaving state
-      setLeavingRooms(prev => {
+      setIsLoading(false);
+    }
+  }, [upsertRoom]);
+  
+  const fetchMyRooms = useCallback(async () => {
+    console.log('[RoomContext] Fetching my rooms');
+    
+    try {
+      const fetchedRooms = await roomService.getMyRooms();
+      console.log('[RoomContext] Fetched', fetchedRooms.length, 'my rooms');
+      
+      // Update the room store and membership
+      const newJoinedIds = new Set<string>();
+      fetchedRooms.forEach(room => {
+        if (room.status !== 'closed') {
+          upsertRoom(room);
+          newJoinedIds.add(room.id);
+        }
+      });
+      
+      setJoinedRoomIds(newJoinedIds);
+    } catch (err) {
+      console.error('[RoomContext] Failed to fetch my rooms:', err);
+    }
+  }, [upsertRoom]);
+  
+  // ============================================================================
+  // Join/Leave Operations
+  // ============================================================================
+  
+  const joinRoom = useCallback(async (room: Room): Promise<boolean> => {
+    const roomId = room.id;
+    console.log('[RoomContext] joinRoom called:', roomId);
+    console.log('[RoomContext] joinRoom - joinedRoomIds:', Array.from(joinedRoomIds));
+    console.log('[RoomContext] joinRoom - joiningRoomIds:', Array.from(joiningRoomIds));
+    console.log('[RoomContext] joinRoom - leavingRoomIds:', Array.from(leavingRoomIds));
+    
+    // Guards
+    if (joiningRoomIds.has(roomId)) {
+      console.warn('[RoomContext] Already joining:', roomId);
+      return false;
+    }
+    if (joinedRoomIds.has(roomId)) {
+      console.log('[RoomContext] Already joined:', roomId);
+      return true;
+    }
+    if (leavingRoomIds.has(roomId)) {
+      console.warn('[RoomContext] Currently leaving:', roomId);
+      return false;
+    }
+    
+    // Mark as joining
+    setJoiningRoomIds(prev => new Set(prev).add(roomId));
+    
+    // Optimistic update
+    upsertRoom(room);
+    setJoinedRoomIds(prev => new Set(prev).add(roomId));
+    
+    try {
+      await roomService.joinRoom(roomId, room.latitude ?? 0, room.longitude ?? 0);
+      wsService.subscribe(roomId);
+      console.log('[RoomContext] Join successful:', roomId);
+      return true;
+    } catch (err: any) {
+      // Handle "already joined" as success
+      if (err?.code === 'CONFLICT' || err?.message?.includes('already')) {
+        console.log('[RoomContext] Already joined (from backend):', roomId);
+        wsService.subscribe(roomId);
+        return true;
+      }
+      
+      // Rollback
+      console.error('[RoomContext] Join failed:', err);
+      setJoinedRoomIds(prev => {
         const next = new Set(prev);
         next.delete(roomId);
         return next;
       });
-      console.log('[RoomContext] Cleared leaving state for:', roomId);
+      return false;
+    } finally {
+      setJoiningRoomIds(prev => {
+        const next = new Set(prev);
+        next.delete(roomId);
+        return next;
+      });
     }
-  }, [leavingRooms, updateRoom, removeFromMyRooms]);
-
+  }, [joiningRoomIds, joinedRoomIds, leavingRoomIds, upsertRoom]);
+  
+  const leaveRoom = useCallback(async (roomId: string): Promise<boolean> => {
+    console.log('[RoomContext] leaveRoom called:', roomId);
+    console.log('[RoomContext] Current joinedRoomIds:', Array.from(joinedRoomIds));
+    
+    // Guards
+    if (leavingRoomIds.has(roomId)) {
+      console.warn('[RoomContext] Already leaving:', roomId);
+      return false;
+    }
+    if (!joinedRoomIds.has(roomId)) {
+      console.log('[RoomContext] Not joined:', roomId);
+      return true;
+    }
+    
+    // Mark as leaving
+    setLeavingRoomIds(prev => new Set(prev).add(roomId));
+    
+    try {
+      // Call backend first
+      await roomService.leaveRoom(roomId);
+      console.log('[RoomContext] Leave backend successful:', roomId);
+      
+      // Update state after success
+      setJoinedRoomIds(prev => {
+        const next = new Set(prev);
+        next.delete(roomId);
+        console.log('[RoomContext] Updated joinedRoomIds:', Array.from(next));
+        return next;
+      });
+      
+      // Unsubscribe from WebSocket
+      wsService.unsubscribe(roomId);
+      
+      return true;
+    } catch (err) {
+      console.error('[RoomContext] Leave failed:', err);
+      return false;
+    } finally {
+      setLeavingRoomIds(prev => {
+        const next = new Set(prev);
+        next.delete(roomId);
+        return next;
+      });
+    }
+  }, [leavingRoomIds, joinedRoomIds]);
+  
+  // ============================================================================
+  // Helpers
+  // ============================================================================
+  
+  const getRoomById = useCallback((roomId: string): Room | null => {
+    const room = roomsById.get(roomId);
+    if (!room) return null;
+    return {
+      ...room,
+      hasJoined: joinedRoomIds.has(roomId),
+    };
+  }, [roomsById, joinedRoomIds]);
+  
+  const isRoomJoined = useCallback((roomId: string): boolean => {
+    return joinedRoomIds.has(roomId);
+  }, [joinedRoomIds]);
+  
+  const isJoiningRoom = useCallback((roomId: string): boolean => {
+    return joiningRoomIds.has(roomId);
+  }, [joiningRoomIds]);
+  
+  const isLeavingRoom = useCallback((roomId: string): boolean => {
+    return leavingRoomIds.has(roomId);
+  }, [leavingRoomIds]);
+  
   // ============================================================================
   // WebSocket Event Handlers
   // ============================================================================
-
+  
   useEffect(() => {
-    // Handle room_closed events - remove room immediately from all state
-    const handleRoomClosed = (payload: RoomClosedPayload) => {
-      const { roomId } = payload;
-      console.log('[RoomContext] Room closed event received:', roomId);
-
-      // Add to tombstones (prevent resurrection by polling)
-      closedRoomTombstonesRef.current.add(roomId);
-
-      // Remove tombstone after 2 minutes
-      setTimeout(() => {
-        closedRoomTombstonesRef.current.delete(roomId);
-      }, 120000);
-
-      // Remove from both rooms and myRooms immediately
-      removeRoom(roomId);
+    const handleRoomClosed = (payload: { roomId: string }) => {
+      console.log('[RoomContext] Room closed:', payload.roomId);
+      removeRoom(payload.roomId);
     };
-
-    // Handle room_updated events
-    const handleRoomUpdated = (payload: RoomUpdatedPayload) => {
+    
+    const handleRoomUpdated = (payload: { roomId: string; [key: string]: any }) => {
       const { roomId, ...updates } = payload;
-      console.log('[RoomContext] Room updated event received:', roomId);
+      console.log('[RoomContext] Room updated:', roomId);
       updateRoom(roomId, updates as Partial<Room>);
     };
-
-    // Handle room_created events - add new room to discovered rooms
-    const handleRoomCreated = (payload: RoomCreatedPayload) => {
-      const { room: newRoomData } = payload;
-      console.log('[RoomContext] Room created event received:', newRoomData.id, newRoomData.title);
-
-      // If room was previously closed, remove from tombstones
-      closedRoomTombstonesRef.current.delete(newRoomData.id);
-
-      const isCreator = newRoomData.creatorId === userRef.current?.id;
-
-      // Convert WebSocket payload to Room type
-      const newRoom: Room = {
-        id: newRoomData.id,
-        title: newRoomData.title,
-        description: newRoomData.description || '',
-        latitude: newRoomData.location.latitude,
-        longitude: newRoomData.location.longitude,
-        radius: newRoomData.radiusMeters,
-        category: newRoomData.category as any,
-        emoji: newRoomData.categoryIcon || getCategoryEmoji(newRoomData.category), // Use backend icon if available
-        participantCount: newRoomData.participantCount,
-        maxParticipants: 500, // Default
-        expiresAt: newRoomData.expiresAt ? new Date(newRoomData.expiresAt) : new Date(Date.now() + 3600000 * 24),
-        createdAt: new Date(),
-        timeRemaining: 'Calculating...',
-        distance: 0, // Will be calculated by Map
-        isCreator,
-        hasJoined: isCreator, // Creator is auto-joined
-        status: 'active'
-      };
-
-      // Add to discovered rooms (avoid duplicates)
-      addRoom(newRoom);
-
-      // If this user created the room, also add to myRooms
-      if (isCreator) {
-        console.log('[RoomContext] Adding own created room to myRooms:', newRoom.id);
-        addToMyRooms(newRoom);
+    
+    const handleUserLeft = (payload: { roomId: string; userId: string }) => {
+      // If current user left (from another device/screen)
+      if (payload.userId === user?.id) {
+        console.log('[RoomContext] Current user left room:', payload.roomId);
+        setJoinedRoomIds(prev => {
+          const next = new Set(prev);
+          next.delete(payload.roomId);
+          return next;
+        });
+        // Also clear from leavingRoomIds to allow immediate rejoin
+        setLeavingRoomIds(prev => {
+          const next = new Set(prev);
+          next.delete(payload.roomId);
+          return next;
+        });
+        wsService.unsubscribe(payload.roomId);
       }
     };
-
-    const unsubscribeClosed = wsService.on(WS_EVENTS.ROOM_CLOSED, handleRoomClosed);
-    const unsubscribeUpdated = wsService.on(WS_EVENTS.ROOM_UPDATED, handleRoomUpdated);
-    const unsubscribeCreated = wsService.on(WS_EVENTS.ROOM_CREATED, handleRoomCreated);
-
-    return () => {
-      unsubscribeClosed();
-      unsubscribeUpdated();
-      unsubscribeCreated();
+    
+    const handleUserJoined = (payload: { roomId: string; userId: string }) => {
+      // If current user joined (from another device)
+      if (payload.userId === user?.id) {
+        console.log('[RoomContext] Current user joined room:', payload.roomId);
+        setJoinedRoomIds(prev => new Set(prev).add(payload.roomId));
+        wsService.subscribe(payload.roomId);
+      }
     };
-  }, [removeRoom, updateRoom, addRoom, addToMyRooms]);
-
-  /**
-   * Fetch my rooms on user change
-   */
+    
+    const handleRoomCreated = (payload: any) => {
+      const roomData = payload.room;
+      console.log('[RoomContext] Room created:', roomData.id);
+      
+      // Convert to Room type
+      const newRoom: Room = {
+        id: roomData.id,
+        title: roomData.title,
+        description: roomData.description || '',
+        latitude: roomData.location.latitude,
+        longitude: roomData.location.longitude,
+        radius: roomData.radiusMeters,
+        category: roomData.category?.toUpperCase() || 'GENERAL',
+        emoji: '💬',
+        participantCount: roomData.participantCount || 1,
+        maxParticipants: 50,
+        distance: 0,
+        expiresAt: roomData.expiresAt ? new Date(roomData.expiresAt) : new Date(Date.now() + 3600000),
+        createdAt: new Date(),
+        timeRemaining: '1h',
+        status: 'active',
+        isNew: true,
+      };
+      
+      upsertRoom(newRoom);
+      setDiscoveredRoomIds(prev => new Set(prev).add(newRoom.id));
+      
+      // If user created this room
+      if (roomData.creatorId === user?.id) {
+        setJoinedRoomIds(prev => new Set(prev).add(newRoom.id));
+      }
+    };
+    
+    const unsubClosed = wsService.on(WS_EVENTS.ROOM_CLOSED, handleRoomClosed);
+    const unsubUpdated = wsService.on(WS_EVENTS.ROOM_UPDATED, handleRoomUpdated);
+    const unsubLeft = wsService.on(WS_EVENTS.USER_LEFT, handleUserLeft);
+    const unsubJoined = wsService.on(WS_EVENTS.USER_JOINED, handleUserJoined);
+    const unsubCreated = wsService.on(WS_EVENTS.ROOM_CREATED, handleRoomCreated);
+    
+    return () => {
+      unsubClosed();
+      unsubUpdated();
+      unsubLeft();
+      unsubJoined();
+      unsubCreated();
+    };
+  }, [user?.id, removeRoom, updateRoom, upsertRoom]);
+  
+  // Fetch my rooms on user change
   useEffect(() => {
     if (user) {
       fetchMyRooms();
     } else {
-      setMyRooms([]);
+      setJoinedRoomIds(new Set());
     }
   }, [user, fetchMyRooms]);
-
+  
   // ============================================================================
   // Context Value
   // ============================================================================
-
+  
   const value = useMemo<RoomContextValue>(() => ({
-    rooms,
+    allRooms: roomsById,
+    discoveredRooms,
     activeRooms,
-    isLoadingRooms,
-    roomsError,
     myRooms,
-    isLoadingMyRooms,
+    isLoading,
+    error,
     selectedRoom,
     setSelectedRoom,
-    fetchRooms,
+    fetchDiscoveredRooms,
     fetchMyRooms,
-    addRoom,
-    removeRoom,
-    updateRoom,
     joinRoom,
     leaveRoom,
-    addToMyRooms,
-    removeFromMyRooms,
-    syncMyRooms,
-    isRoomJoined,
     getRoomById,
+    isRoomJoined,
     isJoiningRoom,
     isLeavingRoom,
   }), [
-    rooms,
+    roomsById,
+    discoveredRooms,
     activeRooms,
-    isLoadingRooms,
-    roomsError,
     myRooms,
-    isLoadingMyRooms,
+    isLoading,
+    error,
     selectedRoom,
-    fetchRooms,
+    fetchDiscoveredRooms,
     fetchMyRooms,
-    addRoom,
-    removeRoom,
-    updateRoom,
     joinRoom,
     leaveRoom,
-    addToMyRooms,
-    removeFromMyRooms,
-    syncMyRooms,
-    isRoomJoined,
     getRoomById,
+    isRoomJoined,
     isJoiningRoom,
     isLeavingRoom,
   ]);
-
+  
   return (
     <RoomContext.Provider value={value}>
       {children}
@@ -717,10 +528,7 @@ export function RoomProvider({ children }: RoomProviderProps) {
 // Hooks
 // ============================================================================
 
-/**
- * useRooms - Access the room context
- */
-export function useRooms(): RoomContextValue {
+export function useRooms() {
   const context = useContext(RoomContext);
   if (!context) {
     throw new Error('useRooms must be used within a RoomProvider');
@@ -728,71 +536,47 @@ export function useRooms(): RoomContextValue {
   return context;
 }
 
-/**
- * useActiveRooms - Get only active (non-expired, non-closed) rooms for map/list display
- */
+// For backward compatibility - returns activeRooms
 export function useActiveRooms(): Room[] {
   const { activeRooms } = useRooms();
   return activeRooms;
 }
 
-/**
- * useSidebarRooms - Get rooms for sidebar, split into active and expired
- */
+// For sidebar
 export function useSidebarRooms(): { activeRooms: Room[]; expiredRooms: Room[] } {
   const { myRooms } = useRooms();
-
   return useMemo(() => {
     const now = new Date();
-    // Filter out closed rooms
-    const nonClosed = myRooms.filter(room => room.status !== 'closed');
-    const sorted = [...nonClosed].sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime());
-
-    return {
-      activeRooms: sorted.filter(room => room.expiresAt > now),
-      expiredRooms: sorted.filter(room => room.expiresAt <= now),
-    };
+    const active = myRooms.filter(room => 
+      room.status !== 'closed' && room.expiresAt > now
+    );
+    const expired = myRooms.filter(room => 
+      room.status === 'closed' || room.expiresAt <= now
+    );
+    return { activeRooms: active, expiredRooms: expired };
   }, [myRooms]);
 }
 
-/**
- * useJoinedRooms - Get only joined rooms (excludes rooms user only discovered but didn't join)
- */
-export function useJoinedRooms(): Room[] {
-  const { myRooms } = useRooms();
-  return useMemo(
-    () => myRooms.filter(r => r.hasJoined || r.isCreator),
-    [myRooms]
-  );
-}
-
-/**
- * useIsRoomJoined - Check if user has joined a specific room
- */
+// Check if room is joined - reactive hook
 export function useIsRoomJoined(roomId: string): boolean {
-  const { isRoomJoined } = useRooms();
-  return isRoomJoined(roomId);
+  const { myRooms } = useRooms();
+  return useMemo(() => myRooms.some(r => r.id === roomId), [myRooms, roomId]);
 }
 
-/**
- * useRoomById - Get a specific room by ID (prioritizes myRooms for latest state)
- */
+// Get room by ID - reactive hook
 export function useRoomById(roomId: string): Room | null {
-  const { getRoomById } = useRooms();
-  return useMemo(() => getRoomById(roomId), [getRoomById, roomId]);
+  const { getRoomById, myRooms, discoveredRooms } = useRooms();
+  // Include myRooms and discoveredRooms in deps to trigger re-render when they change
+  return useMemo(() => getRoomById(roomId), [getRoomById, roomId, myRooms, discoveredRooms]);
 }
 
-/**
- * useIsJoiningRoom - Check if a room is currently being joined (optimistic UI)
- */
+// Check if joining
 export function useIsJoiningRoom(roomId: string): boolean {
   const { isJoiningRoom } = useRooms();
   return isJoiningRoom(roomId);
 }
 
-/**
- * useIsLeavingRoom - Check if a room is currently being left (optimistic UI)
- */
+// Check if leaving
 export function useIsLeavingRoom(roomId: string): boolean {
   const { isLeavingRoom } = useRooms();
   return isLeavingRoom(roomId);

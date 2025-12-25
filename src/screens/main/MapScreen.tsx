@@ -96,8 +96,8 @@ export default function MapScreen() {
   const {
     activeRooms,
     myRooms,
-    isLoadingRooms,
-    fetchRooms: contextFetchRooms,
+    isLoading: isLoadingRooms,
+    fetchDiscoveredRooms,
     selectedRoom,
     setSelectedRoom,
   } = useRooms();
@@ -178,14 +178,14 @@ export default function MapScreen() {
    */
   const fetchRooms = useCallback(async (lat: number, lng: number) => {
     try {
-      await contextFetchRooms(lat, lng, ROOM_CONFIG.DEFAULT_RADIUS);
+      await fetchDiscoveredRooms(lat, lng, ROOM_CONFIG.DEFAULT_RADIUS);
     } catch (error) {
       console.error('Failed to fetch rooms:', error);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
     }
-  }, [contextFetchRooms]);
+  }, [fetchDiscoveredRooms]);
 
   /**
    * Request location permissions and get current location
