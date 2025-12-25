@@ -121,7 +121,7 @@ export default function RoomDetailsScreen() {
   const { room: initialRoom } = route.params;
   const { user } = useAuth();
   const { joinRoom: contextJoinRoom, leaveRoom: contextLeaveRoom, getRoomById } = useRooms();
-  
+
   // Use centralized hooks for joined status and optimistic UI
   const hasJoined = useIsRoomJoined(initialRoom.id);
   const isJoiningOptimistic = useIsJoiningRoom(initialRoom.id);
@@ -183,19 +183,24 @@ export default function RoomDetailsScreen() {
       }
 
       console.log('[RoomDetailsScreen] Fetching messages for joined user');
+
+      // Small delay to ensure backend join is fully processed
+      // This prevents race condition where fetch happens before join completes
+      await new Promise(resolve => setTimeout(resolve, 200));
+
       setIsLoadingMessages(true);
       try {
         const { messages } = await messageService.getHistory(room.id, { limit: 3 });
         setRecentMessages(messages);
       } catch (error: any) {
         console.error('[RoomDetailsScreen] Failed to load recent messages:', error);
-        
+
         // If error is "not in room", it might be because user just left
         // Silently clear messages instead of showing error
         const errorMessage = error?.message || '';
-        if (errorMessage.includes('must be in the room') || 
-            errorMessage.includes('not in room') ||
-            error?.code === 'FORBIDDEN') {
+        if (errorMessage.includes('must be in the room') ||
+          errorMessage.includes('not in room') ||
+          error?.code === 'FORBIDDEN') {
           console.log('[RoomDetailsScreen] User not in room (may have just left), clearing messages');
           setRecentMessages([]);
         } else {
@@ -218,7 +223,7 @@ export default function RoomDetailsScreen() {
       console.warn('[RoomDetailsScreen] Leave already in progress');
       return;
     }
-    
+
     Alert.alert(
       'Leave Room',
       'Are you sure you want to leave this room?',
@@ -350,16 +355,16 @@ export default function RoomDetailsScreen() {
           await roomService.reportRoom(room.id, data.reason, data.details);
         } catch (reportError: any) {
           // Handle "already reported" as success (idempotent)
-          if (reportError?.message?.includes('already reported') || 
-              reportError?.code === 'ALREADY_REPORTED' ||
-              reportError?.status === 409) {
+          if (reportError?.message?.includes('already reported') ||
+            reportError?.code === 'ALREADY_REPORTED' ||
+            reportError?.status === 409) {
             console.log('[RoomDetailsScreen] Room already reported - treating as success');
           } else {
             // Re-throw other errors
             throw reportError;
           }
         }
-        
+
         // Auto-leave after reporting room (UX improvement)
         const success = await contextLeaveRoom(room.id);
         if (success) {
@@ -388,7 +393,7 @@ export default function RoomDetailsScreen() {
 
     // Context handles optimistic updates, just call and navigate on success
     const success = await contextJoinRoom(room);
-    
+
     if (success) {
       // Small delay for visual feedback
       setTimeout(() => {
@@ -630,7 +635,7 @@ export default function RoomDetailsScreen() {
               <Text style={styles.joinButtonText}>Join Room</Text>
             )}
           </TouchableOpacity>
-          
+
           {/* Small Leave link below main button - only for joined members */}
           {hasJoined && !isCreator && (
             <TouchableOpacity

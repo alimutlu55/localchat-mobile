@@ -445,6 +445,12 @@ class WebSocketService {
    * Subscribe to a room
    */
   subscribe(roomId: string): void {
+    // Only send if not already subscribed (idempotent)
+    if (this.subscribedRooms.has(roomId)) {
+      console.log(`[WS] Already subscribed to room: ${roomId}`);
+      return;
+    }
+
     this.subscribedRooms.add(roomId);
     this.send(WS_EVENTS.SUBSCRIBE, { roomId });
   }
@@ -453,6 +459,12 @@ class WebSocketService {
    * Unsubscribe from a room
    */
   unsubscribe(roomId: string): void {
+    // Only send if currently subscribed (idempotent)
+    if (!this.subscribedRooms.has(roomId)) {
+      console.log(`[WS] Not subscribed to room: ${roomId}`);
+      return;
+    }
+
     this.subscribedRooms.delete(roomId);
     this.send(WS_EVENTS.UNSUBSCRIBE, { roomId });
   }
