@@ -29,7 +29,6 @@ interface ReportModalProps {
     reason: ReportReason;
     details: string;
     blockUser: boolean;
-    leaveRoom: boolean;
   }) => Promise<void>;
   targetType: 'message' | 'room' | 'user';
   targetName?: string;
@@ -87,7 +86,6 @@ export function ReportModal({
   const [selectedReason, setSelectedReason] = useState<ReportReason | null>(null);
   const [details, setDetails] = useState('');
   const [blockUser, setBlockUser] = useState(false);
-  const [leaveRoom, setLeaveRoom] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -100,7 +98,6 @@ export function ReportModal({
         reason: selectedReason,
         details: details.trim(),
         blockUser,
-        leaveRoom,
       });
       setSubmitted(true);
       setTimeout(() => {
@@ -117,7 +114,6 @@ export function ReportModal({
     setSelectedReason(null);
     setDetails('');
     setBlockUser(false);
-    setLeaveRoom(false);
     setSubmitted(false);
   };
 
@@ -214,23 +210,28 @@ export function ReportModal({
                 </View>
               </View>
 
-              {/* Additional Actions */}
-              <View style={styles.section}>
-                <View style={styles.card}>
-                  <CheckboxOption
-                    label={isUserAlreadyBlocked ? "User already blocked" : "Block this user"}
-                    isChecked={isUserAlreadyBlocked || blockUser}
-                    onToggle={() => !isUserAlreadyBlocked && setBlockUser(!blockUser)}
-                    disabled={isUserAlreadyBlocked}
-                  />
-                  <View style={styles.divider} />
-                  <CheckboxOption
-                    label="Leave this room"
-                    isChecked={leaveRoom}
-                    onToggle={() => setLeaveRoom(!leaveRoom)}
-                  />
+              {/* Additional Actions - Only show for user reports */}
+              {targetType === 'user' && (
+                <View style={styles.section}>
+                  <View style={styles.card}>
+                    <CheckboxOption
+                      label={isUserAlreadyBlocked ? "User already blocked" : "Block this user"}
+                      isChecked={isUserAlreadyBlocked || blockUser}
+                      onToggle={() => !isUserAlreadyBlocked && setBlockUser(!blockUser)}
+                      disabled={isUserAlreadyBlocked}
+                    />
+                  </View>
                 </View>
-              </View>
+              )}
+
+              {/* Info message for room reports */}
+              {targetType === 'room' && (
+                <View style={styles.infoBox}>
+                  <Text style={styles.infoText}>
+                    You'll be removed from this room after reporting. You can rejoin anytime.
+                  </Text>
+                </View>
+              )}
 
               {/* Submit Button */}
               <TouchableOpacity
@@ -468,6 +469,20 @@ const styles = StyleSheet.create({
     color: '#64748b',
     textAlign: 'center',
     lineHeight: 24,
+  },
+  infoBox: {
+    marginHorizontal: 20,
+    marginVertical: 12,
+    padding: 16,
+    backgroundColor: '#f0f9ff',
+    borderRadius: 12,
+    borderLeftWidth: 4,
+    borderLeftColor: '#3b82f6',
+  },
+  infoText: {
+    fontSize: 14,
+    color: '#1e40af',
+    lineHeight: 20,
   },
 });
 

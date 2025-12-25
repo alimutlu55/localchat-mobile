@@ -90,9 +90,6 @@ function RoomListItemWrapper({
     // Use centralized hook to check if room is joined
     const hasJoined = useIsRoomJoined(room.id);
     
-    // Debug logging
-    console.log(`[RoomListItemWrapper] ${room.id} hasJoined=${hasJoined}`);
-    
     return (
         <RoomListItem
             room={room}

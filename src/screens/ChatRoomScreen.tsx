@@ -623,7 +623,6 @@ export default function ChatRoomScreen() {
     reason: ReportReason;
     details: string;
     blockUser: boolean;
-    leaveRoom: boolean;
   }) => {
     try {
       if (reportConfig.targetType === 'message' && reportConfig.targetData) {
@@ -674,17 +673,30 @@ export default function ChatRoomScreen() {
           }
         }
       } else if (reportConfig.targetType === 'room') {
-        await roomService.reportRoom(room.id, data.reason, data.details);
-      }
-
-      if (data.leaveRoom) {
-        // Use context's leaveRoom to update state properly
+        try {
+          await roomService.reportRoom(room.id, data.reason, data.details);
+        } catch (reportError: any) {
+          // Handle "already reported" as success (idempotent)
+          const isAlreadyReported =
+            reportError?.status === 409 ||
+            reportError?.message?.toLowerCase().includes('already reported');
+          
+          if (!isAlreadyReported) {
+            // Re-throw other errors
+            throw reportError;
+          }
+          // Otherwise, treat as success - the report already exists
+          console.log('[ChatRoomScreen] Room already reported - treating as success');
+        }
+        
+        // Auto-leave after reporting room (UX improvement)
         const success = await contextLeaveRoom(room.id);
         if (success) {
           navigation.popToTop();
         } else {
-          // Don't throw - report/block operations succeeded
+          // Don't throw - report succeeded
           console.error('[ChatRoomScreen] Failed to leave room after report');
+          navigation.popToTop(); // Navigate anyway
         }
       }
     } catch (error) {

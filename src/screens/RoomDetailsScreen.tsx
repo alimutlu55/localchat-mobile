@@ -343,21 +343,31 @@ export default function RoomDetailsScreen() {
     reason: ReportReason;
     details: string;
     blockUser: boolean;
-    leaveRoom: boolean;
   }) => {
     try {
       if (reportConfig.targetType === 'room') {
-        await roomService.reportRoom(room.id, data.reason, data.details);
-      }
-
-      if (data.leaveRoom) {
-        // Use context's leaveRoom to update state properly
+        try {
+          await roomService.reportRoom(room.id, data.reason, data.details);
+        } catch (reportError: any) {
+          // Handle "already reported" as success (idempotent)
+          if (reportError?.message?.includes('already reported') || 
+              reportError?.code === 'ALREADY_REPORTED' ||
+              reportError?.status === 409) {
+            console.log('[RoomDetailsScreen] Room already reported - treating as success');
+          } else {
+            // Re-throw other errors
+            throw reportError;
+          }
+        }
+        
+        // Auto-leave after reporting room (UX improvement)
         const success = await contextLeaveRoom(room.id);
         if (success) {
           navigation.popToTop();
         } else {
           // Don't throw, just log - report was submitted successfully
           console.error('[RoomDetailsScreen] Failed to leave room after report');
+          navigation.popToTop(); // Navigate anyway
         }
       }
     } catch (error) {
@@ -572,24 +582,6 @@ export default function RoomDetailsScreen() {
             </>
           )}
 
-          {/* Leave Room */}
-          {hasJoined && !isCreator && (
-            <TouchableOpacity
-              style={styles.actionButton}
-              onPress={handleLeave}
-              disabled={isLeaving}
-            >
-              <View style={[styles.actionIcon, styles.actionIconDanger]}>
-                <LogOut size={20} color="#ef4444" />
-              </View>
-              <View style={styles.actionContent}>
-                <Text style={[styles.actionText, styles.actionTextDanger]}>Leave Room</Text>
-                <Text style={styles.actionSubtext}>Exit this chat</Text>
-              </View>
-              {isLeaving && <ActivityIndicator size="small" color="#ef4444" />}
-            </TouchableOpacity>
-          )}
-
           {/* Share Room */}
           <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
             <View style={[styles.actionIcon, { backgroundColor: '#eff6ff' }]}>
@@ -638,6 +630,24 @@ export default function RoomDetailsScreen() {
               <Text style={styles.joinButtonText}>Join Room</Text>
             )}
           </TouchableOpacity>
+          
+          {/* Small Leave link below main button - only for joined members */}
+          {hasJoined && !isCreator && (
+            <TouchableOpacity
+              style={styles.leaveLinkContainer}
+              onPress={handleLeave}
+              disabled={isLeaving}
+              activeOpacity={0.7}
+            >
+              {isLeaving ? (
+                <ActivityIndicator size="small" color="#64748b" />
+              ) : (
+                <Text style={styles.leaveLink}>
+                  Leave Room • You can rejoin anytime
+                </Text>
+              )}
+            </TouchableOpacity>
+          )}
         </View>
       </ScrollView>
 
@@ -910,6 +920,15 @@ const styles = StyleSheet.create({
   footerAction: {
     marginTop: 8,
     marginBottom: 24,
+  },
+  leaveLinkContainer: {
+    paddingVertical: 12,
+    alignItems: 'center',
+  },
+  leaveLink: {
+    fontSize: 14,
+    color: '#64748b',
+    textAlign: 'center',
   },
   buttonContent: {
     flexDirection: 'row',
