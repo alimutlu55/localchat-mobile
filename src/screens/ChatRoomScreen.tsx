@@ -37,7 +37,6 @@ import {
   MoreVertical,
   Users,
   Info,
-  Plus,
   AlertCircle,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../navigation/types';
@@ -917,9 +916,6 @@ export default function ChatRoomScreen() {
 
         {/* Input */}
         <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-          <TouchableOpacity style={styles.plusButton}>
-            <Plus size={24} color="#64748b" />
-          </TouchableOpacity>
           <View style={styles.inputWrapper}>
             <TextInput
               style={styles.input}
