@@ -29,7 +29,7 @@ import {
   Pressable,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   ArrowLeft,
@@ -71,12 +71,14 @@ export default function ChatRoomScreen() {
   const route = useRoute<ChatRoomRouteProp>();
   const { room: initialRoom } = route.params;
   const { user } = useAuth();
-  const { leaveRoom: contextLeaveRoom, updateRoom: contextUpdateRoom } = useRooms();
+  const { leaveRoom: contextLeaveRoom, updateRoom: contextUpdateRoom, getRoomById } = useRooms();
   const insets = useSafeAreaInsets();
 
-  // Get the latest room data from context if available, otherwise use initial
-  // Use reactive hook to ensure participant count and other fields update in real-time
-  const room = useRoomById(initialRoom.id) || initialRoom;
+  // ALWAYS use the latest room data from context
+  // The initialRoom from route params may have stale data (e.g., old participantCount)
+  // Force a fresh lookup from context which receives WebSocket updates
+  const contextRoom = useRoomById(initialRoom.id);
+  const room = contextRoom || initialRoom;
 
   // State to track if user is creator (can be set from participant list)
   const [isCreatorOverride, setIsCreatorOverride] = useState<boolean | null>(null);
@@ -156,6 +158,32 @@ export default function ChatRoomScreen() {
 
     checkCreatorStatus();
   }, [room.id, room.isCreator, user?.id]);
+
+  /**
+   * Refresh room data when screen comes into focus
+   * This ensures we have the latest participant count and other fields
+   */
+  useFocusEffect(
+    React.useCallback(() => {
+      const refreshRoomData = async () => {
+        try {
+          console.log('[ChatRoomScreen] Screen focused, refreshing room data');
+          const freshRoom = await roomService.getRoom(room.id);
+          contextUpdateRoom(room.id, { participantCount: freshRoom.participantCount });
+        } catch (error) {
+          console.error('[ChatRoomScreen] Failed to refresh room data:', error);
+        }
+      };
+      refreshRoomData();
+    }, [room.id, contextUpdateRoom])
+  );
+
+  /**
+   * Debug: Log when room participant count changes
+   */
+  useEffect(() => {
+    console.log('[ChatRoomScreen] Room participant count updated:', room.participantCount, 'roomId:', room.id);
+  }, [room.participantCount, room.id]);
 
   /**
    * Load message history and subscribe to room

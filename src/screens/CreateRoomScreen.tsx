@@ -39,6 +39,7 @@ import { RootStackParamList } from '../navigation/types';
 import { roomService } from '../services';
 import { RoomCategory, RoomDuration } from '../types';
 import { CATEGORIES } from '../constants';
+import { useRooms } from '../context';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'CreateRoom'>;
 
@@ -80,8 +81,8 @@ const ALLOWED_RADII_METERS = [50, 500, 1000, 5000, 10000, 50000, 100000];
  */
 const RADIUS_OPTIONS = ALLOWED_RADII_METERS.map(meters => ({
   value: meters,
-  label: meters >= 1000 
-    ? `${meters / 1000}km` 
+  label: meters >= 1000
+    ? `${meters / 1000}km`
     : `${meters}m`
 }));
 
@@ -90,6 +91,7 @@ const MAX_DESCRIPTION_LENGTH = 200;
 
 export default function CreateRoomScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const { addCreatedRoom } = useRooms();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -188,6 +190,10 @@ export default function CreateRoomScreen() {
         isCreator: true,
         hasJoined: true,
       };
+
+      // Add room to context so it receives WebSocket updates
+      console.log('[CreateRoomScreen] Adding room to context before navigation');
+      addCreatedRoom(roomWithCreatorFlag);
 
       // Navigate to the new room
       navigation.replace('ChatRoom', { room: roomWithCreatorFlag });
@@ -432,7 +438,7 @@ export default function CreateRoomScreen() {
                     </TouchableOpacity>
                   ))}
                 </View>
-                
+
                 <Text style={styles.radiusHint}>
                   Users must be within this range to see and join your room
                 </Text>

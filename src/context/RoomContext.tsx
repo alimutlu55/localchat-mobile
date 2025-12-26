@@ -60,6 +60,9 @@ interface RoomContextValue {
   isRoomJoined: (roomId: string) => boolean;
   isJoiningRoom: (roomId: string) => boolean;
   isLeavingRoom: (roomId: string) => boolean;
+
+  // Helper to add a created room to context
+  addCreatedRoom: (room: Room) => void;
 }
 
 const RoomContext = createContext<RoomContextValue | null>(null);
@@ -196,6 +199,14 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  // Add a created room to context (called when user creates a room)
+  const addCreatedRoom = useCallback((room: Room) => {
+    console.log('[RoomContext] Adding created room to context:', room.id);
+    upsertRoom(room);
+    setDiscoveredRoomIds(prev => new Set(prev).add(room.id));
+    setJoinedRoomIds(prev => new Set(prev).add(room.id));
+  }, [upsertRoom]);
+
   // ============================================================================
   // Fetch Operations
   // ============================================================================
@@ -212,7 +223,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
 
     try {
       const { rooms: fetchedRooms, hasNext } = await roomService.getNearbyRooms(
-        lat, lng, 
+        lat, lng,
         0,  // page 0
         20, // pageSize
         radius
@@ -564,11 +575,20 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       }
     };
 
+    const handleParticipantCountUpdated = (payload: {
+      roomId: string;
+      participantCount: number;
+    }) => {
+      console.log('[RoomContext] Participant count updated:', payload.roomId, 'count:', payload.participantCount);
+      updateRoom(payload.roomId, { participantCount: payload.participantCount });
+    };
+
     const unsubClosed = wsService.on(WS_EVENTS.ROOM_CLOSED, handleRoomClosed);
     const unsubUpdated = wsService.on(WS_EVENTS.ROOM_UPDATED, handleRoomUpdated);
     const unsubLeft = wsService.on(WS_EVENTS.USER_LEFT, handleUserLeft);
     const unsubJoined = wsService.on(WS_EVENTS.USER_JOINED, handleUserJoined);
     const unsubCreated = wsService.on(WS_EVENTS.ROOM_CREATED, handleRoomCreated);
+    const unsubParticipantCount = wsService.on(WS_EVENTS.PARTICIPANT_COUNT, handleParticipantCountUpdated);
 
     return () => {
       unsubClosed();
@@ -576,6 +596,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       unsubLeft();
       unsubJoined();
       unsubCreated();
+      unsubParticipantCount();
     };
   }, [user?.id, removeRoom, updateRoom, upsertRoom, joiningRoomIds]);
 
@@ -614,6 +635,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     isRoomJoined,
     isJoiningRoom,
     isLeavingRoom,
+    addCreatedRoom,      // NEW
   }), [
     roomsById,
     discoveredRooms,
@@ -635,6 +657,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     isRoomJoined,
     isJoiningRoom,
     isLeavingRoom,
+    addCreatedRoom,      // NEW
   ]);
 
   return (

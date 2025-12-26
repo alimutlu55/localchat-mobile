@@ -36,8 +36,16 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { Room } from '../types';
 import { useRooms, useIsRoomJoined } from '../context';
+import { CATEGORIES } from '../constants';
 
-const CATEGORIES = ['All', 'Food', 'Social', 'Technology', 'Music', 'Gaming', 'Health', 'Education'];
+// Build category filter options: ['All', 'Food & Dining', 'Events', ...]
+const CATEGORY_FILTERS = ['All', ...CATEGORIES.map(cat => cat.label)];
+
+// Helper to get category label from ID
+const getCategoryLabel = (categoryId: string): string => {
+    const category = CATEGORIES.find(cat => cat.id === categoryId);
+    return category?.label || categoryId;
+};
 
 type SortOption = 'nearest' | 'most-active' | 'expiring-soon' | 'newest';
 
@@ -119,6 +127,9 @@ const RoomListItem = memo(function RoomListItem({
     onEnterRoom?: (room: Room) => void;
 }) {
     const [isJoining, setIsJoining] = useState(false);
+
+    // Debug logging for participant count changes
+    console.log('[RoomListItem] Room:', room.id, 'participantCount:', room.participantCount);
 
     // No local joinSuccess state - rely entirely on hasJoined from context
     // This prevents stale state when user leaves and returns
@@ -232,7 +243,7 @@ const RoomListItem = memo(function RoomListItem({
                     <View style={styles.bottomMetaRow}>
                         <View style={styles.badgesWrapper}>
                             <View style={styles.categoryBadge}>
-                                <Text style={styles.categoryBadgeText}>{room.category}</Text>
+                                <Text style={styles.categoryBadgeText}>{getCategoryLabel(room.category)}</Text>
                             </View>
                             <View style={styles.timeBadge}>
                                 <Clock size={12} color={getTimeColor()} />
@@ -328,7 +339,7 @@ export function RoomListView({
     // Subscribe to myRooms to force re-render when join/leave state changes
     // NEW: Also subscribe to pagination state
     const { myRooms, isLoadingMore, hasMoreRooms, loadMoreRooms } = useRooms();
-    
+
     // Store user location for pagination (TODO: Get from parent or location service)
     const [userLocation] = useState({ lat: 41.0082, lng: 28.9784 });
 
@@ -349,9 +360,13 @@ export function RoomListView({
 
         // Category filter
         if (selectedCategory !== 'All') {
-            filtered = filtered.filter((room) =>
-                room.category.toLowerCase() === selectedCategory.toLowerCase()
-            );
+            // Find the category ID from the label
+            const categoryConfig = CATEGORIES.find(cat => cat.label === selectedCategory);
+            if (categoryConfig) {
+                filtered = filtered.filter((room) =>
+                    room.category === categoryConfig.id
+                );
+            }
         }
 
         // Sort
@@ -513,7 +528,7 @@ export function RoomListView({
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.categoriesContent}
                 >
-                    {CATEGORIES.map((category) => (
+                    {CATEGORY_FILTERS.map((category) => (
                         <CategoryChip
                             key={category}
                             label={category}
@@ -558,7 +573,7 @@ export function RoomListView({
                                     <Text style={styles.loadingMoreText}>Loading more rooms...</Text>
                                 </View>
                             )}
-                            
+
                             {/* End of list message */}
                             {!isLoadingMore && !hasMoreRooms && !searchQuery && filteredRooms.length > 0 && (
                                 <View style={styles.endOfListContainer}>
@@ -567,7 +582,7 @@ export function RoomListView({
                                     </Text>
                                 </View>
                             )}
-                            
+
                             {/* Room count */}
                             <Text style={styles.footer}>
                                 {filteredRooms.length} {filteredRooms.length === 1 ? 'room' : 'rooms'} found
