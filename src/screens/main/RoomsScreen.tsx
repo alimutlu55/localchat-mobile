@@ -69,10 +69,16 @@ export default function RoomsScreen() {
   };
 
   /**
-   * Navigate to room
+   * Navigate to room - check if user needs to join first
    */
   const handleRoomPress = (room: Room) => {
-    navigation.navigate('ChatRoom', { room });
+    // If user hasn't joined (e.g., was kicked), show room details with join button
+    // Otherwise, go directly to chat
+    if (!room.hasJoined && !room.isCreator) {
+      navigation.navigate('RoomDetails', { room });
+    } else {
+      navigation.navigate('ChatRoom', { room });
+    }
   };
 
   /**

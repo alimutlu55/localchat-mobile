@@ -74,14 +74,17 @@ export interface UserLeftPayload {
 
 export interface UserKickedPayload {
   roomId: string;
-  userId: string;
-  reason?: string;
+  kickedUserId: string;
+  kickedBy: string;
+  displayName?: string;
 }
 
 export interface UserBannedPayload {
   roomId: string;
-  userId: string;
+  bannedUserId: string;
+  bannedBy: string;
   reason?: string;
+  displayName?: string;
 }
 
 export interface RoomClosedPayload {

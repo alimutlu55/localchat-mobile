@@ -43,7 +43,6 @@ import { RootStackParamList } from '../navigation/types';
 import { wsService, messageService, blockService, roomService, WS_EVENTS } from '../services';
 import { ChatMessage, Room, MessageStatus } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { useRoomById } from '../context/RoomContext';
 import { useRooms } from '../context/RoomContext';
 import {
   MessageBubble,
@@ -71,19 +70,14 @@ export default function ChatRoomScreen() {
   const route = useRoute<ChatRoomRouteProp>();
   const { room: initialRoom } = route.params;
   const { user } = useAuth();
-  const { leaveRoom: contextLeaveRoom, updateRoom: contextUpdateRoom, getRoomById } = useRooms();
+  const { updateRoom: contextUpdateRoom, leaveRoom: contextLeaveRoom } = useRooms();
   const insets = useSafeAreaInsets();
 
-  // ALWAYS use the latest room data from context
-  // The initialRoom from route params may have stale data (e.g., old participantCount)
-  // Force a fresh lookup from context which receives WebSocket updates
-  const contextRoom = useRoomById(initialRoom.id);
-  const room = contextRoom || initialRoom;
-
-  // State to track if user is creator (can be set from participant list)
+  // ============================================================================
+  // SIMPLE STATE: Use initialRoom, update via WebSocket events
+  // ============================================================================
+  const [room, setRoom] = useState<Room>(initialRoom);
   const [isCreatorOverride, setIsCreatorOverride] = useState<boolean | null>(null);
-
-  // Determine if user is creator: use override if set, otherwise use room flag
   const isCreator = isCreatorOverride !== null ? isCreatorOverride : (room.isCreator || false);
 
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -149,8 +143,6 @@ export default function ChatRoomScreen() {
         if (currentUserParticipant?.role === 'creator') {
           console.log('[ChatRoomScreen] User is creator (detected from participants)');
           setIsCreatorOverride(true);
-          // Also update the room in context
-          contextUpdateRoom(room.id, { isCreator: true });
         }
       } catch (err) {
         console.error('[ChatRoomScreen] Failed to check creator status:', err);
@@ -162,17 +154,23 @@ export default function ChatRoomScreen() {
 
   /**
    * Refresh room data when screen comes into focus
-   * This ensures we have the latest participant count and other fields
+   * useRoomSubscription already handles this, but we can trigger manual refresh
+   */
+  /**
+   * Refresh room data when screen comes into focus
    */
   useFocusEffect(
     React.useCallback(() => {
       const refreshRoomData = async () => {
         try {
-          console.log('[ChatRoomScreen] Screen focused, refreshing room data');
           const freshRoom = await roomService.getRoom(room.id);
+          setRoom(prev => ({
+            ...prev,
+            participantCount: freshRoom.participantCount,
+          }));
           contextUpdateRoom(room.id, { participantCount: freshRoom.participantCount });
-        } catch (error) {
-          console.error('[ChatRoomScreen] Failed to refresh room data:', error);
+        } catch (e) {
+          console.warn('[ChatRoomScreen] Could not refresh room data on focus');
         }
       };
       refreshRoomData();
@@ -187,30 +185,63 @@ export default function ChatRoomScreen() {
   }, [room.participantCount, room.id]);
 
   /**
-   * Load message history and subscribe to room
+   * SIMPLE INITIALIZATION: Load room and messages on mount
+   * If user is not a participant, redirect to RoomDetails
    */
   useEffect(() => {
-    const loadMessages = async () => {
+    let isMounted = true;
+
+    const initializeRoom = async () => {
       try {
+        // Step 1: Try to load messages - this will fail if user is not a participant
         const { messages: history } = await messageService.getHistory(room.id);
-        // Backend returns messages in chronological order (oldest first).
-        // Since we are NOT using 'inverted' prop on FlatList, this order 
-        // is correct for displaying messages from top to bottom.
+        
+        if (!isMounted) return;
+        
         setMessages(history);
-      } catch (error) {
-        console.error('Failed to load messages:', error);
-        Alert.alert('Error', 'Failed to load room messages. Please try again.');
-      } finally {
+        setIsLoading(false);
+        
+        // Step 2: Subscribe to WebSocket for real-time updates
+        wsService.subscribe(room.id);
+        
+        // Step 3: Fetch fresh room data for accurate participant count
+        try {
+          const freshRoom = await roomService.getRoom(room.id);
+          if (isMounted) {
+            setRoom(prev => ({
+              ...prev,
+              participantCount: freshRoom.participantCount,
+            }));
+            contextUpdateRoom(room.id, { participantCount: freshRoom.participantCount });
+          }
+        } catch (e) {
+          console.warn('[ChatRoomScreen] Could not refresh room data:', e);
+        }
+        
+      } catch (error: any) {
+        console.error('[ChatRoomScreen] Failed to initialize room:', error);
+        
+        if (!isMounted) return;
+        
+        // If user is not a participant (kicked/banned), redirect to RoomDetails
+        if (error?.message?.includes('must be in the room') || 
+            error?.message?.includes('not a participant') ||
+            error?.response?.status === 403) {
+          console.log('[ChatRoomScreen] User not in room, redirecting to RoomDetails');
+          navigation.replace('RoomDetails', { room: initialRoom });
+          return;
+        }
+        
+        // Other errors - show alert
+        Alert.alert('Error', 'Failed to load room. Please try again.');
         setIsLoading(false);
       }
     };
 
-    // Subscribe to room
-    wsService.subscribe(room.id);
-    loadMessages();
+    initializeRoom();
 
-    // Cleanup
     return () => {
+      isMounted = false;
       wsService.unsubscribe(room.id);
     };
   }, [room.id]);
@@ -356,50 +387,77 @@ export default function ChatRoomScreen() {
       const joinedUserId = payload.user?.id;
       const joinedDisplayName = payload.user?.displayName || 'Someone';
 
-      if (payload.roomId === room.id && joinedUserId !== user?.id) {
-        const systemMessage: ChatMessage = {
-          id: `system-join-${Date.now()}`,
-          type: 'system',
-          content: createSystemMessage('user_joined', joinedDisplayName),
-          timestamp: new Date(),
-          userId: 'system',
-          userName: 'System',
-        };
-        setMessages(prev => [...prev, systemMessage]);
+      if (payload.roomId === room.id) {
+        // Update participant count
+        if (payload.participantCount !== undefined) {
+          setRoom(prev => ({ ...prev, participantCount: payload.participantCount }));
+          contextUpdateRoom(room.id, { participantCount: payload.participantCount });
+        }
+        
+        // Show system message for other users joining
+        if (joinedUserId !== user?.id) {
+          const systemMessage: ChatMessage = {
+            id: `system-join-${Date.now()}`,
+            type: 'system',
+            content: createSystemMessage('user_joined', joinedDisplayName),
+            timestamp: new Date(),
+            userId: 'system',
+            userName: 'System',
+          };
+          setMessages(prev => [...prev, systemMessage]);
+        }
       }
     });
 
     // Handle user left
     const unsubscribeUserLeft = wsService.on(WS_EVENTS.USER_LEFT, (payload: any) => {
-      if (payload.roomId === room.id && payload.userId !== user?.id) {
-        const displayNameToUse = payload.displayName || 'Someone';
-
-        const systemMessage: ChatMessage = {
-          id: `system-leave-${Date.now()}`,
-          type: 'system',
-          content: createSystemMessage('user_left', displayNameToUse),
-          timestamp: new Date(),
-          userId: 'system',
-          userName: 'System',
-        };
-        setMessages(prev => [...prev, systemMessage]);
+      if (payload.roomId === room.id) {
+        // Update participant count
+        if (payload.participantCount !== undefined) {
+          setRoom(prev => ({ ...prev, participantCount: payload.participantCount }));
+          contextUpdateRoom(room.id, { participantCount: payload.participantCount });
+        }
+        
+        // Show system message for other users leaving
+        if (payload.userId !== user?.id) {
+          const displayNameToUse = payload.displayName || 'Someone';
+          const systemMessage: ChatMessage = {
+            id: `system-leave-${Date.now()}`,
+            type: 'system',
+            content: createSystemMessage('user_left', displayNameToUse),
+            timestamp: new Date(),
+            userId: 'system',
+            userName: 'System',
+          };
+          setMessages(prev => [...prev, systemMessage]);
+        }
       }
     });
 
     // Handle user kicked (if current user is kicked)
     const unsubscribeUserKicked = wsService.on(WS_EVENTS.USER_KICKED, (payload: any) => {
       if (payload.roomId === room.id) {
-        if (payload.userId === user?.id) {
+        if (payload.kickedUserId === user?.id) {
+          // Current user was kicked - show alert and navigate back
+          // NOTE: RoomContext already handles membership state update
+          console.log('[ChatRoomScreen] Current user kicked, showing alert');
+          
           Alert.alert(
             'Removed from Room',
-            'You have been removed from this room.',
-            [{ text: 'OK', onPress: () => navigation.goBack() }]
+            'You have been removed from this room by the moderator.',
+            [{ 
+              text: 'OK', 
+              onPress: () => {
+                navigation.goBack();
+              }
+            }]
           );
         } else {
+          // Show system message for other user being kicked
           const systemMessage: ChatMessage = {
             id: `system-kick-${Date.now()}`,
             type: 'system',
-            content: createSystemMessage('user_kicked', payload.displayName || 'Someone'),
+            content: createSystemMessage('user_kicked', payload.displayName || 'A user'),
             timestamp: new Date(),
             userId: 'system',
             userName: 'System',
@@ -412,23 +470,42 @@ export default function ChatRoomScreen() {
     // Handle user banned (if current user is banned)
     const unsubscribeUserBanned = wsService.on(WS_EVENTS.USER_BANNED, (payload: any) => {
       if (payload.roomId === room.id) {
-        if (payload.userId === user?.id) {
+        if (payload.bannedUserId === user?.id) {
+          // Current user was banned - show alert and navigate back
+          // NOTE: RoomContext already handles membership state update
+          console.log('[ChatRoomScreen] Current user banned, showing alert');
+          
+          const banReason = payload.reason || 'You have been banned from this room.';
           Alert.alert(
             'Banned from Room',
-            payload.reason || 'You have been banned from this room.',
-            [{ text: 'OK', onPress: () => navigation.goBack() }]
+            banReason,
+            [{ 
+              text: 'OK', 
+              onPress: () => {
+                navigation.goBack();
+              }
+            }]
           );
         } else {
+          // Show system message for other user being banned
           const systemMessage: ChatMessage = {
             id: `system-ban-${Date.now()}`,
             type: 'system',
-            content: createSystemMessage('user_banned', payload.displayName || 'Someone'),
+            content: createSystemMessage('user_banned', payload.displayName || 'A user'),
             timestamp: new Date(),
             userId: 'system',
             userName: 'System',
           };
           setMessages(prev => [...prev, systemMessage]);
         }
+      }
+    });
+
+    // Handle participant count updates
+    const unsubscribeParticipantCount = wsService.on(WS_EVENTS.PARTICIPANT_COUNT, (payload: any) => {
+      if (payload.roomId === room.id && payload.participantCount !== undefined) {
+        setRoom(prev => ({ ...prev, participantCount: payload.participantCount }));
+        contextUpdateRoom(room.id, { participantCount: payload.participantCount });
       }
     });
 
@@ -463,6 +540,7 @@ export default function ChatRoomScreen() {
       unsubscribeUserLeft();
       unsubscribeUserKicked();
       unsubscribeUserBanned();
+      unsubscribeParticipantCount();
       unsubscribeConnection();
       unsubscribeReaction();
     };

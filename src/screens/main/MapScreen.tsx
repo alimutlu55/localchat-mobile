@@ -835,7 +835,12 @@ export default function MapScreen() {
         onClose={() => setIsSidebarOpen(false)}
         rooms={myRooms}
         onRoomSelect={(room) => {
-          navigation.navigate('ChatRoom', { room });
+          // Check if user needs to join first (e.g., after being kicked)
+          if (!room.hasJoined && !room.isCreator) {
+            navigation.navigate('RoomDetails', { room });
+          } else {
+            navigation.navigate('ChatRoom', { room });
+          }
         }}
         onProfilePress={() => {
           setIsSidebarOpen(false);

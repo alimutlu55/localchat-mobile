@@ -570,7 +570,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
         emoji: '💬',
         participantCount: roomData.participantCount || 1,
         maxParticipants: 50,
-        distance: undefined, // Distance unknown - will be calculated by UI when user location is available
+        distance: 0, // Distance unknown - will be calculated by UI when user location is available
         expiresAt: roomData.expiresAt ? new Date(roomData.expiresAt) : new Date(Date.now() + 3600000),
         createdAt: new Date(),
         timeRemaining: '1h',
@@ -597,12 +597,99 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       updateRoom(payload.roomId, { participantCount: payload.participantCount });
     };
 
+    // Track processed events to prevent duplicate handling (React StrictMode workaround)
+    const processedKickEvents = new Set<string>();
+    const processedBanEvents = new Set<string>();
+
+    // Handle user kicked - update participant count and membership
+    const handleUserKicked = async (payload: {
+      roomId: string;
+      kickedUserId: string;
+      kickedBy: string;
+    }) => {
+      // Deduplicate events
+      const eventKey = `${payload.roomId}-${payload.kickedUserId}`;
+      if (processedKickEvents.has(eventKey)) {
+        console.log('[RoomContext] Ignoring duplicate kick event:', eventKey);
+        return;
+      }
+      processedKickEvents.add(eventKey);
+      setTimeout(() => processedKickEvents.delete(eventKey), 5000); // Clear after 5s
+      
+      console.log('[RoomContext] User kicked:', payload.kickedUserId, 'from room:', payload.roomId);
+
+      // If current user was kicked, remove from joined rooms
+      if (payload.kickedUserId === user?.id) {
+        console.log('[RoomContext] Current user was kicked - removing from joinedRoomIds');
+        setJoinedRoomIds(prev => {
+          const next = new Set(prev);
+          next.delete(payload.roomId);
+          return next;
+        });
+        wsService.unsubscribe(payload.roomId);
+      }
+
+      // Fetch fresh room data to get updated participant count
+      try {
+        const freshRoom = await roomService.getRoom(payload.roomId);
+        updateRoom(payload.roomId, {
+          participantCount: freshRoom.participantCount,
+          hasJoined: payload.kickedUserId === user?.id ? false : undefined,
+        });
+      } catch (error) {
+        console.error('[RoomContext] Failed to refresh room after kick:', error);
+      }
+    };
+
+    // Handle user banned - update participant count and membership
+    const handleUserBanned = async (payload: {
+      roomId: string;
+      bannedUserId: string;
+      bannedBy: string;
+      reason?: string;
+    }) => {
+      // Deduplicate events
+      const eventKey = `${payload.roomId}-${payload.bannedUserId}`;
+      if (processedBanEvents.has(eventKey)) {
+        console.log('[RoomContext] Ignoring duplicate ban event:', eventKey);
+        return;
+      }
+      processedBanEvents.add(eventKey);
+      setTimeout(() => processedBanEvents.delete(eventKey), 5000); // Clear after 5s
+      
+      console.log('[RoomContext] User banned:', payload.bannedUserId, 'from room:', payload.roomId);
+
+      // If current user was banned, remove from joined rooms
+      if (payload.bannedUserId === user?.id) {
+        console.log('[RoomContext] Current user was banned - removing from joinedRoomIds');
+        setJoinedRoomIds(prev => {
+          const next = new Set(prev);
+          next.delete(payload.roomId);
+          return next;
+        });
+        wsService.unsubscribe(payload.roomId);
+      }
+
+      // Fetch fresh room data to get updated participant count
+      try {
+        const freshRoom = await roomService.getRoom(payload.roomId);
+        updateRoom(payload.roomId, {
+          participantCount: freshRoom.participantCount,
+          hasJoined: payload.bannedUserId === user?.id ? false : undefined,
+        });
+      } catch (error) {
+        console.error('[RoomContext] Failed to refresh room after ban:', error);
+      }
+    };
+
     const unsubClosed = wsService.on(WS_EVENTS.ROOM_CLOSED, handleRoomClosed);
     const unsubUpdated = wsService.on(WS_EVENTS.ROOM_UPDATED, handleRoomUpdated);
     const unsubLeft = wsService.on(WS_EVENTS.USER_LEFT, handleUserLeft);
     const unsubJoined = wsService.on(WS_EVENTS.USER_JOINED, handleUserJoined);
     const unsubCreated = wsService.on(WS_EVENTS.ROOM_CREATED, handleRoomCreated);
     const unsubParticipantCount = wsService.on(WS_EVENTS.PARTICIPANT_COUNT, handleParticipantCountUpdated);
+    const unsubKicked = wsService.on(WS_EVENTS.USER_KICKED, handleUserKicked);
+    const unsubBanned = wsService.on(WS_EVENTS.USER_BANNED, handleUserBanned);
 
     return () => {
       unsubClosed();
@@ -611,6 +698,8 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       unsubJoined();
       unsubCreated();
       unsubParticipantCount();
+      unsubKicked();
+      unsubBanned();
     };
   }, [user?.id, removeRoom, updateRoom, upsertRoom, joiningRoomIds]);
 
@@ -737,6 +826,90 @@ export function useIsJoiningRoom(roomId: string): boolean {
 export function useIsLeavingRoom(roomId: string): boolean {
   const { isLeavingRoom } = useRooms();
   return isLeavingRoom(roomId);
+}
+
+/**
+ * Subscribe to a room with automatic refresh on WebSocket events.
+ * This hook ensures you always have fresh room data.
+ * 
+ * USE THIS in ChatRoomScreen and RoomDetailsScreen instead of route params!
+ * 
+ * @param roomId - The room ID to subscribe to
+ * @returns The latest room data or null if not found
+ */
+export function useRoomSubscription(roomId: string): {
+  room: Room | null;
+  isLoading: boolean;
+  refresh: () => Promise<void>;
+} {
+  const { getRoomById, updateRoom, isRoomJoined } = useRooms();
+  const { user } = useAuth();
+  const [isLoading, setIsLoading] = useState(true);
+  const [room, setRoom] = useState<Room | null>(null);
+
+  // Fetch fresh data function
+  const refresh = useCallback(async () => {
+    try {
+      setIsLoading(true);
+      const freshRoom = await roomService.getRoom(roomId);
+      
+      // Update context cache
+      updateRoom(roomId, freshRoom);
+      setRoom(freshRoom);
+    } catch (error) {
+      console.error('[useRoomSubscription] Failed to fetch room:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [roomId, updateRoom]);
+
+  // Initial fetch
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  // Subscribe to context updates
+  useEffect(() => {
+    const latestRoom = getRoomById(roomId);
+    if (latestRoom) {
+      setRoom(latestRoom);
+    }
+  }, [getRoomById, roomId]);
+
+  // Auto-refresh on WebSocket events for this room
+  useEffect(() => {
+    const handleRoomUpdate = (payload: { roomId: string }) => {
+      if (payload.roomId === roomId) {
+        console.log('[useRoomSubscription] Room updated via WebSocket, refreshing:', roomId);
+        refresh();
+      }
+    };
+
+    const handleParticipantChange = (payload: { roomId: string }) => {
+      if (payload.roomId === roomId) {
+        console.log('[useRoomSubscription] Participant change, refreshing:', roomId);
+        refresh();
+      }
+    };
+
+    const unsubUpdated = wsService.on(WS_EVENTS.ROOM_UPDATED, handleRoomUpdate);
+    const unsubJoined = wsService.on(WS_EVENTS.USER_JOINED, handleParticipantChange);
+    const unsubLeft = wsService.on(WS_EVENTS.USER_LEFT, handleParticipantChange);
+    const unsubKicked = wsService.on(WS_EVENTS.USER_KICKED, handleParticipantChange);
+    const unsubBanned = wsService.on(WS_EVENTS.USER_BANNED, handleParticipantChange);
+    const unsubParticipantCount = wsService.on(WS_EVENTS.PARTICIPANT_COUNT, handleParticipantChange);
+
+    return () => {
+      unsubUpdated();
+      unsubJoined();
+      unsubLeft();
+      unsubKicked();
+      unsubBanned();
+      unsubParticipantCount();
+    };
+  }, [roomId, refresh]);
+
+  return { room, isLoading, refresh };
 }
 
 export default RoomContext;

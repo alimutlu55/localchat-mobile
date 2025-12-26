@@ -143,7 +143,9 @@ const RoomListItem = memo(function RoomListItem({
 
     // Calculate room distance
     const roomDistance = useMemo(() => {
-        if (room.distance !== undefined) {
+        // Only use pre-calculated distance if it's a valid positive value
+        // (distance: 0 or undefined means we need to calculate it)
+        if (room.distance !== undefined && room.distance > 0) {
             return room.distance;
         }
         // Calculate distance from user location if available
@@ -365,7 +367,8 @@ export function RoomListView({
 
     // Helper to get room distance (calculate if not provided)
     const getRoomDistance = useCallback((room: Room): number => {
-        if (room.distance !== undefined) {
+        // Only use pre-calculated distance if it's a valid positive value
+        if (room.distance !== undefined && room.distance > 0) {
             return room.distance;
         }
         // Calculate distance from user location if room has coordinates
