@@ -219,7 +219,32 @@ class ApiClient {
       return {} as T;
     }
 
-    const data = await response.json();
+    // Handle empty body (201 Created with no content, etc.)
+    const text = await response.text();
+    if (!text || text.trim() === '') {
+      if (response.ok) {
+        return {} as T;
+      }
+      throw new ApiError(
+        response.status,
+        'API_ERROR',
+        `Request failed with status ${response.status}`
+      );
+    }
+
+    let data: any;
+    try {
+      data = JSON.parse(text);
+    } catch (e) {
+      if (response.ok) {
+        return {} as T;
+      }
+      throw new ApiError(
+        response.status,
+        'PARSE_ERROR',
+        `Failed to parse response: ${text.substring(0, 100)}`
+      );
+    }
 
     if (!response.ok) {
       const errorResponse = data as ApiErrorResponse;

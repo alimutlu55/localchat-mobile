@@ -115,8 +115,11 @@ export function ParticipantList({
       await roomService.banUser(roomId, showBanDialog.userId, banReason || undefined);
       setParticipants(prev => prev.filter(p => p.userId !== showBanDialog.userId));
       setShowBanDialog(null);
-    } catch (err) {
-      Alert.alert('Error', 'Failed to ban user');
+    } catch (err: any) {
+      console.error('[ParticipantList] Ban failed:', err?.message || err);
+      // Check if ban actually succeeded (user was removed via WebSocket)
+      // This can happen when token refresh race condition occurs
+      Alert.alert('Error', err?.message || 'Failed to ban user');
     } finally {
       setActionInProgress(null);
     }

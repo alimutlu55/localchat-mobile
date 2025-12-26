@@ -345,15 +345,29 @@ export default function RoomDetailsScreen() {
       return;
     }
 
-    // Context handles optimistic updates, just call and navigate on success
-    const success = await contextJoinRoom(room);
+    try {
+      // Context handles optimistic updates, just call and navigate on success
+      const success = await contextJoinRoom(room);
 
-    if (success) {
-      // Replace modal with chat screen for smooth transition
-      navigation.replace('ChatRoom', { room });
-    } else {
-      // Show error alert on failure
-      Alert.alert('Error', 'Failed to join room. Please try again.');
+      if (success) {
+        // Replace modal with chat screen for smooth transition
+        navigation.replace('ChatRoom', { room });
+      } else {
+        // Show error alert on failure
+        Alert.alert('Error', 'Failed to join room. Please try again.');
+      }
+    } catch (error: any) {
+      // Handle specific error types
+      if (error?.code === 'BANNED') {
+        Alert.alert(
+          'Access Denied',
+          'You are banned from this room.',
+          [{ text: 'OK', onPress: () => navigation.goBack() }]
+        );
+      } else {
+        // Generic error
+        Alert.alert('Error', 'Failed to join room. Please try again.');
+      }
     }
   };
 

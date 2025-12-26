@@ -195,15 +195,15 @@ export default function ChatRoomScreen() {
       try {
         // Step 1: Try to load messages - this will fail if user is not a participant
         const { messages: history } = await messageService.getHistory(room.id);
-        
+
         if (!isMounted) return;
-        
+
         setMessages(history);
         setIsLoading(false);
-        
+
         // Step 2: Subscribe to WebSocket for real-time updates
         wsService.subscribe(room.id);
-        
+
         // Step 3: Fetch fresh room data for accurate participant count
         try {
           const freshRoom = await roomService.getRoom(room.id);
@@ -217,21 +217,53 @@ export default function ChatRoomScreen() {
         } catch (e) {
           console.warn('[ChatRoomScreen] Could not refresh room data:', e);
         }
-        
+
       } catch (error: any) {
         console.error('[ChatRoomScreen] Failed to initialize room:', error);
-        
+
         if (!isMounted) return;
-        
-        // If user is not a participant (kicked/banned), redirect to RoomDetails
-        if (error?.message?.includes('must be in the room') || 
-            error?.message?.includes('not a participant') ||
-            error?.response?.status === 403) {
-          console.log('[ChatRoomScreen] User not in room, redirecting to RoomDetails');
+
+        // Extract error message from various possible error structures
+        const errorMessage = error?.message ||
+          error?.data?.message ||
+          error?.error?.message ||
+          error?.response?.data?.message ||
+          '';
+        const errorCode = error?.code || error?.data?.code || error?.error?.code || '';
+        const errorStatus = error?.status || error?.response?.status || 0;
+
+        console.log('[ChatRoomScreen] Error details - message:', errorMessage,
+          'code:', errorCode, 'status:', errorStatus);
+
+        // Check if user is banned from this room
+        const isBanned = errorMessage.toLowerCase().includes('banned') ||
+          errorCode === 'BANNED';
+
+        if (isBanned) {
+          console.log('[ChatRoomScreen] User is banned from room, showing alert and going back');
+          Alert.alert(
+            'Access Denied',
+            'You are banned from this room.',
+            [{ text: 'OK', onPress: () => navigation.goBack() }]
+          );
+          setIsLoading(false);
+          return;
+        }
+
+        // If user is not a participant (kicked/not joined), redirect to RoomDetails
+        // Check both ApiError.status and error message for 403/forbidden
+        const is403 = errorStatus === 403 ||
+          errorMessage.toLowerCase().includes('must be in the room') ||
+          errorMessage.toLowerCase().includes('not a participant') ||
+          errorMessage.toLowerCase().includes('forbidden') ||
+          errorCode === 'FORBIDDEN';
+
+        if (is403) {
+          console.log('[ChatRoomScreen] User not in room (403), redirecting to RoomDetails');
           navigation.replace('RoomDetails', { room: initialRoom });
           return;
         }
-        
+
         // Other errors - show alert
         Alert.alert('Error', 'Failed to load room. Please try again.');
         setIsLoading(false);
@@ -393,7 +425,7 @@ export default function ChatRoomScreen() {
           setRoom(prev => ({ ...prev, participantCount: payload.participantCount }));
           contextUpdateRoom(room.id, { participantCount: payload.participantCount });
         }
-        
+
         // Show system message for other users joining
         if (joinedUserId !== user?.id) {
           const systemMessage: ChatMessage = {
@@ -417,7 +449,7 @@ export default function ChatRoomScreen() {
           setRoom(prev => ({ ...prev, participantCount: payload.participantCount }));
           contextUpdateRoom(room.id, { participantCount: payload.participantCount });
         }
-        
+
         // Show system message for other users leaving
         if (payload.userId !== user?.id) {
           const displayNameToUse = payload.displayName || 'Someone';
@@ -441,12 +473,12 @@ export default function ChatRoomScreen() {
           // Current user was kicked - show alert and navigate back
           // NOTE: RoomContext already handles membership state update
           console.log('[ChatRoomScreen] Current user kicked, showing alert');
-          
+
           Alert.alert(
             'Removed from Room',
             'You have been removed from this room by the moderator.',
-            [{ 
-              text: 'OK', 
+            [{
+              text: 'OK',
               onPress: () => {
                 navigation.goBack();
               }
@@ -474,13 +506,13 @@ export default function ChatRoomScreen() {
           // Current user was banned - show alert and navigate back
           // NOTE: RoomContext already handles membership state update
           console.log('[ChatRoomScreen] Current user banned, showing alert');
-          
+
           const banReason = payload.reason || 'You have been banned from this room.';
           Alert.alert(
             'Banned from Room',
             banReason,
-            [{ 
-              text: 'OK', 
+            [{
+              text: 'OK',
               onPress: () => {
                 navigation.goBack();
               }

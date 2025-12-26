@@ -377,7 +377,25 @@ export function RoomProvider({ children }: { children: ReactNode }) {
         return true;
       }
 
-      // Rollback
+      // Check if user is banned from this room - throw a special error
+      const errorMessage = err?.message || err?.data?.message || err?.error?.message || '';
+      const isBanned = errorMessage.toLowerCase().includes('banned');
+
+      if (isBanned) {
+        console.log('[RoomContext] User is banned from room:', roomId);
+        // Rollback optimistic update
+        setJoinedRoomIds(prev => {
+          const next = new Set(prev);
+          next.delete(roomId);
+          return next;
+        });
+        // Throw a specific error that callers can detect
+        const bannedError = new Error('You are banned from this room.');
+        (bannedError as any).code = 'BANNED';
+        throw bannedError;
+      }
+
+      // Rollback for other errors
       console.error('[RoomContext] Join failed:', err);
       setJoinedRoomIds(prev => {
         const next = new Set(prev);
@@ -545,10 +563,10 @@ export function RoomProvider({ children }: { children: ReactNode }) {
 
       // Rule 1: If current user created this room, always add it
       const isCreator = roomData.creatorId === user?.id;
-      
+
       // Rule 2: If room is global (radius = 0), add it for everyone
       const isGlobalRoom = roomData.radiusMeters === 0;
-      
+
       // Rule 3: If room is nearby (radius > 0) and user is not creator, 
       // let them discover it via /discover API which has proper distance filtering
       if (!isCreator && !isGlobalRoom) {
@@ -582,7 +600,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
 
       upsertRoom(newRoom);
       setDiscoveredRoomIds(prev => new Set(prev).add(newRoom.id));
-      
+
       // Only add to joined rooms if user is the creator
       if (isCreator) {
         setJoinedRoomIds(prev => new Set(prev).add(newRoom.id));
@@ -615,7 +633,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       }
       processedKickEvents.add(eventKey);
       setTimeout(() => processedKickEvents.delete(eventKey), 5000); // Clear after 5s
-      
+
       console.log('[RoomContext] User kicked:', payload.kickedUserId, 'from room:', payload.roomId);
 
       // If current user was kicked, remove from joined rooms
@@ -656,26 +674,33 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       }
       processedBanEvents.add(eventKey);
       setTimeout(() => processedBanEvents.delete(eventKey), 5000); // Clear after 5s
-      
+
       console.log('[RoomContext] User banned:', payload.bannedUserId, 'from room:', payload.roomId);
 
-      // If current user was banned, remove from joined rooms
+      // If current user was banned, remove from joined rooms AND discovered rooms
       if (payload.bannedUserId === user?.id) {
-        console.log('[RoomContext] Current user was banned - removing from joinedRoomIds');
+        console.log('[RoomContext] Current user was banned - removing from joinedRoomIds and discoveredRoomIds');
         setJoinedRoomIds(prev => {
           const next = new Set(prev);
           next.delete(payload.roomId);
           return next;
         });
+        // Also remove from discovered rooms so it disappears from list/map
+        setDiscoveredRoomIds(prev => {
+          const next = new Set(prev);
+          next.delete(payload.roomId);
+          return next;
+        });
         wsService.unsubscribe(payload.roomId);
+        // No need to fetch fresh room data since we're removing the room entirely
+        return;
       }
 
-      // Fetch fresh room data to get updated participant count
+      // For other users being banned, fetch fresh room data to get updated participant count
       try {
         const freshRoom = await roomService.getRoom(payload.roomId);
         updateRoom(payload.roomId, {
           participantCount: freshRoom.participantCount,
-          hasJoined: payload.bannedUserId === user?.id ? false : undefined,
         });
       } catch (error) {
         console.error('[RoomContext] Failed to refresh room after ban:', error);
@@ -852,7 +877,7 @@ export function useRoomSubscription(roomId: string): {
     try {
       setIsLoading(true);
       const freshRoom = await roomService.getRoom(roomId);
-      
+
       // Update context cache
       updateRoom(roomId, freshRoom);
       setRoom(freshRoom);
