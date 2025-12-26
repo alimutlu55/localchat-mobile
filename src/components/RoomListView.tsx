@@ -131,8 +131,20 @@ const RoomListItem = memo(function RoomListItem({
     };
 
     const formatDistance = (meters: number): string => {
-        if (meters < 1000) return `${Math.round(meters)}m`;
-        return `${(meters / 1000).toFixed(1)}km`;
+        if (meters < 1000) {
+            return `${Math.round(meters)}m away`;
+        }
+        const km = meters / 1000;
+        if (km < 10) {
+            return `${km.toFixed(1)}km away`;
+        }
+        return `${Math.round(km)}km away`;
+    };
+
+    const getDistanceColor = (meters: number): string => {
+        if (meters < 500) return '#16a34a'; // Green - very close
+        if (meters < 2000) return '#ea580c'; // Orange - nearby
+        return '#6b7280'; // Gray - far
     };
 
     const getGradientColors = () => {
@@ -209,8 +221,10 @@ const RoomListItem = memo(function RoomListItem({
                             </Text>
                         </View>
                         <View style={styles.metaItem}>
-                            <MapPin size={14} color="#6b7280" />
-                            <Text style={styles.metaText}>{formatDistance(room.distance || 0)}</Text>
+                            <MapPin size={14} color={getDistanceColor(room.distance || 0)} />
+                            <Text style={[styles.metaText, { color: getDistanceColor(room.distance || 0), fontWeight: '600' }]}>
+                                {formatDistance(room.distance || 0)}
+                            </Text>
                         </View>
                     </View>
 
@@ -312,7 +326,11 @@ export function RoomListView({
     const [isJoining, setIsJoining] = useState(false);
 
     // Subscribe to myRooms to force re-render when join/leave state changes
-    const { myRooms } = useRooms();
+    // NEW: Also subscribe to pagination state
+    const { myRooms, isLoadingMore, hasMoreRooms, loadMoreRooms } = useRooms();
+    
+    // Store user location for pagination (TODO: Get from parent or location service)
+    const [userLocation] = useState({ lat: 41.0082, lng: 28.9784 });
 
     // Filter and sort rooms
     const filteredRooms = useMemo(() => {
@@ -408,6 +426,15 @@ export function RoomListView({
             setIsJoining(false);
         }
     };
+
+    // NEW: Handle infinite scroll - load more rooms when user reaches bottom
+    const handleLoadMore = useCallback(() => {
+        if (!isLoadingMore && hasMoreRooms && !searchQuery) {
+            // Only load more if not searching (search results are locally filtered)
+            console.log('[RoomListView] Loading more rooms...');
+            loadMoreRooms(userLocation.lat, userLocation.lng);
+        }
+    }, [isLoadingMore, hasMoreRooms, searchQuery, loadMoreRooms, userLocation]);
 
     if (isLoading) {
         return (
@@ -523,10 +550,32 @@ export function RoomListView({
                         </View>
                     )}
                     ListFooterComponent={() => (
-                        <Text style={styles.footer}>
-                            {filteredRooms.length} {filteredRooms.length === 1 ? 'room' : 'rooms'} found
-                        </Text>
+                        <>
+                            {/* Loading more indicator */}
+                            {isLoadingMore && (
+                                <View style={styles.loadingMoreContainer}>
+                                    <ActivityIndicator size="small" color="#f97316" />
+                                    <Text style={styles.loadingMoreText}>Loading more rooms...</Text>
+                                </View>
+                            )}
+                            
+                            {/* End of list message */}
+                            {!isLoadingMore && !hasMoreRooms && !searchQuery && filteredRooms.length > 0 && (
+                                <View style={styles.endOfListContainer}>
+                                    <Text style={styles.endOfListText}>
+                                        ✓ All nearby rooms loaded
+                                    </Text>
+                                </View>
+                            )}
+                            
+                            {/* Room count */}
+                            <Text style={styles.footer}>
+                                {filteredRooms.length} {filteredRooms.length === 1 ? 'room' : 'rooms'} found
+                            </Text>
+                        </>
                     )}
+                    onEndReached={handleLoadMore}
+                    onEndReachedThreshold={0.5}
                     contentContainerStyle={styles.roomListContent}
                     showsVerticalScrollIndicator={false}
                     removeClippedSubviews={true}
@@ -1034,6 +1083,27 @@ const styles = StyleSheet.create({
         fontSize: 13,
         color: '#6b7280',
         paddingVertical: 16,
+    },
+    loadingMoreContainer: {
+        flexDirection: 'row',
+        justifyContent: 'center',
+        alignItems: 'center',
+        paddingVertical: 20,
+        gap: 12,
+    },
+    loadingMoreText: {
+        fontSize: 14,
+        color: '#6b7280',
+        fontWeight: '500',
+    },
+    endOfListContainer: {
+        paddingVertical: 20,
+        alignItems: 'center',
+    },
+    endOfListText: {
+        fontSize: 13,
+        color: '#16a34a',
+        fontWeight: '600',
     },
 });
 

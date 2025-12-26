@@ -36,7 +36,12 @@ interface RoomContextValue {
 
   // Loading states
   isLoading: boolean;
+  isLoadingMore: boolean;       // NEW: Loading more rooms (pagination)
   error: string | null;
+
+  // Pagination state
+  hasMoreRooms: boolean;        // NEW: Whether more rooms are available
+  currentPage: number;          // NEW: Current page number
 
   // Selection
   selectedRoom: Room | null;
@@ -44,6 +49,7 @@ interface RoomContextValue {
 
   // Actions
   fetchDiscoveredRooms: (lat: number, lng: number, radius?: number) => Promise<void>;
+  loadMoreRooms: (lat: number, lng: number, radius?: number) => Promise<void>; // NEW
   fetchMyRooms: () => Promise<void>;
   joinRoom: (room: Room) => Promise<boolean>;
   leaveRoom: (roomId: string) => Promise<boolean>;
@@ -83,8 +89,13 @@ export function RoomProvider({ children }: { children: ReactNode }) {
   // ============================================================================
 
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingMore, setIsLoadingMore] = useState(false); // NEW: For pagination
   const [error, setError] = useState<string | null>(null);
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(0);
+  const [hasMoreRooms, setHasMoreRooms] = useState(true);
 
   // Optimistic UI tracking
   const [joiningRoomIds, setJoiningRoomIds] = useState<Set<string>>(new Set());
@@ -194,15 +205,21 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     lng: number,
     radius?: number
   ) => {
-    console.log('[RoomContext] Fetching discovered rooms');
+    console.log('[RoomContext] Fetching discovered rooms (page 0)');
     setIsLoading(true);
     setError(null);
+    setCurrentPage(0); // Reset to first page
 
     try {
-      const fetchedRooms = await roomService.getNearbyRooms(lat, lng, radius);
-      console.log('[RoomContext] Fetched', fetchedRooms.length, 'rooms');
+      const { rooms: fetchedRooms, hasNext } = await roomService.getNearbyRooms(
+        lat, lng, 
+        0,  // page 0
+        20, // pageSize
+        radius
+      );
+      console.log('[RoomContext] Fetched', fetchedRooms.length, 'rooms, hasNext:', hasNext);
 
-      // Update the room store
+      // Replace discovered rooms (not append)
       const newDiscoveredIds = new Set<string>();
       fetchedRooms.forEach((room: Room) => {
         upsertRoom(room);
@@ -215,6 +232,8 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       });
 
       setDiscoveredRoomIds(newDiscoveredIds);
+      setHasMoreRooms(hasNext);
+      setCurrentPage(1); // Next page will be 1
     } catch (err) {
       console.error('[RoomContext] Failed to fetch rooms:', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch rooms');
@@ -222,6 +241,50 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
     }
   }, [upsertRoom]);
+
+  const loadMoreRooms = useCallback(async (
+    lat: number,
+    lng: number,
+    radius?: number
+  ) => {
+    // Prevent multiple simultaneous loads
+    if (isLoadingMore || !hasMoreRooms) {
+      console.log('[RoomContext] Skip loadMore - isLoadingMore:', isLoadingMore, 'hasMore:', hasMoreRooms);
+      return;
+    }
+
+    console.log('[RoomContext] Loading more rooms (page', currentPage, ')');
+    setIsLoadingMore(true);
+
+    try {
+      const { rooms: fetchedRooms, hasNext } = await roomService.getNearbyRooms(
+        lat, lng,
+        currentPage,
+        20,
+        radius
+      );
+      console.log('[RoomContext] Loaded', fetchedRooms.length, 'more rooms, hasNext:', hasNext);
+
+      // Append to discovered rooms (not replace)
+      fetchedRooms.forEach((room: Room) => {
+        upsertRoom(room);
+        setDiscoveredRoomIds(prev => new Set(prev).add(room.id));
+
+        // Update membership if indicated
+        if (room.hasJoined || room.isCreator) {
+          setJoinedRoomIds(prev => new Set(prev).add(room.id));
+        }
+      });
+
+      setHasMoreRooms(hasNext);
+      setCurrentPage(prev => prev + 1);
+    } catch (err) {
+      console.error('[RoomContext] Failed to load more rooms:', err);
+      setError(err instanceof Error ? err.message : 'Failed to load more rooms');
+    } finally {
+      setIsLoadingMore(false);
+    }
+  }, [currentPage, hasMoreRooms, isLoadingMore, upsertRoom]);
 
   const fetchMyRooms = useCallback(async () => {
     console.log('[RoomContext] Fetching my rooms');
@@ -535,10 +598,14 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     activeRooms,
     myRooms,
     isLoading,
+    isLoadingMore,      // NEW
     error,
+    hasMoreRooms,       // NEW
+    currentPage,        // NEW
     selectedRoom,
     setSelectedRoom,
     fetchDiscoveredRooms,
+    loadMoreRooms,      // NEW
     fetchMyRooms,
     joinRoom,
     leaveRoom,
@@ -553,9 +620,13 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     activeRooms,
     myRooms,
     isLoading,
+    isLoadingMore,      // NEW
     error,
+    hasMoreRooms,       // NEW
+    currentPage,        // NEW
     selectedRoom,
     fetchDiscoveredRooms,
+    loadMoreRooms,      // NEW
     fetchMyRooms,
     joinRoom,
     leaveRoom,

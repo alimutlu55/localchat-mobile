@@ -136,31 +136,56 @@ function formatTimeRemaining(ms: number): string {
  */
 class RoomService {
   /**
-   * Get nearby rooms via /rooms/discover endpoint
-   * Backend returns: { data: { content: RoomDTO[], hasNext: boolean, ... } }
+   * Get nearby rooms via /rooms/discover endpoint with pagination support
+   * Backend returns: { data: { content: RoomDTO[], page, pageSize, hasNext, ... } }
+   * 
+   * @param latitude User's latitude
+   * @param longitude User's longitude
+   * @param page Page number (0-indexed), default 0
+   * @param pageSize Number of rooms per page, default 20
+   * @param radius Optional search radius (for display purposes)
+   * @param category Optional category filter
+   * @returns Paginated room results with hasNext indicator
    */
   async getNearbyRooms(
     latitude: number,
     longitude: number,
-    radius: number = 5000,
-    sortBy: RoomSortBy = 'distance',
+    page: number = 0,
+    pageSize: number = 20,
+    radius?: number,
     category?: RoomCategory
-  ): Promise<Room[]> {
+  ): Promise<{ rooms: Room[]; hasNext: boolean; totalElements: number }> {
     const randomized = randomizeForDiscovery(latitude, longitude);
 
     const params = new URLSearchParams({
       latitude: randomized.lat.toString(),
       longitude: randomized.lng.toString(),
-      radiusMeters: radius.toString(),
+      page: page.toString(),
+      pageSize: pageSize.toString(),
     });
+
+    if (radius) {
+      params.append('radiusMeters', radius.toString());
+    }
 
     if (category) {
       params.append('category', category);
     }
 
-    // Backend wraps response in ApiResponse { data: ... }
-    const response = await api.get<{ data: { content: RoomDTO[] } }>(`/rooms/discover?${params}`);
-    return response.data.content.map(transformRoom);
+    // Backend wraps response in ApiResponse { data: PagedResult<RoomDTO> }
+    const response = await api.get<{ data: { 
+      content: RoomDTO[];
+      page: number;
+      pageSize: number;
+      totalElements: number;
+      hasNext: boolean;
+    } }>(`/rooms/discover?${params}`);
+    
+    return {
+      rooms: response.data.content.map(transformRoom),
+      hasNext: response.data.hasNext,
+      totalElements: response.data.totalElements,
+    };
   }
 
   /**
