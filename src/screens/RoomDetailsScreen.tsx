@@ -2,6 +2,11 @@
  * Room Details Screen
  *
  * Shows room information, participants, and actions.
+ *
+ * Architecture:
+ * - Uses useRoom hook for room data (with caching)
+ * - Uses useRoomActions for join/leave operations
+ * - Falls back to route params for initial render
  */
 
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
@@ -39,8 +44,8 @@ import { RootStackParamList } from '../navigation/types';
 import { roomService, ParticipantDTO, messageService, wsService, WS_EVENTS } from '../services';
 import { Room, ChatMessage } from '../types';
 import { useAuth } from '../context/AuthContext';
-import { useRooms, useIsRoomJoined, useIsJoiningRoom, useRoomById } from '../context/RoomContext';
-import { useRoomActions } from '../features/rooms/hooks';
+import { useRooms, useIsRoomJoined, useIsJoiningRoom } from '../context/RoomContext';
+import { useRoom, useRoomActions } from '../features/rooms/hooks';
 import { ROOM_CONFIG, executeJoinWithMinLoading } from '../constants';
 import { BannedUsersModal } from '../components/room/BannedUsersModal';
 import { ReportModal, ReportReason } from '../components/chat/ReportModal';
@@ -103,7 +108,16 @@ export default function RoomDetailsScreen() {
   const route = useRoute<RoomDetailsRouteProp>();
   const { room: initialRoom } = route.params;
   const { user } = useAuth();
-  const { updateRoom } = useRooms();
+  const { updateRoom: updateRoomContext } = useRooms();
+
+  // Use new useRoom hook for room data with caching
+  // Falls back to initialRoom while loading
+  const { room: cachedRoom, refresh: refreshRoom } = useRoom(initialRoom.id, {
+    skipFetchIfCached: false, // Always fetch fresh data
+  });
+  
+  // Merge: prefer cached room (has latest data), fallback to initial
+  const room = cachedRoom || initialRoom;
   
   // Use new useRoomActions hook for join/leave/close operations
   const { 
@@ -117,10 +131,6 @@ export default function RoomDetailsScreen() {
   // Use centralized hooks for joined status and optimistic UI
   const hasJoined = useIsRoomJoined(initialRoom.id);
   const isJoiningOptimistic = useIsJoiningRoom(initialRoom.id);
-
-  // Get the latest room data from context if available, otherwise use initial
-  // Use the reactive hook to ensure participant count updates in real-time
-  const room = useRoomById(initialRoom.id) || initialRoom;
 
   const [participants, setParticipants] = useState<ParticipantDTO[]>([]);
   const [recentMessages, setRecentMessages] = useState<ChatMessage[]>([]);
@@ -151,7 +161,7 @@ export default function RoomDetailsScreen() {
 
         // SYNC: Update RoomContext cache with actual participant count
         // This ensures room.participantCount matches the actual list
-        updateRoom(room.id, { participantCount: data.length });
+        updateRoomContext(room.id, { participantCount: data.length });
       } catch (error) {
         log.error('Failed to load participants', error);
       } finally {

@@ -6,6 +6,12 @@
  * - ONE Set<roomId> tracks which rooms user has joined
  * - All views (map, list, sidebar) derive from these two sources
  * - No duplicate room objects with different states
+ *
+ * Note: This context is being incrementally refactored.
+ * New code should use:
+ * - useRoomCache() for caching
+ * - useRoom(id) for individual room data
+ * - useRoomActions() for join/leave operations
  */
 
 import React, {
@@ -20,6 +26,10 @@ import React, {
 import { Room } from '../types';
 import { roomService, wsService, WS_EVENTS } from '../services';
 import { useAuth } from './AuthContext';
+import { useRoomCache } from '../features/rooms/context/RoomCacheContext';
+import { createLogger } from '../shared/utils/logger';
+
+const log = createLogger('RoomContext');
 
 // ============================================================================
 // Types
@@ -135,7 +145,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
 
   // User's rooms (for sidebar)
   const myRooms = useMemo(() => {
-    console.log('[RoomContext] Computing myRooms, joinedRoomIds:', Array.from(joinedRoomIds));
+    log.debug('Computing myRooms', { joinedCount: joinedRoomIds.size });
     const rooms: Room[] = [];
     joinedRoomIds.forEach(id => {
       const room = roomsById.get(id);
@@ -150,7 +160,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     const sorted = rooms.sort((a, b) =>
       (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0)
     );
-    console.log('[RoomContext] myRooms computed:', sorted.length, 'rooms');
+    log.debug('myRooms computed', { count: sorted.length });
     return sorted;
   }, [roomsById, joinedRoomIds]);
 
@@ -201,7 +211,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
 
   // Add a created room to context (called when user creates a room)
   const addCreatedRoom = useCallback((room: Room) => {
-    console.log('[RoomContext] Adding created room to context:', room.id);
+    log.debug('Adding created room', { roomId: room.id });
     upsertRoom(room);
     setDiscoveredRoomIds(prev => new Set(prev).add(room.id));
     setJoinedRoomIds(prev => new Set(prev).add(room.id));
@@ -216,7 +226,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     lng: number,
     radius?: number
   ) => {
-    console.log('[RoomContext] Fetching discovered rooms (page 0)');
+    log.debug('Fetching discovered rooms', { page: 0 });
     setIsLoading(true);
     setError(null);
     setCurrentPage(0); // Reset to first page
@@ -228,7 +238,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
         20, // pageSize
         radius
       );
-      console.log('[RoomContext] Fetched', fetchedRooms.length, 'rooms, hasNext:', hasNext);
+      log.info('Fetched rooms', { count: fetchedRooms.length, hasNext });
 
       // Replace discovered rooms (not append)
       const newDiscoveredIds = new Set<string>();
@@ -246,7 +256,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       setHasMoreRooms(hasNext);
       setCurrentPage(1); // Next page will be 1
     } catch (err) {
-      console.error('[RoomContext] Failed to fetch rooms:', err);
+      log.error('Failed to fetch rooms', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch rooms');
     } finally {
       setIsLoading(false);
@@ -260,11 +270,11 @@ export function RoomProvider({ children }: { children: ReactNode }) {
   ) => {
     // Prevent multiple simultaneous loads
     if (isLoadingMore || !hasMoreRooms) {
-      console.log('[RoomContext] Skip loadMore - isLoadingMore:', isLoadingMore, 'hasMore:', hasMoreRooms);
+      log.debug('Skip loadMore', { isLoadingMore, hasMoreRooms });
       return;
     }
 
-    console.log('[RoomContext] Loading more rooms (page', currentPage, ')');
+    log.debug('Loading more rooms', { page: currentPage });
     setIsLoadingMore(true);
 
     try {
@@ -274,7 +284,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
         20,
         radius
       );
-      console.log('[RoomContext] Loaded', fetchedRooms.length, 'more rooms, hasNext:', hasNext);
+      log.info('Loaded more rooms', { count: fetchedRooms.length, hasNext });
 
       // Append to discovered rooms (not replace)
       fetchedRooms.forEach((room: Room) => {
@@ -290,7 +300,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       setHasMoreRooms(hasNext);
       setCurrentPage(prev => prev + 1);
     } catch (err) {
-      console.error('[RoomContext] Failed to load more rooms:', err);
+      log.error('Failed to load more rooms', err);
       setError(err instanceof Error ? err.message : 'Failed to load more rooms');
     } finally {
       setIsLoadingMore(false);
@@ -298,11 +308,11 @@ export function RoomProvider({ children }: { children: ReactNode }) {
   }, [currentPage, hasMoreRooms, isLoadingMore, upsertRoom]);
 
   const fetchMyRooms = useCallback(async () => {
-    console.log('[RoomContext] Fetching my rooms');
+    log.debug('Fetching my rooms');
 
     try {
       const fetchedRooms = await roomService.getMyRooms();
-      console.log('[RoomContext] Fetched', fetchedRooms.length, 'my rooms');
+      log.info('Fetched my rooms', { count: fetchedRooms.length });
 
       // Update the room store and membership
       const newJoinedIds = new Set<string>();
@@ -315,7 +325,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
 
       setJoinedRoomIds(newJoinedIds);
     } catch (err) {
-      console.error('[RoomContext] Failed to fetch my rooms:', err);
+      log.error('Failed to fetch my rooms', err);
     }
   }, [upsertRoom]);
 
@@ -325,22 +335,19 @@ export function RoomProvider({ children }: { children: ReactNode }) {
 
   const joinRoom = useCallback(async (room: Room): Promise<boolean> => {
     const roomId = room.id;
-    console.log('[RoomContext] joinRoom called:', roomId);
-    console.log('[RoomContext] joinRoom - joinedRoomIds:', Array.from(joinedRoomIds));
-    console.log('[RoomContext] joinRoom - joiningRoomIds:', Array.from(joiningRoomIds));
-    console.log('[RoomContext] joinRoom - leavingRoomIds:', Array.from(leavingRoomIds));
+    log.debug('joinRoom called', { roomId });
 
     // Guards
     if (joiningRoomIds.has(roomId)) {
-      console.warn('[RoomContext] Already joining:', roomId);
+      log.warn('Already joining', { roomId });
       return false;
     }
     if (joinedRoomIds.has(roomId)) {
-      console.log('[RoomContext] Already joined:', roomId);
+      log.debug('Already joined', { roomId });
       return true;
     }
     if (leavingRoomIds.has(roomId)) {
-      console.warn('[RoomContext] Currently leaving:', roomId);
+      log.warn('Currently leaving', { roomId });
       return false;
     }
 
@@ -358,21 +365,21 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       try {
         const freshRoom = await roomService.getRoom(roomId);
         upsertRoom(freshRoom);
-        console.log('[RoomContext] Updated room data after join, participantCount:', freshRoom.participantCount);
+        log.debug('Updated room after join', { roomId, participantCount: freshRoom.participantCount });
       } catch (fetchError) {
-        console.warn('[RoomContext] Failed to fetch fresh room data:', fetchError);
+        log.warn('Failed to fetch fresh room data', fetchError);
         // Keep the optimistic update from before
       }
 
       // Note: ChatRoomScreen will handle wsService.subscribe() when it mounts
       // This separation is cleaner: RoomContext manages membership state, 
       // ChatRoomScreen manages WebSocket connection
-      console.log('[RoomContext] Join successful:', roomId);
+      log.info('Join successful', { roomId });
       return true;
     } catch (err: any) {
       // Handle "already joined" as success
       if (err?.code === 'CONFLICT' || err?.message?.includes('already')) {
-        console.log('[RoomContext] Already joined (from backend):', roomId);
+        log.debug('Already joined (from backend)', { roomId });
         // Note: No need to subscribe here - screen will handle it
         return true;
       }
@@ -382,7 +389,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       const isBanned = errorMessage.toLowerCase().includes('banned');
 
       if (isBanned) {
-        console.log('[RoomContext] User is banned from room:', roomId);
+        log.warn('User is banned from room', { roomId });
         // Rollback optimistic update
         setJoinedRoomIds(prev => {
           const next = new Set(prev);
@@ -396,7 +403,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       }
 
       // Rollback for other errors
-      console.error('[RoomContext] Join failed:', err);
+      log.error('Join failed', err);
       setJoinedRoomIds(prev => {
         const next = new Set(prev);
         next.delete(roomId);
@@ -413,16 +420,15 @@ export function RoomProvider({ children }: { children: ReactNode }) {
   }, [joiningRoomIds, joinedRoomIds, leavingRoomIds, upsertRoom]);
 
   const leaveRoom = useCallback(async (roomId: string): Promise<boolean> => {
-    console.log('[RoomContext] leaveRoom called:', roomId);
-    console.log('[RoomContext] Current joinedRoomIds:', Array.from(joinedRoomIds));
+    log.debug('leaveRoom called', { roomId });
 
     // Guards
     if (leavingRoomIds.has(roomId)) {
-      console.warn('[RoomContext] Already leaving:', roomId);
+      log.warn('Already leaving', { roomId });
       return false;
     }
     if (!joinedRoomIds.has(roomId)) {
-      console.log('[RoomContext] Not joined:', roomId);
+      log.debug('Not joined', { roomId });
       return true;
     }
 
@@ -432,13 +438,12 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     try {
       // Call backend first
       await roomService.leaveRoom(roomId);
-      console.log('[RoomContext] Leave backend successful:', roomId);
+      log.info('Leave successful', { roomId });
 
       // Update state after success
       setJoinedRoomIds(prev => {
         const next = new Set(prev);
         next.delete(roomId);
-        console.log('[RoomContext] Updated joinedRoomIds:', Array.from(next));
         return next;
       });
 
@@ -447,7 +452,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
 
       return true;
     } catch (err) {
-      console.error('[RoomContext] Leave failed:', err);
+      log.error('Leave failed', err);
       return false;
     } finally {
       setLeavingRoomIds(prev => {
@@ -489,13 +494,13 @@ export function RoomProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     const handleRoomClosed = (payload: { roomId: string }) => {
-      console.log('[RoomContext] Room closed:', payload.roomId);
+      log.debug('Room closed', { roomId: payload.roomId });
       removeRoom(payload.roomId);
     };
 
     const handleRoomUpdated = (payload: { roomId: string;[key: string]: any }) => {
       const { roomId, ...updates } = payload;
-      console.log('[RoomContext] Room updated:', roomId);
+      log.debug('Room updated', { roomId });
       updateRoom(roomId, updates as Partial<Room>);
     };
 
@@ -504,7 +509,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       userId: string;
       participantCount?: number;
     }) => {
-      console.log('[RoomContext] User left room:', payload.roomId, 'participantCount:', payload.participantCount);
+      log.debug('User left room', { roomId: payload.roomId, participantCount: payload.participantCount });
 
       // Update participant count if provided (for all users, not just current user)
       if (payload.participantCount !== undefined) {
@@ -513,7 +518,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
 
       // If current user left (from another device/screen)
       if (payload.userId === user?.id) {
-        console.log('[RoomContext] Current user left room:', payload.roomId);
+        log.debug('Current user left room', { roomId: payload.roomId });
         setJoinedRoomIds(prev => {
           const next = new Set(prev);
           next.delete(payload.roomId);
@@ -531,7 +536,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
         if (!joiningRoomIds.has(payload.roomId)) {
           wsService.unsubscribe(payload.roomId);
         } else {
-          console.log('[RoomContext] Skipping unsubscribe - user is rejoining room:', payload.roomId);
+          log.debug('Skipping unsubscribe - user is rejoining', { roomId: payload.roomId });
         }
       }
     };
@@ -542,7 +547,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       user?: { id: string; displayName: string };
       participantCount?: number;
     }) => {
-      console.log('[RoomContext] User joined room:', payload.roomId, 'participantCount:', payload.participantCount);
+      log.debug('User joined room', { roomId: payload.roomId, participantCount: payload.participantCount });
 
       // Update participant count if provided (for all users, not just current user)
       if (payload.participantCount !== undefined) {
@@ -551,7 +556,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
 
       // If current user joined (from another device)
       if (payload.userId === user?.id || payload.user?.id === user?.id) {
-        console.log('[RoomContext] Current user joined room:', payload.roomId);
+        log.debug('Current user joined room', { roomId: payload.roomId });
         setJoinedRoomIds(prev => new Set(prev).add(payload.roomId));
         wsService.subscribe(payload.roomId);
       }
@@ -559,7 +564,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
 
     const handleRoomCreated = (payload: any) => {
       const roomData = payload.room;
-      console.log('[RoomContext] Room created:', roomData.id, 'radius:', roomData.radiusMeters);
+      log.debug('Room created', { roomId: roomData.id, radius: roomData.radiusMeters });
 
       // Rule 1: If current user created this room, always add it
       const isCreator = roomData.creatorId === user?.id;
@@ -570,11 +575,11 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       // Rule 3: If room is nearby (radius > 0) and user is not creator, 
       // let them discover it via /discover API which has proper distance filtering
       if (!isCreator && !isGlobalRoom) {
-        console.log('[RoomContext] Ignoring nearby room created by another user - will be discovered via API');
+        log.debug('Ignoring nearby room created by another user');
         return;
       }
 
-      console.log('[RoomContext] Adding room:', isCreator ? 'creator' : 'global room');
+      log.debug('Adding room', { roomId: roomData.id, isCreator, isGlobal: isGlobalRoom });
 
       // Convert to Room type
       const newRoom: Room = {
@@ -611,7 +616,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       roomId: string;
       participantCount: number;
     }) => {
-      console.log('[RoomContext] Participant count updated:', payload.roomId, 'count:', payload.participantCount);
+      log.debug('Participant count updated', { roomId: payload.roomId, count: payload.participantCount });
       updateRoom(payload.roomId, { participantCount: payload.participantCount });
     };
 
@@ -628,17 +633,17 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       // Deduplicate events
       const eventKey = `${payload.roomId}-${payload.kickedUserId}`;
       if (processedKickEvents.has(eventKey)) {
-        console.log('[RoomContext] Ignoring duplicate kick event:', eventKey);
+        log.debug('Ignoring duplicate kick event', { eventKey });
         return;
       }
       processedKickEvents.add(eventKey);
       setTimeout(() => processedKickEvents.delete(eventKey), 5000); // Clear after 5s
 
-      console.log('[RoomContext] User kicked:', payload.kickedUserId, 'from room:', payload.roomId);
+      log.debug('User kicked', { userId: payload.kickedUserId, roomId: payload.roomId });
 
       // If current user was kicked, remove from joined rooms
       if (payload.kickedUserId === user?.id) {
-        console.log('[RoomContext] Current user was kicked - removing from joinedRoomIds');
+        log.warn('Current user was kicked', { roomId: payload.roomId });
         setJoinedRoomIds(prev => {
           const next = new Set(prev);
           next.delete(payload.roomId);
@@ -655,7 +660,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
           hasJoined: payload.kickedUserId === user?.id ? false : undefined,
         });
       } catch (error) {
-        console.error('[RoomContext] Failed to refresh room after kick:', error);
+        log.error('Failed to refresh room after kick', error);
       }
     };
 
@@ -669,17 +674,17 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       // Deduplicate events
       const eventKey = `${payload.roomId}-${payload.bannedUserId}`;
       if (processedBanEvents.has(eventKey)) {
-        console.log('[RoomContext] Ignoring duplicate ban event:', eventKey);
+        log.debug('Ignoring duplicate ban event', { eventKey });
         return;
       }
       processedBanEvents.add(eventKey);
       setTimeout(() => processedBanEvents.delete(eventKey), 5000); // Clear after 5s
 
-      console.log('[RoomContext] User banned:', payload.bannedUserId, 'from room:', payload.roomId);
+      log.debug('User banned', { userId: payload.bannedUserId, roomId: payload.roomId });
 
       // If current user was banned, remove from joined rooms AND discovered rooms
       if (payload.bannedUserId === user?.id) {
-        console.log('[RoomContext] Current user was banned - removing from joinedRoomIds and discoveredRoomIds');
+        log.warn('Current user was banned', { roomId: payload.roomId });
         setJoinedRoomIds(prev => {
           const next = new Set(prev);
           next.delete(payload.roomId);
@@ -703,7 +708,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
           participantCount: freshRoom.participantCount,
         });
       } catch (error) {
-        console.error('[RoomContext] Failed to refresh room after ban:', error);
+        log.error('Failed to refresh room after ban', error);
       }
     };
 
@@ -882,7 +887,7 @@ export function useRoomSubscription(roomId: string): {
       updateRoom(roomId, freshRoom);
       setRoom(freshRoom);
     } catch (error) {
-      console.error('[useRoomSubscription] Failed to fetch room:', error);
+      log.error('Failed to fetch room in subscription', error);
     } finally {
       setIsLoading(false);
     }
@@ -905,14 +910,14 @@ export function useRoomSubscription(roomId: string): {
   useEffect(() => {
     const handleRoomUpdate = (payload: { roomId: string }) => {
       if (payload.roomId === roomId) {
-        console.log('[useRoomSubscription] Room updated via WebSocket, refreshing:', roomId);
+        log.debug('Room updated via WebSocket, refreshing', { roomId });
         refresh();
       }
     };
 
     const handleParticipantChange = (payload: { roomId: string }) => {
       if (payload.roomId === roomId) {
-        console.log('[useRoomSubscription] Participant change, refreshing:', roomId);
+        log.debug('Participant change, refreshing', { roomId });
         refresh();
       }
     };
