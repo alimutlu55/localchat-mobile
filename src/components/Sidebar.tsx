@@ -321,14 +321,12 @@ export function Sidebar({
                     onPress={onProfilePress}
                     activeOpacity={0.7}
                 >
-                    <View style={styles.profileAvatar}>
-                        <AvatarDisplay
-                            avatarUrl={user?.profilePhotoUrl}
-                            displayName={user?.displayName || 'User'}
-                            size="sm"
-                            style={{ width: 40, height: 40, borderRadius: 20 }}
-                        />
-                    </View>
+                    <AvatarDisplay
+                        avatarUrl={user?.profilePhotoUrl}
+                        displayName={user?.displayName || 'User'}
+                        size="md"
+                        style={{ width: 40, height: 40, borderRadius: 20 }}
+                    />
                     <View style={styles.profileInfo}>
                         <Text style={styles.profileName} numberOfLines={1}>
                             {user?.displayName || 'Guest'}

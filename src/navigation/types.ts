@@ -14,6 +14,7 @@ import { Room } from '../types';
 export type RootStackParamList = {
   Splash: undefined;
   Auth: NavigatorScreenParams<AuthStackParamList>;
+  Main: NavigatorScreenParams<MainTabParamList>;
   Discovery: undefined;
   ChatRoom: { room: Room };
   RoomDetails: { room: Room };
@@ -28,6 +29,8 @@ export type RootStackParamList = {
   Profile: undefined;
   EditProfile: undefined;
   Onboarding: undefined;
+  List: undefined;
+  Login: undefined;
 };
 
 /**
@@ -39,6 +42,15 @@ export type AuthStackParamList = {
   Register: undefined;
   AnonymousLogin: undefined;
   ForgotPassword: undefined;
+};
+
+/**
+ * Main Tab Navigator Params
+ */
+export type MainTabParamList = {
+  MapTab: undefined;
+  RoomsTab: undefined;
+  ProfileTab: undefined;
 };
 
 

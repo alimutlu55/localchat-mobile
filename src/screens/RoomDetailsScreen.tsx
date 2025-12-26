@@ -40,10 +40,15 @@ import { roomService, ParticipantDTO, messageService, wsService, WS_EVENTS } fro
 import { Room, ChatMessage } from '../types';
 import { useAuth } from '../context/AuthContext';
 import { useRooms, useIsRoomJoined, useIsJoiningRoom, useRoomById } from '../context/RoomContext';
+import { useRoomActions } from '../features/rooms/hooks';
 import { ROOM_CONFIG, executeJoinWithMinLoading } from '../constants';
 import { BannedUsersModal } from '../components/room/BannedUsersModal';
 import { ReportModal, ReportReason } from '../components/chat/ReportModal';
 import { AvatarDisplay } from '../components/profile';
+import { createLogger } from '../shared/utils/logger';
+import { isUserBanned } from '../shared/utils/errors';
+
+const log = createLogger('RoomDetails');
 
 type JoinButtonState = 'default' | 'joining' | 'join-success' | 'joined' | 'error';
 
@@ -98,7 +103,16 @@ export default function RoomDetailsScreen() {
   const route = useRoute<RoomDetailsRouteProp>();
   const { room: initialRoom } = route.params;
   const { user } = useAuth();
-  const { joinRoom: contextJoinRoom, leaveRoom: contextLeaveRoom, updateRoom } = useRooms();
+  const { updateRoom } = useRooms();
+  
+  // Use new useRoomActions hook for join/leave/close operations
+  const { 
+    joinRoom, 
+    leaveRoom, 
+    closeRoom,
+    isLeaving: isLeavingAction,
+    isClosing: isClosingAction,
+  } = useRoomActions();
 
   // Use centralized hooks for joined status and optimistic UI
   const hasJoined = useIsRoomJoined(initialRoom.id);
@@ -112,12 +126,9 @@ export default function RoomDetailsScreen() {
   const [recentMessages, setRecentMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
-  const [isLeaving, setIsLeaving] = useState(false);
-  const [isClosing, setIsClosing] = useState(false);
-  // Remove local isJoining state - use optimistic from context instead
   const [showBannedUsersModal, setShowBannedUsersModal] = useState(false);
 
-  // ... (Report state remains same)
+  // Report state
   const [reportConfig, setReportConfig] = useState<{
     isOpen: boolean;
     targetType: 'message' | 'room' | 'user';
@@ -142,7 +153,7 @@ export default function RoomDetailsScreen() {
         // This ensures room.participantCount matches the actual list
         updateRoom(room.id, { participantCount: data.length });
       } catch (error) {
-        console.error('Failed to load participants:', error);
+        log.error('Failed to load participants', error);
       } finally {
         setIsLoading(false);
       }
@@ -153,14 +164,14 @@ export default function RoomDetailsScreen() {
     // Re-fetch participants when users join or leave
     const unsubJoined = wsService.on(WS_EVENTS.USER_JOINED, (payload: any) => {
       if (payload.roomId === room.id) {
-        console.log('[RoomDetailsScreen] User joined, refreshing participants');
+        log.debug('User joined, refreshing participants');
         loadParticipants();
       }
     });
 
     const unsubLeft = wsService.on(WS_EVENTS.USER_LEFT, (payload: any) => {
       if (payload.roomId === room.id) {
-        console.log('[RoomDetailsScreen] User left, refreshing participants');
+        log.debug('User left, refreshing participants');
         loadParticipants();
       }
     });
@@ -176,16 +187,16 @@ export default function RoomDetailsScreen() {
    */
   useEffect(() => {
     const loadRecentMessages = async () => {
-      console.log('[RoomDetailsScreen] loadRecentMessages called, hasJoined:', hasJoined, 'roomId:', room.id);
+      log.debug('loadRecentMessages called', { hasJoined, roomId: room.id });
 
       // Only load messages if user has joined the room
       if (!hasJoined) {
-        console.log('[RoomDetailsScreen] Skipping message fetch - user has not joined');
+        log.debug('Skipping message fetch - user has not joined');
         setRecentMessages([]);
         return;
       }
 
-      console.log('[RoomDetailsScreen] Fetching messages for joined user');
+      log.debug('Fetching messages for joined user');
 
       // Small delay to ensure backend join is fully processed
       // This prevents race condition where fetch happens before join completes
@@ -196,7 +207,7 @@ export default function RoomDetailsScreen() {
         const { messages } = await messageService.getHistory(room.id, { limit: 3 });
         setRecentMessages(messages);
       } catch (error: any) {
-        console.error('[RoomDetailsScreen] Failed to load recent messages:', error);
+        log.error('Failed to load recent messages', error);
 
         // If error is "not in room", it might be because user just left
         // Silently clear messages instead of showing error
@@ -204,7 +215,7 @@ export default function RoomDetailsScreen() {
         if (errorMessage.includes('must be in the room') ||
           errorMessage.includes('not in room') ||
           error?.code === 'FORBIDDEN') {
-          console.log('[RoomDetailsScreen] User not in room (may have just left), clearing messages');
+          log.debug('User not in room (may have just left), clearing messages');
           setRecentMessages([]);
         } else {
           setRecentMessages([]);
@@ -222,8 +233,8 @@ export default function RoomDetailsScreen() {
    */
   const handleLeave = () => {
     // Prevent if already leaving
-    if (isLeaving) {
-      console.warn('[RoomDetailsScreen] Leave already in progress');
+    if (isLeavingAction(room.id)) {
+      log.warn('Leave already in progress');
       return;
     }
 
@@ -236,20 +247,12 @@ export default function RoomDetailsScreen() {
           text: 'Leave',
           style: 'destructive',
           onPress: async () => {
-            setIsLeaving(true);
-            try {
-              // Use context's leaveRoom to update state properly
-              const success = await contextLeaveRoom(room.id);
-              if (success) {
-                navigation.popToTop();
-              } else {
-                Alert.alert('Error', 'Failed to leave room');
-              }
-            } catch (error) {
-              console.error('[RoomDetailsScreen] Leave error:', error);
+            const result = await leaveRoom(room.id);
+            if (result.success) {
+              navigation.popToTop();
+            } else {
+              log.error('Leave error', result.error);
               Alert.alert('Error', 'Failed to leave room');
-            } finally {
-              setIsLeaving(false);
             }
           },
         },
@@ -270,15 +273,13 @@ export default function RoomDetailsScreen() {
           text: 'Close Room',
           style: 'destructive',
           onPress: async () => {
-            setIsClosing(true);
-            try {
-              await roomService.closeRoom(room.id);
+            const result = await closeRoom(room.id);
+            if (result.success) {
               Alert.alert('Success', 'Room has been closed');
               navigation.goBack();
-            } catch (error) {
+            } else {
+              log.error('Close room error', result.error);
               Alert.alert('Error', 'Failed to close room');
-            } finally {
-              setIsClosing(false);
             }
           },
         },
@@ -311,7 +312,7 @@ export default function RoomDetailsScreen() {
           if (reportError?.message?.includes('already reported') ||
             reportError?.code === 'ALREADY_REPORTED' ||
             reportError?.status === 409) {
-            console.log('[RoomDetailsScreen] Room already reported - treating as success');
+            log.debug('Room already reported - treating as success');
           } else {
             // Re-throw other errors
             throw reportError;
@@ -319,55 +320,40 @@ export default function RoomDetailsScreen() {
         }
 
         // Auto-leave after reporting room (UX improvement)
-        const success = await contextLeaveRoom(room.id);
-        if (success) {
-          navigation.popToTop();
-        } else {
-          // Don't throw, just log - report was submitted successfully
-          console.error('[RoomDetailsScreen] Failed to leave room after report');
-          navigation.popToTop(); // Navigate anyway
+        const result = await leaveRoom(room.id);
+        if (!result.success) {
+          log.error('Failed to leave room after report', result.error);
         }
+        navigation.popToTop();
       }
     } catch (error) {
-      console.error('Report submission failed:', error);
+      log.error('Report submission failed', error);
       throw error;
     }
   };
 
   /**
-   * Handle join room - simplified with optimistic updates from context
+   * Handle join room - uses new useRoomActions hook
    */
   const handleJoin = async () => {
     // If already joined, replace this modal with chat screen
     if (hasJoined) {
-      // Use replace to swap modal for chat screen
       navigation.replace('ChatRoom', { room });
       return;
     }
 
-    try {
-      // Context handles optimistic updates, just call and navigate on success
-      const success = await contextJoinRoom(room);
+    const result = await joinRoom(room);
 
-      if (success) {
-        // Replace modal with chat screen for smooth transition
-        navigation.replace('ChatRoom', { room });
-      } else {
-        // Show error alert on failure
-        Alert.alert('Error', 'Failed to join room. Please try again.');
-      }
-    } catch (error: any) {
-      // Handle specific error types
-      if (error?.code === 'BANNED') {
-        Alert.alert(
-          'Access Denied',
-          'You are banned from this room.',
-          [{ text: 'OK', onPress: () => navigation.goBack() }]
-        );
-      } else {
-        // Generic error
-        Alert.alert('Error', 'Failed to join room. Please try again.');
-      }
+    if (result.success) {
+      navigation.replace('ChatRoom', { room });
+    } else if (isUserBanned(result.error)) {
+      Alert.alert(
+        'Access Denied',
+        'You are banned from this room.',
+        [{ text: 'OK', onPress: () => navigation.goBack() }]
+      );
+    } else {
+      Alert.alert('Error', 'Failed to join room. Please try again.');
     }
   };
 
@@ -484,7 +470,7 @@ export default function RoomDetailsScreen() {
                 <TouchableOpacity
                   style={styles.actionButton}
                   onPress={handleCloseRoom}
-                  disabled={isClosing}
+                  disabled={isClosingAction(room.id)}
                 >
                   <View style={[styles.actionIcon, styles.actionIconWarning]}>
                     <Lock size={20} color="#f59e0b" />
@@ -493,7 +479,7 @@ export default function RoomDetailsScreen() {
                     <Text style={styles.actionText}>Close Room</Text>
                     <Text style={styles.actionSubtext}>Make room read-only</Text>
                   </View>
-                  {isClosing && <ActivityIndicator size="small" color="#f59e0b" />}
+                  {isClosingAction(room.id) && <ActivityIndicator size="small" color="#f59e0b" />}
                 </TouchableOpacity>
               )}
 
@@ -591,10 +577,10 @@ export default function RoomDetailsScreen() {
           <TouchableOpacity
             style={styles.leaveLinkContainer}
             onPress={handleLeave}
-            disabled={isLeaving}
+            disabled={isLeavingAction(room.id)}
             activeOpacity={0.7}
           >
-            {isLeaving ? (
+            {isLeavingAction(room.id) ? (
               <ActivityIndicator size="small" color="#64748b" />
             ) : (
               <Text style={styles.leaveLink}>

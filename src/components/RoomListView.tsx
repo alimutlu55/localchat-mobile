@@ -56,7 +56,7 @@ interface RoomListViewProps {
     onJoinRoom?: (room: Room) => Promise<boolean>;
     onEnterRoom?: (room: Room) => void;
     onCreateRoom?: () => void;
-    userLocation?: { latitude: number; longitude: number } | null;
+    userLocation?: { latitude: number; longitude: number; lat?: number; lng?: number } | null;
 }
 
 /**
@@ -362,8 +362,8 @@ export function RoomListView({
     // NEW: Also subscribe to pagination state
     const { myRooms, isLoadingMore, hasMoreRooms, loadMoreRooms } = useRooms();
 
-    // Use passed user location or default
-    const userLocation = userLocationProp || { lat: 41.0082, lng: 28.9784 };
+    // Use passed user location or default (use both formats for compatibility)
+    const userLocation = userLocationProp || { latitude: 41.0082, longitude: 28.9784, lat: 41.0082, lng: 28.9784 };
 
     // Helper to get room distance (calculate if not provided)
     const getRoomDistance = useCallback((room: Room): number => {
@@ -495,7 +495,9 @@ export function RoomListView({
         if (!isLoadingMore && hasMoreRooms && !searchQuery) {
             // Only load more if not searching (search results are locally filtered)
             console.log('[RoomListView] Loading more rooms...');
-            loadMoreRooms(userLocation.lat, userLocation.lng);
+            const lat = userLocation.lat ?? userLocation.latitude;
+            const lng = userLocation.lng ?? userLocation.longitude;
+            loadMoreRooms(lat, lng);
         }
     }, [isLoadingMore, hasMoreRooms, searchQuery, loadMoreRooms, userLocation]);
 

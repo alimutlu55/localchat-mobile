@@ -111,7 +111,8 @@ export default function ListScreen() {
     };
 
     const handleBackToMap = () => {
-        navigation.navigate('Main');
+        // Navigate back to the previous screen (Discovery/Map)
+        navigation.goBack();
     };
 
     return (

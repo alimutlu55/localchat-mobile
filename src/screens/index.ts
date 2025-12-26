@@ -15,12 +15,16 @@ export { default as ForgotPasswordScreen } from './auth/ForgotPasswordScreen';
 export { default as OnboardingScreen } from './auth/OnboardingScreen';
 
 // Main screens
-export { default as DiscoveryScreen } from './main/DiscoveryScreen';
+// DiscoveryScreen now uses feature-based architecture with hooks
+export { DiscoveryScreen } from '../features/discovery';
 export { default as RoomsScreen } from './main/RoomsScreen';
 export { default as ProfileScreen } from './main/ProfileScreen';
+export { default as MapScreen } from './main/MapScreen';
+export { default as ListScreen } from './main/ListScreen';
 
 // Chat & Room screens
-export { default as ChatRoomScreen } from './ChatRoomScreen';
+// ChatRoomScreen now uses feature-based architecture with hooks
+export { ChatRoomScreen } from '../features/chat';
 export { default as RoomDetailsScreen } from './RoomDetailsScreen';
 export { default as RoomInfoScreen } from './RoomInfoScreen';
 export { default as CreateRoomScreen } from './CreateRoomScreen';

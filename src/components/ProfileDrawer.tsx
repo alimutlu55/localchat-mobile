@@ -269,13 +269,12 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
         <View>
             {/* Profile Header */}
             <View style={styles.profileHeader}>
-                <View style={styles.profileAvatar}>
-                    <AvatarDisplay
-                        avatarUrl={user?.profilePhotoUrl}
-                        displayName={user?.displayName || 'User'}
-                        size="lg"
-                    />
-                </View>
+                <AvatarDisplay
+                    avatarUrl={user?.profilePhotoUrl}
+                    displayName={user?.displayName || 'User'}
+                    size="lg"
+                    style={{ width: 64, height: 64, borderRadius: 32 }}
+                />
                 <Text style={styles.profileName}>{user?.displayName || 'Guest'}</Text>
                 <Text style={styles.profileEmail}>
                     {user?.email || 'Anonymous User'}

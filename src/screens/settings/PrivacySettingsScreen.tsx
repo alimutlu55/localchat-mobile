@@ -32,8 +32,8 @@ import {
   Clock,
   Trash2,
 } from 'lucide-react-native';
-import { useSettings } from '../context/SettingsContext';
-import { blockService, BlockedUser } from '../services';
+import { useSettings } from '../../context/SettingsContext';
+import { blockService, BlockedUser } from '../../services';
 
 type LocationMode = 'precise' | 'approximate' | 'manual' | 'off';
 
