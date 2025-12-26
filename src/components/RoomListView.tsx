@@ -135,9 +135,6 @@ const RoomListItem = memo(function RoomListItem({
 }) {
     const [isJoining, setIsJoining] = useState(false);
 
-    // Debug logging for participant count changes
-    console.log('[RoomListItem] Room:', room.id, 'participantCount:', room.participantCount);
-
     // No local joinSuccess state - rely entirely on hasJoined from context
     // This prevents stale state when user leaves and returns
 
@@ -494,7 +491,6 @@ export function RoomListView({
     const handleLoadMore = useCallback(() => {
         if (!isLoadingMore && hasMoreRooms && !searchQuery) {
             // Only load more if not searching (search results are locally filtered)
-            console.log('[RoomListView] Loading more rooms...');
             const lat = userLocation.lat ?? userLocation.latitude;
             const lng = userLocation.lng ?? userLocation.longitude;
             loadMoreRooms(lat, lng);

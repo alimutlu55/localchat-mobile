@@ -1,17 +1,32 @@
 /**
- * RoomContext - Single Source of Truth for Room State
+ * RoomContext - Legacy Room State Management
+ *
+ * ⚠️ MIGRATION IN PROGRESS
+ *
+ * This context is being replaced by smaller, focused hooks:
+ *
+ * | Old (RoomContext)      | New (features/rooms)           |
+ * |------------------------|--------------------------------|
+ * | getRoomById()          | useRoom(roomId)                |
+ * | joinRoom()             | useJoinRoom().join()           |
+ * | leaveRoom()            | useJoinRoom().leave()          |
+ * | myRooms                | useMyRooms().rooms             |
+ * | isRoomJoined()         | useMyRooms().isJoined()        |
+ * | fetchDiscoveredRooms() | useRoomDiscovery().refresh()   |
+ *
+ * For new screens, use:
+ * ```typescript
+ * import { useRoom, useJoinRoom, useMyRooms } from '@/features/rooms';
+ * ```
+ *
+ * This context remains for backward compatibility with existing screens.
+ * It syncs data to RoomCacheContext so both systems stay consistent.
  *
  * Architecture:
  * - ONE Map<roomId, Room> stores all room data
  * - ONE Set<roomId> tracks which rooms user has joined
  * - All views (map, list, sidebar) derive from these two sources
- * - No duplicate room objects with different states
- *
- * Note: This context is being incrementally refactored.
- * New code should use:
- * - useRoomCache() for caching
- * - useRoom(id) for individual room data
- * - useRoomActions() for join/leave operations
+ * - Syncs to RoomCacheContext for new hooks
  */
 
 import React, {
@@ -168,6 +183,9 @@ export function RoomProvider({ children }: { children: ReactNode }) {
   // Room Data Operations
   // ============================================================================
 
+  // Get room cache for syncing
+  const roomCache = useRoomCache();
+
   // Update or add a room to the store
   const upsertRoom = useCallback((room: Room) => {
     setRoomsById(prev => {
@@ -177,7 +195,9 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       next.set(room.id, existing ? { ...existing, ...room } : room);
       return next;
     });
-  }, []);
+    // Sync to new cache for hooks using it
+    roomCache.setRoom(room);
+  }, [roomCache]);
 
   // Update room fields
   const updateRoom = useCallback((roomId: string, updates: Partial<Room>) => {
@@ -188,7 +208,9 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       next.set(roomId, { ...room, ...updates });
       return next;
     });
-  }, []);
+    // Sync to new cache
+    roomCache.updateRoom(roomId, updates);
+  }, [roomCache]);
 
   // Remove a room
   const removeRoom = useCallback((roomId: string) => {
@@ -207,7 +229,9 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       next.delete(roomId);
       return next;
     });
-  }, []);
+    // Sync to new cache
+    roomCache.removeRoom(roomId);
+  }, [roomCache]);
 
   // Add a created room to context (called when user creates a room)
   const addCreatedRoom = useCallback((room: Room) => {
@@ -242,11 +266,23 @@ export function RoomProvider({ children }: { children: ReactNode }) {
 
       // Replace discovered rooms (not append)
       const newDiscoveredIds = new Set<string>();
-      fetchedRooms.forEach((room: Room) => {
-        upsertRoom(room);
-        newDiscoveredIds.add(room.id);
+      
+      // Batch update local state
+      setRoomsById(prev => {
+        const next = new Map(prev);
+        fetchedRooms.forEach((room: Room) => {
+          const existing = next.get(room.id);
+          next.set(room.id, existing ? { ...existing, ...room } : room);
+          newDiscoveredIds.add(room.id);
+        });
+        return next;
+      });
 
-        // If room has hasJoined flag from API, update membership
+      // Batch sync to cache (single operation instead of 20)
+      roomCache.setRooms(fetchedRooms);
+
+      // Update joined IDs for rooms user has joined
+      fetchedRooms.forEach((room: Room) => {
         if (room.hasJoined || room.isCreator) {
           setJoinedRoomIds(prev => new Set(prev).add(room.id));
         }
@@ -261,7 +297,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [upsertRoom]);
+  }, [roomCache]);
 
   const loadMoreRooms = useCallback(async (
     lat: number,
@@ -286,12 +322,27 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       );
       log.info('Loaded more rooms', { count: fetchedRooms.length, hasNext });
 
-      // Append to discovered rooms (not replace)
-      fetchedRooms.forEach((room: Room) => {
-        upsertRoom(room);
-        setDiscoveredRoomIds(prev => new Set(prev).add(room.id));
+      // Batch update local state
+      setRoomsById(prev => {
+        const next = new Map(prev);
+        fetchedRooms.forEach((room: Room) => {
+          const existing = next.get(room.id);
+          next.set(room.id, existing ? { ...existing, ...room } : room);
+        });
+        return next;
+      });
 
-        // Update membership if indicated
+      // Batch sync to cache
+      roomCache.setRooms(fetchedRooms);
+
+      // Update discovered and joined IDs
+      setDiscoveredRoomIds(prev => {
+        const next = new Set(prev);
+        fetchedRooms.forEach((room: Room) => next.add(room.id));
+        return next;
+      });
+
+      fetchedRooms.forEach((room: Room) => {
         if (room.hasJoined || room.isCreator) {
           setJoinedRoomIds(prev => new Set(prev).add(room.id));
         }
@@ -305,7 +356,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoadingMore(false);
     }
-  }, [currentPage, hasMoreRooms, isLoadingMore, upsertRoom]);
+  }, [currentPage, hasMoreRooms, isLoadingMore, roomCache]);
 
   const fetchMyRooms = useCallback(async () => {
     log.debug('Fetching my rooms');
@@ -314,20 +365,31 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       const fetchedRooms = await roomService.getMyRooms();
       log.info('Fetched my rooms', { count: fetchedRooms.length });
 
-      // Update the room store and membership
-      const newJoinedIds = new Set<string>();
-      fetchedRooms.forEach(room => {
-        if (room.status !== 'closed') {
-          upsertRoom(room);
-          newJoinedIds.add(room.id);
-        }
+      // Filter active rooms
+      const activeRooms = fetchedRooms.filter(room => room.status !== 'closed');
+
+      // Batch update local state
+      setRoomsById(prev => {
+        const next = new Map(prev);
+        activeRooms.forEach(room => {
+          const existing = next.get(room.id);
+          next.set(room.id, existing ? { ...existing, ...room } : room);
+        });
+        return next;
       });
 
+      // Batch sync to cache
+      if (activeRooms.length > 0) {
+        roomCache.setRooms(activeRooms);
+      }
+
+      // Update joined IDs
+      const newJoinedIds = new Set(activeRooms.map(room => room.id));
       setJoinedRoomIds(newJoinedIds);
     } catch (err) {
       log.error('Failed to fetch my rooms', err);
     }
-  }, [upsertRoom]);
+  }, [roomCache]);
 
   // ============================================================================
   // Join/Leave Operations

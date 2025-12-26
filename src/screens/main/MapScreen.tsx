@@ -30,7 +30,7 @@ import {
 } from '@maplibre/maplibre-react-native';
 import * as Location from 'expo-location';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Plus, Minus, Navigation, Menu, Map as MapIcon, List, Globe } from 'lucide-react-native';
+import { Plus, Menu, Map as MapIcon, List } from 'lucide-react-native';
 import { RootStackParamList } from '../../navigation/types';
 import { Room } from '../../types';
 import { ROOM_CONFIG, MAP_CONFIG } from '../../constants';
@@ -51,6 +51,12 @@ import {
   ClusterFeature,
   EventFeature
 } from '../../utils/mapClustering';
+
+// New architecture components
+import { MapControls } from '../../features/discovery/components';
+import { createLogger } from '../../shared/utils/logger';
+
+const log = createLogger('MapScreen');
 
 // CartoDB Positron raster tiles - EXACT same tiles as web version
 // Using inline style to get identical appearance to Leaflet web version
@@ -180,7 +186,7 @@ export default function MapScreen() {
     try {
       await fetchDiscoveredRooms(lat, lng, ROOM_CONFIG.DEFAULT_RADIUS);
     } catch (error) {
-      console.error('Failed to fetch rooms:', error);
+      log.error('Failed to fetch rooms', error);
     } finally {
       setIsLoading(false);
       setIsRefreshing(false);
@@ -233,7 +239,7 @@ export default function MapScreen() {
           }
         );
       } catch (error) {
-        console.error('Location error:', error);
+        log.error('Location error', error);
       } finally {
         setIsLoading(false);
       }
@@ -289,7 +295,7 @@ export default function MapScreen() {
 
       setCurrentZoom(Math.round(zoom));
     } catch (error) {
-      console.error('Error getting map state:', error);
+      log.error('Error getting map state', error);
     }
   }, []);
 
@@ -385,7 +391,7 @@ export default function MapScreen() {
    * If already close, open immediately. If far, zoom first then open.
    */
   const handleRoomPress = useCallback((room: Room) => {
-    console.log('Huddle: [handleRoomPress] room id:', room.id);
+    log.debug('Room pressed', { roomId: room.id });
 
     if (mapReady && cameraRef.current && room.latitude != null && room.longitude != null) {
       const targetZoom = Math.min(Math.max(currentZoom + 2, 14), 16);
@@ -446,7 +452,7 @@ export default function MapScreen() {
         setBounds(newBounds);
       }
     } catch (error) {
-      console.error('Error forcing viewport refresh:', error);
+      log.error('Error forcing viewport refresh', error);
     }
   }, []);
 
@@ -495,7 +501,7 @@ export default function MapScreen() {
    * Handle cluster press - zoom in to expand with smart bounds fitting
    */
   const handleClusterPress = useCallback((cluster: ClusterFeature) => {
-    console.log('Huddle: [handleClusterPress] cluster id:', cluster.properties.cluster_id);
+    log.debug('Cluster pressed', { clusterId: cluster.properties.cluster_id });
     if (!mapReady || !cameraRef.current) return;
 
     const [lng, lat] = cluster.geometry.coordinates;
@@ -736,51 +742,15 @@ export default function MapScreen() {
         </View>
       </SafeAreaView>
 
-      {/* Map Controls */}
-      <View style={styles.mapControls}>
-        <View style={styles.zoomCard}>
-          <TouchableOpacity
-            style={styles.zoomButton}
-            onPress={handleZoomIn}
-            activeOpacity={0.7}
-          >
-            <Plus size={18} color="#374151" strokeWidth={1.5} />
-          </TouchableOpacity>
-          <View style={styles.zoomDivider} />
-          <TouchableOpacity
-            style={styles.zoomButton}
-            onPress={handleZoomOut}
-            activeOpacity={0.7}
-          >
-            <Minus size={18} color="#374151" strokeWidth={1.5} />
-          </TouchableOpacity>
-        </View>
-
-        <TouchableOpacity
-          style={[
-            styles.controlButton,
-            userLocation && styles.controlButtonActive,
-          ]}
-          onPress={centerOnUser}
-          activeOpacity={0.7}
-        >
-          <Navigation
-            size={18}
-            color={userLocation ? '#2563eb' : '#6b7280'}
-            strokeWidth={1.5}
-          />
-        </TouchableOpacity>
-
-        {currentZoom > 3 && (
-          <TouchableOpacity
-            style={styles.controlButton}
-            onPress={handleResetView}
-            activeOpacity={0.7}
-          >
-            <Globe size={18} color="#f97316" strokeWidth={1.5} />
-          </TouchableOpacity>
-        )}
-      </View>
+      {/* Map Controls - Using extracted component */}
+      <MapControls
+        onZoomIn={handleZoomIn}
+        onZoomOut={handleZoomOut}
+        onCenterUser={centerOnUser}
+        onResetView={handleResetView}
+        hasUserLocation={!!userLocation}
+        currentZoom={currentZoom}
+      />
 
       {/* Events Counter */}
       <View style={styles.eventsCounter}>
@@ -916,54 +886,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f97316',
     // Remove extra shadow to match web's simpler style
   },
-  mapControls: {
-    position: 'absolute',
-    top: 150,
-    right: 10,
-    gap: 12,
-  },
-  controlButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
-    backgroundColor: '#ffffff',
-    justifyContent: 'center',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  controlButtonActive: {
-    backgroundColor: '#eff6ff',
-  },
-  zoomCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
-    padding: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 2,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-  },
-  zoomButton: {
-    width: 36,
-    height: 36,
-    borderRadius: 10,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  zoomDivider: {
-    height: 1,
-    backgroundColor: '#e5e7eb',
-    marginVertical: 1,
-  },
+  // Map control styles moved to MapControls component
   eventsCounter: {
     position: 'absolute',
     bottom: 100,

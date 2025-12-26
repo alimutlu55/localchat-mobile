@@ -54,7 +54,7 @@ import { blockService, roomService, messageService } from '../../../services';
 
 // Hooks
 import { useChatMessages, useChatInput } from '../hooks';
-import { useRoomActions } from '../../rooms/hooks';
+import { useRoom, useRoomActions } from '../../rooms/hooks';
 
 // Components
 import {
@@ -133,12 +133,17 @@ export default function ChatRoomScreen() {
   const route = useRoute<ChatRoomRouteProp>();
   const { room: initialRoom } = route.params;
   const { user } = useAuth();
-  const { updateRoom, getRoomById } = useRooms();
+  const { updateRoom } = useRooms();
   const { leaveRoom, isLeaving } = useRoomActions();
   const insets = useSafeAreaInsets();
 
-  // Room state - prefer context data over route params
-  const room = getRoomById(initialRoom.id) || initialRoom;
+  // Use new useRoom hook for room data with caching and WebSocket updates
+  const { room: cachedRoom } = useRoom(initialRoom.id, {
+    skipFetchIfCached: true, // Use cached data, don't re-fetch on every render
+  });
+  
+  // Prefer cached room (has WebSocket updates), fallback to initial
+  const room = cachedRoom || initialRoom;
   const isCreator = room.isCreator || false;
 
   // UI State

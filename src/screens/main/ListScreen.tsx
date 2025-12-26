@@ -58,8 +58,14 @@ export default function ListScreen() {
     const [isSidebarOpen, setIsSidebarOpen] = useState(false);
     const [isProfileDrawerOpen, setIsProfileDrawerOpen] = useState(false);
 
+    // Track if initial fetch has been done (prevents double-fetch)
+    const hasFetchedRef = React.useRef(false);
+
     // Get location and fetch rooms
     useEffect(() => {
+        // Prevent double-fetch
+        if (hasFetchedRef.current) return;
+
         const getLocationAndRooms = async () => {
             try {
                 const { status } = await Location.requestForegroundPermissionsAsync();
@@ -80,6 +86,7 @@ export default function ListScreen() {
                 setUserLocation(coords);
 
                 // Fetch rooms using context
+                hasFetchedRef.current = true;
                 await fetchDiscoveredRooms(coords.latitude, coords.longitude, ROOM_CONFIG.DEFAULT_RADIUS);
             } catch (error) {
                 console.error('Failed to get location or rooms:', error);

@@ -8,6 +8,7 @@
  * - useMapClustering: Room clustering for map
  * - useUserLocation: User geolocation tracking
  * - useMapDiscovery: Combined discovery with clustering
+ * - useMapControls: Map viewport controls (zoom, pan, fly)
  */
 
 export { useMapState } from './useMapState';
@@ -21,3 +22,6 @@ export type { UseUserLocationReturn, UseUserLocationOptions, UserLocation } from
 
 export { useMapDiscovery } from './useMapDiscovery';
 export type { UseMapDiscoveryOptions, UseMapDiscoveryReturn, MapBounds } from './useMapDiscovery';
+
+export { useMapControls } from './useMapControls';
+export type { UseMapControlsOptions, UseMapControlsReturn, MapViewportState } from './useMapControls';

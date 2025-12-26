@@ -79,7 +79,7 @@ export function useRoom(
 ): UseRoomReturn {
   const { skipFetchIfCached = false, subscribeToUpdates = true } = options;
 
-  const { getRoom, setRoom, updateRoom } = useRoomCache();
+  const { getRoom, setRoom, updateRoom, isStale } = useRoomCache();
 
   // Local state
   const [isLoading, setIsLoading] = useState(true);
@@ -145,16 +145,21 @@ export function useRoom(
 
     // Check cache first
     const cached = getRoom(roomId);
+    const stale = isStale(roomId);
 
-    if (cached && skipFetchIfCached) {
+    if (cached && skipFetchIfCached && !stale) {
+      // Use cached data, don't fetch
       setLocalRoom(cached);
       setIsLoading(false);
-      log.debug('Using cached room', { roomId });
+      log.debug('Using cached room', { roomId, stale: false });
     } else if (cached) {
-      // Show cached data immediately, but fetch fresh data
+      // Show cached data immediately, but fetch fresh if stale
       setLocalRoom(cached);
       setIsLoading(false);
-      fetchRoom(false);
+      if (stale || !skipFetchIfCached) {
+        log.debug('Cached room is stale, fetching fresh', { roomId });
+        fetchRoom(false);
+      }
     } else {
       // No cache, must fetch
       fetchRoom(false);

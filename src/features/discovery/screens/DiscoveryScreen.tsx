@@ -147,8 +147,13 @@ export default function DiscoveryScreen() {
     // Room Fetching
     // ==========================================================================
 
+    // Track if initial fetch has been done (prevents re-fetch on callback changes)
+    const hasFetchedRef = useRef(false);
+
     useEffect(() => {
-        if (userLocation) {
+        // Only fetch once when we first get user location
+        if (userLocation && !hasFetchedRef.current) {
+            hasFetchedRef.current = true;
             fetchDiscoveredRooms(
                 userLocation.latitude,
                 userLocation.longitude,

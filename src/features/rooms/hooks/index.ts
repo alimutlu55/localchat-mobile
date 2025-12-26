@@ -5,7 +5,8 @@
  *
  * Exports:
  * - useRoom: Fetch and cache individual room data
- * - useRoomActions: Join/leave/close room operations (legacy, use useJoinRoom for new code)
+ * - useRoomState: Central coordinator for room state (recommended for new code)
+ * - useRoomActions: Join/leave/close room operations (legacy)
  * - useJoinRoom: Join/leave with typed errors and optimistic updates
  * - useRoomDiscovery: Fetch nearby rooms with pagination
  * - useMyRooms: User's joined/created rooms
@@ -13,6 +14,9 @@
 
 export { useRoom } from './useRoom';
 export type { UseRoomOptions, UseRoomReturn } from './useRoom';
+
+export { useRoomState } from './useRoomState';
+export type { UseRoomStateReturn } from './useRoomState';
 
 export { useRoomActions } from './useRoomActions';
 

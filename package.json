@@ -6,7 +6,22 @@
     "start": "expo start",
     "android": "expo run:android",
     "ios": "expo run:ios",
-    "web": "expo start --web"
+    "web": "expo start --web",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage"
+  },
+  "jest": {
+    "preset": "react-native",
+    "moduleFileExtensions": ["ts", "tsx", "js", "jsx", "json"],
+    "setupFilesAfterEnv": ["@testing-library/react-native/extend-expect"],
+    "transformIgnorePatterns": [
+      "node_modules/(?!(react-native|@react-native|expo|@expo|@testing-library)/)"
+    ],
+    "testPathIgnorePatterns": ["/node_modules/", "/android/", "/ios/"],
+    "moduleNameMapper": {
+      "^@/(.*)$": "<rootDir>/src/$1"
+    }
   },
   "dependencies": {
     "@gorhom/bottom-sheet": "^5.2.8",
@@ -42,7 +57,10 @@
     "tailwindcss": "^3.4.19"
   },
   "devDependencies": {
+    "@testing-library/react-native": "^13.3.3",
+    "@types/jest": "^30.0.0",
     "@types/react": "~19.1.0",
+    "jest": "^30.2.0",
     "typescript": "~5.9.2"
   },
   "private": true
