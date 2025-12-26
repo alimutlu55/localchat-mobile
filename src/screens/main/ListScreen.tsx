@@ -144,6 +144,7 @@ export default function ListScreen() {
                 onJoinRoom={handleJoinRoom}
                 onEnterRoom={handleEnterRoom}
                 onCreateRoom={handleCreateRoom}
+                userLocation={userLocation}
             />
 
             {/* Floating Map/List Toggle - Bottom Center */}

@@ -541,7 +541,22 @@ export function RoomProvider({ children }: { children: ReactNode }) {
 
     const handleRoomCreated = (payload: any) => {
       const roomData = payload.room;
-      console.log('[RoomContext] Room created:', roomData.id);
+      console.log('[RoomContext] Room created:', roomData.id, 'radius:', roomData.radiusMeters);
+
+      // Rule 1: If current user created this room, always add it
+      const isCreator = roomData.creatorId === user?.id;
+      
+      // Rule 2: If room is global (radius = 0), add it for everyone
+      const isGlobalRoom = roomData.radiusMeters === 0;
+      
+      // Rule 3: If room is nearby (radius > 0) and user is not creator, 
+      // let them discover it via /discover API which has proper distance filtering
+      if (!isCreator && !isGlobalRoom) {
+        console.log('[RoomContext] Ignoring nearby room created by another user - will be discovered via API');
+        return;
+      }
+
+      console.log('[RoomContext] Adding room:', isCreator ? 'creator' : 'global room');
 
       // Convert to Room type
       const newRoom: Room = {
@@ -555,22 +570,21 @@ export function RoomProvider({ children }: { children: ReactNode }) {
         emoji: '💬',
         participantCount: roomData.participantCount || 1,
         maxParticipants: 50,
-        distance: 0,
+        distance: undefined, // Distance unknown - will be calculated by UI when user location is available
         expiresAt: roomData.expiresAt ? new Date(roomData.expiresAt) : new Date(Date.now() + 3600000),
         createdAt: new Date(),
         timeRemaining: '1h',
         status: 'active',
         isNew: true,
-        // Set isCreator if current user created this room
-        isCreator: roomData.creatorId === user?.id,
-        hasJoined: roomData.creatorId === user?.id,
+        isCreator,
+        hasJoined: isCreator,
       };
 
       upsertRoom(newRoom);
       setDiscoveredRoomIds(prev => new Set(prev).add(newRoom.id));
-
-      // If user created this room
-      if (roomData.creatorId === user?.id) {
+      
+      // Only add to joined rooms if user is the creator
+      if (isCreator) {
         setJoinedRoomIds(prev => new Set(prev).add(newRoom.id));
       }
     };

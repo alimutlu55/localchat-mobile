@@ -666,6 +666,7 @@ export default function DiscoveryScreen() {
                     onJoinRoom={handleJoinRoom}
                     onEnterRoom={handleEnterRoom}
                     onCreateRoom={handleCreateRoom}
+                    userLocation={userLocation}
                 />
             </Animated.View>
 

@@ -37,6 +37,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Room } from '../types';
 import { useRooms, useIsRoomJoined } from '../context';
 import { CATEGORIES } from '../constants';
+import { calculateDistance } from '../utils/format';
 
 // Build category filter options: ['All', 'Food & Dining', 'Events', ...]
 const CATEGORY_FILTERS = ['All', ...CATEGORIES.map(cat => cat.label)];
@@ -55,6 +56,7 @@ interface RoomListViewProps {
     onJoinRoom?: (room: Room) => Promise<boolean>;
     onEnterRoom?: (room: Room) => void;
     onCreateRoom?: () => void;
+    userLocation?: { latitude: number; longitude: number } | null;
 }
 
 /**
@@ -93,10 +95,12 @@ function RoomListItemWrapper({
     room,
     onJoin,
     onEnterRoom,
+    userLocation,
 }: {
     room: Room;
     onJoin?: (room: Room) => void;
     onEnterRoom?: (room: Room) => void;
+    userLocation?: { latitude: number; longitude: number; lat?: number; lng?: number } | null;
 }) {
     // Use centralized hook to check if room is joined
     const hasJoined = useIsRoomJoined(room.id);
@@ -107,6 +111,7 @@ function RoomListItemWrapper({
             hasJoined={hasJoined}
             onJoin={onJoin}
             onEnterRoom={onEnterRoom}
+            userLocation={userLocation}
         />
     );
 }
@@ -120,11 +125,13 @@ const RoomListItem = memo(function RoomListItem({
     hasJoined,
     onJoin,
     onEnterRoom,
+    userLocation,
 }: {
     room: Room;
     hasJoined: boolean;
     onJoin?: (room: Room) => void;
     onEnterRoom?: (room: Room) => void;
+    userLocation?: { latitude: number; longitude: number; lat?: number; lng?: number } | null;
 }) {
     const [isJoining, setIsJoining] = useState(false);
 
@@ -133,6 +140,22 @@ const RoomListItem = memo(function RoomListItem({
 
     // No local joinSuccess state - rely entirely on hasJoined from context
     // This prevents stale state when user leaves and returns
+
+    // Calculate room distance
+    const roomDistance = useMemo(() => {
+        if (room.distance !== undefined) {
+            return room.distance;
+        }
+        // Calculate distance from user location if available
+        if (room.latitude && room.longitude && userLocation) {
+            const userLat = userLocation.lat || userLocation.latitude;
+            const userLng = userLocation.lng || userLocation.longitude;
+            if (userLat && userLng) {
+                return calculateDistance(userLat, userLng, room.latitude, room.longitude);
+            }
+        }
+        return 0;
+    }, [room.distance, room.latitude, room.longitude, userLocation]);
 
     const getTimeColor = () => {
         const hoursLeft = (room.expiresAt.getTime() - Date.now()) / (1000 * 60 * 60);
@@ -159,8 +182,11 @@ const RoomListItem = memo(function RoomListItem({
     };
 
     const getGradientColors = () => {
-        if (room.isExpiringSoon) return ['#f97316', '#ea580c'];
-        return ['#fb923c', '#f43f5e'];
+        // Soft Peach/Apricot Palette - "Just enough color"
+        if (room.isExpiringSoon) return ['#fb923c', '#fdba74']; // Warmer orange-peach
+
+        // Smooth Peach - A step up from cream, elegant and visible
+        return ['#fff7ed', '#ffedd5']; // Very light peach to soft apricot
     };
 
     const handlePress = () => {
@@ -193,13 +219,13 @@ const RoomListItem = memo(function RoomListItem({
                     <View style={styles.statusBadgesContainer}>
                         {room.isNew && (
                             <View style={[styles.statusBadge, styles.newBadge]}>
-                                <Sparkles size={10} color="#ffffff" />
+                                <Sparkles size={8} color="#ffffff" />
                                 <Text style={styles.statusBadgeText}>New</Text>
                             </View>
                         )}
                         {room.isHighActivity && (
                             <View style={[styles.statusBadge, styles.activeBadge]}>
-                                <Zap size={10} color="#ffffff" />
+                                <Zap size={8} color="#ffffff" />
                                 <Text style={styles.statusBadgeText}>Active</Text>
                             </View>
                         )}
@@ -212,47 +238,40 @@ const RoomListItem = memo(function RoomListItem({
                         <Text style={styles.roomTitle} numberOfLines={1}>
                             {room.title}
                         </Text>
-                        {room.isExpiringSoon && (
-                            <Clock size={14} color="#ea580c" strokeWidth={3} />
-                        )}
+                        <View style={styles.topRightMeta}>
+                            {room.isExpiringSoon && (
+                                <Clock size={12} color="#ea580c" strokeWidth={3} />
+                            )}
+                            <Text style={[styles.metaText, { color: getDistanceColor(roomDistance), fontWeight: '600' }]}>
+                                {formatDistance(roomDistance)}
+                            </Text>
+                        </View>
+                    </View>
+
+                    {/* Meta Row: People & Time */}
+                    <View style={styles.roomMeta}>
+                        <View style={styles.metaItem}>
+                            <Users size={12} color="#6b7280" />
+                            <Text style={styles.metaText}>
+                                {room.participantCount}
+                            </Text>
+                        </View>
+                        <View style={styles.metaItem}>
+                            <Clock size={12} color={getTimeColor()} />
+                            <Text style={[styles.timeText, { color: getTimeColor() }]}>
+                                {room.timeRemaining}
+                            </Text>
+                        </View>
+                        <View style={styles.categoryBadge}>
+                            <Text style={styles.categoryBadgeText}>{getCategoryLabel(room.category)}</Text>
+                        </View>
                     </View>
 
                     {room.description ? (
-                        <Text style={styles.roomDescription} numberOfLines={2}>
+                        <Text style={styles.roomDescription} numberOfLines={1}>
                             {room.description}
                         </Text>
                     ) : null}
-
-                    {/* Meta */}
-                    <View style={styles.roomMeta}>
-                        <View style={styles.metaItem}>
-                            <Users size={14} color="#6b7280" />
-                            <Text style={styles.metaText}>
-                                {room.participantCount} {room.participantCount === 1 ? 'person' : 'people'}
-                            </Text>
-                        </View>
-                        <View style={styles.metaItem}>
-                            <MapPin size={14} color={getDistanceColor(room.distance || 0)} />
-                            <Text style={[styles.metaText, { color: getDistanceColor(room.distance || 0), fontWeight: '600' }]}>
-                                {formatDistance(room.distance || 0)}
-                            </Text>
-                        </View>
-                    </View>
-
-                    {/* Bottom Row: Category & Info */}
-                    <View style={styles.bottomMetaRow}>
-                        <View style={styles.badgesWrapper}>
-                            <View style={styles.categoryBadge}>
-                                <Text style={styles.categoryBadgeText}>{getCategoryLabel(room.category)}</Text>
-                            </View>
-                            <View style={styles.timeBadge}>
-                                <Clock size={12} color={getTimeColor()} />
-                                <Text style={[styles.timeText, { color: getTimeColor() }]}>
-                                    {room.timeRemaining}
-                                </Text>
-                            </View>
-                        </View>
-                    </View>
                 </View>
             </View>
         </TouchableOpacity>
@@ -325,6 +344,7 @@ export function RoomListView({
     onJoinRoom,
     onEnterRoom,
     onCreateRoom,
+    userLocation: userLocationProp,
 }: RoomListViewProps) {
     const insets = useSafeAreaInsets();
     const [searchQuery, setSearchQuery] = useState('');
@@ -340,8 +360,26 @@ export function RoomListView({
     // NEW: Also subscribe to pagination state
     const { myRooms, isLoadingMore, hasMoreRooms, loadMoreRooms } = useRooms();
 
-    // Store user location for pagination (TODO: Get from parent or location service)
-    const [userLocation] = useState({ lat: 41.0082, lng: 28.9784 });
+    // Use passed user location or default
+    const userLocation = userLocationProp || { lat: 41.0082, lng: 28.9784 };
+
+    // Helper to get room distance (calculate if not provided)
+    const getRoomDistance = useCallback((room: Room): number => {
+        if (room.distance !== undefined) {
+            return room.distance;
+        }
+        // Calculate distance from user location if room has coordinates
+        if (room.latitude !== undefined && room.longitude !== undefined && userLocation) {
+            return calculateDistance(
+                userLocation.lat || userLocation.latitude,
+                userLocation.lng || userLocation.longitude,
+                room.latitude,
+                room.longitude
+            );
+        }
+        // Fallback to 0 if no coordinates
+        return 0;
+    }, [userLocation]);
 
     // Filter and sort rooms
     const filteredRooms = useMemo(() => {
@@ -360,20 +398,27 @@ export function RoomListView({
 
         // Category filter
         if (selectedCategory !== 'All') {
-            // Find the category ID from the label
-            const categoryConfig = CATEGORIES.find(cat => cat.label === selectedCategory);
-            if (categoryConfig) {
-                filtered = filtered.filter((room) =>
-                    room.category === categoryConfig.id
+            const query = selectedCategory.toLowerCase().trim();
+            filtered = filtered.filter((room) => {
+                const roomCat = room.category?.toLowerCase() || '';
+                // Check if it matches label OR ID of the selected category
+                const categoryConfig = CATEGORIES.find(cat =>
+                    cat.label.toLowerCase() === query ||
+                    cat.id.toLowerCase() === query
                 );
-            }
+
+                if (!categoryConfig) return false;
+
+                return roomCat === categoryConfig.id.toLowerCase() ||
+                    roomCat === categoryConfig.label.toLowerCase();
+            });
         }
 
         // Sort
         filtered.sort((a, b) => {
             switch (sortBy) {
                 case 'nearest':
-                    return (a.distance || 0) - (b.distance || 0);
+                    return getRoomDistance(a) - getRoomDistance(b);
                 case 'most-active':
                     return b.participantCount - a.participantCount;
                 case 'expiring-soon':
@@ -386,7 +431,7 @@ export function RoomListView({
         });
 
         return filtered;
-    }, [rooms, searchQuery, selectedCategory, sortBy]);
+    }, [rooms, searchQuery, selectedCategory, sortBy, getRoomDistance]);
 
     // Group rooms by distance
     const groupedRooms = useMemo(() => {
@@ -398,7 +443,7 @@ export function RoomListView({
         ];
 
         filteredRooms.forEach((room) => {
-            const distance = room.distance || 0;
+            const distance = getRoomDistance(room);
             if (distance < 500) {
                 groups[0].rooms.push(room);
             } else if (distance < 1000) {
@@ -411,7 +456,7 @@ export function RoomListView({
         });
 
         return groups.filter((group) => group.rooms.length > 0);
-    }, [filteredRooms]);
+    }, [filteredRooms, getRoomDistance]);
 
     const handleClearSearch = useCallback(() => {
         setSearchQuery('');
@@ -560,6 +605,7 @@ export function RoomListView({
                                     room={room}
                                     onJoin={handleRoomPress}
                                     onEnterRoom={onEnterRoom}
+                                    userLocation={userLocation}
                                 />
                             ))}
                         </View>
@@ -803,9 +849,9 @@ const styles = StyleSheet.create({
     },
     roomCard: {
         backgroundColor: '#ffffff',
-        borderRadius: 16,
-        padding: 16,
-        marginBottom: 12,
+        borderRadius: 12,
+        padding: 12,
+        marginBottom: 8,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
         shadowOpacity: 0.05,
@@ -822,10 +868,10 @@ const styles = StyleSheet.create({
         position: 'relative',
     },
     roomEmoji: {
-        width: 48,
-        height: 48,
-        borderRadius: 12,
-        backgroundColor: '#fff7ed',
+        width: 40,
+        height: 40,
+        borderRadius: 10,
+        backgroundColor: '#f3f4f6', // Softer default gray
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -833,9 +879,9 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: -4,
         right: -4,
-        width: 18,
-        height: 18,
-        borderRadius: 9,
+        width: 16,
+        height: 16,
+        borderRadius: 8,
         backgroundColor: '#f97316',
         borderWidth: 2,
         borderColor: '#ffffff',
@@ -844,27 +890,27 @@ const styles = StyleSheet.create({
         zIndex: 10,
     },
     roomEmojiText: {
-        fontSize: 24,
+        fontSize: 20,
     },
     roomInfo: {
         flex: 1,
     },
     roomTitle: {
-        fontSize: 16,
+        fontSize: 15,
         fontWeight: '600',
         color: '#1f2937',
-        marginBottom: 4,
+        marginBottom: 2,
     },
     roomDescription: {
-        fontSize: 13,
-        color: '#4b5563',
-        marginBottom: 8,
-        lineHeight: 18,
+        fontSize: 12,
+        color: '#6b7280',
+        marginTop: 4,
+        lineHeight: 16,
     },
     roomMeta: {
         flexDirection: 'row',
-        gap: 12,
-        marginBottom: 6,
+        alignItems: 'center',
+        gap: 8,
     },
     metaItem: {
         flexDirection: 'row',
@@ -872,14 +918,14 @@ const styles = StyleSheet.create({
         gap: 4,
     },
     metaText: {
-        fontSize: 13,
+        fontSize: 12,
         color: '#6b7280',
     },
     bottomMetaRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginTop: 10,
+        marginTop: 6,
     },
     badgesWrapper: {
         flexDirection: 'row',
@@ -887,13 +933,13 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     categoryBadge: {
-        paddingHorizontal: 8,
-        paddingVertical: 3,
-        borderRadius: 12,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 6,
         backgroundColor: '#f3e8ff',
     },
     categoryBadgeText: {
-        fontSize: 11,
+        fontSize: 10,
         color: '#7c3aed',
         fontWeight: '600',
     },
@@ -902,9 +948,9 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         gap: 4,
         backgroundColor: '#f9fafb',
-        paddingHorizontal: 8,
-        paddingVertical: 4,
-        borderRadius: 8,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        borderRadius: 6,
     },
     timeText: {
         fontSize: 11,
@@ -914,10 +960,10 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         gap: 2,
-        paddingHorizontal: 5,
+        paddingHorizontal: 4,
         paddingVertical: 1,
-        borderRadius: 8,
-        borderWidth: 1.5,
+        borderRadius: 6,
+        borderWidth: 1,
         borderColor: '#ffffff',
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 1 },
@@ -933,14 +979,19 @@ const styles = StyleSheet.create({
     },
     statusBadgeText: {
         color: '#ffffff',
-        fontSize: 8,
+        fontSize: 7,
         fontWeight: '700',
     },
     titleRow: {
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
-        marginBottom: 4,
+        marginBottom: 2,
+    },
+    topRightMeta: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 6,
     },
     modalOverlay: {
         flex: 1,

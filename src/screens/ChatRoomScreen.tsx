@@ -112,6 +112,7 @@ export default function ChatRoomScreen() {
   });
 
   const flatListRef = useRef<FlatList>(null);
+  const inputRef = useRef<TextInput>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const isAtBottomRef = useRef(true);
 
@@ -890,8 +891,8 @@ export default function ChatRoomScreen() {
       {/* Messages */}
       <KeyboardAvoidingView
         style={styles.content}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        keyboardVerticalOffset={0}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
         <FlatList
           ref={flatListRef}
@@ -902,6 +903,8 @@ export default function ChatRoomScreen() {
           showsVerticalScrollIndicator={false}
           onScroll={handleScroll}
           scrollEventThrottle={16}
+          keyboardShouldPersistTaps="handled"
+          keyboardDismissMode="on-drag"
           onContentSizeChange={() => {
             if (isAtBottomRef.current) {
               flatListRef.current?.scrollToEnd({ animated: false });
@@ -948,6 +951,7 @@ export default function ChatRoomScreen() {
         <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
           <View style={styles.inputWrapper}>
             <TextInput
+              ref={inputRef}
               style={styles.input}
               placeholder="Type a message..."
               placeholderTextColor="#94a3b8"
@@ -955,6 +959,11 @@ export default function ChatRoomScreen() {
               onChangeText={handleTextChange}
               multiline
               maxLength={1000}
+              blurOnSubmit={false}
+              keyboardType="default"
+              returnKeyType="default"
+              enablesReturnKeyAutomatically
+              underlineColorAndroid="transparent"
             />
           </View>
           <TouchableOpacity
@@ -1174,14 +1183,16 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f1f5f9',
     borderRadius: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 2,
+    minHeight: 40,
+    justifyContent: 'center',
   },
   input: {
+    flex: 1,
     fontSize: 16,
     color: '#0f172a',
-    maxHeight: 120,
+    paddingHorizontal: 16,
     paddingVertical: 8,
+    textAlignVertical: 'top',
   },
   sendButton: {
     width: 40,
