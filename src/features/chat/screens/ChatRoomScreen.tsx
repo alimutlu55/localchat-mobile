@@ -47,7 +47,6 @@ import { ChatMessage, Room } from '../../../types';
 
 // Context
 import { useAuth } from '../../../context/AuthContext';
-import { useRooms } from '../../../context/RoomContext';
 
 // Services
 import { blockService, roomService, messageService } from '../../../services';
@@ -55,6 +54,7 @@ import { blockService, roomService, messageService } from '../../../services';
 // Hooks
 import { useChatMessages, useChatInput } from '../hooks';
 import { useRoom, useRoomActions } from '../../rooms/hooks';
+import { useRoomStore } from '../../rooms/store';
 
 // Components
 import {
@@ -131,20 +131,34 @@ function useBlockedUsers() {
 export default function ChatRoomScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<ChatRoomRouteProp>();
-  const { room: initialRoom } = route.params;
+  
+  // Support both new (roomId) and legacy (room) navigation params
+  const params = route.params;
+  const roomId = params.roomId || params.room?.id;
+  const initialRoom = params.initialRoom || params.room;
+  
+  // Guard: roomId is required
+  if (!roomId) {
+    return (
+      <View style={styles.loadingContainer}>
+        <Text>Room not found</Text>
+      </View>
+    );
+  }
+  
   const { user } = useAuth();
-  const { updateRoom } = useRooms();
+  const updateRoom = useRoomStore((s) => s.updateRoom);
   const { leaveRoom, isLeaving } = useRoomActions();
   const insets = useSafeAreaInsets();
 
   // Use new useRoom hook for room data with caching and WebSocket updates
-  const { room: cachedRoom } = useRoom(initialRoom.id, {
+  const { room: cachedRoom } = useRoom(roomId, {
     skipFetchIfCached: true, // Use cached data, don't re-fetch on every render
   });
   
   // Prefer cached room (has WebSocket updates), fallback to initial
   const room = cachedRoom || initialRoom;
-  const isCreator = room.isCreator || false;
+  const isCreator = room?.isCreator || false;
 
   // UI State
   const [showMenu, setShowMenu] = useState(false);
@@ -161,6 +175,7 @@ export default function ChatRoomScreen() {
   const flatListRef = useRef<FlatList>(null);
   const inputRef = useRef<TextInput>(null);
   const isAtBottomRef = useRef(true);
+  const isClosingRoomRef = useRef(false); // Track if owner is closing the room
 
   // Blocked Users Hook
   const { blockedUserIds, blockUser, isBlocked } = useBlockedUsers();
@@ -172,17 +187,21 @@ export default function ChatRoomScreen() {
     connectionState,
     sendMessage,
     addReaction,
-  } = useChatMessages(room.id, {
+  } = useChatMessages(roomId, {
     onAccessDenied: (reason) => {
       if (reason === 'banned') {
         Alert.alert('Access Denied', 'You are banned from this room.', [
           { text: 'OK', onPress: () => navigation.goBack() },
         ]);
       } else {
-        navigation.replace('RoomDetails', { room: initialRoom });
+        navigation.replace('RoomDetails', { roomId, initialRoom });
       }
     },
     onRoomClosed: () => {
+      // Don't show alert if the current user (owner) initiated the close
+      if (isClosingRoomRef.current) {
+        return;
+      }
       Alert.alert('Room Closed', 'This room has been closed.', [
         { text: 'OK', onPress: () => navigation.goBack() },
       ]);
@@ -199,9 +218,9 @@ export default function ChatRoomScreen() {
     },
   });
 
-  // Chat Input Hook
+  // Chat Input Hook - use roomId for consistency
   const { inputText, setInputText, handleSubmit, typingUsers, canSend } = useChatInput(
-    room.id,
+    roomId,
     sendMessage
   );
 
@@ -213,15 +232,42 @@ export default function ChatRoomScreen() {
     useCallback(() => {
       const refreshRoom = async () => {
         try {
-          const freshRoom = await roomService.getRoom(room.id);
-          updateRoom(room.id, { participantCount: freshRoom.participantCount });
+          const freshRoom = await roomService.getRoom(roomId);
+          updateRoom(roomId, { participantCount: freshRoom.participantCount });
         } catch (e) {
           log.warn('Could not refresh room data on focus');
         }
       };
       refreshRoom();
-    }, [room.id, updateRoom])
+    }, [roomId, updateRoom])
   );
+
+  // ==========================================================================
+  // Blocked User Warning Check
+  // ==========================================================================
+
+  useEffect(() => {
+    const checkForBlockedUsers = async () => {
+      // Only check if we have blocked users
+      if (blockedUserIds.size === 0) return;
+
+      try {
+        const participants = await roomService.getParticipants(roomId);
+        const hasBlockedParticipant = participants.some(
+          (p) => blockedUserIds.has(p.userId)
+        );
+
+        if (hasBlockedParticipant) {
+          log.info('Blocked user detected in room', { roomId });
+          setShowBlockedWarning(true);
+        }
+      } catch (err) {
+        log.error('Failed to check participants for blocked users', err);
+      }
+    };
+
+    checkForBlockedUsers();
+  }, [roomId, blockedUserIds]);
 
   // ==========================================================================
   // Scroll Handling
@@ -250,11 +296,12 @@ export default function ChatRoomScreen() {
 
   const handleRoomInfo = useCallback(() => {
     navigation.navigate('RoomInfo', {
-      room,
+      roomId,
+      initialRoom: room,
       isCreator,
       currentUserId: user?.id,
     });
-  }, [room, isCreator, user?.id, navigation]);
+  }, [roomId, room, isCreator, user?.id, navigation]);
 
   const handleLeaveRoom = useCallback(() => {
     Alert.alert('Leave Room', 'Are you sure you want to leave this room?', [
@@ -263,7 +310,7 @@ export default function ChatRoomScreen() {
         text: 'Leave',
         style: 'destructive',
         onPress: async () => {
-          const result = await leaveRoom(room.id);
+          const result = await leaveRoom(roomId);
           if (result.success) {
             navigation.popToTop();
           } else {
@@ -272,7 +319,7 @@ export default function ChatRoomScreen() {
         },
       },
     ]);
-  }, [room.id, leaveRoom, navigation]);
+  }, [roomId, leaveRoom, navigation]);
 
   const handleCloseRoom = useCallback(() => {
     Alert.alert('Close Room', 'This will prevent any new messages.', [
@@ -282,16 +329,20 @@ export default function ChatRoomScreen() {
         style: 'destructive',
         onPress: async () => {
           try {
-            await roomService.closeRoom(room.id);
-            Alert.alert('Success', 'Room has been closed');
-            navigation.goBack();
+            // Set flag to prevent showing "Room Closed" alert from WebSocket event
+            isClosingRoomRef.current = true;
+            await roomService.closeRoom(roomId);
+            Alert.alert('Success', 'Room has been closed', [
+              { text: 'OK', onPress: () => navigation.popToTop() },
+            ]);
           } catch (error) {
+            isClosingRoomRef.current = false;
             Alert.alert('Error', 'Failed to close room');
           }
         },
       },
     ]);
-  }, [room.id, navigation]);
+  }, [roomId, navigation]);
 
   const handleReportMessage = useCallback((message: ChatMessage) => {
     setTimeout(() => {
@@ -337,7 +388,7 @@ export default function ChatRoomScreen() {
     try {
       if (reportConfig.targetType === 'message' && reportConfig.targetData) {
         await messageService.reportMessage(
-          room.id,
+          roomId,
           reportConfig.targetData.id,
           data.reason,
           data.details
@@ -346,8 +397,8 @@ export default function ChatRoomScreen() {
           await blockUser(reportConfig.targetData.userId);
         }
       } else if (reportConfig.targetType === 'room') {
-        await roomService.reportRoom(room.id, data.reason, data.details);
-        const result = await leaveRoom(room.id);
+        await roomService.reportRoom(roomId, data.reason, data.details);
+        const result = await leaveRoom(roomId);
         navigation.popToTop();
       }
     } catch (error) {
@@ -387,7 +438,7 @@ export default function ChatRoomScreen() {
   // Loading State
   // ==========================================================================
 
-  if (isLoading) {
+  if (isLoading || !room) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#f97316" />

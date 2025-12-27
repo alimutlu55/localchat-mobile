@@ -20,13 +20,12 @@
  * ```
  *
  * This context remains for backward compatibility with existing screens.
- * It syncs data to RoomCacheContext so both systems stay consistent.
+ * It now uses RoomStore (Zustand) internally instead of local state.
  *
  * Architecture:
- * - ONE Map<roomId, Room> stores all room data
- * - ONE Set<roomId> tracks which rooms user has joined
- * - All views (map, list, sidebar) derive from these two sources
- * - Syncs to RoomCacheContext for new hooks
+ * - RoomStore holds the room data (single source of truth)
+ * - This context wraps RoomStore to maintain backward compatibility
+ * - WebSocket events are handled by useRoomWebSocket in RoomStoreProvider
  */
 
 import React, {
@@ -41,7 +40,7 @@ import React, {
 import { Room } from '../types';
 import { roomService, wsService, WS_EVENTS } from '../services';
 import { useAuth } from './AuthContext';
-import { useRoomCache } from '../features/rooms/context/RoomCacheContext';
+import { useRoomStore } from '../features/rooms/store';
 import { createLogger } from '../shared/utils/logger';
 
 const log = createLogger('RoomContext');
@@ -180,11 +179,16 @@ export function RoomProvider({ children }: { children: ReactNode }) {
   }, [roomsById, joinedRoomIds]);
 
   // ============================================================================
-  // Room Data Operations
+  // Room Data Operations - Using RoomStore
   // ============================================================================
 
-  // Get room cache for syncing
-  const roomCache = useRoomCache();
+  // Get RoomStore functions
+  const storeSetRoom = useRoomStore((s) => s.setRoom);
+  const storeSetRooms = useRoomStore((s) => s.setRooms);
+  const storeUpdateRoom = useRoomStore((s) => s.updateRoom);
+  const storeRemoveRoom = useRoomStore((s) => s.removeRoom);
+  const storeAddJoinedRoom = useRoomStore((s) => s.addJoinedRoom);
+  const storeRemoveJoinedRoom = useRoomStore((s) => s.removeJoinedRoom);
 
   // Update or add a room to the store
   const upsertRoom = useCallback((room: Room) => {
@@ -195,9 +199,9 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       next.set(room.id, existing ? { ...existing, ...room } : room);
       return next;
     });
-    // Sync to new cache for hooks using it
-    roomCache.setRoom(room);
-  }, [roomCache]);
+    // Sync to RoomStore
+    storeSetRoom(room);
+  }, [storeSetRoom]);
 
   // Update room fields
   const updateRoom = useCallback((roomId: string, updates: Partial<Room>) => {
@@ -208,9 +212,9 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       next.set(roomId, { ...room, ...updates });
       return next;
     });
-    // Sync to new cache
-    roomCache.updateRoom(roomId, updates);
-  }, [roomCache]);
+    // Sync to RoomStore
+    storeUpdateRoom(roomId, updates);
+  }, [storeUpdateRoom]);
 
   // Remove a room
   const removeRoom = useCallback((roomId: string) => {
@@ -229,9 +233,10 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       next.delete(roomId);
       return next;
     });
-    // Sync to new cache
-    roomCache.removeRoom(roomId);
-  }, [roomCache]);
+    // Sync to RoomStore
+    storeRemoveRoom(roomId);
+    storeRemoveJoinedRoom(roomId);
+  }, [storeRemoveRoom, storeRemoveJoinedRoom]);
 
   // Add a created room to context (called when user creates a room)
   const addCreatedRoom = useCallback((room: Room) => {
@@ -239,7 +244,9 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     upsertRoom(room);
     setDiscoveredRoomIds(prev => new Set(prev).add(room.id));
     setJoinedRoomIds(prev => new Set(prev).add(room.id));
-  }, [upsertRoom]);
+    // Sync to RoomStore
+    storeAddJoinedRoom(room.id);
+  }, [upsertRoom, storeAddJoinedRoom]);
 
   // ============================================================================
   // Fetch Operations
@@ -279,7 +286,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       });
 
       // Batch sync to cache (single operation instead of 20)
-      roomCache.setRooms(fetchedRooms);
+      storeSetRooms(fetchedRooms);
 
       // Update joined IDs for rooms user has joined
       fetchedRooms.forEach((room: Room) => {
@@ -297,7 +304,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoading(false);
     }
-  }, [roomCache]);
+  }, [storeSetRooms]);
 
   const loadMoreRooms = useCallback(async (
     lat: number,
@@ -333,7 +340,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
       });
 
       // Batch sync to cache
-      roomCache.setRooms(fetchedRooms);
+      storeSetRooms(fetchedRooms);
 
       // Update discovered and joined IDs
       setDiscoveredRoomIds(prev => {
@@ -356,7 +363,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     } finally {
       setIsLoadingMore(false);
     }
-  }, [currentPage, hasMoreRooms, isLoadingMore, roomCache]);
+  }, [currentPage, hasMoreRooms, isLoadingMore, storeSetRooms]);
 
   const fetchMyRooms = useCallback(async () => {
     log.debug('Fetching my rooms');
@@ -380,7 +387,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
 
       // Batch sync to cache
       if (activeRooms.length > 0) {
-        roomCache.setRooms(activeRooms);
+        storeSetRooms(activeRooms);
       }
 
       // Update joined IDs
@@ -389,7 +396,7 @@ export function RoomProvider({ children }: { children: ReactNode }) {
     } catch (err) {
       log.error('Failed to fetch my rooms', err);
     }
-  }, [roomCache]);
+  }, [storeSetRooms]);
 
   // ============================================================================
   // Join/Leave Operations

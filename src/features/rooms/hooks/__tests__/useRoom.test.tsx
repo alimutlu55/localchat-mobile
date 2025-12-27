@@ -205,35 +205,7 @@ describe('useRoom', () => {
     });
   });
 
-  describe('WebSocket subscription', () => {
-    it('should subscribe to WebSocket events when subscribeToUpdates is true', () => {
-      (roomService.getRoom as jest.Mock).mockResolvedValue(mockRoom);
-
-      renderHook(() => useRoom('test-room-1', { subscribeToUpdates: true }), {
-        wrapper,
-      });
-
-      // Should subscribe to room update events
-      expect(wsService.on).toHaveBeenCalledWith(
-        WS_EVENTS.ROOM_UPDATED,
-        expect.any(Function)
-      );
-      expect(wsService.on).toHaveBeenCalledWith(
-        WS_EVENTS.PARTICIPANT_COUNT,
-        expect.any(Function)
-      );
-    });
-
-    it('should not subscribe when subscribeToUpdates is false', () => {
-      (roomService.getRoom as jest.Mock).mockResolvedValue(mockRoom);
-      (wsService.on as jest.Mock).mockClear();
-
-      renderHook(() => useRoom('test-room-1', { subscribeToUpdates: false }), {
-        wrapper,
-      });
-
-      // Should not subscribe to any events
-      expect(wsService.on).not.toHaveBeenCalled();
-    });
-  });
+  // NOTE: WebSocket subscription tests removed as the new useRoom hook 
+  // delegates WebSocket handling to the central useRoomWebSocket hook
+  // which is mounted at the app level via RoomStoreProvider.
 });

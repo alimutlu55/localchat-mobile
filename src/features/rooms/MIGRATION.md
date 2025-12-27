@@ -2,37 +2,85 @@
 
 ## Overview
 
-The room state management is being migrated from a monolithic `RoomContext` to smaller, focused hooks in `features/rooms`. This guide helps developers understand and adopt the new patterns.
+The room state management is being migrated from a monolithic `RoomContext` to:
+1. **Zustand-based `RoomStore`** (NEW - preferred for new code)
+2. **Focused hooks** in `features/rooms`
+
+This guide helps developers understand and adopt the new patterns.
+
+## Architecture Evolution
+
+```
+Phase 1 (Legacy):     RoomContext (900+ LOC "God Context")
+                           ↓
+Phase 2 (Current):    RoomContext → RoomCacheContext → Feature Hooks
+                           ↓
+Phase 3 (Target):     RoomStore (Zustand) → Feature Hooks
+```
 
 ## Quick Reference
 
-| Old Pattern | New Pattern | Notes |
-|-------------|-------------|-------|
-| `useRooms().getRoomById(id)` | `useRoom(id).room` | Auto-fetches, caches, subscribes to updates |
-| `useRooms().joinRoom(room)` | `useJoinRoom().join(room)` | Returns typed errors |
-| `useRooms().leaveRoom(id)` | `useJoinRoom().leave(id)` | Handles WebSocket cleanup |
-| `useRooms().myRooms` | `useMyRooms().rooms` | Includes active/expired filtering |
-| `useIsRoomJoined(id)` | `useMyRooms().isJoined(id)` | Same functionality |
-| `useRooms().fetchDiscoveredRooms()` | `useRoomDiscovery().refresh()` | Includes pagination |
+| Old Pattern | New Pattern (Hooks) | Newest Pattern (Store) |
+|-------------|---------------------|------------------------|
+| `useRooms().getRoomById(id)` | `useRoom(id).room` | `useStoreRoom(id)` |
+| `useRooms().joinRoom(room)` | `useJoinRoom().join(room)` | Same |
+| `useRooms().myRooms` | `useMyRooms().rooms` | `useMyRoomsStore()` |
+| `useIsRoomJoined(id)` | `useMyRooms().isJoined(id)` | `useIsRoomJoinedStore(id)` |
+| `useRooms().discoveredRooms` | `useRoomDiscovery().rooms` | `useDiscoveredRoomsStore()` |
 
-## New Architecture
+## New Architecture (Zustand)
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
-│                     RoomCacheContext                             │
-│   • Map<id, {room, cachedAt}> - with TTL (5 min default)        │
-│   • get/set/update/remove operations                             │
-│   • isStale() for TTL checking                                   │
+│                  RoomStore (Zustand) - NEW                       │
+│   • rooms: Map<id, Room> - single source of truth               │
+│   • joinedRoomIds: Set<id> - user's joined rooms                │
+│   • discoveredRoomIds: Set<id> - nearby rooms                   │
+│   • WebSocket events handled by useRoomWebSocket hook            │
 └─────────────────────────────────────────────────────────────────┘
                                 │
-                    ┌───────────┼───────────┐
-                    ▼           ▼           ▼
-              ┌─────────┐ ┌─────────┐ ┌─────────┐
-              │ useRoom │ │useMyRms │ │useJoin  │
-              │ Fetch & │ │ User's  │ │ Join &  │
-              │ cache   │ │ rooms   │ │ leave   │
-              └─────────┘ └─────────┘ └─────────┘
+              ┌─────────────────┼─────────────────┐
+              ▼                 ▼                 ▼
+        ┌───────────┐     ┌───────────┐     ┌───────────┐
+        │useStoreRoom│     │useMyRooms │     │useJoinRoom│
+        │ Single rm  │     │  Store    │     │ Join ops  │
+        └───────────┘     └───────────┘     └───────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│              RoomCacheContext (Legacy - being replaced)          │
+│   • Map<id, {room, cachedAt}> - with TTL (5 min default)        │
+│   • Dual-write: updates go to both RoomStore and RoomCacheCtx   │
+└─────────────────────────────────────────────────────────────────┘
 ```
+
+## Using the New RoomStore
+
+### Direct Store Access (Preferred for new code)
+
+```typescript
+import { useRoomStore, useStoreRoom, useMyRoomsStore } from '@/features/rooms';
+
+function MyComponent() {
+  // Get a single room
+  const room = useStoreRoom(roomId);
+  
+  // Get all joined rooms
+  const myRooms = useMyRoomsStore();
+  
+  // Check if joined
+  const isJoined = useRoomStore((s) => s.joinedRoomIds.has(roomId));
+  
+  // Get store actions
+  const setRoom = useRoomStore((s) => s.setRoom);
+  const updateRoom = useRoomStore((s) => s.updateRoom);
+}
+```
+
+### WebSocket Events
+
+WebSocket events are now handled centrally by `useRoomWebSocket` hook,
+which is mounted via `RoomStoreProvider` in App.tsx. You don't need to
+subscribe to WebSocket events manually - the store is updated automatically.
 
 ## Migration Examples
 

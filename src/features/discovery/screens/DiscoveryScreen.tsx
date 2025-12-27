@@ -12,7 +12,7 @@
  * ~400 LOC (down from 975 LOC)
  */
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
     View,
     Text,
@@ -43,7 +43,10 @@ import { Room } from '../../../types';
 import { ROOM_CONFIG } from '../../../constants';
 
 // Context
-import { useRooms, useActiveRooms, useUIActions } from '../../../context';
+import { useUIActions } from '../../../context';
+
+// Features
+import { useRoomDiscovery, useJoinRoom, useMyRooms } from '../../rooms/hooks';
 
 // Components - now from feature module
 import { RoomListView, RoomMarker, ClusterMarker } from '../components';
@@ -116,16 +119,44 @@ export default function DiscoveryScreen() {
         defaultZoom: 13,
     });
 
-    // Room Context
+    // Room discovery - using hooks instead of context
     const {
+        rooms: discoveredRooms,
         isLoading: isLoadingRooms,
-        fetchDiscoveredRooms,
-        selectedRoom,
-        setSelectedRoom,
-        joinRoom,
-    } = useRooms();
+        refresh: fetchDiscoveredRoomsHook,
+    } = useRoomDiscovery({
+        latitude: userLocation?.latitude || 0,
+        longitude: userLocation?.longitude || 0,
+        autoFetch: false, // We'll fetch manually after location is ready
+    });
+    
+    const { join: joinRoomHook } = useJoinRoom();
+    const { activeRooms: myActiveRooms } = useMyRooms();
+    
+    // Local state for selected room
+    const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+    
+    // Wrapper for joinRoom to match expected signature
+    const joinRoom = async (room: Room): Promise<boolean> => {
+        const result = await joinRoomHook(room);
+        return result.success;
+    };
+    
+    // Wrapper for fetchDiscoveredRooms to match expected signature
+    const fetchDiscoveredRooms = async (lat: number, lng: number, radius?: number) => {
+        await fetchDiscoveredRoomsHook();
+    };
+    
+    // Use discovered rooms for activeRooms (filtered in useRoomDiscovery)
+    // Note: discoveredRooms is now reactive to room removals (e.g., when banned)
+    const activeRooms = useMemo(() => {
+        const now = Date.now();
+        return discoveredRooms.filter(room => {
+            const isExpired = room.expiresAt && room.expiresAt.getTime() < now;
+            return !isExpired && room.status !== 'closed' && room.status !== 'expired';
+        });
+    }, [discoveredRooms]);
 
-    const activeRooms = useActiveRooms();
     const { openSidebar } = useUIActions();
 
     // Map Clustering
@@ -178,7 +209,7 @@ export default function DiscoveryScreen() {
                 // If already zoomed in enough, navigate directly
                 if (zoomDiff <= 1.5) {
                     setSelectedRoom(room);
-                    navigation.navigate('RoomDetails', { room });
+                    navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: room });
                     return;
                 }
 
@@ -193,11 +224,11 @@ export default function DiscoveryScreen() {
 
                 setTimeout(() => {
                     setSelectedRoom(room);
-                    navigation.navigate('RoomDetails', { room });
+                    navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: room });
                 }, duration + 150);
             } else {
                 setSelectedRoom(room);
-                navigation.navigate('RoomDetails', { room });
+                navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: room });
             }
         },
         [navigation, setSelectedRoom, isMapReady, zoom, calculateFlyDuration, cameraRef]
@@ -216,7 +247,7 @@ export default function DiscoveryScreen() {
             if (zoom >= 17 && expansionZoom > 18) {
                 const firstRoom = leaves[0].properties.room;
                 setSelectedRoom(firstRoom);
-                navigation.navigate('RoomDetails', { room: firstRoom });
+                navigation.navigate('RoomDetails', { roomId: firstRoom.id, initialRoom: firstRoom });
                 return;
             }
 
@@ -256,9 +287,9 @@ export default function DiscoveryScreen() {
     const handleEnterRoom = useCallback(
         (room: Room) => {
             if (!room.hasJoined && !room.isCreator) {
-                navigation.navigate('RoomDetails', { room });
+                navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: room });
             } else {
-                navigation.navigate('ChatRoom', { room });
+                navigation.navigate('ChatRoom', { roomId: room.id, initialRoom: room });
             }
         },
         [navigation]

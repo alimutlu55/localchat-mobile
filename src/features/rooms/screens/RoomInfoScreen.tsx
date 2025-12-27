@@ -44,10 +44,24 @@ type RoomInfoRouteProp = RouteProp<RootStackParamList, 'RoomInfo'>;
 export default function RoomInfoScreen() {
     const navigation = useNavigation<NavigationProp>();
     const route = useRoute<RoomInfoRouteProp>();
-    const { room: initialRoom, isCreator, currentUserId, onCloseRoom } = route.params;
+    
+    // Support both new (roomId) and legacy (room) navigation params
+    const params = route.params;
+    const roomId = params.roomId || params.room?.id;
+    const initialRoom = params.initialRoom || params.room;
+    const { isCreator, currentUserId, onCloseRoom } = params;
+
+    // Guard: roomId is required
+    if (!roomId) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <Text>Room not found</Text>
+            </SafeAreaView>
+        );
+    }
 
     // Use the useRoom hook for reactive data (WebSocket updates)
-    const { room: cachedRoom } = useRoom(initialRoom.id, { skipFetchIfCached: true });
+    const { room: cachedRoom, isLoading: isRoomLoading } = useRoom(roomId, { skipFetchIfCached: true });
     // Prefer cached room (has real-time updates), fallback to route params
     const room = cachedRoom || initialRoom;
 
@@ -55,13 +69,35 @@ export default function RoomInfoScreen() {
     const [isLoadingParticipants, setIsLoadingParticipants] = useState(false);
     const [showBannedUsers, setShowBannedUsers] = useState(false);
 
+    // Loading guard - show loading if we don't have room data yet
+    if (!room && isRoomLoading) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                    <Text>Loading...</Text>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
+    // Not found guard
+    if (!room) {
+        return (
+            <SafeAreaView style={styles.container}>
+                <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+                    <Text>Room not found</Text>
+                </View>
+            </SafeAreaView>
+        );
+    }
+
     /**
      * Fetch participants for inline display and subscribe to membership events
      */
     const fetchParticipants = async () => {
         setIsLoadingParticipants(true);
         try {
-            const data = await roomService.getParticipants(room.id);
+            const data = await roomService.getParticipants(roomId);
             setParticipants(data);
         } catch (err) {
             console.error('Failed to fetch participants:', err);
@@ -76,14 +112,14 @@ export default function RoomInfoScreen() {
 
         // Subscribe to kicks and bans so the participants list reflects removals
         const unsubKicked = wsService.on(WS_EVENTS.USER_KICKED, (payload: any) => {
-            if (payload.roomId === room.id) {
+            if (payload.roomId === roomId) {
                 // Refresh participants to reflect the removal
                 fetchParticipants();
             }
         });
 
         const unsubBanned = wsService.on(WS_EVENTS.USER_BANNED, (payload: any) => {
-            if (payload.roomId === room.id) {
+            if (payload.roomId === roomId) {
                 // Refresh participants and possibly update UI
                 fetchParticipants();
             }
@@ -93,12 +129,12 @@ export default function RoomInfoScreen() {
             unsubKicked();
             unsubBanned();
         };
-    }, [room.id]);
+    }, [roomId]);
 
     const handleShare = async () => {
         try {
             await Share.share({
-                message: `Join "${room.title}" on LocalChat! Nearby rooms for local conversations.`,
+                message: `Join "${room?.title || 'this room'}" on LocalChat! Nearby rooms for local conversations.`,
                 url: 'https://localchat.app',
             });
         } catch (error) {
@@ -117,7 +153,7 @@ export default function RoomInfoScreen() {
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            await roomService.kickUser(room.id, userId);
+                            await roomService.kickUser(roomId, userId);
                             // Refresh participants list
                             fetchParticipants();
                             Alert.alert('Success', `${displayName} has been removed`);
@@ -141,7 +177,7 @@ export default function RoomInfoScreen() {
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            await roomService.banUser(room.id, userId);
+                            await roomService.banUser(roomId, userId);
                             // Refresh participants list
                             fetchParticipants();
                             Alert.alert('Success', `${displayName} has been banned`);
@@ -352,7 +388,7 @@ export default function RoomInfoScreen() {
 
             {/* Banned Users Modal */}
             <BannedUsersModal
-                roomId={room.id}
+                roomId={roomId}
                 isOpen={showBannedUsers}
                 onClose={() => setShowBannedUsers(false)}
             />

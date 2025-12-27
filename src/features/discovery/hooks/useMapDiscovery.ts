@@ -26,7 +26,7 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { Room } from '../../../types';
 import { roomService } from '../../../services';
-import { useRoomCache } from '../../rooms/context/RoomCacheContext';
+import { useRoomStore } from '../../rooms/store';
 import { ROOM_CONFIG } from '../../../constants';
 import { createLogger } from '../../../shared/utils/logger';
 import {
@@ -115,11 +115,16 @@ export function useMapDiscovery(
 ): UseMapDiscoveryReturn {
   const { radius = ROOM_CONFIG.DEFAULT_RADIUS, pageSize = 20 } = options;
 
-  const { setRooms: cacheRooms, getRoom } = useRoomCache();
+  // Use RoomStore
+  const storeSetRooms = useRoomStore((s) => s.setRooms);
+  const storeGetRoom = useRoomStore((s) => s.getRoom);
+  const storeJoinedIds = useRoomStore((s) => s.joinedRoomIds);
+  const storeDiscoveredIds = useRoomStore((s) => s.discoveredRoomIds);
+  const setDiscoveredRoomIds = useRoomStore((s) => s.setDiscoveredRoomIds);
+  const addDiscoveredRoomIds = useRoomStore((s) => s.addDiscoveredRoomIds);
 
   // State
   const [userLocation, setUserLocationState] = useState<UserLocation | null>(null);
-  const [discoveredIds, setDiscoveredIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
@@ -131,23 +136,23 @@ export function useMapDiscovery(
     zoom: 13,
   });
 
-  // Local rooms state derived from cache
-  const [rooms, setRooms] = useState<Room[]>([]);
-
   // Refs
   const hasFetchedRef = useRef(false);
 
-  // Derive rooms from discovered IDs
-  useEffect(() => {
+  // Derive rooms from discovered IDs in store
+  const rooms = useMemo(() => {
     const roomList: Room[] = [];
-    discoveredIds.forEach((id) => {
-      const room = getRoom(id);
+    storeDiscoveredIds.forEach((id) => {
+      const room = storeGetRoom(id);
       if (room) {
-        roomList.push(room);
+        roomList.push({
+          ...room,
+          hasJoined: storeJoinedIds.has(id),
+        });
       }
     });
-    setRooms(roomList);
-  }, [discoveredIds, getRoom]);
+    return roomList;
+  }, [storeDiscoveredIds, storeGetRoom, storeJoinedIds]);
 
   // Derived: active rooms (non-expired, non-closed)
   const activeRooms = useMemo(() => {
@@ -204,12 +209,11 @@ export function useMapDiscovery(
 
         log.info('Fetched rooms', { count: result.rooms.length, hasNext: result.hasNext });
 
-        // Update cache
-        cacheRooms(result.rooms);
+        // Update store
+        storeSetRooms(result.rooms);
 
         // Update discovered IDs
-        const newIds = new Set(result.rooms.map((r) => r.id));
-        setDiscoveredIds(newIds);
+        setDiscoveredRoomIds(new Set(result.rooms.map((r) => r.id)));
 
         setHasMore(result.hasNext);
         setCurrentPage(1);
@@ -222,7 +226,7 @@ export function useMapDiscovery(
         setIsRefreshing(false);
       }
     },
-    [radius, pageSize, cacheRooms]
+    [radius, pageSize, storeSetRooms, setDiscoveredRoomIds]
   );
 
   /**
@@ -247,15 +251,11 @@ export function useMapDiscovery(
 
       log.info('Loaded more rooms', { count: result.rooms.length });
 
-      // Update cache
-      cacheRooms(result.rooms);
+      // Update store
+      storeSetRooms(result.rooms);
 
       // Append to discovered IDs
-      setDiscoveredIds((prev) => {
-        const next = new Set(prev);
-        result.rooms.forEach((r) => next.add(r.id));
-        return next;
-      });
+      addDiscoveredRoomIds(result.rooms.map((r) => r.id));
 
       setHasMore(result.hasNext);
       setCurrentPage((p) => p + 1);
@@ -264,7 +264,7 @@ export function useMapDiscovery(
     } finally {
       setIsLoadingMore(false);
     }
-  }, [userLocation, currentPage, hasMore, isLoadingMore, radius, pageSize, cacheRooms]);
+  }, [userLocation, currentPage, hasMore, isLoadingMore, radius, pageSize, storeSetRooms, addDiscoveredRoomIds]);
 
   /**
    * Set user location and trigger fetch

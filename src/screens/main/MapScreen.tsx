@@ -35,7 +35,7 @@ import { RootStackParamList } from '../../navigation/types';
 import { Room } from '../../types';
 import { ROOM_CONFIG, MAP_CONFIG } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
-import { useRooms, useSidebarRooms } from '../../context/RoomContext';
+import { useRoomDiscovery, useMyRooms } from '../../features/rooms/hooks';
 import { Sidebar } from '../../components/Sidebar';
 import { ProfileDrawer } from '../../components/ProfileDrawer';
 import { RoomPin, MapCluster } from '../../features/discovery/components';
@@ -97,18 +97,38 @@ export default function MapScreen() {
 
   const { user, logout } = useAuth();
 
-  // Use RoomContext for room state management
+  // Use hooks instead of RoomContext
   const {
-    activeRooms,
-    myRooms,
+    rooms: discoveredRooms,
     isLoading: isLoadingRooms,
-    fetchDiscoveredRooms,
-    selectedRoom,
-    setSelectedRoom,
-  } = useRooms();
-
-  // Get sidebar-specific room lists (active vs expired)
-  const sidebarRooms = useSidebarRooms();
+    refresh: refreshRooms,
+  } = useRoomDiscovery({
+    latitude: 0, // Will be set when location is available
+    longitude: 0,
+    autoFetch: false,
+  });
+  
+  const { rooms: myRooms, activeRooms: myActiveRooms, expiredRooms: myExpiredRooms } = useMyRooms();
+  
+  // Local state for selected room
+  const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+  
+  // Wrapper for fetchDiscoveredRooms
+  const fetchDiscoveredRooms = async (lat: number, lng: number, radius?: number) => {
+    await refreshRooms();
+  };
+  
+  // Compute activeRooms from discovered rooms
+  const activeRooms = useMemo(() => {
+    const now = Date.now();
+    return discoveredRooms.filter(room => {
+      const isExpired = room.expiresAt && room.expiresAt.getTime() < now;
+      return !isExpired && room.status !== 'closed' && room.status !== 'expired';
+    });
+  }, [discoveredRooms]);
+  
+  // Sidebar rooms (active vs expired from my rooms)
+  const sidebarRooms = { activeRooms: myActiveRooms, expiredRooms: myExpiredRooms };
 
   // Local UI state
   const [isLoading, setIsLoading] = useState(true);
@@ -129,7 +149,7 @@ export default function MapScreen() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileDrawerOpen, setIsProfileDrawerOpen] = useState(false);
 
-  // Use activeRooms from context for clustering (only non-expired, non-closed)
+  // Use activeRooms for clustering (only non-expired, non-closed)
   const clusterIndex = useMemo(() => createClusterIndex(activeRooms), [activeRooms]);
 
   // Get clusters/features for current viewport
@@ -399,7 +419,7 @@ export default function MapScreen() {
       // If already at a good zoom level (within 1.5 levels), open immediately
       if (zoomDiff <= 1.5) {
         setSelectedRoom(room);
-        navigation.navigate('RoomDetails', { room });
+        navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: room });
         return;
       }
 
@@ -421,11 +441,11 @@ export default function MapScreen() {
       // Open details after zoom completes (with buffer)
       setTimeout(() => {
         setSelectedRoom(room);
-        navigation.navigate('RoomDetails', { room });
+        navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: room });
       }, duration + 150);
     } else {
       setSelectedRoom(room);
-      navigation.navigate('RoomDetails', { room });
+      navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: room });
     }
   }, [navigation, setSelectedRoom, mapReady, currentZoom, calculateMapFlyDuration]);
 
@@ -512,7 +532,7 @@ export default function MapScreen() {
       if (expansionZoom > 18) {
         const firstRoom = leaves[0].properties.room;
         setSelectedRoom(firstRoom);
-        navigation.navigate('RoomDetails', { room: firstRoom });
+        navigation.navigate('RoomDetails', { roomId: firstRoom.id, initialRoom: firstRoom });
         return;
       }
     }
@@ -806,9 +826,9 @@ export default function MapScreen() {
         onRoomSelect={(room) => {
           // Check if user needs to join first (e.g., after being kicked)
           if (!room.hasJoined && !room.isCreator) {
-            navigation.navigate('RoomDetails', { room });
+            navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: room });
           } else {
-            navigation.navigate('ChatRoom', { room });
+            navigation.navigate('ChatRoom', { roomId: room.id, initialRoom: room });
           }
         }}
         onProfilePress={() => {

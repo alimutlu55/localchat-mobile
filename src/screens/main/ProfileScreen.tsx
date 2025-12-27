@@ -28,6 +28,7 @@ import {
 } from 'lucide-react-native';
 import { RootStackParamList } from '../../navigation/types';
 import { useAuth } from '../../context/AuthContext';
+import { AvatarDisplay } from '../../components/profile';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -104,15 +105,12 @@ export default function ProfileScreen() {
           onPress={() => navigation.navigate('EditProfile')}
           activeOpacity={0.8}
         >
-          <View style={styles.avatar}>
-            {user?.profilePhotoUrl ? (
-              <View style={styles.avatarImage} />
-            ) : (
-              <Text style={styles.avatarText}>
-                {user?.displayName?.charAt(0).toUpperCase() || 'U'}
-              </Text>
-            )}
-          </View>
+          <AvatarDisplay
+            avatarUrl={user?.profilePhotoUrl}
+            displayName={user?.displayName || 'User'}
+            size="lg"
+            style={styles.avatar}
+          />
 
           <View style={styles.userInfo}>
             <Text style={styles.userName}>{user?.displayName || 'User'}</Text>

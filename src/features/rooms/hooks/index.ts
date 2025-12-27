@@ -10,6 +10,7 @@
  * - useJoinRoom: Join/leave with typed errors and optimistic updates
  * - useRoomDiscovery: Fetch nearby rooms with pagination
  * - useMyRooms: User's joined/created rooms
+ * - useRoomWebSocket: WebSocket event handler for room updates
  */
 
 export { useRoom } from './useRoom';
@@ -28,3 +29,6 @@ export type { UseRoomDiscoveryOptions, UseRoomDiscoveryReturn } from './useRoomD
 
 export { useMyRooms } from './useMyRooms';
 export type { UseMyRoomsOptions, UseMyRoomsReturn } from './useMyRooms';
+
+// NEW: WebSocket event handler
+export { useRoomWebSocket } from './useRoomWebSocket';

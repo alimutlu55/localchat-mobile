@@ -1,11 +1,11 @@
 /**
  * Room Feature Contexts
  *
- * Context providers for room-related state management.
+ * @deprecated These exports are for backward compatibility only.
+ * New code should use hooks from ./hooks or store from ./store directly.
  *
- * Exports:
- * - RoomCacheProvider: Minimal room data cache
- * - useRoomCache: Access cached room data
+ * RoomCacheContext has been replaced by RoomStore (Zustand).
  */
 
+// Keep for backward compatibility but discourage new usage
 export { RoomCacheProvider, useRoomCache } from './RoomCacheContext';

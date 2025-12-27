@@ -35,7 +35,7 @@ import {
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Room } from '../types';
-import { useRooms, useIsRoomJoined } from '../context';
+import { useMyRooms, useRoomDiscovery } from '../features/rooms/hooks';
 import { CATEGORIES } from '../constants';
 import { calculateDistance } from '../utils/format';
 
@@ -103,7 +103,8 @@ function RoomListItemWrapper({
     userLocation?: { latitude: number; longitude: number; lat?: number; lng?: number } | null;
 }) {
     // Use centralized hook to check if room is joined
-    const hasJoined = useIsRoomJoined(room.id);
+    const { isJoined } = useMyRooms();
+    const hasJoined = isJoined(room.id);
 
     return (
         <RoomListItem
@@ -356,8 +357,14 @@ export function RoomListView({
     const [isJoining, setIsJoining] = useState(false);
 
     // Subscribe to myRooms to force re-render when join/leave state changes
-    // NEW: Also subscribe to pagination state
-    const { myRooms, isLoadingMore, hasMoreRooms, loadMoreRooms } = useRooms();
+    const { rooms: myRooms } = useMyRooms();
+    
+    // Get pagination state from discovery hook
+    const { isLoadingMore, hasMore: hasMoreRooms, loadMore: loadMoreRooms } = useRoomDiscovery({
+        latitude: userLocationProp?.latitude || 0,
+        longitude: userLocationProp?.longitude || 0,
+        autoFetch: false,
+    });
 
     // Use passed user location or default (use both formats for compatibility)
     const userLocation = userLocationProp || { latitude: 41.0082, longitude: 28.9784, lat: 41.0082, lng: 28.9784 };
@@ -491,11 +498,9 @@ export function RoomListView({
     const handleLoadMore = useCallback(() => {
         if (!isLoadingMore && hasMoreRooms && !searchQuery) {
             // Only load more if not searching (search results are locally filtered)
-            const lat = userLocation.lat ?? userLocation.latitude;
-            const lng = userLocation.lng ?? userLocation.longitude;
-            loadMoreRooms(lat, lng);
+            loadMoreRooms();
         }
-    }, [isLoadingMore, hasMoreRooms, searchQuery, loadMoreRooms, userLocation]);
+    }, [isLoadingMore, hasMoreRooms, searchQuery, loadMoreRooms]);
 
     if (isLoading) {
         return (

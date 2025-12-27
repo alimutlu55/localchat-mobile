@@ -75,9 +75,9 @@ export default function RoomsScreen() {
     // If user hasn't joined (e.g., was kicked), show room details with join button
     // Otherwise, go directly to chat
     if (!room.hasJoined && !room.isCreator) {
-      navigation.navigate('RoomDetails', { room });
+      navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: room });
     } else {
-      navigation.navigate('ChatRoom', { room });
+      navigation.navigate('ChatRoom', { roomId: room.id, initialRoom: room });
     }
   };
 

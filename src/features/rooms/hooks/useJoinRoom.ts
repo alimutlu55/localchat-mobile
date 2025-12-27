@@ -25,7 +25,7 @@
 import { useState, useCallback, useRef } from 'react';
 import { Room } from '../../../types';
 import { roomService, wsService } from '../../../services';
-import { useRoomCache } from '../context/RoomCacheContext';
+import { useRoomStore } from '../store';
 import { createLogger } from '../../../shared/utils/logger';
 
 const log = createLogger('JoinRoom');
@@ -120,7 +120,12 @@ function isAlreadyJoinedError(error: any): boolean {
 // =============================================================================
 
 export function useJoinRoom(): UseJoinRoomReturn {
-  const { setRoom, updateRoom, getRoom } = useRoomCache();
+  // Use RoomStore instead of RoomCacheContext
+  const setRoom = useRoomStore((s) => s.setRoom);
+  const updateRoom = useRoomStore((s) => s.updateRoom);
+  const getRoom = useRoomStore((s) => s.getRoom);
+  const addJoinedRoom = useRoomStore((s) => s.addJoinedRoom);
+  const removeJoinedRoom = useRoomStore((s) => s.removeJoinedRoom);
 
   // Track in-flight operations
   const [joiningIds, setJoiningIds] = useState<Set<string>>(new Set());
@@ -172,8 +177,9 @@ export function useJoinRoom(): UseJoinRoomReturn {
       // Mark as joining
       setJoiningIds((prev) => new Set(prev).add(roomId));
 
-      // Optimistic update - cache the room with hasJoined flag
+      // Optimistic update - add to store and mark as joined
       setRoom({ ...room, hasJoined: true });
+      addJoinedRoom(roomId);
 
       try {
         await roomService.joinRoom(
@@ -204,6 +210,7 @@ export function useJoinRoom(): UseJoinRoomReturn {
 
         // Rollback optimistic update
         updateRoom(roomId, { hasJoined: false });
+        removeJoinedRoom(roomId);
 
         // Determine error type
         if (isBannedError(error)) {
@@ -240,7 +247,7 @@ export function useJoinRoom(): UseJoinRoomReturn {
         });
       }
     },
-    [setRoom, updateRoom]
+    [setRoom, updateRoom, addJoinedRoom, removeJoinedRoom]
   );
 
   /**
@@ -261,6 +268,7 @@ export function useJoinRoom(): UseJoinRoomReturn {
 
       // Optimistic update
       updateRoom(roomId, { hasJoined: false });
+      removeJoinedRoom(roomId);
 
       try {
         await roomService.leaveRoom(roomId);
@@ -275,6 +283,7 @@ export function useJoinRoom(): UseJoinRoomReturn {
 
         // Rollback optimistic update
         updateRoom(roomId, { hasJoined: true });
+        addJoinedRoom(roomId);
 
         return {
           success: false,
@@ -291,7 +300,7 @@ export function useJoinRoom(): UseJoinRoomReturn {
         });
       }
     },
-    [updateRoom]
+    [updateRoom, addJoinedRoom, removeJoinedRoom]
   );
 
   return {

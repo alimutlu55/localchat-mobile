@@ -252,9 +252,12 @@ export function AvatarDisplay({ avatarUrl, displayName, size = 'md', style }: Av
   };
 
   const dimensions = sizeStyles[size];
+  
+  // Normalize empty strings to undefined for consistent handling
+  const validAvatarUrl = avatarUrl && avatarUrl.trim().length > 0 ? avatarUrl : undefined;
 
-  if (avatarUrl) {
-    const isSvg = avatarUrl.toLowerCase().endsWith('.svg') || avatarUrl.includes('dicebear');
+  if (validAvatarUrl) {
+    const isSvg = validAvatarUrl.toLowerCase().endsWith('.svg') || validAvatarUrl.includes('dicebear');
 
     return (
       <View
@@ -268,13 +271,13 @@ export function AvatarDisplay({ avatarUrl, displayName, size = 'md', style }: Av
       >
         {isSvg ? (
           <SvgUri
-            uri={avatarUrl}
+            uri={validAvatarUrl}
             width="100%"
             height="100%"
           />
         ) : (
           <Image
-            source={{ uri: avatarUrl }}
+            source={{ uri: validAvatarUrl }}
             style={{ width: '100%', height: '100%' }}
             resizeMode="cover"
           />
@@ -283,18 +286,19 @@ export function AvatarDisplay({ avatarUrl, displayName, size = 'md', style }: Av
     );
   }
 
+  // Fallback: show initial letter
   return (
     <View
       style={[{
         width: dimensions.container,
         height: dimensions.container,
         borderRadius: dimensions.container / 2,
-        backgroundColor: '#e5e7eb',
+        backgroundColor: '#f97316',
         justifyContent: 'center',
         alignItems: 'center',
       }, style]}
     >
-      <Text style={{ fontSize: dimensions.text, fontWeight: '600', color: '#6b7280' }}>
+      <Text style={{ fontSize: dimensions.text, fontWeight: '600', color: '#ffffff' }}>
         {displayName?.charAt(0).toUpperCase() || 'U'}
       </Text>
     </View>

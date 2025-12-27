@@ -31,7 +31,7 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Room } from '../../../types';
 import { roomService, wsService, WS_EVENTS } from '../../../services';
-import { useRoomCache } from '../context/RoomCacheContext';
+import { useRoomStore } from '../store';
 import { useAuth } from '../../../context/AuthContext';
 import { createLogger } from '../../../shared/utils/logger';
 
@@ -87,17 +87,26 @@ export interface UseMyRoomsReturn {
 export function useMyRooms(options: UseMyRoomsOptions = {}): UseMyRoomsReturn {
   const { autoFetch = true, includeClosed = false } = options;
 
-  const { setRooms: cacheRooms, getRoom, updateRoom: updateCacheRoom } = useRoomCache();
+  // Use RoomStore
+  const setRooms = useRoomStore((s) => s.setRooms);
+  const storeRooms = useRoomStore((s) => s.rooms); // Subscribe to rooms Map for reactivity
+  const updateRoom = useRoomStore((s) => s.updateRoom);
+  const storeJoinedIds = useRoomStore((s) => s.joinedRoomIds);
+  const setJoinedRoomIds = useRoomStore((s) => s.setJoinedRoomIds);
+  const addJoinedRoom = useRoomStore((s) => s.addJoinedRoom);
+  const removeJoinedRoom = useRoomStore((s) => s.removeJoinedRoom);
+  
   const { user, isAuthenticated } = useAuth();
 
-  // State
-  const [joinedIds, setJoinedIds] = useState<Set<string>>(new Set());
+  // Local state for loading/error
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [rooms, setRooms] = useState<Room[]>([]);
 
   // Track if initial fetch has been done
   const hasFetchedRef = useRef(false);
+
+  // Use store's joinedIds
+  const joinedIds = storeJoinedIds;
 
   /**
    * Check if user has joined a room
@@ -109,11 +118,12 @@ export function useMyRooms(options: UseMyRoomsOptions = {}): UseMyRoomsReturn {
 
   /**
    * Compute rooms list from joined IDs
+   * Note: We subscribe to storeRooms (the Map) so this recomputes when rooms are added/removed
    */
   const computeRooms = useCallback(() => {
     const roomList: Room[] = [];
     joinedIds.forEach((id) => {
-      const room = getRoom(id);
+      const room = storeRooms.get(id);
       if (room) {
         // Filter closed if needed
         if (!includeClosed && room.status === 'closed') {
@@ -131,12 +141,10 @@ export function useMyRooms(options: UseMyRoomsOptions = {}): UseMyRoomsReturn {
     });
 
     return roomList;
-  }, [joinedIds, getRoom, includeClosed]);
+  }, [joinedIds, storeRooms, includeClosed]);
 
-  // Update rooms when joined IDs change
-  useEffect(() => {
-    setRooms(computeRooms());
-  }, [computeRooms]);
+  // Compute rooms from store
+  const rooms = computeRooms();
 
   /**
    * Fetch user's rooms from API
@@ -155,8 +163,8 @@ export function useMyRooms(options: UseMyRoomsOptions = {}): UseMyRoomsReturn {
       const fetchedRooms = await roomService.getMyRooms();
       log.info('Fetched my rooms', { count: fetchedRooms.length });
 
-      // Update cache
-      cacheRooms(fetchedRooms);
+      // Update store
+      setRooms(fetchedRooms);
 
       // Update joined IDs
       const newIds = new Set<string>();
@@ -166,7 +174,7 @@ export function useMyRooms(options: UseMyRoomsOptions = {}): UseMyRoomsReturn {
         }
       });
 
-      setJoinedIds(newIds);
+      setJoinedRoomIds(newIds);
       hasFetchedRef.current = true;
     } catch (err) {
       log.error('Failed to fetch my rooms', err);
@@ -174,7 +182,7 @@ export function useMyRooms(options: UseMyRoomsOptions = {}): UseMyRoomsReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated, cacheRooms, includeClosed]);
+  }, [isAuthenticated, setRooms, setJoinedRoomIds, includeClosed]);
 
   /**
    * Add a room to user's list (optimistic update)
@@ -182,12 +190,12 @@ export function useMyRooms(options: UseMyRoomsOptions = {}): UseMyRoomsReturn {
   const addRoom = useCallback(
     (room: Room) => {
       log.debug('Adding room to my rooms', { roomId: room.id });
-      // Update cache
-      updateCacheRoom(room.id, room);
+      // Update store
+      updateRoom(room.id, room);
       // Add to joined IDs
-      setJoinedIds((prev) => new Set(prev).add(room.id));
+      addJoinedRoom(room.id);
     },
-    [updateCacheRoom]
+    [updateRoom, addJoinedRoom]
   );
 
   /**
@@ -195,12 +203,8 @@ export function useMyRooms(options: UseMyRoomsOptions = {}): UseMyRoomsReturn {
    */
   const removeRoom = useCallback((roomId: string) => {
     log.debug('Removing room from my rooms', { roomId });
-    setJoinedIds((prev) => {
-      const next = new Set(prev);
-      next.delete(roomId);
-      return next;
-    });
-  }, []);
+    removeJoinedRoom(roomId);
+  }, [removeJoinedRoom]);
 
   // Auto-fetch on mount
   useEffect(() => {
@@ -218,7 +222,7 @@ export function useMyRooms(options: UseMyRoomsOptions = {}): UseMyRoomsReturn {
       const joinedUserId = payload.userId || payload.user?.id;
       if (joinedUserId === user.id) {
         log.debug('Current user joined room via WS', { roomId: payload.roomId });
-        setJoinedIds((prev) => new Set(prev).add(payload.roomId));
+        addJoinedRoom(payload.roomId);
       }
     };
 
@@ -226,11 +230,7 @@ export function useMyRooms(options: UseMyRoomsOptions = {}): UseMyRoomsReturn {
     const handleUserLeft = (payload: any) => {
       if (payload.userId === user.id) {
         log.debug('Current user left room via WS', { roomId: payload.roomId });
-        setJoinedIds((prev) => {
-          const next = new Set(prev);
-          next.delete(payload.roomId);
-          return next;
-        });
+        removeJoinedRoom(payload.roomId);
       }
     };
 
@@ -238,11 +238,7 @@ export function useMyRooms(options: UseMyRoomsOptions = {}): UseMyRoomsReturn {
     const handleUserKicked = (payload: any) => {
       if (payload.kickedUserId === user.id) {
         log.warn('Current user was kicked', { roomId: payload.roomId });
-        setJoinedIds((prev) => {
-          const next = new Set(prev);
-          next.delete(payload.roomId);
-          return next;
-        });
+        removeJoinedRoom(payload.roomId);
       }
     };
 
@@ -250,11 +246,7 @@ export function useMyRooms(options: UseMyRoomsOptions = {}): UseMyRoomsReturn {
     const handleUserBanned = (payload: any) => {
       if (payload.bannedUserId === user.id) {
         log.warn('Current user was banned', { roomId: payload.roomId });
-        setJoinedIds((prev) => {
-          const next = new Set(prev);
-          next.delete(payload.roomId);
-          return next;
-        });
+        removeJoinedRoom(payload.roomId);
       }
     };
 

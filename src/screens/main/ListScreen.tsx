@@ -22,7 +22,7 @@ import { RootStackParamList } from '../../navigation/types';
 import { Room } from '../../types';
 import { ROOM_CONFIG } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
-import { useRooms, useActiveRooms, useSidebarRooms } from '../../context/RoomContext';
+import { useRoomDiscovery, useJoinRoom, useMyRooms } from '../../features/rooms/hooks';
 import { RoomListView } from '../../features/discovery/components';
 import { Sidebar } from '../../components/Sidebar';
 import { ProfileDrawer } from '../../components/ProfileDrawer';
@@ -33,19 +33,42 @@ export default function ListScreen() {
     const navigation = useNavigation<NavigationProp>();
     const { user, logout } = useAuth();
 
-    // Use RoomContext for room state management
+    // Use hooks instead of RoomContext
     const {
-        myRooms,
+        rooms: discoveredRooms,
         isLoading: isLoadingRooms,
-        fetchDiscoveredRooms,
-        joinRoom,
-    } = useRooms();
+        refresh: refreshRooms,
+    } = useRoomDiscovery({
+        latitude: 0,
+        longitude: 0,
+        autoFetch: false,
+    });
+    
+    const { join: joinRoomHook } = useJoinRoom();
+    const { rooms: myRooms, activeRooms: myActiveRooms, expiredRooms: myExpiredRooms } = useMyRooms();
+    
+    // Wrapper for joinRoom
+    const joinRoom = async (room: Room): Promise<boolean> => {
+        const result = await joinRoomHook(room);
+        return result.success;
+    };
+    
+    // Wrapper for fetchDiscoveredRooms
+    const fetchDiscoveredRooms = async (lat: number, lng: number, radius?: number) => {
+        await refreshRooms();
+    };
+    
+    // Compute activeRooms from discovered rooms
+    const activeRooms = React.useMemo(() => {
+        const now = Date.now();
+        return discoveredRooms.filter(room => {
+            const isExpired = room.expiresAt && room.expiresAt.getTime() < now;
+            return !isExpired && room.status !== 'closed' && room.status !== 'expired';
+        });
+    }, [discoveredRooms]);
 
-    // Get active rooms for list display (non-expired, non-closed)
-    const activeRooms = useActiveRooms();
-
-    // Get sidebar-specific room lists (active vs expired)
-    const sidebarRooms = useSidebarRooms();
+    // Sidebar rooms
+    const sidebarRooms = { activeRooms: myActiveRooms, expiredRooms: myExpiredRooms };
 
     // Local UI state
     const [isLoading, setIsLoading] = useState(true);
@@ -111,9 +134,9 @@ export default function ListScreen() {
     const handleEnterRoom = (room: Room) => {
         // Check if user needs to join first (e.g., after being kicked)
         if (!room.hasJoined && !room.isCreator) {
-            navigation.navigate('RoomDetails', { room });
+            navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: room });
         } else {
-            navigation.navigate('ChatRoom', { room });
+            navigation.navigate('ChatRoom', { roomId: room.id, initialRoom: room });
         }
     };
 
@@ -187,9 +210,9 @@ export default function ListScreen() {
                 onRoomSelect={(room) => {
                     // Check if user needs to join first (e.g., after being kicked)
                     if (!room.hasJoined && !room.isCreator) {
-                        navigation.navigate('RoomDetails', { room });
+                        navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: room });
                     } else {
-                        navigation.navigate('ChatRoom', { room });
+                        navigation.navigate('ChatRoom', { roomId: room.id, initialRoom: room });
                     }
                 }}
                 onProfilePress={() => {

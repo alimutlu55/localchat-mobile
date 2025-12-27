@@ -31,7 +31,7 @@
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { Room, RoomCategory } from '../../../types';
 import { roomService } from '../../../services';
-import { useRoomCache } from '../context/RoomCacheContext';
+import { useRoomStore } from '../store';
 import { ROOM_CONFIG } from '../../../constants';
 import { createLogger } from '../../../shared/utils/logger';
 
@@ -104,10 +104,15 @@ export function useRoomDiscovery(
     autoFetch = true,
   } = options;
 
-  const { setRooms, updateRoom: updateCacheRoom, getRoom } = useRoomCache();
+  // Use RoomStore
+  const storeSetRooms = useRoomStore((s) => s.setRooms);
+  const storeRooms = useRoomStore((s) => s.rooms); // Subscribe to rooms Map for reactivity
+  const storeJoinedIds = useRoomStore((s) => s.joinedRoomIds);
+  const setDiscoveredRoomIds = useRoomStore((s) => s.setDiscoveredRoomIds);
+  const addDiscoveredRoomIds = useRoomStore((s) => s.addDiscoveredRoomIds);
+  const storeDiscoveredIds = useRoomStore((s) => s.discoveredRoomIds);
 
   // State
-  const [discoveredIds, setDiscoveredIds] = useState<Set<string>>(new Set());
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -115,25 +120,26 @@ export function useRoomDiscovery(
   const [currentPage, setCurrentPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
 
-  // Derived rooms list from cache
-  const [rooms, setRooms_local] = useState<Room[]>([]);
-
   // Track if initial fetch has been done
   const hasFetchedRef = useRef(false);
 
-  // Update local rooms when discovered IDs change
-  useEffect(() => {
+  // Compute rooms from store
+  // Note: We subscribe to storeRooms (the Map) so this recomputes when rooms are added/removed
+  const rooms = useMemo(() => {
     const roomList: Room[] = [];
-    discoveredIds.forEach((id) => {
-      const room = getRoom(id);
+    storeDiscoveredIds.forEach((id) => {
+      const room = storeRooms.get(id);
       if (room) {
-        roomList.push(room);
+        roomList.push({
+          ...room,
+          hasJoined: storeJoinedIds.has(id),
+        });
       }
     });
     // Sort by distance (closest first)
     roomList.sort((a, b) => (a.distance || 0) - (b.distance || 0));
-    setRooms_local(roomList);
-  }, [discoveredIds, getRoom]);
+    return roomList;
+  }, [storeDiscoveredIds, storeRooms, storeJoinedIds]);
 
   /**
    * Fetch rooms (initial or refresh)
@@ -155,12 +161,11 @@ export function useRoomDiscovery(
 
       log.info('Fetched rooms', { count: result.rooms.length, hasNext: result.hasNext });
 
-      // Update cache with all rooms
-      setRooms(result.rooms);
+      // Update store with all rooms
+      storeSetRooms(result.rooms);
 
       // Track discovered room IDs
-      const newIds = new Set(result.rooms.map((r) => r.id));
-      setDiscoveredIds(newIds);
+      setDiscoveredRoomIds(new Set(result.rooms.map((r) => r.id)));
 
       setHasMore(result.hasNext);
       setTotalCount(result.totalElements);
@@ -172,7 +177,7 @@ export function useRoomDiscovery(
     } finally {
       setIsLoading(false);
     }
-  }, [latitude, longitude, radius, category, pageSize, setRooms]);
+  }, [latitude, longitude, radius, category, pageSize, storeSetRooms, setDiscoveredRoomIds]);
 
   /**
    * Load more rooms (pagination)
@@ -198,15 +203,11 @@ export function useRoomDiscovery(
 
       log.info('Loaded more rooms', { count: result.rooms.length, hasNext: result.hasNext });
 
-      // Update cache
-      setRooms(result.rooms);
+      // Update store
+      storeSetRooms(result.rooms);
 
       // Append to discovered IDs
-      setDiscoveredIds((prev) => {
-        const next = new Set(prev);
-        result.rooms.forEach((r) => next.add(r.id));
-        return next;
-      });
+      addDiscoveredRoomIds(result.rooms.map((r) => r.id));
 
       setHasMore(result.hasNext);
       setCurrentPage((prev) => prev + 1);
@@ -216,7 +217,7 @@ export function useRoomDiscovery(
     } finally {
       setIsLoadingMore(false);
     }
-  }, [latitude, longitude, radius, category, pageSize, currentPage, hasMore, isLoadingMore, setRooms]);
+  }, [latitude, longitude, radius, category, pageSize, currentPage, hasMore, isLoadingMore, storeSetRooms, addDiscoveredRoomIds]);
 
   /**
    * Refresh rooms (reset pagination)
@@ -227,16 +228,17 @@ export function useRoomDiscovery(
     await fetchRooms();
   }, [fetchRooms]);
 
+  // Get store updateRoom for updateDiscoveredRoom
+  const storeUpdateRoom = useRoomStore((s) => s.updateRoom);
+
   /**
    * Update a specific room in the discovered list
    */
   const updateDiscoveredRoom = useCallback(
     (roomId: string, updates: Partial<Room>) => {
-      updateCacheRoom(roomId, updates);
-      // Trigger re-render of local rooms
-      setDiscoveredIds((prev) => new Set(prev));
+      storeUpdateRoom(roomId, updates);
     },
-    [updateCacheRoom]
+    [storeUpdateRoom]
   );
 
   // Auto-fetch on mount if enabled

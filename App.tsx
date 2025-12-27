@@ -11,8 +11,12 @@
  * 4. AuthProvider - Authentication state
  * 5. UIProvider - UI state (sidebar, drawers)
  * 6. SettingsProvider - User settings
- * 7. RoomCacheProvider - Room data cache (new)
- * 8. RoomProvider - Room business logic (uses cache)
+ * 7. RoomStoreProvider - Zustand store + WebSocket handlers
+ *
+ * Architecture:
+ * - RoomStore (Zustand) is the single source of truth for room data
+ * - All room operations use hooks from features/rooms
+ * - No legacy RoomContext/RoomProvider needed
  */
 
 import React from 'react';
@@ -20,8 +24,8 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
-import { AuthProvider, RoomProvider, SettingsProvider, UIProvider } from './src/context';
-import { RoomCacheProvider } from './src/features/rooms';
+import { AuthProvider, SettingsProvider, UIProvider } from './src/context';
+import { RoomStoreProvider } from './src/features/rooms';
 import { RootNavigator } from './src/navigation';
 import { GlobalDrawers } from './src/components/GlobalDrawers';
 
@@ -39,13 +43,12 @@ export default function App() {
           <AuthProvider>
             <UIProvider>
               <SettingsProvider>
-                <RoomCacheProvider>
-                  <RoomProvider>
-                    <StatusBar style="dark" />
-                    <RootNavigator />
-                    <GlobalDrawers />
-                  </RoomProvider>
-                </RoomCacheProvider>
+                {/* RoomStoreProvider initializes Zustand store and WebSocket handlers */}
+                <RoomStoreProvider>
+                  <StatusBar style="dark" />
+                  <RootNavigator />
+                  <GlobalDrawers />
+                </RoomStoreProvider>
               </SettingsProvider>
             </UIProvider>
           </AuthProvider>

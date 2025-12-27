@@ -15,6 +15,7 @@ import {
     Switch,
     Alert,
     ScrollView,
+    ActivityIndicator,
 } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -37,11 +38,14 @@ import {
     MessageSquare,
     Sparkles,
     ArrowLeft,
+    UserCheck,
     X,
     Calendar,
     Hash,
 } from 'lucide-react-native';
-import { useAuth, useRooms } from '../context';
+import { useAuth } from '../context';
+import { useMyRooms } from '../features/rooms/hooks';
+import { blockService, BlockedUser } from '../services';
 import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { Room } from '../types';
 import { AvatarDisplay } from './profile';
@@ -52,7 +56,7 @@ interface ProfileDrawerProps {
     onSignOut: () => void;
 }
 
-type SubPage = 'main' | 'privacy' | 'notifications' | 'language' | 'help';
+type SubPage = 'main' | 'privacy' | 'notifications' | 'language' | 'help' | 'blocked';
 
 /**
  * Stat Item Component
@@ -167,7 +171,7 @@ function Section({
 export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps) {
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
     const { user } = useAuth();
-    const { myRooms } = useRooms();
+    const { rooms: myRooms } = useMyRooms();
     const [currentPage, setCurrentPage] = useState<SubPage>('main');
 
     // BottomSheet refs and config
@@ -179,16 +183,35 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
     const [messageNotifications, setMessageNotifications] = useState(true);
     const [soundEnabled, setSoundEnabled] = useState(true);
 
+    // Blocked users state
+    const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
+    const [isLoadingBlocked, setIsLoadingBlocked] = useState(false);
+    const [unblockingId, setUnblockingId] = useState<string | null>(null);
+
+    const loadBlockedUsers = useCallback(async () => {
+        setIsLoadingBlocked(true);
+        try {
+            const users = await blockService.getBlockedUsers();
+            setBlockedUsers(users);
+        } catch (error) {
+            console.error('Failed to load blocked users:', error);
+        } finally {
+            setIsLoadingBlocked(false);
+        }
+    }, []);
+
     // Control sheet index based on isOpen prop
     useEffect(() => {
         if (isOpen) {
             bottomSheetRef.current?.expand();
             // Reset page when opening
             setCurrentPage('main');
+            // Fetch blocked count for main page
+            loadBlockedUsers();
         } else {
             bottomSheetRef.current?.close();
         }
-    }, [isOpen]);
+    }, [isOpen, loadBlockedUsers]);
 
     const handleSheetChanges = useCallback((index: number) => {
         if (index === -1) {
@@ -246,16 +269,40 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
 
     const handleRoomPress = useCallback((room: Room) => {
         onClose();
-        navigation.navigate('ChatRoom', { room });
+        navigation.navigate('ChatRoom', { roomId: room.id, initialRoom: room });
     }, [onClose, navigation]);
+
+    const handleUnblock = useCallback((user: BlockedUser) => {
+        Alert.alert(
+            'Unblock User',
+            `Are you sure you want to unblock ${user.displayName || 'this user'}?`,
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Unblock',
+                    onPress: async () => {
+                        setUnblockingId(user.blockedId);
+                        try {
+                            await blockService.unblockUser(user.blockedId);
+                            setBlockedUsers(prev => prev.filter(u => u.blockedId !== user.blockedId));
+                        } catch (error) {
+                            Alert.alert('Error', 'Failed to unblock user');
+                        } finally {
+                            setUnblockingId(null);
+                        }
+                    },
+                },
+            ]
+        );
+    }, []);
 
     // Format createdAt date
     const memberSince = useMemo(() => {
         if (!user?.createdAt) return 'Recently';
         return new Date(user.createdAt).toLocaleDateString(undefined, {
             month: 'short',
-            year: 'numeric'
-        });
+            year: 'numeric' });
+
     }, [user?.createdAt]);
 
     // Derived stats
@@ -355,7 +402,8 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
                 <SettingRow
                     icon={UserX}
                     label="Blocked Users"
-                    onPress={() => console.log('Blocked users')}
+                    value={blockedUsers.length > 0 ? `${blockedUsers.length}` : undefined}
+                    onPress={() => setCurrentPage('blocked')}
                 />
             </Section>
 
@@ -495,6 +543,56 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
                         <Text style={styles.infoText}>
                             Language settings coming soon...
                         </Text>
+                    </View>
+                );
+            case 'blocked':
+                return renderSubPage(
+                    'Blocked Users',
+                    <View style={styles.subPageContent}>
+                        {isLoadingBlocked ? (
+                            <View style={styles.loadingContainer}>
+                                <ActivityIndicator size="large" color="#f97316" />
+                            </View>
+                        ) : blockedUsers.length === 0 ? (
+                            <View style={styles.emptyContainer}>
+                                <View style={styles.emptyIcon}>
+                                    <UserX size={48} color="#9ca3af" />
+                                </View>
+                                <Text style={styles.emptyTitle}>No Blocked Users</Text>
+                                <Text style={styles.emptyText}>
+                                    Users you block will appear here.
+                                </Text>
+                            </View>
+                        ) : (
+                            <View>
+                                {blockedUsers.map((item) => (
+                                    <View key={item.blockedId} style={styles.userItem}>
+                                        <View style={styles.avatar}>
+                                            <Text style={styles.avatarText}>
+                                                {(item.displayName || 'U').charAt(0).toUpperCase()}
+                                            </Text>
+                                        </View>
+                                        <View style={styles.userInfo}>
+                                            <Text style={styles.userName}>{item.displayName || 'Unknown User'}</Text>
+                                            <Text style={styles.blockedDate}>
+                                                Blocked on {new Date(item.createdAt).toLocaleDateString()}
+                                            </Text>
+                                        </View>
+                                        <TouchableOpacity
+                                            style={styles.unblockButton}
+                                            onPress={() => handleUnblock(item)}
+                                            disabled={unblockingId === item.blockedId}
+                                        >
+                                            {unblockingId === item.blockedId ? (
+                                                <ActivityIndicator size="small" color="#22c55e" />
+                                            ) : (
+                                                <UserCheck size={20} color="#22c55e" />
+                                            )}
+                                        </TouchableOpacity>
+                                    </View>
+                                ))}
+                            </View>
+                        )}
                     </View>
                 );
             case 'help':
@@ -836,6 +934,80 @@ const styles = StyleSheet.create({
         padding: 16,
         backgroundColor: '#f9fafb',
         borderRadius: 16,
+    },
+    loadingContainer: {
+        paddingVertical: 40,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    emptyContainer: {
+        padding: 40,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    emptyIcon: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: '#f3f4f6',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 16,
+    },
+    emptyTitle: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#1f2937',
+        marginBottom: 8,
+    },
+    emptyText: {
+        fontSize: 14,
+        color: '#6b7280',
+        textAlign: 'center',
+        lineHeight: 20,
+    },
+    userItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f9fafb',
+        padding: 16,
+        borderRadius: 12,
+        marginBottom: 12,
+    },
+    avatar: {
+        width: 48,
+        height: 48,
+        borderRadius: 24,
+        backgroundColor: '#fef2f2',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginRight: 12,
+    },
+    avatarText: {
+        fontSize: 18,
+        fontWeight: '600',
+        color: '#ef4444',
+    },
+    userInfo: {
+        flex: 1,
+    },
+    userName: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: '#1f2937',
+    },
+    blockedDate: {
+        fontSize: 12,
+        color: '#9ca3af',
+        marginTop: 2,
+    },
+    unblockButton: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: '#f0fdf4',
+        justifyContent: 'center',
+        alignItems: 'center',
     },
 });
 

@@ -29,7 +29,7 @@ import { ChatMessage, MessageStatus } from '../../../types';
 import { useAuth } from '../../../context/AuthContext';
 import { createLogger } from '../../../shared/utils/logger';
 import { isNotParticipant, isUserBanned } from '../../../shared/utils/errors';
-import { useRoomCache } from '../../rooms/context/RoomCacheContext';
+import { useRoomStore } from '../../rooms/store';
 
 const log = createLogger('ChatMessages');
 
@@ -114,8 +114,9 @@ export function useChatMessages(
   const { user } = useAuth();
   const userId = user?.id;
 
-  // Room cache (to update participant counts for UI)
-  const roomCache = useRoomCache();
+  // Room store (to update participant counts for UI)
+  const updateRoom = useRoomStore((s) => s.updateRoom);
+  const setRoom = useRoomStore((s) => s.setRoom);
 
   // State
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -347,7 +348,7 @@ export function useChatMessages(
         // Ensure cache is refreshed for UI
         try {
           const fresh = await roomService.getRoom(roomId);
-          roomCache.setRoom(fresh);
+          setRoom(fresh);
         } catch (err) {
           // ignore
         }
@@ -363,7 +364,7 @@ export function useChatMessages(
       // Update participant count if provided
       if (payload.participantCount !== undefined) {
         try {
-          roomCache.updateRoom(roomId, { participantCount: payload.participantCount });
+          updateRoom(roomId, { participantCount: payload.participantCount });
         } catch (err) {
           // ignore
         }
@@ -373,7 +374,7 @@ export function useChatMessages(
       // Fallback: fetch fresh room and update cache
       try {
         const fresh = await roomService.getRoom(roomId);
-        roomCache.setRoom(fresh);
+        setRoom(fresh);
       } catch (err) {
         console.error('Failed to refresh room after kick', err);
       }
@@ -388,7 +389,7 @@ export function useChatMessages(
         optionsRef.current.onUserBanned?.(payload.reason);
         try {
           const fresh = await roomService.getRoom(roomId);
-          roomCache.setRoom(fresh);
+          setRoom(fresh);
         } catch (err) {
           // ignore
         }
@@ -403,7 +404,7 @@ export function useChatMessages(
 
       if (payload.participantCount !== undefined) {
         try {
-          roomCache.updateRoom(roomId, { participantCount: payload.participantCount });
+          updateRoom(roomId, { participantCount: payload.participantCount });
         } catch (err) {
           // ignore
         }
@@ -412,7 +413,7 @@ export function useChatMessages(
 
       try {
         const fresh = await roomService.getRoom(roomId);
-        roomCache.setRoom(fresh);
+        setRoom(fresh);
       } catch (err) {
         console.error('Failed to refresh room after ban', err);
       }
@@ -439,7 +440,7 @@ export function useChatMessages(
       // Generate client message ID for deduplication
       const clientMessageId = messageService.generateClientMessageId();
 
-      // Create optimistic message
+      // Create optimistic message with user's profile photo
       const optimisticMessage: ChatMessage = {
         id: `temp-${clientMessageId}`,
         type: 'user',
@@ -447,6 +448,7 @@ export function useChatMessages(
         timestamp: new Date(),
         userId: userId || '',
         userName: user?.displayName || 'You',
+        userProfilePhoto: user?.profilePhotoUrl,
         status: 'sending',
         clientMessageId,
       };
@@ -458,7 +460,7 @@ export function useChatMessages(
 
       log.debug('Message sent', { roomId, clientMessageId });
     },
-    [roomId, userId, user?.displayName]
+    [roomId, userId, user?.displayName, user?.profilePhotoUrl]
   );
 
   const addReaction = useCallback(

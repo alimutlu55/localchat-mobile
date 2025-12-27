@@ -31,7 +31,7 @@
 
 import { useCallback, useMemo } from 'react';
 import { Room } from '../../../types';
-import { useRoomCache } from '../context/RoomCacheContext';
+import { useRoomStore } from '../store';
 import { useMyRooms } from './useMyRooms';
 import { useJoinRoom, JoinResult } from './useJoinRoom';
 import { roomService, wsService } from '../../../services';
@@ -111,8 +111,12 @@ export interface UseRoomStateReturn {
 // =============================================================================
 
 export function useRoomState(): UseRoomStateReturn {
+  // Use RoomStore
+  const storeGetRoom = useRoomStore((s) => s.getRoom);
+  const storeUpdateRoom = useRoomStore((s) => s.updateRoom);
+  const storeRooms = useRoomStore((s) => s.rooms);
+
   // Compose hooks
-  const roomCache = useRoomCache();
   const {
     rooms: myRooms,
     activeRooms,
@@ -138,23 +142,23 @@ export function useRoomState(): UseRoomStateReturn {
 
   const getRoom = useCallback(
     (roomId: string): Room | null => {
-      return roomCache.getRoom(roomId);
+      return storeGetRoom(roomId) || null;
     },
-    [roomCache]
+    [storeGetRoom]
   );
 
   const hasRoom = useCallback(
     (roomId: string): boolean => {
-      return roomCache.hasRoom(roomId);
+      return storeRooms.has(roomId);
     },
-    [roomCache]
+    [storeRooms]
   );
 
   const updateRoom = useCallback(
     (roomId: string, updates: Partial<Room>) => {
-      roomCache.updateRoom(roomId, updates);
+      storeUpdateRoom(roomId, updates);
     },
-    [roomCache]
+    [storeUpdateRoom]
   );
 
   // -------------------------------------------------------------------------

@@ -39,7 +39,8 @@ import { RootStackParamList } from '../../../navigation/types';
 import { roomService } from '../../../services';
 import { RoomCategory, RoomDuration } from '../../../types';
 import { CATEGORIES } from '../../../constants';
-import { useRooms } from '../../../context';
+import { useRoomStore } from '../store';
+import { useMyRooms } from '../hooks';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'CreateRoom'>;
 
@@ -91,7 +92,11 @@ const MAX_DESCRIPTION_LENGTH = 200;
 
 export default function CreateRoomScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { addCreatedRoom } = useRooms();
+  
+  // Use hooks instead of context
+  const { addRoom: addCreatedRoom } = useMyRooms();
+  const addJoinedRoom = useRoomStore((s) => s.addJoinedRoom);
+  const setRoom = useRoomStore((s) => s.setRoom);
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -195,8 +200,8 @@ export default function CreateRoomScreen() {
       console.log('[CreateRoomScreen] Adding room to context before navigation');
       addCreatedRoom(roomWithCreatorFlag);
 
-      // Navigate to the new room
-      navigation.replace('ChatRoom', { room: roomWithCreatorFlag });
+      // Navigate to the new room using new roomId-based pattern
+      navigation.replace('ChatRoom', { roomId: roomWithCreatorFlag.id, initialRoom: roomWithCreatorFlag });
     } catch (error) {
       console.error('Failed to create room:', error);
       Alert.alert('Error', 'Failed to create room. Please try again.');

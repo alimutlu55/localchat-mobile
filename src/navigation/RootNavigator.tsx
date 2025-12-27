@@ -20,6 +20,7 @@ import {
     CreateRoomScreen,
     SettingsScreen,
     EditProfileScreen,
+    BlockedUsersScreen,
     DiscoveryScreen,
     LoadingScreen,
 } from '../screens';

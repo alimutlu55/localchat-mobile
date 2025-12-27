@@ -28,7 +28,9 @@
 import { useCallback, useState, useRef } from 'react';
 import { roomService } from '../../../services';
 import { Room } from '../../../types';
-import { useRooms } from '../../../context/RoomContext';
+import { useRoomStore } from '../store';
+import { useMyRooms } from './useMyRooms';
+import { useJoinRoom } from './useJoinRoom';
 import {
   isUserBanned,
   AppError,
@@ -72,14 +74,10 @@ interface RoomActionsReturn {
 // =============================================================================
 
 export function useRoomActions(): RoomActionsReturn {
-  // Get context methods for state updates
-  // Note: We use the context's joinRoom/leaveRoom to properly update joinedRoomIds
-  const {
-    isRoomJoined,
-    updateRoom,
-    joinRoom: contextJoinRoom,
-    leaveRoom: contextLeaveRoom,
-  } = useRooms();
+  // Get store methods for state updates
+  const updateRoom = useRoomStore((s) => s.updateRoom);
+  const { isJoined: isRoomJoined } = useMyRooms();
+  const { join: joinRoomHook, leave: leaveRoomHook } = useJoinRoom();
 
   // Track ongoing operations
   const [state, setState] = useState<RoomActionsState>({
@@ -143,22 +141,23 @@ export function useRoomActions(): RoomActionsReturn {
       setOperationStatus('joiningRoomIds', roomId, true);
 
       try {
-        // Use context's joinRoom which properly updates joinedRoomIds Set
-        // This ensures useIsRoomJoined() and myRooms work correctly
-        const success = await contextJoinRoom(room);
+        // Use useJoinRoom hook which properly updates store
+        const result = await joinRoomHook(room);
         
-        if (success) {
+        if (result.success) {
           log.info('Successfully joined room', { roomId });
           return { success: true };
         } else {
-          log.error('Join room returned false', { roomId });
+          log.error('Join room returned false', { roomId, error: result.error });
           return {
             success: false,
-            error: AppError.from(new Error('Failed to join room')),
+            error: result.error?.code === 'BANNED' 
+              ? AppError.banned(roomId)
+              : AppError.from(new Error(result.error?.message || 'Failed to join room')),
           };
         }
       } catch (error) {
-        // Handle banned user (context throws error with code: 'BANNED')
+        // Handle banned user
         if (isUserBanned(error)) {
           log.info('User is banned from room', { roomId });
           return {
@@ -177,7 +176,7 @@ export function useRoomActions(): RoomActionsReturn {
         setOperationStatus('joiningRoomIds', roomId, false);
       }
     },
-    [isRoomJoined, contextJoinRoom, setOperationStatus]
+    [isRoomJoined, joinRoomHook, setOperationStatus]
   );
 
   // ==========================================================================
@@ -201,18 +200,18 @@ export function useRoomActions(): RoomActionsReturn {
       setOperationStatus('leavingRoomIds', roomId, true);
 
       try {
-        // Use context's leaveRoom which properly updates joinedRoomIds Set
+        // Use useJoinRoom hook which properly updates store
         // and handles WebSocket unsubscription
-        const success = await contextLeaveRoom(roomId);
+        const result = await leaveRoomHook(roomId);
 
-        if (success) {
+        if (result.success) {
           log.info('Successfully left room', { roomId });
           return { success: true };
         } else {
           log.error('Leave room returned false', { roomId });
           return {
             success: false,
-            error: AppError.from(new Error('Failed to leave room')),
+            error: AppError.from(new Error(result.error?.message || 'Failed to leave room')),
           };
         }
       } catch (error) {
@@ -225,7 +224,7 @@ export function useRoomActions(): RoomActionsReturn {
         setOperationStatus('leavingRoomIds', roomId, false);
       }
     },
-    [isRoomJoined, contextLeaveRoom, setOperationStatus]
+    [isRoomJoined, leaveRoomHook, setOperationStatus]
   );
 
   // ==========================================================================
