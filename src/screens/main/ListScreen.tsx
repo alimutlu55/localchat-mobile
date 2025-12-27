@@ -23,7 +23,7 @@ import { Room } from '../../types';
 import { ROOM_CONFIG } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
 import { useRooms, useActiveRooms, useSidebarRooms } from '../../context/RoomContext';
-import { RoomListView } from '../../components/RoomListView';
+import { RoomListView } from '../../features/discovery/components';
 import { Sidebar } from '../../components/Sidebar';
 import { ProfileDrawer } from '../../components/ProfileDrawer';
 

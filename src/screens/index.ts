@@ -23,11 +23,9 @@ export { default as MapScreen } from './main/MapScreen';
 export { default as ListScreen } from './main/ListScreen';
 
 // Chat & Room screens
-// ChatRoomScreen now uses feature-based architecture with hooks
+// These screens now live in feature modules for better organization
 export { ChatRoomScreen } from '../features/chat';
-export { default as RoomDetailsScreen } from './RoomDetailsScreen';
-export { default as RoomInfoScreen } from './RoomInfoScreen';
-export { default as CreateRoomScreen } from './CreateRoomScreen';
+export { RoomDetailsScreen, RoomInfoScreen, CreateRoomScreen } from '../features/rooms';
 
 // Settings screens
 export { default as SettingsScreen } from './SettingsScreen';

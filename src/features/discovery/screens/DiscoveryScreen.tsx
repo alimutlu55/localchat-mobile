@@ -45,12 +45,11 @@ import { ROOM_CONFIG } from '../../../constants';
 // Context
 import { useRooms, useActiveRooms, useUIActions } from '../../../context';
 
-// Components
-import { RoomListView } from '../../../components/RoomListView';
-import { RoomMarker, ClusterMarker } from '../../../components/OptimizedMarkers';
+// Components - now from feature module
+import { RoomListView, RoomMarker, ClusterMarker } from '../components';
 
 // Hooks
-import { useMapState, useUserLocation, useMapClustering } from '../../discovery/hooks';
+import { useMapState, useUserLocation, useMapClustering } from '../hooks';
 
 // Styles
 import { HUDDLE_MAP_STYLE } from '../../../styles/mapStyle';

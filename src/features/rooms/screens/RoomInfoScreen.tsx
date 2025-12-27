@@ -31,11 +31,12 @@ import {
     Shield,
     UserX,
 } from 'lucide-react-native';
-import { RootStackParamList } from '../navigation/types';
-import { Room } from '../types';
-import { roomService, ParticipantDTO } from '../services';
-import { AvatarDisplay } from '../components/profile';
-import { BannedUsersModal } from '../components/room/BannedUsersModal';
+import { RootStackParamList } from '../../../navigation/types';
+import { Room } from '../../../types';
+import { roomService, ParticipantDTO, wsService, WS_EVENTS } from '../../../services';
+import { AvatarDisplay } from '../../../components/profile';
+import { BannedUsersModal } from '../components';
+import { useRoom } from '../hooks';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'RoomInfo'>;
 type RoomInfoRouteProp = RouteProp<RootStackParamList, 'RoomInfo'>;
@@ -43,19 +44,20 @@ type RoomInfoRouteProp = RouteProp<RootStackParamList, 'RoomInfo'>;
 export default function RoomInfoScreen() {
     const navigation = useNavigation<NavigationProp>();
     const route = useRoute<RoomInfoRouteProp>();
-    const { room, isCreator, currentUserId, onCloseRoom } = route.params;
-    
+    const { room: initialRoom, isCreator, currentUserId, onCloseRoom } = route.params;
+
+    // Use the useRoom hook for reactive data (WebSocket updates)
+    const { room: cachedRoom } = useRoom(initialRoom.id, { skipFetchIfCached: true });
+    // Prefer cached room (has real-time updates), fallback to route params
+    const room = cachedRoom || initialRoom;
+
     const [participants, setParticipants] = useState<ParticipantDTO[]>([]);
     const [isLoadingParticipants, setIsLoadingParticipants] = useState(false);
     const [showBannedUsers, setShowBannedUsers] = useState(false);
 
     /**
-     * Fetch participants for inline display
+     * Fetch participants for inline display and subscribe to membership events
      */
-    useEffect(() => {
-        fetchParticipants();
-    }, [room.id]);
-
     const fetchParticipants = async () => {
         setIsLoadingParticipants(true);
         try {
@@ -67,6 +69,31 @@ export default function RoomInfoScreen() {
             setIsLoadingParticipants(false);
         }
     };
+
+    useEffect(() => {
+        // Initial load
+        fetchParticipants();
+
+        // Subscribe to kicks and bans so the participants list reflects removals
+        const unsubKicked = wsService.on(WS_EVENTS.USER_KICKED, (payload: any) => {
+            if (payload.roomId === room.id) {
+                // Refresh participants to reflect the removal
+                fetchParticipants();
+            }
+        });
+
+        const unsubBanned = wsService.on(WS_EVENTS.USER_BANNED, (payload: any) => {
+            if (payload.roomId === room.id) {
+                // Refresh participants and possibly update UI
+                fetchParticipants();
+            }
+        });
+
+        return () => {
+            unsubKicked();
+            unsubBanned();
+        };
+    }, [room.id]);
 
     const handleShare = async () => {
         try {
@@ -146,181 +173,181 @@ export default function RoomInfoScreen() {
                 contentContainerStyle={styles.contentContainer}
                 showsVerticalScrollIndicator={false}
             >
-                    {/* Room Header */}
-                    <View style={styles.roomHeader}>
-                        <View style={[styles.emojiContainer, { backgroundColor: '#fff5f5' }]}>
-                            <Text style={styles.emoji}>💬</Text>
-                        </View>
-                        <View style={styles.headerText}>
-                            <Text style={styles.title}>{room.title}</Text>
-                            <View style={styles.badgeRow}>
-                                <View style={[styles.badge, styles.categoryBadge]}>
-                                    <Text style={styles.categoryBadgeText}>{room.category || 'general'}</Text>
-                                </View>
-                                {isCreator && (
-                                    <View style={[styles.badge, styles.creatorBadge]}>
-                                        <Text style={styles.creatorBadgeText}>Creator</Text>
-                                    </View>
-                                )}
-                                {room.hasJoined && (
-                                    <View style={[styles.badge, styles.joinedBadge]}>
-                                        <Text style={styles.joinedBadgeText}>Joined</Text>
-                                    </View>
-                                )}
+                {/* Room Header */}
+                <View style={styles.roomHeader}>
+                    <View style={[styles.emojiContainer, { backgroundColor: '#fff5f5' }]}>
+                        <Text style={styles.emoji}>💬</Text>
+                    </View>
+                    <View style={styles.headerText}>
+                        <Text style={styles.title}>{room.title}</Text>
+                        <View style={styles.badgeRow}>
+                            <View style={[styles.badge, styles.categoryBadge]}>
+                                <Text style={styles.categoryBadgeText}>{room.category || 'general'}</Text>
                             </View>
+                            {isCreator && (
+                                <View style={[styles.badge, styles.creatorBadge]}>
+                                    <Text style={styles.creatorBadgeText}>Creator</Text>
+                                </View>
+                            )}
+                            {room.hasJoined && (
+                                <View style={[styles.badge, styles.joinedBadge]}>
+                                    <Text style={styles.joinedBadgeText}>Joined</Text>
+                                </View>
+                            )}
                         </View>
                     </View>
+                </View>
 
-                    {/* About Section */}
-                    <View style={styles.section}>
-                        <Text style={styles.sectionHeading}>About</Text>
-                        <Text style={styles.descriptionText}>{room.description || 'No description provided.'}</Text>
-                    </View>
+                {/* About Section */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionHeading}>About</Text>
+                    <Text style={styles.descriptionText}>{room.description || 'No description provided.'}</Text>
+                </View>
 
-                    {/* Stats Grid */}
-                    <View style={styles.section}>
-                        <Text style={styles.sectionHeading}>Room Info</Text>
-                        <View style={styles.grid}>
-                            <View style={styles.gridItem}>
-                                <View style={styles.gridItemHeader}>
-                                    <Users size={18} color="#6b7280" />
-                                    <Text style={styles.gridLabel}>Participants</Text>
-                                </View>
-                                <Text style={styles.gridValue}>{room.participantCount}/{room.maxParticipants}</Text>
+                {/* Stats Grid */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionHeading}>Room Info</Text>
+                    <View style={styles.grid}>
+                        <View style={styles.gridItem}>
+                            <View style={styles.gridItemHeader}>
+                                <Users size={18} color="#6b7280" />
+                                <Text style={styles.gridLabel}>Participants</Text>
                             </View>
+                            <Text style={styles.gridValue}>{room.participantCount}/{room.maxParticipants}</Text>
+                        </View>
 
-                            <View style={styles.gridItem}>
-                                <View style={styles.gridItemHeader}>
-                                    <Clock size={18} color="#6b7280" />
-                                    <Text style={styles.gridLabel}>Expires in</Text>
-                                </View>
-                                <Text style={styles.gridValue}>{room.timeRemaining}</Text>
+                        <View style={styles.gridItem}>
+                            <View style={styles.gridItemHeader}>
+                                <Clock size={18} color="#6b7280" />
+                                <Text style={styles.gridLabel}>Expires in</Text>
                             </View>
+                            <Text style={styles.gridValue}>{room.timeRemaining}</Text>
+                        </View>
 
-                            <View style={styles.gridItem}>
-                                <View style={styles.gridItemHeader}>
-                                    <MapPin size={18} color="#6b7280" />
-                                    <Text style={styles.gridLabel}>Distance</Text>
-                                </View>
-                                <Text style={styles.gridValue}>{room.distanceDisplay || 'Nearby'}</Text>
+                        <View style={styles.gridItem}>
+                            <View style={styles.gridItemHeader}>
+                                <MapPin size={18} color="#6b7280" />
+                                <Text style={styles.gridLabel}>Distance</Text>
                             </View>
+                            <Text style={styles.gridValue}>{room.distanceDisplay || 'Nearby'}</Text>
+                        </View>
 
-                            <View style={styles.gridItem}>
-                                <View style={styles.gridItemHeader}>
-                                    <MessageCircle size={18} color="#6b7280" />
-                                    <Text style={styles.gridLabel}>Created</Text>
-                                </View>
-                                <Text style={styles.gridValue}>0m ago</Text>
+                        <View style={styles.gridItem}>
+                            <View style={styles.gridItemHeader}>
+                                <MessageCircle size={18} color="#6b7280" />
+                                <Text style={styles.gridLabel}>Created</Text>
                             </View>
+                            <Text style={styles.gridValue}>0m ago</Text>
                         </View>
                     </View>
+                </View>
 
-                    {/* Share Button */}
-                    <TouchableOpacity style={styles.shareButtonStyle} onPress={handleShare}>
-                        <Share2 size={20} color="#374151" />
-                        <Text style={styles.shareButtonText}>Share Room</Text>
-                    </TouchableOpacity>
+                {/* Share Button */}
+                <TouchableOpacity style={styles.shareButtonStyle} onPress={handleShare}>
+                    <Share2 size={20} color="#374151" />
+                    <Text style={styles.shareButtonText}>Share Room</Text>
+                </TouchableOpacity>
 
-                    {/* Creator Actions */}
-                    {isCreator && (
-                        <View style={styles.creatorSection}>
-                            <View style={styles.sectionTitleRow}>
-                                <Crown size={20} color="#f59e0b" />
-                                <Text style={styles.creatorSectionTitle}>Creator Controls</Text>
-                            </View>
-
-                            <View style={styles.creatorActions}>
-                                {room.status !== 'closed' && (
-                                    <>
-                                        <TouchableOpacity
-                                            style={styles.creatorActionButton}
-                                            onPress={() => setShowBannedUsers(true)}
-                                        >
-                                            <Ban size={20} color="#ef4444" />
-                                            <Text style={styles.creatorActionText}>Banned Users</Text>
-                                        </TouchableOpacity>
-
-                                        <TouchableOpacity
-                                            style={styles.creatorActionButton}
-                                            onPress={() => onCloseRoom && onCloseRoom()}
-                                        >
-                                            <Lock size={20} color="#64748b" />
-                                            <Text style={styles.creatorActionText}>Close Room</Text>
-                                        </TouchableOpacity>
-                                    </>
-                                )}
-                            </View>
-                        </View>
-                    )}
-
-                    {/* Participants Inline List */}
-                    <View style={styles.participantsSection}>
+                {/* Creator Actions */}
+                {isCreator && (
+                    <View style={styles.creatorSection}>
                         <View style={styles.sectionTitleRow}>
-                            <Users size={20} color="#6b7280" />
-                            <Text style={styles.participantsSectionTitle}>Participants ({participants.length})</Text>
+                            <Crown size={20} color="#f59e0b" />
+                            <Text style={styles.creatorSectionTitle}>Creator Controls</Text>
                         </View>
 
-                        <View style={styles.participantsContainer}>
-                            {participants.map((participant) => {
-                                const isCurrentUser = participant.userId === currentUserId;
-                                const canModerate = isCreator && !isCurrentUser && participant.role !== 'creator';
-                                
-                                return (
-                                    <View key={participant.userId} style={styles.participantRow}>
-                                        <View style={styles.avatar}>
-                                            <AvatarDisplay
-                                                avatarUrl={participant.profilePhotoUrl}
-                                                displayName={participant.displayName}
-                                                size="md"
-                                                style={{ width: 44, height: 44, borderRadius: 22 }}
-                                            />
-                                        </View>
-                                        <View style={styles.participantInfoText}>
-                                            <View style={styles.nameRow}>
-                                                <Text style={styles.participantName}>{participant.displayName}</Text>
-                                                {participant.role === 'creator' && (
-                                                    <View style={[styles.roleBadge, styles.creatorRoleBadge]}>
-                                                        <Crown size={10} color="#f59e0b" />
-                                                        <Text style={styles.creatorRoleText}>Creator</Text>
-                                                    </View>
-                                                )}
-                                                {participant.role === 'moderator' && (
-                                                    <View style={[styles.roleBadge, styles.modRoleBadge]}>
-                                                        <Shield size={10} color="#3b82f6" />
-                                                        <Text style={styles.modRoleText}>Mod</Text>
-                                                    </View>
-                                                )}
-                                                {isCurrentUser && (
-                                                    <View style={styles.youBadge}>
-                                                        <Text style={styles.youBadgeText}>You</Text>
-                                                    </View>
-                                                )}
-                                            </View>
-                                        </View>
-                                        
-                                        {canModerate && (
-                                            <View style={styles.inlineActions}>
-                                                <TouchableOpacity
-                                                    style={styles.inlineActionButton}
-                                                    onPress={() => handleKickUser(participant.userId, participant.displayName)}
-                                                >
-                                                    <UserX size={16} color="#f97316" />
-                                                    <Text style={styles.inlineActionText}>Kick</Text>
-                                                </TouchableOpacity>
-                                                <TouchableOpacity
-                                                    style={styles.inlineActionButton}
-                                                    onPress={() => handleBanUser(participant.userId, participant.displayName)}
-                                                >
-                                                    <Ban size={16} color="#ef4444" />
-                                                    <Text style={styles.inlineActionText}>Ban</Text>
-                                                </TouchableOpacity>
-                                            </View>
-                                        )}
-                                    </View>
-                                );
-                            })}
+                        <View style={styles.creatorActions}>
+                            {room.status !== 'closed' && (
+                                <>
+                                    <TouchableOpacity
+                                        style={styles.creatorActionButton}
+                                        onPress={() => setShowBannedUsers(true)}
+                                    >
+                                        <Ban size={20} color="#ef4444" />
+                                        <Text style={styles.creatorActionText}>Banned Users</Text>
+                                    </TouchableOpacity>
+
+                                    <TouchableOpacity
+                                        style={styles.creatorActionButton}
+                                        onPress={() => onCloseRoom && onCloseRoom()}
+                                    >
+                                        <Lock size={20} color="#64748b" />
+                                        <Text style={styles.creatorActionText}>Close Room</Text>
+                                    </TouchableOpacity>
+                                </>
+                            )}
                         </View>
                     </View>
+                )}
+
+                {/* Participants Inline List */}
+                <View style={styles.participantsSection}>
+                    <View style={styles.sectionTitleRow}>
+                        <Users size={20} color="#6b7280" />
+                        <Text style={styles.participantsSectionTitle}>Participants ({participants.length})</Text>
+                    </View>
+
+                    <View style={styles.participantsContainer}>
+                        {participants.map((participant) => {
+                            const isCurrentUser = participant.userId === currentUserId;
+                            const canModerate = isCreator && !isCurrentUser && participant.role !== 'creator';
+
+                            return (
+                                <View key={participant.userId} style={styles.participantRow}>
+                                    <View style={styles.avatar}>
+                                        <AvatarDisplay
+                                            avatarUrl={participant.profilePhotoUrl}
+                                            displayName={participant.displayName}
+                                            size="md"
+                                            style={{ width: 44, height: 44, borderRadius: 22 }}
+                                        />
+                                    </View>
+                                    <View style={styles.participantInfoText}>
+                                        <View style={styles.nameRow}>
+                                            <Text style={styles.participantName}>{participant.displayName}</Text>
+                                            {participant.role === 'creator' && (
+                                                <View style={[styles.roleBadge, styles.creatorRoleBadge]}>
+                                                    <Crown size={10} color="#f59e0b" />
+                                                    <Text style={styles.creatorRoleText}>Creator</Text>
+                                                </View>
+                                            )}
+                                            {participant.role === 'moderator' && (
+                                                <View style={[styles.roleBadge, styles.modRoleBadge]}>
+                                                    <Shield size={10} color="#3b82f6" />
+                                                    <Text style={styles.modRoleText}>Mod</Text>
+                                                </View>
+                                            )}
+                                            {isCurrentUser && (
+                                                <View style={styles.youBadge}>
+                                                    <Text style={styles.youBadgeText}>You</Text>
+                                                </View>
+                                            )}
+                                        </View>
+                                    </View>
+
+                                    {canModerate && (
+                                        <View style={styles.inlineActions}>
+                                            <TouchableOpacity
+                                                style={styles.inlineActionButton}
+                                                onPress={() => handleKickUser(participant.userId, participant.displayName)}
+                                            >
+                                                <UserX size={16} color="#f97316" />
+                                                <Text style={styles.inlineActionText}>Kick</Text>
+                                            </TouchableOpacity>
+                                            <TouchableOpacity
+                                                style={styles.inlineActionButton}
+                                                onPress={() => handleBanUser(participant.userId, participant.displayName)}
+                                            >
+                                                <Ban size={16} color="#ef4444" />
+                                                <Text style={styles.inlineActionText}>Ban</Text>
+                                            </TouchableOpacity>
+                                        </View>
+                                    )}
+                                </View>
+                            );
+                        })}
+                    </View>
+                </View>
             </ScrollView>
 
             {/* Banned Users Modal */}

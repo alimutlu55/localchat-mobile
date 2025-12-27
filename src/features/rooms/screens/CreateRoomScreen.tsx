@@ -35,11 +35,11 @@ import {
   ChevronUp,
   AlertCircle,
 } from 'lucide-react-native';
-import { RootStackParamList } from '../navigation/types';
-import { roomService } from '../services';
-import { RoomCategory, RoomDuration } from '../types';
-import { CATEGORIES } from '../constants';
-import { useRooms } from '../context';
+import { RootStackParamList } from '../../../navigation/types';
+import { roomService } from '../../../services';
+import { RoomCategory, RoomDuration } from '../../../types';
+import { CATEGORIES } from '../../../constants';
+import { useRooms } from '../../../context';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'CreateRoom'>;
 

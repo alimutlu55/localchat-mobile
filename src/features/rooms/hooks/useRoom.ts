@@ -229,11 +229,73 @@ export function useRoom(
       }
     });
 
+    // Handle user kicked - update participant count
+    const unsubUserKicked = wsService.on(
+      WS_EVENTS.USER_KICKED,
+      async (payload: any) => {
+        if (payload.roomId !== roomId) return;
+
+        log.debug('User kicked via WebSocket', { roomId });
+        // If participantCount is provided in payload, use it directly
+        if (payload.participantCount !== undefined) {
+          updateRoom(roomId, { participantCount: payload.participantCount });
+          setLocalRoom((prev) =>
+            prev ? { ...prev, participantCount: payload.participantCount } : prev
+          );
+        } else {
+          // Fallback: fetch fresh room data to get updated count
+          try {
+            const freshRoom = await roomService.getRoom(roomId);
+            updateRoom(roomId, { participantCount: freshRoom.participantCount });
+            setLocalRoom((prev) =>
+              prev
+                ? { ...prev, participantCount: freshRoom.participantCount }
+                : prev
+            );
+          } catch (err) {
+            log.error('Failed to refresh room after kick', err);
+          }
+        }
+      }
+    );
+
+    // Handle user banned - update participant count
+    const unsubUserBanned = wsService.on(
+      WS_EVENTS.USER_BANNED,
+      async (payload: any) => {
+        if (payload.roomId !== roomId) return;
+
+        log.debug('User banned via WebSocket', { roomId });
+        // If participantCount is provided in payload, use it directly
+        if (payload.participantCount !== undefined) {
+          updateRoom(roomId, { participantCount: payload.participantCount });
+          setLocalRoom((prev) =>
+            prev ? { ...prev, participantCount: payload.participantCount } : prev
+          );
+        } else {
+          // Fallback: fetch fresh room data to get updated count
+          try {
+            const freshRoom = await roomService.getRoom(roomId);
+            updateRoom(roomId, { participantCount: freshRoom.participantCount });
+            setLocalRoom((prev) =>
+              prev
+                ? { ...prev, participantCount: freshRoom.participantCount }
+                : prev
+            );
+          } catch (err) {
+            log.error('Failed to refresh room after ban', err);
+          }
+        }
+      }
+    );
+
     return () => {
       unsubRoomUpdated();
       unsubParticipant();
       unsubUserJoined();
       unsubUserLeft();
+      unsubUserKicked();
+      unsubUserBanned();
     };
   }, [roomId, subscribeToUpdates, updateRoom]);
 

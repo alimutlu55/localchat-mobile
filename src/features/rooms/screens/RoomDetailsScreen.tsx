@@ -40,18 +40,18 @@ import {
   Check,
   AlertCircle,
 } from 'lucide-react-native';
-import { RootStackParamList } from '../navigation/types';
-import { roomService, ParticipantDTO, messageService, wsService, WS_EVENTS } from '../services';
-import { Room, ChatMessage } from '../types';
-import { useAuth } from '../context/AuthContext';
-import { useRooms, useIsRoomJoined, useIsJoiningRoom } from '../context/RoomContext';
-import { useRoom, useRoomActions } from '../features/rooms/hooks';
-import { ROOM_CONFIG, executeJoinWithMinLoading } from '../constants';
-import { BannedUsersModal } from '../components/room/BannedUsersModal';
-import { ReportModal, ReportReason } from '../components/chat/ReportModal';
-import { AvatarDisplay } from '../components/profile';
-import { createLogger } from '../shared/utils/logger';
-import { isUserBanned } from '../shared/utils/errors';
+import { RootStackParamList } from '../../../navigation/types';
+import { roomService, ParticipantDTO, messageService, wsService, WS_EVENTS } from '../../../services';
+import { Room, ChatMessage } from '../../../types';
+import { useAuth } from '../../../context/AuthContext';
+import { useRooms, useIsRoomJoined, useIsJoiningRoom } from '../../../context/RoomContext';
+import { useRoom, useRoomActions } from '../hooks';
+import { ROOM_CONFIG, executeJoinWithMinLoading } from '../../../constants';
+import { BannedUsersModal } from '../components';
+import { ReportModal, ReportReason } from '../../../components/chat/ReportModal';
+import { AvatarDisplay } from '../../../components/profile';
+import { createLogger } from '../../../shared/utils/logger';
+import { isUserBanned } from '../../../shared/utils/errors';
 
 const log = createLogger('RoomDetails');
 

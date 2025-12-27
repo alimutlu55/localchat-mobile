@@ -38,8 +38,7 @@ import { useAuth } from '../../context/AuthContext';
 import { useRooms, useSidebarRooms } from '../../context/RoomContext';
 import { Sidebar } from '../../components/Sidebar';
 import { ProfileDrawer } from '../../components/ProfileDrawer';
-import { RoomPin } from '../../components/RoomPin';
-import { MapCluster } from '../../components/MapCluster';
+import { RoomPin, MapCluster } from '../../features/discovery/components';
 import {
   createClusterIndex,
   getClustersForBounds,

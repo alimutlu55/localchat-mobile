@@ -24,11 +24,12 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { messageService, wsService, WS_EVENTS } from '../../../services';
+import { messageService, wsService, WS_EVENTS, roomService } from '../../../services';
 import { ChatMessage, MessageStatus } from '../../../types';
 import { useAuth } from '../../../context/AuthContext';
 import { createLogger } from '../../../shared/utils/logger';
 import { isNotParticipant, isUserBanned } from '../../../shared/utils/errors';
+import { useRoomCache } from '../../rooms/context/RoomCacheContext';
 
 const log = createLogger('ChatMessages');
 
@@ -112,6 +113,9 @@ export function useChatMessages(
 ): UseChatMessagesReturn {
   const { user } = useAuth();
   const userId = user?.id;
+
+  // Room cache (to update participant counts for UI)
+  const roomCache = useRoomCache();
 
   // State
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -334,34 +338,83 @@ export function useChatMessages(
     });
 
     // Handle user kicked
-    const unsubUserKicked = wsService.on(WS_EVENTS.USER_KICKED, (payload: any) => {
+    const unsubUserKicked = wsService.on(WS_EVENTS.USER_KICKED, async (payload: any) => {
       if (payload.roomId !== roomId) return;
 
+      // If current user was kicked
       if (payload.kickedUserId === userId) {
-        // Current user was kicked
         optionsRef.current.onUserKicked?.();
-      } else {
-        // Show system message for others
-        setMessages((prev) => [
-          ...prev,
-          makeSystemMessage('user_kicked', payload.displayName || 'A user'),
-        ]);
+        // Ensure cache is refreshed for UI
+        try {
+          const fresh = await roomService.getRoom(roomId);
+          roomCache.setRoom(fresh);
+        } catch (err) {
+          // ignore
+        }
+        return;
+      }
+
+      // Show system message for others
+      setMessages((prev) => [
+        ...prev,
+        makeSystemMessage('user_kicked', payload.displayName || 'A user'),
+      ]);
+
+      // Update participant count if provided
+      if (payload.participantCount !== undefined) {
+        try {
+          roomCache.updateRoom(roomId, { participantCount: payload.participantCount });
+        } catch (err) {
+          // ignore
+        }
+        return;
+      }
+
+      // Fallback: fetch fresh room and update cache
+      try {
+        const fresh = await roomService.getRoom(roomId);
+        roomCache.setRoom(fresh);
+      } catch (err) {
+        console.error('Failed to refresh room after kick', err);
       }
     });
 
     // Handle user banned
-    const unsubUserBanned = wsService.on(WS_EVENTS.USER_BANNED, (payload: any) => {
+    const unsubUserBanned = wsService.on(WS_EVENTS.USER_BANNED, async (payload: any) => {
       if (payload.roomId !== roomId) return;
 
+      // If current user was banned
       if (payload.bannedUserId === userId) {
-        // Current user was banned
         optionsRef.current.onUserBanned?.(payload.reason);
-      } else {
-        // Show system message for others
-        setMessages((prev) => [
-          ...prev,
-          makeSystemMessage('user_banned', payload.displayName || 'A user'),
-        ]);
+        try {
+          const fresh = await roomService.getRoom(roomId);
+          roomCache.setRoom(fresh);
+        } catch (err) {
+          // ignore
+        }
+        return;
+      }
+
+      // Show system message for others
+      setMessages((prev) => [
+        ...prev,
+        makeSystemMessage('user_banned', payload.displayName || 'A user'),
+      ]);
+
+      if (payload.participantCount !== undefined) {
+        try {
+          roomCache.updateRoom(roomId, { participantCount: payload.participantCount });
+        } catch (err) {
+          // ignore
+        }
+        return;
+      }
+
+      try {
+        const fresh = await roomService.getRoom(roomId);
+        roomCache.setRoom(fresh);
+      } catch (err) {
+        console.error('Failed to refresh room after ban', err);
       }
     });
 
