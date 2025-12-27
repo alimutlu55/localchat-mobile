@@ -100,7 +100,7 @@ export function useRoomWebSocket(userId?: string): void {
       }
     };
 
-    const handleRoomUpdated = (payload: { roomId: string; [key: string]: any }) => {
+    const handleRoomUpdated = (payload: { roomId: string;[key: string]: any }) => {
       const { roomId, ...updates } = payload;
       log.debug('Room updated', { roomId });
       updateRoom(roomId, updates as Partial<Room>);
@@ -245,6 +245,29 @@ export function useRoomWebSocket(userId?: string): void {
       }
     };
 
+    const handleUserUnbanned = async (payload: {
+      roomId: string;
+      unbannedUserId: string;
+      unbannedBy: string;
+    }) => {
+      log.info('User unbanned event received', { userId: payload.unbannedUserId, roomId: payload.roomId });
+
+      const currentUserId = userIdRef.current;
+
+      // If current user was unbanned, fetch the room and add it to discovery
+      if (payload.unbannedUserId === currentUserId) {
+        log.info('Current user was unbanned, fetching room');
+        try {
+          const room = await roomService.getRoom(payload.roomId);
+          setRoom(room);
+          addDiscoveredRoomIds([room.id]);
+          log.info('Room added to discovery after unban', { roomId: room.id, title: room.title });
+        } catch (error) {
+          log.error('Failed to fetch room after unban', error);
+        }
+      }
+    };
+
     // =========================================================================
     // Subscribe to Events
     // =========================================================================
@@ -257,6 +280,7 @@ export function useRoomWebSocket(userId?: string): void {
     const unsubLeft = wsService.on(WS_EVENTS.USER_LEFT, handleUserLeft);
     const unsubKicked = wsService.on(WS_EVENTS.USER_KICKED, handleUserKicked);
     const unsubBanned = wsService.on(WS_EVENTS.USER_BANNED, handleUserBanned);
+    const unsubUnbanned = wsService.on(WS_EVENTS.USER_UNBANNED, handleUserUnbanned);
 
     return () => {
       log.debug('Unsubscribing from room WebSocket events');
@@ -268,6 +292,7 @@ export function useRoomWebSocket(userId?: string): void {
       unsubLeft();
       unsubKicked();
       unsubBanned();
+      unsubUnbanned();
     };
   }, [setRoom, updateRoom, removeRoom, addJoinedRoom, removeJoinedRoom, addDiscoveredRoomIds]);
 }

@@ -176,6 +176,7 @@ export const WS_EVENTS = {
   USER_TYPING: 'typing',
   USER_KICKED: 'user_kicked',
   USER_BANNED: 'user_banned',
+  USER_UNBANNED: 'user_unbanned',
   ROOM_CREATED: 'room_created',
   ROOM_CLOSED: 'room_closed',
   ROOM_UPDATED: 'room_updated',

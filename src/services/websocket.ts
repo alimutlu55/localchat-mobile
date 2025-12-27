@@ -87,6 +87,13 @@ export interface UserBannedPayload {
   displayName?: string;
 }
 
+export interface UserUnbannedPayload {
+  roomId: string;
+  unbannedUserId: string;
+  unbannedBy: string;
+  displayName?: string;
+}
+
 export interface RoomClosedPayload {
   roomId: string;
   closedBy: string;
@@ -516,7 +523,7 @@ class WebSocketService {
    */
   markRead(roomId: string, messageIds: string[]): void {
     if (messageIds.length === 0) return;
-    
+
     // Send the last message ID (most recent message that was read)
     const lastMessageId = messageIds[messageIds.length - 1];
     this.send(WS_EVENTS.MARK_READ, { roomId, messageId: lastMessageId });

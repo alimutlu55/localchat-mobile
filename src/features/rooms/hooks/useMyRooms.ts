@@ -95,7 +95,7 @@ export function useMyRooms(options: UseMyRoomsOptions = {}): UseMyRoomsReturn {
   const setJoinedRoomIds = useRoomStore((s) => s.setJoinedRoomIds);
   const addJoinedRoom = useRoomStore((s) => s.addJoinedRoom);
   const removeJoinedRoom = useRoomStore((s) => s.removeJoinedRoom);
-  
+
   const { user, isAuthenticated } = useAuth();
 
   // Local state for loading/error
@@ -261,7 +261,7 @@ export function useMyRooms(options: UseMyRoomsOptions = {}): UseMyRoomsReturn {
       unsubKicked();
       unsubBanned();
     };
-  }, [user?.id]);
+  }, [user?.id, addJoinedRoom, removeJoinedRoom]);
 
   // Derived: active vs expired rooms
   const activeRooms = rooms.filter((r) => {

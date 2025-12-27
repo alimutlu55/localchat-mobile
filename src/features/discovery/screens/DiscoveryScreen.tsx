@@ -129,24 +129,24 @@ export default function DiscoveryScreen() {
         longitude: userLocation?.longitude || 0,
         autoFetch: false, // We'll fetch manually after location is ready
     });
-    
+
     const { join: joinRoomHook } = useJoinRoom();
     const { activeRooms: myActiveRooms } = useMyRooms();
-    
+
     // Local state for selected room
     const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
-    
+
     // Wrapper for joinRoom to match expected signature
     const joinRoom = async (room: Room): Promise<boolean> => {
         const result = await joinRoomHook(room);
         return result.success;
     };
-    
+
     // Wrapper for fetchDiscoveredRooms to match expected signature
     const fetchDiscoveredRooms = async (lat: number, lng: number, radius?: number) => {
         await fetchDiscoveredRoomsHook();
     };
-    
+
     // Use discovered rooms for activeRooms (filtered in useRoomDiscovery)
     // Note: discoveredRooms is now reactive to room removals (e.g., when banned)
     const activeRooms = useMemo(() => {
