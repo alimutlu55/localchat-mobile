@@ -21,7 +21,7 @@ import { Menu, Plus, Map as MapIcon, List } from 'lucide-react-native';
 import { RootStackParamList } from '../../navigation/types';
 import { Room } from '../../types';
 import { ROOM_CONFIG } from '../../constants';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../features/auth';
 import { useRoomDiscovery, useJoinRoom, useMyRooms } from '../../features/rooms/hooks';
 import { RoomListView } from '../../features/discovery/components';
 import { Sidebar } from '../../components/Sidebar';

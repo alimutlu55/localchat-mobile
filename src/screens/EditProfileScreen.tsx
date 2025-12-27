@@ -24,7 +24,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { ArrowLeft, Camera, User, Mail, Shield, FileText, Check } from 'lucide-react-native';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../features/auth';
 import { useCurrentUser } from '../features/user/store';
 import { AvatarPicker, UpgradeBenefitsModal, AvatarDisplay } from '../components/profile';
 

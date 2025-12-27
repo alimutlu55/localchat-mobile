@@ -6,7 +6,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { settingsService, UserSettings, LocalSettings } from '../services';
-import { useAuth } from './AuthContext';
+import { useAuth } from '../features/auth';
 
 /**
  * Combined App Settings

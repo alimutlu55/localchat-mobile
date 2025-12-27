@@ -34,7 +34,7 @@ import { Plus, Menu, Map as MapIcon, List } from 'lucide-react-native';
 import { RootStackParamList } from '../../navigation/types';
 import { Room } from '../../types';
 import { ROOM_CONFIG, MAP_CONFIG } from '../../constants';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../features/auth';
 import { useRoomDiscovery, useMyRooms } from '../../features/rooms/hooks';
 import { Sidebar } from '../../components/Sidebar';
 import { ProfileDrawer } from '../../components/ProfileDrawer';

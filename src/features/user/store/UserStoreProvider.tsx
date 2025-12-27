@@ -2,18 +2,18 @@
  * UserStoreProvider
  *
  * Initializes the UserStore with WebSocket subscriptions for real-time updates.
- * Should be mounted at the app level, after AuthProvider.
+ * Should be mounted at the app level.
  *
  * Handles:
- * - Syncing user data from AuthContext to UserStore
  * - Subscribing to WebSocket profile update events
  * - Preloading user avatars
  * - Periodic avatar cache cleanup
+ *
+ * Note: User data is set by AuthStore after login, not synced from AuthContext anymore.
  */
 
 import React, { useEffect, useRef } from 'react';
-import { useAuth } from '../../../context/AuthContext';
-import { useUserStore } from './UserStore';
+import { useUserStore, useCurrentUser } from './UserStore';
 import { wsService, WS_EVENTS } from '../../../services';
 import { ProfileUpdatedPayload } from '../../../types';
 import { createLogger } from '../../../shared/utils/logger';
@@ -31,37 +31,24 @@ interface UserStoreProviderProps {
  * Internal component that handles store initialization and WebSocket sync
  */
 function UserStoreInitializer() {
-  const { user } = useAuth();
   const cleanupIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const currentUser = useCurrentUser();
 
   // Get store actions
-  const setUser = useUserStore((s) => s.setUser);
   const updateUser = useUserStore((s) => s.updateUser);
-  const clearUser = useUserStore((s) => s.clearUser);
   const pruneAvatarCache = useUserStore((s) => s.pruneAvatarCache);
   const preloadAvatar = useUserStore((s) => s.preloadAvatar);
 
-  // Sync user from AuthContext to UserStore
-  useEffect(() => {
-    if (user) {
-      log.debug('Syncing user to UserStore', { userId: user.id });
-      setUser(user);
-    } else {
-      log.debug('User logged out, clearing UserStore');
-      clearUser();
-    }
-  }, [user, setUser, clearUser]);
-
   // Subscribe to WebSocket profile updates (from other devices/sessions)
   useEffect(() => {
-    if (!user) return;
+    if (!currentUser) return;
 
     const handleProfileUpdated = (payload: ProfileUpdatedPayload) => {
       // Only update if it's the current user's profile
-      if (payload.userId === user.id) {
+      if (payload.userId === currentUser.id) {
         log.debug('Profile update received via WebSocket', { payload });
 
-        const updates: Partial<typeof user> = {};
+        const updates: Partial<typeof currentUser> = {};
         if (payload.displayName !== undefined) {
           updates.displayName = payload.displayName;
         }
@@ -87,7 +74,7 @@ function UserStoreInitializer() {
       unsubProfile();
       log.debug('Unsubscribed from profile update events');
     };
-  }, [user, updateUser, preloadAvatar]);
+  }, [currentUser, updateUser, preloadAvatar]);
 
   // Periodic avatar cache cleanup
   useEffect(() => {

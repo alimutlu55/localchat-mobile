@@ -3,7 +3,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
 import { useUIState, useUIActions } from '../context/UIContext';
-import { useAuth } from '../context';
+import { useAuth } from '../features/auth';
 import { useMyRooms } from '../features/rooms/hooks';
 import { Sidebar } from './Sidebar';
 import { ProfileDrawer } from './ProfileDrawer';

@@ -26,7 +26,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../navigation/types';
 import { onboardingService } from '../../services/onboarding';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../features/auth';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 type OnboardingStep = 'checking' | 'location' | 'notifications' | 'complete';

@@ -7,7 +7,7 @@
 
 import React from 'react';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { useAuth } from '../context';
+import { useAuth } from '../features/auth';
 import { RootStackParamList } from './types';
 import { AuthNavigator } from './AuthNavigator';
 

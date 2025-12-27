@@ -8,29 +8,34 @@
  * 1. GestureHandler - Required for gesture handling
  * 2. SafeAreaProvider - Safe area insets
  * 3. NavigationContainer - Navigation state
- * 4. AuthProvider - Authentication state
+ * 4. UserStoreProvider - User state (Zustand store + WebSocket handlers)
  * 5. UIProvider - UI state (sidebar, drawers)
  * 6. SettingsProvider - User settings
- * 7. UserStoreProvider - User state sync + avatar caching
- * 8. RoomStoreProvider - Zustand store + WebSocket handlers
+ * 7. RoomStoreProvider - Zustand store + WebSocket handlers
  *
  * Architecture:
+ * - AuthStore (Zustand) handles authentication flows
  * - UserStore (Zustand) is the single source of truth for user data
  * - RoomStore (Zustand) is the single source of truth for room data
  * - All room operations use hooks from features/rooms
  * - All user data access uses hooks from features/user
+ * - All auth operations use hooks from features/auth
  */
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
-import { AuthProvider, SettingsProvider, UIProvider } from './src/context';
+import { SettingsProvider, UIProvider } from './src/context';
 import { RoomStoreProvider } from './src/features/rooms';
 import { UserStoreProvider } from './src/features/user';
+import { initializeAuthStore } from './src/features/auth';
 import { RootNavigator } from './src/navigation';
 import { GlobalDrawers } from './src/components/GlobalDrawers';
+import { LoadingScreen } from './src/screens';
+import { api } from './src/services';
+import { wsService } from './src/services';
 
 // Initialize i18n
 import './src/i18n';
@@ -39,25 +44,59 @@ import './src/i18n';
  * Main App Component
  */
 export default function App() {
+  const [isInitializing, setIsInitializing] = useState(true);
+
+  useEffect(() => {
+    // Initialize auth store and setup API error callback
+    const initialize = async () => {
+      try {
+        // Setup API auth error callback - called when token refresh fails
+        api.setAuthErrorCallback(async () => {
+          console.log('[App] Session expired, logging out');
+          // Import and call logout from AuthStore
+          const { useAuthStore } = await import('./src/features/auth');
+          await useAuthStore.getState().logout();
+        });
+
+        // Initialize AuthStore (loads user from storage, connects WebSocket)
+        await initializeAuthStore();
+      } catch (error) {
+        console.error('[App] Initialization error:', error);
+      } finally {
+        setIsInitializing(false);
+      }
+    };
+
+    initialize();
+
+    // Cleanup
+    return () => {
+      wsService.cleanup();
+    };
+  }, []);
+
+  // Show loading screen during initialization
+  if (isInitializing) {
+    return <LoadingScreen />;
+  }
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
         <NavigationContainer>
-          <AuthProvider>
+          {/* UserStoreProvider handles WebSocket subscriptions for user data */}
+          <UserStoreProvider>
             <UIProvider>
               <SettingsProvider>
-                {/* UserStoreProvider syncs user data from AuthContext and handles avatar caching */}
-                <UserStoreProvider>
-                  {/* RoomStoreProvider initializes Zustand store and WebSocket handlers */}
-                  <RoomStoreProvider>
-                    <StatusBar style="dark" />
-                    <RootNavigator />
-                    <GlobalDrawers />
-                  </RoomStoreProvider>
-                </UserStoreProvider>
+                {/* RoomStoreProvider initializes Zustand store and WebSocket handlers */}
+                <RoomStoreProvider>
+                  <StatusBar style="dark" />
+                  <RootNavigator />
+                  <GlobalDrawers />
+                </RoomStoreProvider>
               </SettingsProvider>
             </UIProvider>
-          </AuthProvider>
+          </UserStoreProvider>
         </NavigationContainer>
       </SafeAreaProvider>
     </GestureHandlerRootView>

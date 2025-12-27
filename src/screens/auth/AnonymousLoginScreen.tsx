@@ -19,7 +19,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { ArrowLeft, User, Sparkles } from 'lucide-react-native';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../features/auth';
 
 export default function AnonymousLoginScreen() {
   const navigation = useNavigation();

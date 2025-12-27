@@ -22,7 +22,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ArrowLeft, Mail, Lock, User, Eye, EyeOff } from 'lucide-react-native';
 import { AuthStackParamList } from '../../navigation/types';
-import { useAuth } from '../../context/AuthContext';
+import { useAuth } from '../../features/auth';
 
 type NavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Register'>;
 

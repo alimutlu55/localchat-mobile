@@ -5,6 +5,7 @@
  * Import from here for cross-feature dependencies.
  */
 
+export * from './auth';
 export * from './rooms';
 export * from './chat';
 export * from './discovery';
