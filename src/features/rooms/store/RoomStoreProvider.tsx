@@ -5,11 +5,11 @@
  * This component should be mounted at the app level, after AuthProvider.
  *
  * It handles:
- * - Subscribing to WebSocket events and updating RoomStore
+ * - Subscribing to EventBus events and updating RoomStore
  * - Fetching initial "my rooms" data when user is authenticated
  * - Resetting store on logout
  *
- * This replaces the WebSocket handling previously done in RoomContext.
+ * Room expiration is handled server-side via ROOM_EXPIRING WebSocket events.
  */
 
 import React, { useEffect } from 'react';
@@ -32,7 +32,7 @@ interface RoomStoreProviderProps {
 function RoomStoreInitializer() {
   const user = useCurrentUser();
 
-  // Subscribe to WebSocket events
+  // Subscribe to WebSocket events via EventBus
   useRoomWebSocket(user?.id);
 
   // Get store actions
@@ -54,8 +54,12 @@ function RoomStoreInitializer() {
         log.debug('Fetching my rooms');
         const rooms = await roomService.getMyRooms();
 
-        // Filter active rooms
-        const activeRooms = rooms.filter((room) => room.status !== 'closed');
+        // Filter active rooms (not closed or expired)
+        const now = Date.now();
+        const activeRooms = rooms.filter((room) => {
+          const isExpired = room.expiresAt && room.expiresAt.getTime() < now;
+          return room.status !== 'closed' && room.status !== 'expired' && !isExpired;
+        });
 
         // Update store
         setRooms(activeRooms);

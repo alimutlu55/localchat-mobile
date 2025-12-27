@@ -545,6 +545,14 @@ class WebSocketService {
         });
         break;
 
+      case WS_EVENTS.ROOM_EXPIRING:
+        eventBus.emit('room.expiring', {
+          roomId: payload.roomId,
+          expiresAt: payload.expiresAt,
+          minutesRemaining: payload.minutesRemaining || 0,
+        });
+        break;
+
       case WS_EVENTS.USER_JOINED:
         eventBus.emit('room.userJoined', {
           roomId: payload.roomId,

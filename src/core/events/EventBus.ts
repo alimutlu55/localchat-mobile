@@ -64,9 +64,6 @@ export interface RoomEvents {
     expiresAt: string;
     minutesRemaining: number;
   };
-  'room.expired': {
-    roomId: string;
-  };
   'room.userJoined': {
     roomId: string;
     userId: string;

@@ -116,8 +116,23 @@ export function useRoomWebSocket(userId?: string): void {
     };
 
     const handleRoomClosed = (payload: { roomId: string; closedBy: string }) => {
-      log.debug('Room closed', { roomId: payload.roomId });
+      log.info('Room closed', { roomId: payload.roomId, closedBy: payload.closedBy });
+      
+      // Remove from joined rooms first
+      removeJoinedRoom(payload.roomId);
+      
+      // Then remove from store
       removeRoom(payload.roomId);
+    };
+
+    const handleRoomExpiring = (payload: { roomId: string; expiresAt: string; minutesRemaining: number }) => {
+      log.info('Room expiring', { roomId: payload.roomId, minutesRemaining: payload.minutesRemaining });
+      
+      // Update room status to 'expiring'
+      updateRoom(payload.roomId, { 
+        status: 'expiring',
+        expiresAt: new Date(payload.expiresAt),
+      } as Partial<Room>);
     };
 
     const handleParticipantCount = (payload: { roomId: string; participantCount: number }) => {
@@ -276,6 +291,7 @@ export function useRoomWebSocket(userId?: string): void {
     const unsubCreated = eventBus.on('room.created', handleRoomCreated);
     const unsubUpdated = eventBus.on('room.updated', handleRoomUpdated);
     const unsubClosed = eventBus.on('room.closed', handleRoomClosed);
+    const unsubExpiring = eventBus.on('room.expiring', handleRoomExpiring);
     const unsubParticipantCount = eventBus.on('room.participantCountUpdated', handleParticipantCount);
     const unsubJoined = eventBus.on('room.userJoined', handleUserJoined);
     const unsubLeft = eventBus.on('room.userLeft', handleUserLeft);
@@ -288,6 +304,7 @@ export function useRoomWebSocket(userId?: string): void {
       unsubCreated();
       unsubUpdated();
       unsubClosed();
+      unsubExpiring();
       unsubParticipantCount();
       unsubJoined();
       unsubLeft();

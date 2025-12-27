@@ -90,32 +90,44 @@ export interface UseChatMessagesReturn {
 // System Message Helpers
 // =============================================================================
 
+type SystemMessageType = 
+  | 'user_joined' 
+  | 'user_left' 
+  | 'user_kicked' 
+  | 'user_banned'
+  | 'room_expiring_soon'
+  | 'room_closed';
+
 function createSystemMessage(
-  type: 'user_joined' | 'user_left' | 'user_kicked' | 'user_banned',
-  userName: string
+  type: SystemMessageType,
+  context?: string
 ): string {
   switch (type) {
     case 'user_joined':
-      return `${userName} joined the room`;
+      return `${context || 'Someone'} joined the room`;
     case 'user_left':
-      return `${userName} left the room`;
+      return `${context || 'Someone'} left the room`;
     case 'user_kicked':
-      return `${userName} was removed from the room`;
+      return `${context || 'A user'} was removed from the room`;
     case 'user_banned':
-      return `${userName} was banned from the room`;
+      return `${context || 'A user'} was banned from the room`;
+    case 'room_expiring_soon':
+      return `⏰ This room is expiring in ${context || 'a few minutes'}`;
+    case 'room_closed':
+      return '🔒 This room has been closed';
     default:
       return '';
   }
 }
 
 function makeSystemMessage(
-  type: 'user_joined' | 'user_left' | 'user_kicked' | 'user_banned',
-  userName: string
+  type: SystemMessageType,
+  context?: string
 ): ChatMessage {
   return {
     id: `system-${type}-${Date.now()}`,
     type: 'system',
-    content: createSystemMessage(type, userName),
+    content: createSystemMessage(type, context),
     timestamp: new Date(),
     userId: 'system',
     userName: 'System',
@@ -377,8 +389,30 @@ export function useChatMessages(
     // Handle room closed via EventBus
     const unsubRoomClosed = eventBus.on('room.closed', (payload) => {
       if (payload.roomId === roomId) {
+        log.info('Room closed', { roomId, closedBy: payload.closedBy });
+        
+        // Show system message
+        setMessages((prev) => [
+          ...prev,
+          makeSystemMessage('room_closed'),
+        ]);
+        
+        // Notify callback to navigate away
         optionsRef.current.onRoomClosed?.();
       }
+    });
+
+    // Handle room expiring via EventBus (server sends this before room expires)
+    const unsubRoomExpiring = eventBus.on('room.expiring', (payload) => {
+      if (payload.roomId !== roomId) return;
+
+      log.info('Room expiring', { roomId, minutesRemaining: payload.minutesRemaining });
+
+      // Show system message for room expiring
+      setMessages((prev) => [
+        ...prev,
+        makeSystemMessage('room_expiring_soon', `${payload.minutesRemaining} minutes`),
+      ]);
     });
 
     // Handle user joined (show system message) via EventBus
@@ -474,6 +508,7 @@ export function useChatMessages(
 
     return () => {
       unsubRoomClosed();
+      unsubRoomExpiring();
       unsubUserJoined();
       unsubUserLeft();
       unsubUserKicked();
