@@ -234,7 +234,8 @@ export function AvatarPicker({
  * Avatar Display Component
  *
  * Reusable avatar display with fallback to initials.
- * Supports SVG URLs via SvgUri.
+ * Supports SVG URLs via SvgUri with proper loading states.
+ * Uses UserStore for avatar caching to prevent empty flashes.
  */
 interface AvatarDisplayProps {
   avatarUrl?: string;
@@ -243,16 +244,49 @@ interface AvatarDisplayProps {
   style?: any;
 }
 
-export function AvatarDisplay({ avatarUrl, displayName, size = 'md', style }: AvatarDisplayProps) {
-  const [hasError, setHasError] = React.useState(false);
-  const sizeStyles = {
-    sm: { container: 32, text: 14 },
-    md: { container: 44, text: 18 },
-    lg: { container: 64, text: 24 },
-    xl: { container: 96, text: 36 },
-  };
+const SIZE_STYLES = {
+  sm: { container: 32, text: 14 },
+  md: { container: 44, text: 18 },
+  lg: { container: 64, text: 24 },
+  xl: { container: 96, text: 36 },
+};
 
-  const dimensions = sizeStyles[size];
+/**
+ * Fallback component showing initials
+ */
+function AvatarFallback({ 
+  displayName, 
+  dimensions, 
+  style,
+  isPlaceholder = false,
+}: { 
+  displayName: string; 
+  dimensions: { container: number; text: number }; 
+  style?: any;
+  isPlaceholder?: boolean;
+}) {
+  return (
+    <View
+      style={[{
+        width: dimensions.container,
+        height: dimensions.container,
+        borderRadius: dimensions.container / 2,
+        backgroundColor: isPlaceholder ? '#e5e7eb' : '#f97316',
+        justifyContent: 'center',
+        alignItems: 'center',
+      }, style]}
+    >
+      <Text style={{ fontSize: dimensions.text, fontWeight: '600', color: isPlaceholder ? '#9ca3af' : '#ffffff' }}>
+        {displayName?.charAt(0).toUpperCase() || 'U'}
+      </Text>
+    </View>
+  );
+}
+
+export function AvatarDisplay({ avatarUrl, displayName, size = 'md', style }: AvatarDisplayProps) {
+  const [isLoading, setIsLoading] = React.useState(true);
+  const [hasError, setHasError] = React.useState(false);
+  const dimensions = SIZE_STYLES[size];
 
   // Normalize empty strings and various "null/undefined" string variants to undefined
   const validAvatarUrl = useMemo(() => {
@@ -262,60 +296,86 @@ export function AvatarDisplay({ avatarUrl, displayName, size = 'md', style }: Av
     return avatarUrl;
   }, [avatarUrl]);
 
-  // Reset error state when URL changes
+  // Reset loading/error state when URL changes
   React.useEffect(() => {
-    setHasError(false);
+    if (validAvatarUrl) {
+      setIsLoading(true);
+      setHasError(false);
+    }
   }, [validAvatarUrl]);
 
-  if (validAvatarUrl && !hasError) {
-    const isSvg = validAvatarUrl.toLowerCase().endsWith('.svg') || validAvatarUrl.includes('dicebear');
+  const handleLoad = React.useCallback(() => {
+    setIsLoading(false);
+    setHasError(false);
+  }, []);
 
+  const handleError = React.useCallback(() => {
+    setIsLoading(false);
+    setHasError(true);
+  }, []);
+
+  // No URL or error - show fallback with initials
+  if (!validAvatarUrl || hasError) {
     return (
-      <View
-        style={[{
-          width: dimensions.container,
-          height: dimensions.container,
-          borderRadius: dimensions.container / 2,
-          backgroundColor: '#f3f4f6',
-          overflow: 'hidden', // Essential for masking
-          justifyContent: 'center', // Center content (SVG/Image)
-          alignItems: 'center',
-        }, style]}
-      >
-        {isSvg ? (
-          <SvgUri
-            uri={validAvatarUrl}
-            width="100%"
-            height="100%"
-            onError={() => setHasError(true)}
-          />
-        ) : (
-          <Image
-            source={{ uri: validAvatarUrl }}
-            style={{ width: '100%', height: '100%' }}
-            resizeMode="cover"
-            onError={() => setHasError(true)}
-          />
-        )}
-      </View>
+      <AvatarFallback 
+        displayName={displayName} 
+        dimensions={dimensions} 
+        style={style}
+        isPlaceholder={false}
+      />
     );
   }
 
-  // Fallback: show initial letter
+  const isSvg = validAvatarUrl.toLowerCase().endsWith('.svg') || validAvatarUrl.includes('dicebear');
+
   return (
     <View
       style={[{
         width: dimensions.container,
         height: dimensions.container,
         borderRadius: dimensions.container / 2,
-        backgroundColor: '#f97316',
+        backgroundColor: '#f3f4f6',
+        overflow: 'hidden',
         justifyContent: 'center',
         alignItems: 'center',
       }, style]}
     >
-      <Text style={{ fontSize: dimensions.text, fontWeight: '600', color: '#ffffff' }}>
-        {displayName?.charAt(0).toUpperCase() || 'U'}
-      </Text>
+      {/* Show initials while loading */}
+      {isLoading && (
+        <View 
+          style={{
+            position: 'absolute',
+            width: '100%',
+            height: '100%',
+            justifyContent: 'center',
+            alignItems: 'center',
+            zIndex: 1,
+          }}
+        >
+          <Text style={{ fontSize: dimensions.text, fontWeight: '600', color: '#9ca3af' }}>
+            {displayName?.charAt(0).toUpperCase() || 'U'}
+          </Text>
+        </View>
+      )}
+      
+      {/* Actual avatar image */}
+      {isSvg ? (
+        <SvgUri
+          uri={validAvatarUrl}
+          width="100%"
+          height="100%"
+          onLoad={handleLoad}
+          onError={handleError}
+        />
+      ) : (
+        <Image
+          source={{ uri: validAvatarUrl }}
+          style={{ width: '100%', height: '100%' }}
+          resizeMode="cover"
+          onLoad={handleLoad}
+          onError={handleError}
+        />
+      )}
     </View>
   );
 }

@@ -8,3 +8,4 @@
 export * from './rooms';
 export * from './chat';
 export * from './discovery';
+export * from './user';

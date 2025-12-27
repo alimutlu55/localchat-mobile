@@ -65,6 +65,8 @@ export interface UseChatMessagesReturn {
   addReaction: (messageId: string, emoji: string) => void;
   /** Manually refresh messages */
   refresh: () => Promise<void>;
+  /** Mark messages as read (call when user views messages) */
+  markMessagesAsRead: (messageIds: string[]) => void;
 }
 
 // =============================================================================
@@ -264,6 +266,51 @@ export function useChatMessages(
       );
     });
 
+    // Handle messages read event - update status to 'read' for own messages
+    // This is triggered when another user reads messages in the room
+    // Backend sends: { roomId, readerId, lastReadMessageId, readAt }
+    const unsubRead = wsService.on(WS_EVENTS.MESSAGE_READ, (payload: any) => {
+      if (payload.roomId !== roomId) return;
+
+      const { readerId, lastReadMessageId } = payload;
+
+      // Only update status if someone else read our messages
+      if (readerId === userId) return;
+
+      log.debug('Messages read event received', { 
+        roomId, 
+        readerId,
+        lastReadMessageId,
+        currentUserId: userId 
+      });
+
+      // Find the index of the last read message
+      // All of our messages up to and including this one should be marked as read
+      setMessages((prev) => {
+        // Find the last read message index
+        const lastReadIndex = prev.findIndex((m) => m.id === lastReadMessageId);
+        
+        if (lastReadIndex === -1) {
+          // If we can't find the message, mark all our messages as read
+          // This handles the case where messages were loaded after the read event
+          return prev.map((msg) => {
+            if (msg.userId === userId && msg.status !== 'read') {
+              return { ...msg, status: 'read' as MessageStatus };
+            }
+            return msg;
+          });
+        }
+
+        // Mark all our messages up to and including lastReadIndex as read
+        return prev.map((msg, index) => {
+          if (msg.userId === userId && index <= lastReadIndex && msg.status !== 'read') {
+            return { ...msg, status: 'read' as MessageStatus };
+          }
+          return msg;
+        });
+      });
+    });
+
     // Handle reactions
     const unsubReaction = wsService.on(WS_EVENTS.MESSAGE_REACTION, (payload: any) => {
       if (payload.roomId !== roomId) return;
@@ -291,6 +338,7 @@ export function useChatMessages(
     return () => {
       unsubMessage();
       unsubAck();
+      unsubRead();
       unsubReaction();
       unsubConnection();
     };
@@ -506,6 +554,33 @@ export function useChatMessages(
     await loadMessages();
   }, [loadMessages]);
 
+  // Track which message IDs we've already marked as read to avoid duplicates
+  const markedAsReadRef = useRef<Set<string>>(new Set());
+
+  /**
+   * Mark messages as read
+   * Called by the UI when messages come into view
+   */
+  const markMessagesAsRead = useCallback(
+    (messageIds: string[]) => {
+      // Filter out messages we've already marked as read
+      const newMessageIds = messageIds.filter(
+        (id) => !markedAsReadRef.current.has(id)
+      );
+
+      if (newMessageIds.length === 0) return;
+
+      // Add to our local tracking set
+      newMessageIds.forEach((id) => markedAsReadRef.current.add(id));
+
+      log.debug('Marking messages as read', { roomId, count: newMessageIds.length });
+
+      // Send read receipt to server
+      wsService.markRead(roomId, newMessageIds);
+    },
+    [roomId]
+  );
+
   return {
     messages,
     isLoading,
@@ -514,6 +589,7 @@ export function useChatMessages(
     sendMessage,
     addReaction,
     refresh,
+    markMessagesAsRead,
   };
 }
 

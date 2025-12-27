@@ -12,7 +12,7 @@
  * ~400 LOC (down from 1,388 LOC)
  */
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -187,6 +187,7 @@ export default function ChatRoomScreen() {
     connectionState,
     sendMessage,
     addReaction,
+    markMessagesAsRead,
   } = useChatMessages(roomId, {
     onAccessDenied: (reason) => {
       if (reason === 'banned') {
@@ -223,6 +224,37 @@ export default function ChatRoomScreen() {
     roomId,
     sendMessage
   );
+
+  // ==========================================================================
+  // Mark messages as read when user is at bottom
+  // ==========================================================================
+
+  // Track if we've done initial read marking
+  const initialReadDoneRef = useRef(false);
+
+  useEffect(() => {
+    // When at bottom and have messages from others, mark them as read
+    if (messages.length > 0) {
+      // Filter for real messages from other users (exclude optimistic messages with temp- prefix)
+      const messagesFromOthers = messages
+        .filter((m) => 
+          m.userId !== user?.id && 
+          m.type === 'user' && 
+          m.id && 
+          !m.id.startsWith('temp-') &&
+          !m.id.startsWith('system-')
+        )
+        .map((m) => m.id);
+
+      if (messagesFromOthers.length > 0) {
+        // On initial load or when at bottom, mark as read
+        if (!initialReadDoneRef.current || isAtBottomRef.current) {
+          markMessagesAsRead(messagesFromOthers);
+          initialReadDoneRef.current = true;
+        }
+      }
+    }
+  }, [messages, user?.id, markMessagesAsRead]);
 
   // ==========================================================================
   // Refresh Room Data on Focus
@@ -270,12 +302,13 @@ export default function ChatRoomScreen() {
   }, [roomId, blockedUserIds]);
 
   // ==========================================================================
-  // Scroll Handling
+  // Scroll Handling (for INVERTED list)
   // ==========================================================================
 
   const handleScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
-    const isAtBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - 100;
+    const { contentOffset } = event.nativeEvent;
+    // In inverted list, offset 0 = bottom, higher offset = scrolled up (towards older messages)
+    const isAtBottom = contentOffset.y < 100;
 
     isAtBottomRef.current = isAtBottom;
     setShowScrollButton(!isAtBottom);
@@ -286,7 +319,8 @@ export default function ChatRoomScreen() {
   }, []);
 
   const scrollToBottom = useCallback(() => {
-    flatListRef.current?.scrollToEnd({ animated: true });
+    // In inverted list, scroll to offset 0 = bottom
+    flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
     setUnreadCount(0);
   }, []);
 
@@ -408,18 +442,30 @@ export default function ChatRoomScreen() {
   };
 
   // ==========================================================================
+  // Prepare Data for Inverted List
+  // ==========================================================================
+
+  // Reverse messages for inverted FlatList (newest first in data = shows at bottom)
+  const reversedMessages = useMemo(() => [...messages].reverse(), [messages]);
+
+  // ==========================================================================
   // Render Message Item
   // ==========================================================================
 
   const renderMessage = useCallback(
     ({ item, index }: { item: ChatMessage; index: number }) => {
-      const previousMessage = index > 0 ? messages[index - 1] : null;
-      const showDateSeparator = shouldShowDateSeparator(item, previousMessage);
+      // For inverted list with reversed data:
+      // - index 0 is the newest message (bottom of screen)
+      // - We need to check the NEXT item (index + 1) for date separator
+      //   because in visual order, the item at index+1 appears ABOVE current item
+      const nextMessage = index < reversedMessages.length - 1 ? reversedMessages[index + 1] : null;
+      
+      // Show date separator if this message is on a different day than the one above it
+      const showDateSeparator = shouldShowDateSeparator(item, nextMessage);
       const isOwn = item.userId === user?.id;
 
       return (
         <>
-          {showDateSeparator && <DateSeparator date={item.timestamp} />}
           <MessageBubble
             message={item}
             isOwn={isOwn}
@@ -428,17 +474,20 @@ export default function ChatRoomScreen() {
             onReact={addReaction}
             hasBlocked={isBlocked(item.userId)}
           />
+          {/* Date separator appears BELOW the message in inverted list = above visually */}
+          {showDateSeparator && <DateSeparator date={item.timestamp} />}
         </>
       );
     },
-    [messages, user?.id, handleReportMessage, handleBlockUser, addReaction, isBlocked]
+    [reversedMessages, user?.id, handleReportMessage, handleBlockUser, addReaction, isBlocked]
   );
 
   // ==========================================================================
-  // Loading State
+  // Loading State - Only if no room data at all
   // ==========================================================================
 
-  if (isLoading || !room) {
+  // Show full loading only if we have no room data whatsoever
+  if (!room && !initialRoom) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#f97316" />
@@ -446,13 +495,17 @@ export default function ChatRoomScreen() {
     );
   }
 
+  // Use whatever room data we have (prefer fresh, fallback to initial)
+  // After the guard above, at least one of these is defined
+  const displayRoom = (room || initialRoom)!;
+
   // ==========================================================================
   // Main Render
   // ==========================================================================
 
   return (
     <View style={styles.container}>
-      {/* Header */}
+      {/* Header - Always visible immediately */}
       <View style={styles.headerContainer}>
         <View style={{ height: insets.top }} />
         <ConnectionBanner state={connectionState} />
@@ -463,10 +516,10 @@ export default function ChatRoomScreen() {
 
           <TouchableOpacity style={styles.headerContent} onPress={handleRoomInfo}>
             <Text style={styles.headerTitle} numberOfLines={1}>
-              {room.title}
+              {displayRoom.title}
             </Text>
             <Text style={styles.headerSubtitle}>
-              {room.participantCount} people • {room.distanceDisplay || 'Nearby'}
+              {displayRoom.participantCount} people • {displayRoom.distanceDisplay || 'Nearby'}
             </Text>
           </TouchableOpacity>
 
@@ -482,33 +535,37 @@ export default function ChatRoomScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
         keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <FlatList
-          ref={flatListRef}
-          data={messages}
-          renderItem={renderMessage}
-          keyExtractor={(item) => item.id}
-          contentContainerStyle={styles.messageList}
-          showsVerticalScrollIndicator={false}
-          onScroll={handleScroll}
-          scrollEventThrottle={16}
-          keyboardShouldPersistTaps="handled"
-          keyboardDismissMode="on-drag"
-          onContentSizeChange={() => {
-            if (isAtBottomRef.current) {
-              flatListRef.current?.scrollToEnd({ animated: false });
-            } else {
-              setUnreadCount((prev) => prev + 1);
+        {/* Show loading indicator while fetching messages */}
+        {isLoading ? (
+          <View style={styles.loadingMessages}>
+            <ActivityIndicator size="large" color="#f97316" />
+          </View>
+        ) : (
+          <FlatList
+            ref={flatListRef}
+            // INVERTED LIST: Data is already reversed via reversedMessages
+            // This makes the list start at bottom without scroll animation
+            data={reversedMessages}
+            inverted
+            renderItem={renderMessage}
+            keyExtractor={(item) => item.id}
+            contentContainerStyle={styles.messageListInverted}
+            showsVerticalScrollIndicator={false}
+            onScroll={handleScroll}
+            scrollEventThrottle={16}
+            keyboardShouldPersistTaps="handled"
+            keyboardDismissMode="on-drag"
+            // For inverted list, header becomes footer (shows at bottom = typing indicator)
+            ListHeaderComponent={<TypingIndicator users={typingUsers} />}
+            ListEmptyComponent={
+              <View style={styles.emptyStateInverted}>
+                <Text style={styles.emptyIcon}>🎉</Text>
+                <Text style={styles.emptyTitle}>No messages yet</Text>
+                <Text style={styles.emptySubtitle}>Say hi and break the ice!</Text>
+              </View>
             }
-          }}
-          ListEmptyComponent={
-            <View style={styles.emptyState}>
-              <Text style={styles.emptyIcon}>🎉</Text>
-              <Text style={styles.emptyTitle}>No messages yet</Text>
-              <Text style={styles.emptySubtitle}>Say hi and break the ice!</Text>
-            </View>
-          }
-          ListFooterComponent={<TypingIndicator users={typingUsers} />}
-        />
+          />
+        )}
 
         <ScrollToBottomButton
           visible={showScrollButton}
@@ -561,7 +618,7 @@ export default function ChatRoomScreen() {
         targetName={
           reportConfig.targetType === 'message'
             ? reportConfig.targetData?.userName
-            : room.title
+            : displayRoom.title
         }
         isUserAlreadyBlocked={
           reportConfig.targetType === 'message' && reportConfig.targetData?.userId
@@ -625,6 +682,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#ffffff',
   },
+  loadingMessages: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   headerContainer: {
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
@@ -671,11 +733,25 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     flexGrow: 1,
   },
+  messageListInverted: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    // For inverted list, flexGrow pushes content to bottom when empty
+    flexGrow: 1,
+  },
   emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
     paddingVertical: 60,
+  },
+  emptyStateInverted: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 60,
+    // Flip the empty state back since list is inverted
+    transform: [{ scaleY: -1 }],
   },
   emptyIcon: {
     fontSize: 48,

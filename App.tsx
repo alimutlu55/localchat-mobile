@@ -11,12 +11,14 @@
  * 4. AuthProvider - Authentication state
  * 5. UIProvider - UI state (sidebar, drawers)
  * 6. SettingsProvider - User settings
- * 7. RoomStoreProvider - Zustand store + WebSocket handlers
+ * 7. UserStoreProvider - User state sync + avatar caching
+ * 8. RoomStoreProvider - Zustand store + WebSocket handlers
  *
  * Architecture:
+ * - UserStore (Zustand) is the single source of truth for user data
  * - RoomStore (Zustand) is the single source of truth for room data
  * - All room operations use hooks from features/rooms
- * - No legacy RoomContext/RoomProvider needed
+ * - All user data access uses hooks from features/user
  */
 
 import React from 'react';
@@ -26,6 +28,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
 import { AuthProvider, SettingsProvider, UIProvider } from './src/context';
 import { RoomStoreProvider } from './src/features/rooms';
+import { UserStoreProvider } from './src/features/user';
 import { RootNavigator } from './src/navigation';
 import { GlobalDrawers } from './src/components/GlobalDrawers';
 
@@ -43,12 +46,15 @@ export default function App() {
           <AuthProvider>
             <UIProvider>
               <SettingsProvider>
-                {/* RoomStoreProvider initializes Zustand store and WebSocket handlers */}
-                <RoomStoreProvider>
-                  <StatusBar style="dark" />
-                  <RootNavigator />
-                  <GlobalDrawers />
-                </RoomStoreProvider>
+                {/* UserStoreProvider syncs user data from AuthContext and handles avatar caching */}
+                <UserStoreProvider>
+                  {/* RoomStoreProvider initializes Zustand store and WebSocket handlers */}
+                  <RoomStoreProvider>
+                    <StatusBar style="dark" />
+                    <RootNavigator />
+                    <GlobalDrawers />
+                  </RoomStoreProvider>
+                </UserStoreProvider>
               </SettingsProvider>
             </UIProvider>
           </AuthProvider>

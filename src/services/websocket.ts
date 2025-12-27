@@ -512,9 +512,14 @@ class WebSocketService {
 
   /**
    * Mark messages as read
+   * Backend expects a single messageId (the last read message)
    */
   markRead(roomId: string, messageIds: string[]): void {
-    this.send(WS_EVENTS.MARK_READ, { roomId, messageIds });
+    if (messageIds.length === 0) return;
+    
+    // Send the last message ID (most recent message that was read)
+    const lastMessageId = messageIds[messageIds.length - 1];
+    this.send(WS_EVENTS.MARK_READ, { roomId, messageId: lastMessageId });
   }
 
   /**
