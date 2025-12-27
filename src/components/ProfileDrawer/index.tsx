@@ -30,7 +30,7 @@ import {
     ArrowLeft,
 } from 'lucide-react-native';
 import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
-import { useCurrentUser } from '../../features/user/store';
+import { useCurrentUser, useSettings } from '../../features/user';
 import { useMyRooms } from '../../features/rooms/hooks';
 import { blockService } from '../../services';
 
@@ -65,10 +65,8 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
     // =========================================================================
     const [currentPage, setCurrentPage] = useState<SubPage>('main');
 
-    // Settings state
-    const [pushNotifications, setPushNotifications] = useState(true);
-    const [messageNotifications, setMessageNotifications] = useState(true);
-    const [soundEnabled, setSoundEnabled] = useState(true);
+    // Use global settings state
+    const { settings, updateSettings } = useSettings();
 
     // Blocked users state
     const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
@@ -250,12 +248,12 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
             />
 
             <NotificationSettings
-                pushNotifications={pushNotifications}
-                messageNotifications={messageNotifications}
-                soundEnabled={soundEnabled}
-                onPushToggle={setPushNotifications}
-                onMessageToggle={setMessageNotifications}
-                onSoundToggle={setSoundEnabled}
+                pushNotifications={settings.notificationsEnabled}
+                messageNotifications={settings.messageNotificationsEnabled}
+                soundEnabled={settings.soundEnabled}
+                onPushToggle={(val) => updateSettings({ notificationsEnabled: val })}
+                onMessageToggle={(val) => updateSettings({ messageNotificationsEnabled: val })}
+                onSoundToggle={(val) => updateSettings({ soundEnabled: val })}
             />
 
             <AboutSection

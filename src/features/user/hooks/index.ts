@@ -5,3 +5,4 @@
  */
 
 export { useUserAvatar, useAvatarLoading } from './useUserAvatar';
+export { useSettings } from './useSettings';

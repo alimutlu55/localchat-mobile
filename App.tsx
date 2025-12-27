@@ -10,8 +10,7 @@
  * 3. NavigationContainer - Navigation state
  * 4. UserStoreProvider - User state (Zustand store + WebSocket handlers)
  * 5. UIProvider - UI state (sidebar, drawers)
- * 6. SettingsProvider - User settings
- * 7. RoomStoreProvider - Zustand store + WebSocket handlers
+ * 6. RoomStoreProvider - Zustand store + WebSocket handlers
  *
  * Architecture:
  * - AuthStore (Zustand) handles authentication flows
@@ -27,7 +26,7 @@ import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { NavigationContainer } from '@react-navigation/native';
-import { SettingsProvider, UIProvider } from './src/context';
+import { UIProvider } from './src/context';
 import { RoomStoreProvider } from './src/features/rooms';
 import { UserStoreProvider } from './src/features/user';
 import { initializeAuthStore } from './src/features/auth';
@@ -87,14 +86,12 @@ export default function App() {
           {/* UserStoreProvider handles WebSocket subscriptions for user data */}
           <UserStoreProvider>
             <UIProvider>
-              <SettingsProvider>
-                {/* RoomStoreProvider initializes Zustand store and WebSocket handlers */}
-                <RoomStoreProvider>
-                  <StatusBar style="dark" />
-                  <RootNavigator />
-                  <GlobalDrawers />
-                </RoomStoreProvider>
-              </SettingsProvider>
+              {/* RoomStoreProvider initializes Zustand store and WebSocket handlers */}
+              <RoomStoreProvider>
+                <StatusBar style="dark" />
+                <RootNavigator />
+                <GlobalDrawers />
+              </RoomStoreProvider>
             </UIProvider>
           </UserStoreProvider>
         </NavigationContainer>

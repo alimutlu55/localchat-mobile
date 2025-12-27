@@ -33,4 +33,4 @@ export {
 } from './store';
 
 // Hook exports
-export { useUserAvatar, useAvatarLoading } from './hooks';
+export { useUserAvatar, useAvatarLoading, useSettings } from './hooks';

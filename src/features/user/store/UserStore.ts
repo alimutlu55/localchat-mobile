@@ -65,12 +65,33 @@ export interface UserStoreState {
   avatarCache: Map<string, AvatarCacheEntry>;
 
   /**
-   * User preferences that affect UI
+   * User preferences that affect UI and behavior
+   * Includes both backend-synced and local-only settings
    */
   preferences: {
+    // Privacy settings
     showReadReceipts: boolean;
     showOnlineStatus: boolean;
+    showLastSeen: boolean;
+
+    // Notification settings
+    notificationsEnabled: boolean;
+    messageNotificationsEnabled: boolean;
+    roomUpdatesEnabled: boolean;
     soundEnabled: boolean;
+
+    // Behavior settings
+    typingIndicatorsEnabled: boolean;
+    profanityFilterEnabled: boolean;
+
+    // View settings
+    defaultView: 'list' | 'map';
+    locationMode: 'precise' | 'approximate' | 'manual' | 'off';
+
+    // UI settings
+    theme: 'light' | 'dark' | 'system';
+    language: string;
+    textSize: 'small' | 'medium' | 'large';
   };
 
   /**
@@ -156,6 +177,11 @@ export interface UserStoreActions {
     value: UserStoreState['preferences'][K]
   ) => void;
 
+  /**
+   * Update multiple preferences at once
+   */
+  updatePreferences: (updates: Partial<UserStoreState['preferences']>) => Promise<void>;
+
   // =========================================================================
   // Loading States
   // =========================================================================
@@ -189,9 +215,29 @@ const initialState: UserStoreState = {
   userId: null,
   avatarCache: new Map(),
   preferences: {
+    // Privacy
     showReadReceipts: true,
     showOnlineStatus: true,
+    showLastSeen: true,
+
+    // Notifications
+    notificationsEnabled: true,
+    messageNotificationsEnabled: true,
+    roomUpdatesEnabled: false,
     soundEnabled: true,
+
+    // Behavior
+    typingIndicatorsEnabled: true,
+    profanityFilterEnabled: true,
+
+    // View
+    defaultView: 'list',
+    locationMode: 'approximate',
+
+    // UI
+    theme: 'light',
+    language: 'en',
+    textSize: 'medium',
   },
   isLoading: false,
   isUpdating: false,
@@ -354,6 +400,52 @@ export const useUserStore = create<UserStore>()(
               [key]: value,
             },
           }));
+        },
+
+        updatePreferences: async (updates) => {
+          const prevPreferences = get().preferences;
+
+          // Update state optimistically
+          set((state) => ({
+            preferences: { ...state.preferences, ...updates },
+            isUpdating: true,
+          }));
+
+          try {
+            // Separate backend and local settings
+            const backendKeys = ['defaultView', 'locationMode', 'notificationsEnabled', 'typingIndicatorsEnabled', 'profanityFilterEnabled'];
+            const backendUpdates: any = {};
+            const localUpdates: any = {};
+
+            for (const [key, value] of Object.entries(updates)) {
+              if (backendKeys.includes(key)) {
+                backendUpdates[key] = value;
+              } else {
+                localUpdates[key] = value;
+              }
+            }
+
+            // Update backend settings if user is authenticated
+            if (Object.keys(backendUpdates).length > 0 && get().currentUser) {
+              const { settingsService } = await import('../../../services');
+              await settingsService.updateSettings(backendUpdates);
+            }
+
+            // Update local settings (always persisted)
+            if (Object.keys(localUpdates).length > 0) {
+              const { settingsService } = await import('../../../services');
+              await settingsService.updateLocalSettings(localUpdates);
+            }
+
+            log.debug('Preferences updated successfully', { updates });
+          } catch (error) {
+            log.error('Failed to update preferences', { error });
+            // Revert on error
+            set({ preferences: prevPreferences });
+            throw error;
+          } finally {
+            set({ isUpdating: false });
+          }
         },
 
         // =========================================================================
