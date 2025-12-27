@@ -45,8 +45,8 @@ import { RootStackParamList } from '../../../navigation/types';
 // Types
 import { ChatMessage, Room } from '../../../types';
 
-// Context
-import { useAuth } from '../../../context/AuthContext';
+// UserStore
+import { useUserId } from '../../user/store';
 
 // Services
 import { blockService, roomService, messageService } from '../../../services';
@@ -131,12 +131,12 @@ function useBlockedUsers() {
 export default function ChatRoomScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<ChatRoomRouteProp>();
-  
+
   // Support both new (roomId) and legacy (room) navigation params
   const params = route.params;
   const roomId = params.roomId || params.room?.id;
   const initialRoom = params.initialRoom || params.room;
-  
+
   // Guard: roomId is required
   if (!roomId) {
     return (
@@ -145,8 +145,8 @@ export default function ChatRoomScreen() {
       </View>
     );
   }
-  
-  const { user } = useAuth();
+
+  const userId = useUserId();
   const updateRoom = useRoomStore((s) => s.updateRoom);
   const { leaveRoom, isLeaving } = useRoomActions();
   const insets = useSafeAreaInsets();
@@ -155,7 +155,7 @@ export default function ChatRoomScreen() {
   const { room: cachedRoom } = useRoom(roomId, {
     skipFetchIfCached: true, // Use cached data, don't re-fetch on every render
   });
-  
+
   // Prefer cached room (has WebSocket updates), fallback to initial
   const room = cachedRoom || initialRoom;
   const isCreator = room?.isCreator || false;
@@ -237,10 +237,10 @@ export default function ChatRoomScreen() {
     if (messages.length > 0) {
       // Filter for real messages from other users (exclude optimistic messages with temp- prefix)
       const messagesFromOthers = messages
-        .filter((m) => 
-          m.userId !== user?.id && 
-          m.type === 'user' && 
-          m.id && 
+        .filter((m) =>
+          m.userId !== userId &&
+          m.type === 'user' &&
+          m.id &&
           !m.id.startsWith('temp-') &&
           !m.id.startsWith('system-')
         )
@@ -254,7 +254,7 @@ export default function ChatRoomScreen() {
         }
       }
     }
-  }, [messages, user?.id, markMessagesAsRead]);
+  }, [messages, userId, markMessagesAsRead]);
 
   // ==========================================================================
   // Refresh Room Data on Focus
@@ -333,9 +333,9 @@ export default function ChatRoomScreen() {
       roomId,
       initialRoom: room,
       isCreator,
-      currentUserId: user?.id,
+      currentUserId: userId ?? undefined,
     });
-  }, [roomId, room, isCreator, user?.id, navigation]);
+  }, [roomId, room, isCreator, userId, navigation]);
 
   const handleLeaveRoom = useCallback(() => {
     Alert.alert('Leave Room', 'Are you sure you want to leave this room?', [
@@ -459,10 +459,10 @@ export default function ChatRoomScreen() {
       // - We need to check the NEXT item (index + 1) for date separator
       //   because in visual order, the item at index+1 appears ABOVE current item
       const nextMessage = index < reversedMessages.length - 1 ? reversedMessages[index + 1] : null;
-      
+
       // Show date separator if this message is on a different day than the one above it
       const showDateSeparator = shouldShowDateSeparator(item, nextMessage);
-      const isOwn = item.userId === user?.id;
+      const isOwn = item.userId === userId;
 
       return (
         <>
@@ -479,7 +479,7 @@ export default function ChatRoomScreen() {
         </>
       );
     },
-    [reversedMessages, user?.id, handleReportMessage, handleBlockUser, addReaction, isBlocked]
+    [reversedMessages, userId, handleReportMessage, handleBlockUser, addReaction, isBlocked]
   );
 
   // ==========================================================================
@@ -604,7 +604,7 @@ export default function ChatRoomScreen() {
         onRoomInfo={handleRoomInfo}
         onLeave={handleLeaveRoom}
         onReport={handleReportRoom}
-        onMute={() => {}}
+        onMute={() => { }}
         isCreator={isCreator}
         onCloseRoom={isCreator ? handleCloseRoom : undefined}
       />

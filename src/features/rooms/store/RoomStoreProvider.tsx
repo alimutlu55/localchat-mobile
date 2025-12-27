@@ -13,7 +13,7 @@
  */
 
 import React, { useEffect } from 'react';
-import { useAuth } from '../../../context/AuthContext';
+import { useCurrentUser } from '../../user/store';
 import { useRoomStore } from '../store';
 import { useRoomWebSocket } from '../hooks/useRoomWebSocket';
 import { roomService } from '../../../services';
@@ -30,7 +30,7 @@ interface RoomStoreProviderProps {
  * Separated to allow conditional rendering based on auth state
  */
 function RoomStoreInitializer() {
-  const { user } = useAuth();
+  const user = useCurrentUser();
 
   // Subscribe to WebSocket events
   useRoomWebSocket(user?.id);

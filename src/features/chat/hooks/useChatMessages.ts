@@ -25,8 +25,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { messageService, wsService, WS_EVENTS, roomService } from '../../../services';
-import { 
-  ChatMessage, 
+import {
+  ChatMessage,
   MessageStatus,
   MessageNewPayload,
   MessageAckPayload,
@@ -38,7 +38,7 @@ import {
   UserBannedPayload,
   RoomClosedPayload,
 } from '../../../types';
-import { useAuth } from '../../../context/AuthContext';
+import { useUserId, useDisplayName, useAvatarUrl } from '../../user/store';
 import { createLogger } from '../../../shared/utils/logger';
 import { isNotParticipant, isUserBanned } from '../../../shared/utils/errors';
 import { useRoomStore } from '../../rooms/store';
@@ -125,8 +125,9 @@ export function useChatMessages(
   roomId: string,
   options: UseChatMessagesOptions = {}
 ): UseChatMessagesReturn {
-  const { user } = useAuth();
-  const userId = user?.id;
+  const userId = useUserId();
+  const displayName = useDisplayName();
+  const avatarUrl = useAvatarUrl();
 
   // Room store (to update participant counts for UI)
   const updateRoom = useRoomStore((s) => s.updateRoom);
@@ -288,11 +289,11 @@ export function useChatMessages(
       // Only update status if someone else read our messages
       if (readerId === userId) return;
 
-      log.debug('Messages read event received', { 
-        roomId, 
+      log.debug('Messages read event received', {
+        roomId,
         readerId,
         lastReadMessageId,
-        currentUserId: userId 
+        currentUserId: userId
       });
 
       // Find the index of the last read message
@@ -300,7 +301,7 @@ export function useChatMessages(
       setMessages((prev) => {
         // Find the last read message index
         const lastReadIndex = prev.findIndex((m) => m.id === lastReadMessageId);
-        
+
         if (lastReadIndex === -1) {
           // If we can't find the message, mark all our messages as read
           // This handles the case where messages were loaded after the read event
@@ -506,8 +507,8 @@ export function useChatMessages(
         content: trimmed,
         timestamp: new Date(),
         userId: userId || '',
-        userName: user?.displayName || 'You',
-        userProfilePhoto: user?.profilePhotoUrl,
+        userName: displayName || 'You',
+        userProfilePhoto: avatarUrl ?? undefined,
         status: 'sending',
         clientMessageId,
       };
@@ -519,7 +520,7 @@ export function useChatMessages(
 
       log.debug('Message sent', { roomId, clientMessageId });
     },
-    [roomId, userId, user?.displayName, user?.profilePhotoUrl]
+    [roomId, userId, displayName, avatarUrl]
   );
 
   const addReaction = useCallback(

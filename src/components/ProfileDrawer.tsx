@@ -44,6 +44,7 @@ import {
     Hash,
 } from 'lucide-react-native';
 import { useAuth } from '../context';
+import { useCurrentUser } from '../features/user/store';
 import { useMyRooms } from '../features/rooms/hooks';
 import { blockService, BlockedUser } from '../services';
 import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
@@ -170,7 +171,7 @@ function Section({
  */
 export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps) {
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-    const { user } = useAuth();
+    const user = useCurrentUser();
     const { rooms: myRooms } = useMyRooms();
     const [currentPage, setCurrentPage] = useState<SubPage>('main');
 
@@ -301,7 +302,8 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
         if (!user?.createdAt) return 'Recently';
         return new Date(user.createdAt).toLocaleDateString(undefined, {
             month: 'short',
-            year: 'numeric' });
+            year: 'numeric'
+        });
 
     }, [user?.createdAt]);
 

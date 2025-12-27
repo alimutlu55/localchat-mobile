@@ -95,7 +95,7 @@ export default function MapScreen() {
   const mapRef = useRef<MapViewRef>(null);
   const cameraRef = useRef<CameraRef>(null);
 
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
 
   // Use hooks instead of RoomContext
   const {
@@ -107,17 +107,17 @@ export default function MapScreen() {
     longitude: 0,
     autoFetch: false,
   });
-  
+
   const { rooms: myRooms, activeRooms: myActiveRooms, expiredRooms: myExpiredRooms } = useMyRooms();
-  
+
   // Local state for selected room
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
-  
+
   // Wrapper for fetchDiscoveredRooms
   const fetchDiscoveredRooms = async (lat: number, lng: number, radius?: number) => {
     await refreshRooms();
   };
-  
+
   // Compute activeRooms from discovered rooms
   const activeRooms = useMemo(() => {
     const now = Date.now();
@@ -126,7 +126,7 @@ export default function MapScreen() {
       return !isExpired && room.status !== 'closed' && room.status !== 'expired';
     });
   }, [discoveredRooms]);
-  
+
   // Sidebar rooms (active vs expired from my rooms)
   const sidebarRooms = { activeRooms: myActiveRooms, expiredRooms: myExpiredRooms };
 
@@ -302,7 +302,7 @@ export default function MapScreen() {
 
       if (visibleBounds && visibleBounds.length === 2) {
         const newBounds: [number, number, number, number] = [
-          visibleBounds[1][0], visibleBounds[1][1], 
+          visibleBounds[1][0], visibleBounds[1][1],
           visibleBounds[0][0], visibleBounds[0][1]
         ];
         setBounds(newBounds);
@@ -454,18 +454,18 @@ export default function MapScreen() {
    */
   const forceViewportRefresh = useCallback(async () => {
     if (!mapRef.current) return;
-    
+
     try {
       const zoom = await mapRef.current.getZoom();
       const visibleBounds = await mapRef.current.getVisibleBounds();
-      
+
       if (visibleBounds && visibleBounds.length === 2) {
         const newBounds: [number, number, number, number] = [
-          visibleBounds[1][0], visibleBounds[1][1], 
+          visibleBounds[1][0], visibleBounds[1][1],
           visibleBounds[0][0], visibleBounds[0][1]
         ];
         const roundedZoom = Math.round(zoom);
-        
+
         // Force state update to trigger re-clustering
         setCurrentZoom(roundedZoom);
         setBounds(newBounds);
@@ -484,34 +484,34 @@ export default function MapScreen() {
     paddingPercent: number = 0.25 // 25% padding on each side
   ): number => {
     const { width: screenWidth, height: screenHeight } = Dimensions.get('window');
-    
+
     // Account for UI elements (header ~100px, bottom toggle ~80px)
     const usableHeight = screenHeight - 180;
     const usableWidth = screenWidth - 40; // Side controls
-    
+
     const lngSpan = boundsToFit.maxLng - boundsToFit.minLng;
     const latSpan = boundsToFit.maxLat - boundsToFit.minLat;
-    
+
     // Add padding to spans
     const paddedLngSpan = lngSpan * (1 + paddingPercent * 2);
     const paddedLatSpan = latSpan * (1 + paddingPercent * 2);
-    
+
     // Web Mercator: at zoom z, world width = 256 * 2^z pixels
     // Calculate zoom needed to fit each dimension
     const WORLD_SIZE = 256;
-    
+
     // Longitude: simple linear mapping
     const zoomForLng = Math.log2((usableWidth / WORLD_SIZE) * (360 / paddedLngSpan));
-    
+
     // Latitude: need to account for Mercator distortion at center latitude
     const centerLat = (boundsToFit.minLat + boundsToFit.maxLat) / 2;
     const latRadians = centerLat * Math.PI / 180;
     const mercatorScale = Math.cos(latRadians);
     const zoomForLat = Math.log2((usableHeight / WORLD_SIZE) * (180 / paddedLatSpan) * mercatorScale);
-    
+
     // Use the smaller zoom to ensure both dimensions fit
     const optimalZoom = Math.min(zoomForLng, zoomForLat);
-    
+
     // Clamp to valid zoom range and round down to be safe
     return Math.max(1, Math.min(Math.floor(optimalZoom), 18));
   }, []);
@@ -565,7 +565,7 @@ export default function MapScreen() {
       // Calculate padded bounds for state update
       const lngPadding = (maxLng - minLng) * 0.30 || 0.002;
       const latPadding = (maxLat - minLat) * 0.30 || 0.002;
-      
+
       const targetBounds: [number, number, number, number] = [
         minLng - lngPadding,
         minLat - latPadding,

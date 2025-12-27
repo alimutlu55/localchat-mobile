@@ -31,7 +31,7 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 export default function ListScreen() {
     const navigation = useNavigation<NavigationProp>();
-    const { user, logout } = useAuth();
+    const { logout } = useAuth();
 
     // Use hooks instead of RoomContext
     const {
@@ -43,21 +43,21 @@ export default function ListScreen() {
         longitude: 0,
         autoFetch: false,
     });
-    
+
     const { join: joinRoomHook } = useJoinRoom();
     const { rooms: myRooms, activeRooms: myActiveRooms, expiredRooms: myExpiredRooms } = useMyRooms();
-    
+
     // Wrapper for joinRoom
     const joinRoom = async (room: Room): Promise<boolean> => {
         const result = await joinRoomHook(room);
         return result.success;
     };
-    
+
     // Wrapper for fetchDiscoveredRooms
     const fetchDiscoveredRooms = async (lat: number, lng: number, radius?: number) => {
         await refreshRooms();
     };
-    
+
     // Compute activeRooms from discovered rooms
     const activeRooms = React.useMemo(() => {
         const now = Date.now();

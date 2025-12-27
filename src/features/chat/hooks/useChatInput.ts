@@ -17,7 +17,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { wsService, WS_EVENTS } from '../../../services';
-import { useAuth } from '../../../context/AuthContext';
+import { useUserId } from '../../user/store';
 import { createLogger } from '../../../shared/utils/logger';
 
 const log = createLogger('ChatInput');
@@ -52,8 +52,7 @@ export function useChatInput(
   roomId: string,
   onSendMessage: (content: string) => void
 ): UseChatInputReturn {
-  const { user } = useAuth();
-  const userId = user?.id;
+  const userId = useUserId();
 
   const [inputText, setInputTextState] = useState('');
   const [typingUsers, setTypingUsers] = useState<string[]>([]);

@@ -90,7 +90,7 @@ function SettingLink({ icon, label, description, onPress, danger }: SettingLinkP
  */
 export default function SettingsScreen() {
   const navigation = useNavigation();
-  const { logout, user } = useAuth();
+  const { logout } = useAuth();
 
   const [notifications, setNotifications] = useState(true);
   const [locationEnabled, setLocationEnabled] = useState(true);

@@ -25,6 +25,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { ArrowLeft, Camera, User, Mail, Shield, FileText, Check } from 'lucide-react-native';
 import { useAuth } from '../context/AuthContext';
+import { useCurrentUser } from '../features/user/store';
 import { AvatarPicker, UpgradeBenefitsModal, AvatarDisplay } from '../components/profile';
 
 const MAX_DISPLAY_NAME_LENGTH = 30;
@@ -33,7 +34,8 @@ const AUTO_SAVE_DELAY = 1000;
 
 export default function EditProfileScreen() {
   const navigation = useNavigation();
-  const { user, updateProfile } = useAuth();
+  const { updateProfile } = useAuth();
+  const user = useCurrentUser();
 
   const [displayName, setDisplayName] = useState(user?.displayName || '');
   const [bio, setBio] = useState(user?.bio || '');

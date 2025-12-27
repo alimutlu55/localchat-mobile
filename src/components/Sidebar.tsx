@@ -26,8 +26,7 @@ import {
     X,
 } from 'lucide-react-native';
 import { Room } from '../types';
-import { useAuth } from '../context/AuthContext';
-import { useAvatarUrl, useDisplayName } from '../features/user/store';
+import { useAvatarUrl, useDisplayName, useIsAnonymous } from '../features/user/store';
 import { AvatarDisplay } from './profile';
 
 const SIDEBAR_WIDTH = Dimensions.get('window').width * 0.85;
@@ -128,9 +127,9 @@ export function Sidebar({
     onProfilePress,
 }: SidebarProps) {
     const insets = useSafeAreaInsets();
-    const { user } = useAuth();
     const avatarUrl = useAvatarUrl();
     const displayName = useDisplayName() || 'User';
+    const isAnonymous = useIsAnonymous();
     const [searchQuery, setSearchQuery] = useState('');
     const translateX = React.useRef(new Animated.Value(-SIDEBAR_WIDTH)).current;
     const backdropOpacity = React.useRef(new Animated.Value(0)).current;
@@ -333,7 +332,7 @@ export function Sidebar({
                         <Text style={styles.profileName} numberOfLines={1}>
                             {displayName}
                         </Text>
-                        {user?.isAnonymous && (
+                        {isAnonymous && (
                             <Text style={styles.profileType}>Anonymous</Text>
                         )}
                     </View>

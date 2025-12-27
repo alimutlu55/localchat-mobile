@@ -44,7 +44,7 @@ import {
 import { RootStackParamList } from '../../../navigation/types';
 import { roomService, ParticipantDTO, messageService, wsService, WS_EVENTS } from '../../../services';
 import { Room, ChatMessage } from '../../../types';
-import { useAuth } from '../../../context/AuthContext';
+import { useUserId } from '../../user/store';
 import { useRoom, useRoomActions, useMyRooms } from '../hooks';
 import { useRoomStore } from '../store';
 import { ROOM_CONFIG, executeJoinWithMinLoading } from '../../../constants';
@@ -107,12 +107,12 @@ function ParticipantItem({
 export default function RoomDetailsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RoomDetailsRouteProp>();
-  
+
   // Support both new (roomId) and legacy (room) navigation params
   const params = route.params;
   const roomId = params.roomId || params.room?.id;
   const initialRoom = params.initialRoom || params.room;
-  
+
   // Guard: roomId is required
   if (!roomId) {
     return (
@@ -130,8 +130,8 @@ export default function RoomDetailsScreen() {
       </SafeAreaView>
     );
   }
-  
-  const { user } = useAuth();
+
+  const userId = useUserId();
   const { isJoined: isRoomJoined } = useMyRooms();
 
   // Use RoomStore for updates
@@ -142,10 +142,10 @@ export default function RoomDetailsScreen() {
   const { room: fetchedRoom, isLoading: isRoomLoading, refresh: refreshRoom } = useRoom(roomId, {
     skipFetchIfCached: false, // Always fetch fresh data
   });
-  
+
   // Priority: fetched room > initial room from params
   const room = fetchedRoom || initialRoom;
-  
+
   // Handle case where room data is not available
   if (!room && !isRoomLoading) {
     return (
@@ -187,11 +187,11 @@ export default function RoomDetailsScreen() {
       </SafeAreaView>
     );
   }
-  
+
   // Use new useRoomActions hook for join/leave/close operations
-  const { 
-    joinRoom, 
-    leaveRoom, 
+  const {
+    joinRoom,
+    leaveRoom,
     closeRoom,
     isLeaving: isLeavingAction,
     isClosing: isClosingAction,
@@ -618,7 +618,7 @@ export default function RoomDetailsScreen() {
                   key={participant.userId}
                   participant={participant}
                   isCreator={participant.role === 'creator'}
-                  isCurrentUser={participant.userId === user?.id}
+                  isCurrentUser={participant.userId === userId}
                 />
               ))}
             </View>

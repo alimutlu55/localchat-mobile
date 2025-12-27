@@ -32,7 +32,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { Room } from '../../../types';
 import { roomService, wsService, WS_EVENTS } from '../../../services';
 import { useRoomStore } from '../store';
-import { useAuth } from '../../../context/AuthContext';
+import { useUserId } from '../../user/store';
 import { createLogger } from '../../../shared/utils/logger';
 
 const log = createLogger('MyRooms');
@@ -96,7 +96,8 @@ export function useMyRooms(options: UseMyRoomsOptions = {}): UseMyRoomsReturn {
   const addJoinedRoom = useRoomStore((s) => s.addJoinedRoom);
   const removeJoinedRoom = useRoomStore((s) => s.removeJoinedRoom);
 
-  const { user, isAuthenticated } = useAuth();
+  const userId = useUserId();
+  const isAuthenticated = !!userId;
 
   // Local state for loading/error
   const [isLoading, setIsLoading] = useState(false);
@@ -215,12 +216,12 @@ export function useMyRooms(options: UseMyRoomsOptions = {}): UseMyRoomsReturn {
 
   // WebSocket event handlers for membership changes
   useEffect(() => {
-    if (!user?.id) return;
+    if (!userId) return;
 
     // Handle user joining (from another device)
     const handleUserJoined = (payload: any) => {
       const joinedUserId = payload.userId || payload.user?.id;
-      if (joinedUserId === user.id) {
+      if (joinedUserId === userId) {
         log.debug('Current user joined room via WS', { roomId: payload.roomId });
         addJoinedRoom(payload.roomId);
       }
@@ -228,7 +229,7 @@ export function useMyRooms(options: UseMyRoomsOptions = {}): UseMyRoomsReturn {
 
     // Handle user leaving
     const handleUserLeft = (payload: any) => {
-      if (payload.userId === user.id) {
+      if (payload.userId === userId) {
         log.debug('Current user left room via WS', { roomId: payload.roomId });
         removeJoinedRoom(payload.roomId);
       }
@@ -236,7 +237,7 @@ export function useMyRooms(options: UseMyRoomsOptions = {}): UseMyRoomsReturn {
 
     // Handle user kicked
     const handleUserKicked = (payload: any) => {
-      if (payload.kickedUserId === user.id) {
+      if (payload.kickedUserId === userId) {
         log.warn('Current user was kicked', { roomId: payload.roomId });
         removeJoinedRoom(payload.roomId);
       }
@@ -244,7 +245,7 @@ export function useMyRooms(options: UseMyRoomsOptions = {}): UseMyRoomsReturn {
 
     // Handle user banned
     const handleUserBanned = (payload: any) => {
-      if (payload.bannedUserId === user.id) {
+      if (payload.bannedUserId === userId) {
         log.warn('Current user was banned', { roomId: payload.roomId });
         removeJoinedRoom(payload.roomId);
       }
@@ -261,7 +262,7 @@ export function useMyRooms(options: UseMyRoomsOptions = {}): UseMyRoomsReturn {
       unsubKicked();
       unsubBanned();
     };
-  }, [user?.id, addJoinedRoom, removeJoinedRoom]);
+  }, [userId, addJoinedRoom, removeJoinedRoom]);
 
   // Derived: active vs expired rooms
   const activeRooms = rooms.filter((r) => {

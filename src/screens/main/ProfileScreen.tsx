@@ -28,6 +28,7 @@ import {
 } from 'lucide-react-native';
 import { RootStackParamList } from '../../navigation/types';
 import { useAuth } from '../../context/AuthContext';
+import { useCurrentUser } from '../../features/user/store';
 import { AvatarDisplay } from '../../components/profile';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
@@ -61,7 +62,8 @@ function MenuItem({ icon, label, onPress, showBadge, danger }: MenuItemProps) {
 
 export default function ProfileScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { user, logout } = useAuth();
+  const { logout } = useAuth();
+  const user = useCurrentUser();
 
   const handleLogout = () => {
     Alert.alert(
