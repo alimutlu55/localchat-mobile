@@ -325,7 +325,6 @@ export function Sidebar({
                         avatarUrl={user?.profilePhotoUrl}
                         displayName={user?.displayName || 'User'}
                         size="md"
-                        style={{ width: 40, height: 40, borderRadius: 20 }}
                     />
                     <View style={styles.profileInfo}>
                         <Text style={styles.profileName} numberOfLines={1}>
@@ -519,19 +518,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         borderTopWidth: 1,
         borderTopColor: '#f3f4f6',
-    },
-    profileAvatar: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
-        backgroundColor: '#f97316',
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    profileAvatarText: {
-        fontSize: 16,
-        fontWeight: '600',
-        color: '#ffffff',
     },
     profileInfo: {
         flex: 1,

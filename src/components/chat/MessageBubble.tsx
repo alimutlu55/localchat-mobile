@@ -273,14 +273,13 @@ export function MessageBubble({
                 onLongPress={handleLongPress}
                 activeOpacity={0.8}
               >
-                <View style={styles.bubbleContentRow}>
-                  <Text style={styles.messageText}>
-                    {message.content}
-                  </Text>
+                <Text style={styles.messageText}>
+                  {message.content}
+                  {'  '}
                   <Text style={styles.messageTimeInside}>
                     {formatTime(message.timestamp)}
                   </Text>
-                </View>
+                </Text>
               </TouchableOpacity>
               {message.reactions && message.reactions.length > 0 && (
                 <View style={styles.reactionsContainer}>
@@ -309,14 +308,15 @@ export function MessageBubble({
             </View>
           )}
         </View>
-      </Animated.View>
+      </Animated.View >
 
       {/* Context Menu Modal */}
-      <Modal
+      < Modal
         visible={showContextMenu}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowContextMenu(false)}
+        onRequestClose={() => setShowContextMenu(false)
+        }
       >
         <Pressable
           style={styles.modalOverlay}
@@ -380,10 +380,10 @@ export function MessageBubble({
             </View>
           </View>
         </Pressable>
-      </Modal>
+      </Modal >
 
       {/* Emoji Selector Drawer */}
-      <Modal
+      < Modal
         visible={showEmojiDrawer}
         transparent
         animationType="none"
@@ -448,7 +448,7 @@ export function MessageBubble({
             </View>
           </Animated.View>
         </View>
-      </Modal>
+      </Modal >
     </>
   );
 }
@@ -535,6 +535,7 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#1e293b',
     lineHeight: 22,
+    flexShrink: 1,
   },
   messageTextOwn: {
     color: '#ffffff',
@@ -542,11 +543,13 @@ const styles = StyleSheet.create({
   bubbleContent: {
     paddingBottom: 4,
   },
+  bubbleInner: {
+    flexDirection: 'column',
+  },
   bubbleContentRow: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    flexWrap: 'wrap',
-    gap: 8,
+    justifyContent: 'space-between',
   },
   timestampSpacer: {
     fontSize: 12,
@@ -613,16 +616,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    marginLeft: 'auto',
+    marginLeft: 8,
+    flexShrink: 0,
   },
   messageTimeOwn: {
     fontSize: 11,
     color: 'rgba(255, 255, 255, 0.8)',
+    flexShrink: 0,
   },
   messageTimeInside: {
     fontSize: 11,
     color: '#94a3b8',
-    marginLeft: 'auto',
+    marginLeft: 8,
+    flexShrink: 0,
   },
   overlayInner: {
     width: '85%',

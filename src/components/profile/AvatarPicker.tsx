@@ -244,6 +244,7 @@ interface AvatarDisplayProps {
 }
 
 export function AvatarDisplay({ avatarUrl, displayName, size = 'md', style }: AvatarDisplayProps) {
+  const [hasError, setHasError] = React.useState(false);
   const sizeStyles = {
     sm: { container: 32, text: 14 },
     md: { container: 44, text: 18 },
@@ -252,11 +253,21 @@ export function AvatarDisplay({ avatarUrl, displayName, size = 'md', style }: Av
   };
 
   const dimensions = sizeStyles[size];
-  
-  // Normalize empty strings to undefined for consistent handling
-  const validAvatarUrl = avatarUrl && avatarUrl.trim().length > 0 ? avatarUrl : undefined;
 
-  if (validAvatarUrl) {
+  // Normalize empty strings and various "null/undefined" string variants to undefined
+  const validAvatarUrl = useMemo(() => {
+    if (!avatarUrl) return undefined;
+    const trimmed = avatarUrl.trim().toLowerCase();
+    if (trimmed === '' || trimmed === 'null' || trimmed === 'undefined' || trimmed === 'nan') return undefined;
+    return avatarUrl;
+  }, [avatarUrl]);
+
+  // Reset error state when URL changes
+  React.useEffect(() => {
+    setHasError(false);
+  }, [validAvatarUrl]);
+
+  if (validAvatarUrl && !hasError) {
     const isSvg = validAvatarUrl.toLowerCase().endsWith('.svg') || validAvatarUrl.includes('dicebear');
 
     return (
@@ -267,6 +278,8 @@ export function AvatarDisplay({ avatarUrl, displayName, size = 'md', style }: Av
           borderRadius: dimensions.container / 2,
           backgroundColor: '#f3f4f6',
           overflow: 'hidden', // Essential for masking
+          justifyContent: 'center', // Center content (SVG/Image)
+          alignItems: 'center',
         }, style]}
       >
         {isSvg ? (
@@ -274,12 +287,14 @@ export function AvatarDisplay({ avatarUrl, displayName, size = 'md', style }: Av
             uri={validAvatarUrl}
             width="100%"
             height="100%"
+            onError={() => setHasError(true)}
           />
         ) : (
           <Image
             source={{ uri: validAvatarUrl }}
             style={{ width: '100%', height: '100%' }}
             resizeMode="cover"
+            onError={() => setHasError(true)}
           />
         )}
       </View>
