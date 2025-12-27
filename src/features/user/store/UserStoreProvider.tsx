@@ -15,6 +15,7 @@ import React, { useEffect, useRef } from 'react';
 import { useAuth } from '../../../context/AuthContext';
 import { useUserStore } from './UserStore';
 import { wsService, WS_EVENTS } from '../../../services';
+import { ProfileUpdatedPayload } from '../../../types';
 import { createLogger } from '../../../shared/utils/logger';
 
 const log = createLogger('UserStoreProvider');
@@ -55,11 +56,7 @@ function UserStoreInitializer() {
   useEffect(() => {
     if (!user) return;
 
-    const handleProfileUpdated = (payload: {
-      userId: string;
-      displayName?: string;
-      profilePhotoUrl?: string;
-    }) => {
+    const handleProfileUpdated = (payload: ProfileUpdatedPayload) => {
       // Only update if it's the current user's profile
       if (payload.userId === user.id) {
         log.debug('Profile update received via WebSocket', { payload });
@@ -82,7 +79,7 @@ function UserStoreInitializer() {
       }
     };
 
-    const unsubProfile = wsService.on(WS_EVENTS.PROFILE_UPDATED, handleProfileUpdated);
+    const unsubProfile = wsService.on<ProfileUpdatedPayload>(WS_EVENTS.PROFILE_UPDATED, handleProfileUpdated);
 
     log.debug('Subscribed to profile update events');
 

@@ -25,7 +25,19 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { messageService, wsService, WS_EVENTS, roomService } from '../../../services';
-import { ChatMessage, MessageStatus } from '../../../types';
+import { 
+  ChatMessage, 
+  MessageStatus,
+  MessageNewPayload,
+  MessageAckPayload,
+  MessageReadPayload,
+  MessageReactionPayload,
+  UserJoinedPayload,
+  UserLeftPayload,
+  UserKickedPayload,
+  UserBannedPayload,
+  RoomClosedPayload,
+} from '../../../types';
 import { useAuth } from '../../../context/AuthContext';
 import { createLogger } from '../../../shared/utils/logger';
 import { isNotParticipant, isUserBanned } from '../../../shared/utils/errors';
@@ -187,7 +199,7 @@ export function useChatMessages(
 
   useEffect(() => {
     // Handle new messages
-    const unsubMessage = wsService.on(WS_EVENTS.MESSAGE_NEW, (payload: any) => {
+    const unsubMessage = wsService.on<MessageNewPayload>(WS_EVENTS.MESSAGE_NEW, (payload) => {
       if (payload.roomId !== roomId) return;
 
       setMessages((prev) => {
@@ -246,7 +258,7 @@ export function useChatMessages(
     });
 
     // Handle message acknowledgments
-    const unsubAck = wsService.on(WS_EVENTS.MESSAGE_ACK, (payload: any) => {
+    const unsubAck = wsService.on<MessageAckPayload>(WS_EVENTS.MESSAGE_ACK, (payload) => {
       const { clientMessageId, messageId, status } = payload;
 
       // Normalize status
@@ -268,8 +280,7 @@ export function useChatMessages(
 
     // Handle messages read event - update status to 'read' for own messages
     // This is triggered when another user reads messages in the room
-    // Backend sends: { roomId, readerId, lastReadMessageId, readAt }
-    const unsubRead = wsService.on(WS_EVENTS.MESSAGE_READ, (payload: any) => {
+    const unsubRead = wsService.on<MessageReadPayload>(WS_EVENTS.MESSAGE_READ, (payload) => {
       if (payload.roomId !== roomId) return;
 
       const { readerId, lastReadMessageId } = payload;
@@ -312,7 +323,7 @@ export function useChatMessages(
     });
 
     // Handle reactions
-    const unsubReaction = wsService.on(WS_EVENTS.MESSAGE_REACTION, (payload: any) => {
+    const unsubReaction = wsService.on<MessageReactionPayload>(WS_EVENTS.MESSAGE_REACTION, (payload) => {
       if (payload.roomId !== roomId) return;
 
       setMessages((prev) =>
@@ -350,14 +361,14 @@ export function useChatMessages(
 
   useEffect(() => {
     // Handle room closed
-    const unsubRoomClosed = wsService.on(WS_EVENTS.ROOM_CLOSED, (payload: any) => {
+    const unsubRoomClosed = wsService.on<RoomClosedPayload>(WS_EVENTS.ROOM_CLOSED, (payload) => {
       if (payload.roomId === roomId) {
         optionsRef.current.onRoomClosed?.();
       }
     });
 
     // Handle user joined (show system message)
-    const unsubUserJoined = wsService.on(WS_EVENTS.USER_JOINED, (payload: any) => {
+    const unsubUserJoined = wsService.on<UserJoinedPayload>(WS_EVENTS.USER_JOINED, (payload) => {
       if (payload.roomId !== roomId) return;
 
       const joinedUserId = payload.user?.id;
@@ -373,7 +384,7 @@ export function useChatMessages(
     });
 
     // Handle user left (show system message)
-    const unsubUserLeft = wsService.on(WS_EVENTS.USER_LEFT, (payload: any) => {
+    const unsubUserLeft = wsService.on<UserLeftPayload>(WS_EVENTS.USER_LEFT, (payload) => {
       if (payload.roomId !== roomId) return;
 
       // Show system message for others leaving
@@ -387,7 +398,7 @@ export function useChatMessages(
     });
 
     // Handle user kicked
-    const unsubUserKicked = wsService.on(WS_EVENTS.USER_KICKED, async (payload: any) => {
+    const unsubUserKicked = wsService.on<UserKickedPayload>(WS_EVENTS.USER_KICKED, async (payload) => {
       if (payload.roomId !== roomId) return;
 
       // If current user was kicked
@@ -429,7 +440,7 @@ export function useChatMessages(
     });
 
     // Handle user banned
-    const unsubUserBanned = wsService.on(WS_EVENTS.USER_BANNED, async (payload: any) => {
+    const unsubUserBanned = wsService.on<UserBannedPayload>(WS_EVENTS.USER_BANNED, async (payload) => {
       if (payload.roomId !== roomId) return;
 
       // If current user was banned

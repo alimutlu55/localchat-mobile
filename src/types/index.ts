@@ -33,3 +33,19 @@ export type {
   ReportReason,
   MessageReport,
 } from './message';
+
+// WebSocket event payload types
+export type {
+  MessageNewPayload,
+  MessageAckPayload,
+  MessageReadPayload,
+  MessageReactionPayload,
+  UserTypingPayload,
+  UserJoinedPayload,
+  UserLeftPayload,
+  UserKickedPayload,
+  UserBannedPayload,
+  ProfileUpdatedPayload,
+  RoomClosedPayload,
+  RoomUpdatedPayload,
+} from './websocket';
