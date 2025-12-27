@@ -115,9 +115,9 @@ export function useMapDiscovery(
 ): UseMapDiscoveryReturn {
   const { radius = ROOM_CONFIG.DEFAULT_RADIUS, pageSize = 20 } = options;
 
-  // Use RoomStore
+  // Use RoomStore - subscribe to the actual rooms Map for reactivity
   const storeSetRooms = useRoomStore((s) => s.setRooms);
-  const storeGetRoom = useRoomStore((s) => s.getRoom);
+  const storeRooms = useRoomStore((s) => s.rooms); // Subscribe to rooms Map for reactivity
   const storeJoinedIds = useRoomStore((s) => s.joinedRoomIds);
   const storeDiscoveredIds = useRoomStore((s) => s.discoveredRoomIds);
   const setDiscoveredRoomIds = useRoomStore((s) => s.setDiscoveredRoomIds);
@@ -139,11 +139,11 @@ export function useMapDiscovery(
   // Refs
   const hasFetchedRef = useRef(false);
 
-  // Derive rooms from discovered IDs in store
+  // Derive rooms from discovered IDs in store - now reactive to rooms Map changes
   const rooms = useMemo(() => {
     const roomList: Room[] = [];
     storeDiscoveredIds.forEach((id) => {
-      const room = storeGetRoom(id);
+      const room = storeRooms.get(id);
       if (room) {
         roomList.push({
           ...room,
@@ -152,7 +152,7 @@ export function useMapDiscovery(
       }
     });
     return roomList;
-  }, [storeDiscoveredIds, storeGetRoom, storeJoinedIds]);
+  }, [storeDiscoveredIds, storeRooms, storeJoinedIds]);
 
   // Derived: active rooms (non-expired, non-closed)
   const activeRooms = useMemo(() => {
