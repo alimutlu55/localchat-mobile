@@ -10,14 +10,8 @@ import {
     Alert,
 } from 'react-native';
 import { X, UserX, RotateCcw } from 'lucide-react-native';
-import { roomService } from '../../services/room';
-
-interface BannedUserDTO {
-    userId: string;
-    displayName?: string;
-    bannedAt: string;
-    reason?: string;
-}
+import { roomService, BannedUserDTO } from '../../services';
+import { AvatarDisplay } from '../profile';
 
 interface BannedUsersModalProps {
     roomId: string;
@@ -69,12 +63,16 @@ export function BannedUsersModal({
 
     const renderBannedUser = ({ item }: { item: BannedUserDTO }) => (
         <View style={styles.userItem}>
+            <AvatarDisplay
+                avatarUrl={item.profilePhotoUrl}
+                displayName={item.displayName || 'User'}
+                size="md"
+                style={styles.avatar}
+            />
             <View style={styles.userInfo}>
-                {item.displayName ? (
-                    <Text style={styles.displayName}>{item.displayName}</Text>
-                ) : (
-                    <Text style={styles.userId}>User ID: {item.userId.substring(0, 8)}...</Text>
-                )}
+                <Text style={styles.displayName}>
+                    {item.displayName || `User ${item.userId.substring(0, 8)}...`}
+                </Text>
                 <Text style={styles.bannedAt}>
                     Banned: {new Date(item.bannedAt).toLocaleDateString()}
                 </Text>
@@ -175,6 +173,12 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         padding: 16,
         marginBottom: 12,
+    },
+    avatar: {
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        marginRight: 12,
     },
     userInfo: {
         flex: 1,

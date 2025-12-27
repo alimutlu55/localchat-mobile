@@ -92,7 +92,7 @@ const MAX_DESCRIPTION_LENGTH = 200;
 
 export default function CreateRoomScreen() {
   const navigation = useNavigation<NavigationProp>();
-  
+
   // Use hooks instead of context
   const { addRoom: addCreatedRoom } = useMyRooms();
   const addJoinedRoom = useRoomStore((s) => s.addJoinedRoom);
@@ -257,6 +257,7 @@ export default function CreateRoomScreen() {
                 value={title}
                 onChangeText={setTitle}
                 maxLength={MAX_TITLE_LENGTH}
+                autoCapitalize="none"
               />
               <Text style={styles.charLimit}>
                 {title.length}/{MAX_TITLE_LENGTH}

@@ -62,6 +62,8 @@ export interface ParticipantDTO {
  */
 export interface BannedUserDTO {
   userId: string;
+  displayName?: string;
+  profilePhotoUrl?: string;
   bannedAt: string;
   reason?: string;
 }
@@ -173,14 +175,16 @@ class RoomService {
     }
 
     // Backend wraps response in ApiResponse { data: PagedResult<RoomDTO> }
-    const response = await api.get<{ data: { 
-      content: RoomDTO[];
-      page: number;
-      pageSize: number;
-      totalElements: number;
-      hasNext: boolean;
-    } }>(`/rooms/discover?${params}`);
-    
+    const response = await api.get<{
+      data: {
+        content: RoomDTO[];
+        page: number;
+        pageSize: number;
+        totalElements: number;
+        hasNext: boolean;
+      }
+    }>(`/rooms/discover?${params}`);
+
     return {
       rooms: response.data.content.map(transformRoom),
       hasNext: response.data.hasNext,

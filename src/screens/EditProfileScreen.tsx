@@ -234,6 +234,7 @@ export default function EditProfileScreen() {
                   value={displayName}
                   onChangeText={handleDisplayNameChange}
                   maxLength={MAX_DISPLAY_NAME_LENGTH}
+                  autoCapitalize="none"
                 />
                 {(nameChanged || isSavingName || isNameSaved) && (
                   <TouchableOpacity

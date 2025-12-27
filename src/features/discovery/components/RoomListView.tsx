@@ -358,7 +358,7 @@ export function RoomListView({
 
     // Subscribe to myRooms to force re-render when join/leave state changes
     const { rooms: myRooms } = useMyRooms();
-    
+
     // Get pagination state from discovery hook (if needed)
     const { isLoadingMore, hasMore: hasMoreRooms, loadMore: loadMoreRooms } = useRoomDiscovery({
         latitude: userLocationProp?.latitude || 0,
@@ -516,7 +516,7 @@ export function RoomListView({
             {/* Header */}
             <View style={styles.header}>
                 <View style={styles.headerTop}>
-                    <Text style={styles.headerTitle}>Nearby Rooms</Text>
+                    <Text style={styles.headerTitle}>Explore Rooms</Text>
                     <TouchableOpacity
                         style={[styles.filterButton, showFilters && styles.filterButtonActive]}
                         onPress={() => setShowFilters(!showFilters)}
@@ -534,6 +534,7 @@ export function RoomListView({
                         placeholderTextColor="#9ca3af"
                         value={searchQuery}
                         onChangeText={setSearchQuery}
+                        autoCapitalize="none"
                     />
                     {searchQuery.length > 0 && (
                         <TouchableOpacity style={styles.clearButton} onPress={handleClearSearch}>
@@ -727,7 +728,8 @@ const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: '#e5e7eb',
         paddingHorizontal: 16,
-        paddingVertical: 12,
+        paddingTop: 24,
+        paddingBottom: 12,
     },
     headerTop: {
         flexDirection: 'row',
