@@ -4,16 +4,25 @@
  * Handles real-time communication with the backend WebSocket server.
  * Provides automatic reconnection, room subscriptions, and message handling.
  *
+ * Architecture:
+ * - WebSocket events are emitted to the central EventBus
+ * - Feature modules subscribe to EventBus, NOT directly to wsService
+ * - Legacy wsService.on() is kept for backward compatibility but deprecated
+ *
  * @example
  * ```typescript
  * // Connect and subscribe to a room
  * await wsService.connect();
  * wsService.subscribe(roomId);
  *
- * // Listen for messages
- * wsService.on('message.new', (payload) => {
+ * // NEW: Listen via EventBus (preferred)
+ * import { eventBus } from '@/core/events';
+ * eventBus.on('message.new', (payload) => {
  *   console.log('New message:', payload);
  * });
+ *
+ * // DEPRECATED: Direct wsService.on() - use EventBus instead
+ * wsService.on('message.new', (payload) => { ... });
  *
  * // Send a message
  * wsService.sendMessage(roomId, 'Hello!');
@@ -21,6 +30,7 @@
  */
 
 import { AppState, AppStateStatus } from 'react-native';
+import { eventBus } from '../core/events';
 import { API_CONFIG, WS_EVENTS, STORAGE_KEYS } from '../constants';
 import { secureStorage } from './storage';
 
@@ -306,17 +316,21 @@ class WebSocketService {
           return;
       }
 
-      // Emit to registered handlers
+      // Emit to registered handlers (DEPRECATED - for backward compatibility)
       const handlers = this.eventHandlers.get(type);
       if (handlers) {
         handlers.forEach((handler) => handler(payload));
       }
 
-      // Also emit to wildcard handlers
+      // Also emit to wildcard handlers (DEPRECATED)
       const wildcardHandlers = this.eventHandlers.get('*');
       if (wildcardHandlers) {
         wildcardHandlers.forEach((handler) => handler({ type, payload }));
       }
+
+      // NEW: Emit to EventBus for decoupled event handling
+      // Maps WS_EVENTS to EventBus event names
+      this.emitToEventBus(type, payload);
     } catch (error) {
       console.error('[WS] Failed to parse message:', error);
     }
@@ -445,9 +459,181 @@ class WebSocketService {
    * Emit connection state change
    */
   private emitStateChange(): void {
+    // Legacy handlers (DEPRECATED)
     const handlers = this.eventHandlers.get('connectionStateChange');
     if (handlers) {
       handlers.forEach((handler) => handler(this.connectionState));
+    }
+
+    // NEW: Emit to EventBus
+    eventBus.emit('connection.stateChanged', {
+      state: this.connectionState,
+    });
+  }
+
+  /**
+   * Map WebSocket events to EventBus events and emit
+   * This decouples feature modules from the WebSocket implementation
+   */
+  private emitToEventBus(type: string, payload: any): void {
+    // Debug logging for message payloads
+    if (type === WS_EVENTS.MESSAGE_NEW) {
+      console.log('[WS] MESSAGE_NEW payload:', JSON.stringify(payload));
+    }
+
+    switch (type) {
+      // Message events
+      case WS_EVENTS.MESSAGE_NEW:
+        eventBus.emit('message.new', {
+          roomId: payload.roomId,
+          messageId: payload.id || payload.messageId, // Backend sends 'id', not 'messageId'
+          content: payload.content,
+          sender: payload.sender || {
+            id: payload.senderId,
+            displayName: payload.senderDisplayName,
+            profilePhotoUrl: payload.senderProfilePhotoUrl,
+          },
+          createdAt: payload.createdAt,
+          clientMessageId: payload.clientMessageId,
+        });
+        break;
+
+      case WS_EVENTS.MESSAGE_ACK:
+        eventBus.emit('message.ack', {
+          clientMessageId: payload.clientMessageId,
+          messageId: payload.messageId,
+          status: payload.status,
+          timestamp: payload.timestamp,
+        });
+        break;
+
+      case WS_EVENTS.MESSAGE_REACTION:
+        eventBus.emit('message.reaction', {
+          roomId: payload.roomId,
+          messageId: payload.messageId,
+          reactions: payload.reactions,
+        });
+        break;
+
+      case WS_EVENTS.MESSAGE_READ:
+        eventBus.emit('message.read', {
+          roomId: payload.roomId,
+          readerId: payload.readerId,
+          lastReadMessageId: payload.lastReadMessageId,
+        });
+        break;
+
+      // Room events
+      case WS_EVENTS.ROOM_CREATED:
+        eventBus.emit('room.created', {
+          roomId: payload.roomId || payload.room?.id,
+          room: payload.room || payload,
+        });
+        break;
+
+      case WS_EVENTS.ROOM_UPDATED:
+        eventBus.emit('room.updated', {
+          roomId: payload.roomId,
+          updates: payload,
+        });
+        break;
+
+      case WS_EVENTS.ROOM_CLOSED:
+        eventBus.emit('room.closed', {
+          roomId: payload.roomId,
+          closedBy: payload.closedBy,
+        });
+        break;
+
+      case WS_EVENTS.USER_JOINED:
+        eventBus.emit('room.userJoined', {
+          roomId: payload.roomId,
+          userId: payload.userId,
+          userName: payload.displayName,
+          participantCount: payload.participantCount,
+        });
+        break;
+
+      case WS_EVENTS.USER_LEFT:
+        eventBus.emit('room.userLeft', {
+          roomId: payload.roomId,
+          userId: payload.userId,
+          userName: payload.displayName,
+          participantCount: payload.participantCount,
+        });
+        break;
+
+      case WS_EVENTS.USER_KICKED:
+        eventBus.emit('room.userKicked', {
+          roomId: payload.roomId,
+          kickedUserId: payload.kickedUserId,
+          kickedBy: payload.kickedBy,
+          userName: payload.displayName,
+        });
+        break;
+
+      case WS_EVENTS.USER_BANNED:
+        eventBus.emit('room.userBanned', {
+          roomId: payload.roomId,
+          bannedUserId: payload.bannedUserId,
+          bannedBy: payload.bannedBy,
+          reason: payload.reason,
+          userName: payload.displayName,
+        });
+        break;
+
+      case WS_EVENTS.USER_UNBANNED:
+        eventBus.emit('room.userUnbanned', {
+          roomId: payload.roomId,
+          unbannedUserId: payload.unbannedUserId,
+          unbannedBy: payload.unbannedBy,
+        });
+        break;
+
+      case WS_EVENTS.PARTICIPANT_COUNT:
+        eventBus.emit('room.participantCountUpdated', {
+          roomId: payload.roomId,
+          participantCount: payload.participantCount,
+        });
+        break;
+
+      // Typing events
+      case WS_EVENTS.USER_TYPING:
+        if (payload.isTyping) {
+          eventBus.emit('typing.start', {
+            roomId: payload.roomId,
+            userId: payload.userId,
+            displayName: payload.displayName,
+          });
+        } else {
+          eventBus.emit('typing.stop', {
+            roomId: payload.roomId,
+            userId: payload.userId,
+            displayName: payload.displayName, // Include displayName if available
+          });
+        }
+        break;
+
+      // Connection errors
+      case WS_EVENTS.ERROR:
+        eventBus.emit('connection.error', {
+          code: payload.code || 'UNKNOWN',
+          message: payload.message || 'Unknown error',
+        });
+        break;
+
+      // User events
+      case WS_EVENTS.PROFILE_UPDATED:
+        eventBus.emit('user.profileUpdated', {
+          userId: payload.userId,
+          displayName: payload.displayName,
+          profilePhotoUrl: payload.profilePhotoUrl,
+        });
+        break;
+
+      default:
+        // Unknown events are not emitted to EventBus
+        break;
     }
   }
 
@@ -531,6 +717,19 @@ class WebSocketService {
 
   /**
    * Register event handler
+   * 
+   * @deprecated Use eventBus.on() from '@/core/events' instead.
+   * This method is kept for backward compatibility during migration.
+   * 
+   * Example migration:
+   * ```typescript
+   * // Before (deprecated):
+   * wsService.on('new_message', handler);
+   * 
+   * // After (preferred):
+   * import { eventBus } from '@/core/events';
+   * eventBus.on('message.new', handler);
+   * ```
    */
   on<T = unknown>(event: string, handler: EventHandler<T>): () => void {
     if (!this.eventHandlers.has(event)) {
@@ -547,6 +746,8 @@ class WebSocketService {
 
   /**
    * Remove event handler
+   * 
+   * @deprecated Use the unsubscribe function returned by eventBus.on() instead.
    */
   off(event: string, handler: EventHandler): void {
     this.eventHandlers.get(event)?.delete(handler);

@@ -1,12 +1,12 @@
 /**
  * useChatMessages Hook
  *
- * Manages chat message state, WebSocket subscriptions, and message operations.
+ * Manages chat message state, EventBus subscriptions, and message operations.
  * Extracted from ChatRoomScreen to separate concerns.
  *
  * Responsibilities:
  * - Load message history on mount
- * - Subscribe to real-time message updates
+ * - Subscribe to real-time message updates via EventBus
  * - Handle optimistic message sending
  * - Track message acknowledgments and status
  * - Handle reactions
@@ -24,7 +24,8 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { messageService, wsService, WS_EVENTS, roomService } from '../../../services';
+import { eventBus } from '../../../core/events';
+import { messageService, wsService, roomService } from '../../../services';
 import {
   ChatMessage,
   MessageStatus,
@@ -44,6 +45,10 @@ import { isNotParticipant, isUserBanned } from '../../../shared/utils/errors';
 import { useRoomStore } from '../../rooms/store';
 
 const log = createLogger('ChatMessages');
+
+// Deduplication: Track processed message IDs to prevent duplicates from server
+const processedMessageIds = new Set<string>();
+const MESSAGE_DEDUP_TTL = 10000; // 10 seconds
 
 // =============================================================================
 // Types
@@ -195,19 +200,27 @@ export function useChatMessages(
   }, [roomId, loadMessages]);
 
   // ==========================================================================
-  // Message Event Handlers
+  // Message Event Handlers via EventBus
   // ==========================================================================
 
   useEffect(() => {
-    // Handle new messages
-    const unsubMessage = wsService.on<MessageNewPayload>(WS_EVENTS.MESSAGE_NEW, (payload) => {
+    // Handle new messages via EventBus
+    const unsubMessage = eventBus.on('message.new', (payload) => {
       if (payload.roomId !== roomId) return;
+
+      // Deduplication: Skip if we've already processed this message
+      if (processedMessageIds.has(payload.messageId)) {
+        log.debug('Skipping duplicate message', { messageId: payload.messageId });
+        return;
+      }
+      processedMessageIds.add(payload.messageId);
+      setTimeout(() => processedMessageIds.delete(payload.messageId), MESSAGE_DEDUP_TTL);
 
       setMessages((prev) => {
         // Check for duplicate by id or clientMessageId
         const existingIndex = prev.findIndex(
           (m) =>
-            m.id === payload.id ||
+            m.id === payload.messageId ||
             (payload.clientMessageId && m.clientMessageId === payload.clientMessageId)
         );
 
@@ -216,7 +229,7 @@ export function useChatMessages(
           const updated = [...prev];
           updated[existingIndex] = {
             ...updated[existingIndex],
-            id: payload.id,
+            id: payload.messageId,
             status: 'delivered' as MessageStatus,
           };
           return updated;
@@ -234,7 +247,7 @@ export function useChatMessages(
             const updated = [...prev];
             updated[pendingIndex] = {
               ...updated[pendingIndex],
-              id: payload.id,
+              id: payload.messageId,
               status: 'delivered' as MessageStatus,
             };
             return updated;
@@ -243,7 +256,7 @@ export function useChatMessages(
 
         // New message from another user
         const newMessage: ChatMessage = {
-          id: payload.id,
+          id: payload.messageId,
           type: 'user',
           content: payload.content,
           timestamp: new Date(payload.createdAt),
@@ -258,8 +271,8 @@ export function useChatMessages(
       });
     });
 
-    // Handle message acknowledgments
-    const unsubAck = wsService.on<MessageAckPayload>(WS_EVENTS.MESSAGE_ACK, (payload) => {
+    // Handle message acknowledgments via EventBus
+    const unsubAck = eventBus.on('message.ack', (payload) => {
       const { clientMessageId, messageId, status } = payload;
 
       // Normalize status
@@ -279,9 +292,9 @@ export function useChatMessages(
       );
     });
 
-    // Handle messages read event - update status to 'read' for own messages
+    // Handle messages read event via EventBus - update status to 'read' for own messages
     // This is triggered when another user reads messages in the room
-    const unsubRead = wsService.on<MessageReadPayload>(WS_EVENTS.MESSAGE_READ, (payload) => {
+    const unsubRead = eventBus.on('message.read', (payload) => {
       if (payload.roomId !== roomId) return;
 
       const { readerId, lastReadMessageId } = payload;
@@ -323,8 +336,8 @@ export function useChatMessages(
       });
     });
 
-    // Handle reactions
-    const unsubReaction = wsService.on<MessageReactionPayload>(WS_EVENTS.MESSAGE_REACTION, (payload) => {
+    // Handle reactions via EventBus
+    const unsubReaction = eventBus.on('message.reaction', (payload) => {
       if (payload.roomId !== roomId) return;
 
       setMessages((prev) =>
@@ -336,11 +349,11 @@ export function useChatMessages(
       );
     });
 
-    // Handle connection state changes
-    const unsubConnection = wsService.on('connectionStateChange', (state: string) => {
-      if (state === 'connected') {
+    // Handle connection state changes via EventBus
+    const unsubConnection = eventBus.on('connection.stateChanged', (payload) => {
+      if (payload.state === 'connected') {
         setConnectionState('connected');
-      } else if (state === 'reconnecting') {
+      } else if (payload.state === 'reconnecting') {
         setConnectionState('reconnecting');
       } else {
         setConnectionState('disconnected');
@@ -357,26 +370,25 @@ export function useChatMessages(
   }, [roomId, userId]);
 
   // ==========================================================================
-  // Room/User Event Handlers
+  // Room/User Event Handlers via EventBus
   // ==========================================================================
 
   useEffect(() => {
-    // Handle room closed
-    const unsubRoomClosed = wsService.on<RoomClosedPayload>(WS_EVENTS.ROOM_CLOSED, (payload) => {
+    // Handle room closed via EventBus
+    const unsubRoomClosed = eventBus.on('room.closed', (payload) => {
       if (payload.roomId === roomId) {
         optionsRef.current.onRoomClosed?.();
       }
     });
 
-    // Handle user joined (show system message)
-    const unsubUserJoined = wsService.on<UserJoinedPayload>(WS_EVENTS.USER_JOINED, (payload) => {
+    // Handle user joined (show system message) via EventBus
+    const unsubUserJoined = eventBus.on('room.userJoined', (payload) => {
       if (payload.roomId !== roomId) return;
 
-      const joinedUserId = payload.user?.id;
-      const joinedDisplayName = payload.user?.displayName || 'Someone';
+      const joinedDisplayName = payload.userName || 'Someone';
 
       // Show system message for others joining
-      if (joinedUserId !== userId) {
+      if (payload.userId !== userId) {
         setMessages((prev) => [
           ...prev,
           makeSystemMessage('user_joined', joinedDisplayName),
@@ -384,13 +396,13 @@ export function useChatMessages(
       }
     });
 
-    // Handle user left (show system message)
-    const unsubUserLeft = wsService.on<UserLeftPayload>(WS_EVENTS.USER_LEFT, (payload) => {
+    // Handle user left (show system message) via EventBus
+    const unsubUserLeft = eventBus.on('room.userLeft', (payload) => {
       if (payload.roomId !== roomId) return;
 
       // Show system message for others leaving
       if (payload.userId !== userId) {
-        const displayName = payload.displayName || 'Someone';
+        const displayName = payload.userName || 'Someone';
         setMessages((prev) => [
           ...prev,
           makeSystemMessage('user_left', displayName),
@@ -398,8 +410,8 @@ export function useChatMessages(
       }
     });
 
-    // Handle user kicked
-    const unsubUserKicked = wsService.on<UserKickedPayload>(WS_EVENTS.USER_KICKED, async (payload) => {
+    // Handle user kicked via EventBus
+    const unsubUserKicked = eventBus.on('room.userKicked', async (payload) => {
       if (payload.roomId !== roomId) return;
 
       // If current user was kicked
@@ -418,20 +430,10 @@ export function useChatMessages(
       // Show system message for others
       setMessages((prev) => [
         ...prev,
-        makeSystemMessage('user_kicked', payload.displayName || 'A user'),
+        makeSystemMessage('user_kicked', payload.userName || 'A user'),
       ]);
 
-      // Update participant count if provided
-      if (payload.participantCount !== undefined) {
-        try {
-          updateRoom(roomId, { participantCount: payload.participantCount });
-        } catch (err) {
-          // ignore
-        }
-        return;
-      }
-
-      // Fallback: fetch fresh room and update cache
+      // Fetch fresh room to get updated participant count
       try {
         const fresh = await roomService.getRoom(roomId);
         setRoom(fresh);
@@ -440,8 +442,8 @@ export function useChatMessages(
       }
     });
 
-    // Handle user banned
-    const unsubUserBanned = wsService.on<UserBannedPayload>(WS_EVENTS.USER_BANNED, async (payload) => {
+    // Handle user banned via EventBus
+    const unsubUserBanned = eventBus.on('room.userBanned', async (payload) => {
       if (payload.roomId !== roomId) return;
 
       // If current user was banned
@@ -459,17 +461,8 @@ export function useChatMessages(
       // Show system message for others
       setMessages((prev) => [
         ...prev,
-        makeSystemMessage('user_banned', payload.displayName || 'A user'),
+        makeSystemMessage('user_banned', payload.userName || 'A user'),
       ]);
-
-      if (payload.participantCount !== undefined) {
-        try {
-          updateRoom(roomId, { participantCount: payload.participantCount });
-        } catch (err) {
-          // ignore
-        }
-        return;
-      }
 
       try {
         const fresh = await roomService.getRoom(roomId);

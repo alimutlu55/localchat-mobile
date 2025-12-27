@@ -1,12 +1,13 @@
 /**
  * useRoomWebSocket Hook
  *
- * Subscribes to WebSocket events and updates the RoomStore.
+ * Subscribes to EventBus events and updates the RoomStore.
  * This hook centralizes all room-related WebSocket event handling,
  * eliminating the duplicate handlers scattered across contexts and hooks.
  *
  * Design:
- * - Single subscription point for room WebSocket events
+ * - Uses EventBus for decoupled event handling (WebSocket → EventBus → Store)
+ * - Single subscription point for room events
  * - Updates RoomStore directly (no context dependencies)
  * - Handles deduplication for kick/ban events
  * - Cleans up subscriptions on unmount
@@ -22,7 +23,8 @@
  */
 
 import { useEffect, useRef } from 'react';
-import { wsService, WS_EVENTS, roomService } from '../../../services';
+import { eventBus } from '../../../core/events';
+import { wsService, roomService } from '../../../services';
 import { useRoomStore } from '../store';
 import { Room } from '../../../types';
 import { createLogger } from '../../../shared/utils/logger';
@@ -57,7 +59,7 @@ export function useRoomWebSocket(userId?: string): void {
     // Room Lifecycle Events
     // =========================================================================
 
-    const handleRoomCreated = (payload: any) => {
+    const handleRoomCreated = (payload: { roomId: string; room: any }) => {
       const roomData = payload.room;
       log.debug('Room created', { roomId: roomData.id });
 
@@ -100,13 +102,20 @@ export function useRoomWebSocket(userId?: string): void {
       }
     };
 
-    const handleRoomUpdated = (payload: { roomId: string;[key: string]: any }) => {
-      const { roomId, ...updates } = payload;
-      log.debug('Room updated', { roomId });
-      updateRoom(roomId, updates as Partial<Room>);
+    const handleRoomUpdated = (payload: {
+      roomId: string;
+      updates: Partial<{
+        title: string;
+        description: string;
+        participantCount: number;
+        status: string;
+      }>;
+    }) => {
+      log.debug('Room updated', { roomId: payload.roomId });
+      updateRoom(payload.roomId, payload.updates as Partial<Room>);
     };
 
-    const handleRoomClosed = (payload: { roomId: string }) => {
+    const handleRoomClosed = (payload: { roomId: string; closedBy: string }) => {
       log.debug('Room closed', { roomId: payload.roomId });
       removeRoom(payload.roomId);
     };
@@ -123,7 +132,7 @@ export function useRoomWebSocket(userId?: string): void {
     const handleUserJoined = (payload: {
       roomId: string;
       userId: string;
-      user?: { id: string; displayName: string };
+      userName: string;
       participantCount?: number;
     }) => {
       log.debug('User joined room', { roomId: payload.roomId });
@@ -135,7 +144,7 @@ export function useRoomWebSocket(userId?: string): void {
 
       // If current user joined (from another device)
       const currentUserId = userIdRef.current;
-      if (payload.userId === currentUserId || payload.user?.id === currentUserId) {
+      if (payload.userId === currentUserId) {
         addJoinedRoom(payload.roomId);
         wsService.subscribe(payload.roomId);
       }
@@ -144,6 +153,7 @@ export function useRoomWebSocket(userId?: string): void {
     const handleUserLeft = (payload: {
       roomId: string;
       userId: string;
+      userName?: string;
       participantCount?: number;
     }) => {
       log.debug('User left room', { roomId: payload.roomId });
@@ -165,7 +175,7 @@ export function useRoomWebSocket(userId?: string): void {
       roomId: string;
       kickedUserId: string;
       kickedBy: string;
-      participantCount?: number;
+      userName?: string;
     }) => {
       // Deduplication
       const eventKey = `${payload.roomId}-${payload.kickedUserId}`;
@@ -188,17 +198,12 @@ export function useRoomWebSocket(userId?: string): void {
         return;
       }
 
-      // Update participant count
-      if (payload.participantCount !== undefined) {
-        updateRoom(payload.roomId, { participantCount: payload.participantCount });
-      } else {
-        // Fallback: fetch fresh data
-        try {
-          const freshRoom = await roomService.getRoom(payload.roomId);
-          updateRoom(payload.roomId, { participantCount: freshRoom.participantCount });
-        } catch (error) {
-          log.error('Failed to refresh room after kick', error);
-        }
+      // Fetch fresh data to get updated participant count
+      try {
+        const freshRoom = await roomService.getRoom(payload.roomId);
+        updateRoom(payload.roomId, { participantCount: freshRoom.participantCount });
+      } catch (error) {
+        log.error('Failed to refresh room after kick', error);
       }
     };
 
@@ -207,7 +212,7 @@ export function useRoomWebSocket(userId?: string): void {
       bannedUserId: string;
       bannedBy: string;
       reason?: string;
-      participantCount?: number;
+      userName?: string;
     }) => {
       // Deduplication
       const eventKey = `${payload.roomId}-${payload.bannedUserId}`;
@@ -231,20 +236,16 @@ export function useRoomWebSocket(userId?: string): void {
         return;
       }
 
-      // Update participant count
-      if (payload.participantCount !== undefined) {
-        updateRoom(payload.roomId, { participantCount: payload.participantCount });
-      } else {
-        // Fallback: fetch fresh data
-        try {
-          const freshRoom = await roomService.getRoom(payload.roomId);
-          updateRoom(payload.roomId, { participantCount: freshRoom.participantCount });
-        } catch (error) {
-          log.error('Failed to refresh room after ban', error);
-        }
+      // Fetch fresh data to get updated participant count
+      try {
+        const freshRoom = await roomService.getRoom(payload.roomId);
+        updateRoom(payload.roomId, { participantCount: freshRoom.participantCount });
+      } catch (error) {
+        log.error('Failed to refresh room after ban', error);
       }
     };
 
+    // Handle user unbanned - if current user was unbanned, fetch and add room to discovery
     const handleUserUnbanned = async (payload: {
       roomId: string;
       unbannedUserId: string;
@@ -269,21 +270,21 @@ export function useRoomWebSocket(userId?: string): void {
     };
 
     // =========================================================================
-    // Subscribe to Events
+    // Subscribe to EventBus Events
     // =========================================================================
 
-    const unsubCreated = wsService.on(WS_EVENTS.ROOM_CREATED, handleRoomCreated);
-    const unsubUpdated = wsService.on(WS_EVENTS.ROOM_UPDATED, handleRoomUpdated);
-    const unsubClosed = wsService.on(WS_EVENTS.ROOM_CLOSED, handleRoomClosed);
-    const unsubParticipantCount = wsService.on(WS_EVENTS.PARTICIPANT_COUNT, handleParticipantCount);
-    const unsubJoined = wsService.on(WS_EVENTS.USER_JOINED, handleUserJoined);
-    const unsubLeft = wsService.on(WS_EVENTS.USER_LEFT, handleUserLeft);
-    const unsubKicked = wsService.on(WS_EVENTS.USER_KICKED, handleUserKicked);
-    const unsubBanned = wsService.on(WS_EVENTS.USER_BANNED, handleUserBanned);
-    const unsubUnbanned = wsService.on(WS_EVENTS.USER_UNBANNED, handleUserUnbanned);
+    const unsubCreated = eventBus.on('room.created', handleRoomCreated);
+    const unsubUpdated = eventBus.on('room.updated', handleRoomUpdated);
+    const unsubClosed = eventBus.on('room.closed', handleRoomClosed);
+    const unsubParticipantCount = eventBus.on('room.participantCountUpdated', handleParticipantCount);
+    const unsubJoined = eventBus.on('room.userJoined', handleUserJoined);
+    const unsubLeft = eventBus.on('room.userLeft', handleUserLeft);
+    const unsubKicked = eventBus.on('room.userKicked', handleUserKicked);
+    const unsubBanned = eventBus.on('room.userBanned', handleUserBanned);
+    const unsubUnbanned = eventBus.on('room.userUnbanned', handleUserUnbanned);
 
     return () => {
-      log.debug('Unsubscribing from room WebSocket events');
+      log.debug('Unsubscribing from room EventBus events');
       unsubCreated();
       unsubUpdated();
       unsubClosed();

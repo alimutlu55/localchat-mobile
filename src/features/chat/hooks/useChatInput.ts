@@ -16,7 +16,8 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { wsService, WS_EVENTS } from '../../../services';
+import { eventBus } from '../../../core/events';
+import { wsService } from '../../../services';
 import { useUserId } from '../../user/store';
 import { createLogger } from '../../../shared/utils/logger';
 
@@ -115,27 +116,33 @@ export function useChatInput(
   }, [roomId]);
 
   // ==========================================================================
-  // Typing Indicator - Receiving
+  // Typing Indicator - Receiving via EventBus
   // ==========================================================================
 
   useEffect(() => {
-    const unsubTyping = wsService.on(WS_EVENTS.USER_TYPING, (payload: any) => {
+    const unsubTypingStart = eventBus.on('typing.start', (payload) => {
       if (payload.roomId !== roomId) return;
       if (payload.userId === userId) return;
 
       const displayName = payload.displayName;
+      setTypingUsers((prev) =>
+        prev.includes(displayName) ? prev : [...prev, displayName]
+      );
+    });
 
-      if (payload.isTyping) {
-        setTypingUsers((prev) =>
-          prev.includes(displayName) ? prev : [...prev, displayName]
-        );
-      } else {
-        setTypingUsers((prev) => prev.filter((name) => name !== displayName));
+    const unsubTypingStop = eventBus.on('typing.stop', (payload) => {
+      if (payload.roomId !== roomId) return;
+      if (payload.userId === userId) return;
+
+      // Remove the user from typing list
+      if (payload.displayName) {
+        setTypingUsers((prev) => prev.filter((name) => name !== payload.displayName));
       }
     });
 
     return () => {
-      unsubTyping();
+      unsubTypingStart();
+      unsubTypingStop();
     };
   }, [roomId, userId]);
 

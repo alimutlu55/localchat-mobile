@@ -33,7 +33,8 @@ import {
 } from 'lucide-react-native';
 import { RootStackParamList } from '../../../navigation/types';
 import { Room } from '../../../types';
-import { roomService, ParticipantDTO, wsService, WS_EVENTS } from '../../../services';
+import { roomService, ParticipantDTO } from '../../../services';
+import { eventBus } from '../../../core/events';
 import { AvatarDisplay } from '../../../components/profile';
 import { BannedUsersModal } from '../components';
 import { useRoom } from '../hooks';
@@ -110,15 +111,15 @@ export default function RoomInfoScreen() {
         // Initial load
         fetchParticipants();
 
-        // Subscribe to kicks and bans so the participants list reflects removals
-        const unsubKicked = wsService.on(WS_EVENTS.USER_KICKED, (payload: any) => {
+        // Subscribe to kicks and bans via EventBus so the participants list reflects removals
+        const unsubKicked = eventBus.on('room.userKicked', (payload) => {
             if (payload.roomId === roomId) {
                 // Refresh participants to reflect the removal
                 fetchParticipants();
             }
         });
 
-        const unsubBanned = wsService.on(WS_EVENTS.USER_BANNED, (payload: any) => {
+        const unsubBanned = eventBus.on('room.userBanned', (payload) => {
             if (payload.roomId === roomId) {
                 // Refresh participants and possibly update UI
                 fetchParticipants();

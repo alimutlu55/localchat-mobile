@@ -1,11 +1,11 @@
 /**
  * UserStoreProvider
  *
- * Initializes the UserStore with WebSocket subscriptions for real-time updates.
+ * Initializes the UserStore with EventBus subscriptions for real-time updates.
  * Should be mounted at the app level.
  *
  * Handles:
- * - Subscribing to WebSocket profile update events
+ * - Subscribing to EventBus profile update events
  * - Preloading user avatars
  * - Periodic avatar cache cleanup
  *
@@ -14,8 +14,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { useUserStore, useCurrentUser } from './UserStore';
-import { wsService, WS_EVENTS } from '../../../services';
-import { ProfileUpdatedPayload } from '../../../types';
+import { eventBus } from '../../../core/events';
 import { createLogger } from '../../../shared/utils/logger';
 
 const log = createLogger('UserStoreProvider');
@@ -28,7 +27,7 @@ interface UserStoreProviderProps {
 }
 
 /**
- * Internal component that handles store initialization and WebSocket sync
+ * Internal component that handles store initialization and EventBus sync
  */
 function UserStoreInitializer() {
   const cleanupIntervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -39,14 +38,14 @@ function UserStoreInitializer() {
   const pruneAvatarCache = useUserStore((s) => s.pruneAvatarCache);
   const preloadAvatar = useUserStore((s) => s.preloadAvatar);
 
-  // Subscribe to WebSocket profile updates (from other devices/sessions)
+  // Subscribe to EventBus profile updates (from other devices/sessions)
   useEffect(() => {
     if (!currentUser) return;
 
-    const handleProfileUpdated = (payload: ProfileUpdatedPayload) => {
+    const handleProfileUpdated = (payload: { userId: string; displayName?: string; profilePhotoUrl?: string }) => {
       // Only update if it's the current user's profile
       if (payload.userId === currentUser.id) {
-        log.debug('Profile update received via WebSocket', { payload });
+        log.debug('Profile update received via EventBus', { payload });
 
         const updates: Partial<typeof currentUser> = {};
         if (payload.displayName !== undefined) {
@@ -66,7 +65,7 @@ function UserStoreInitializer() {
       }
     };
 
-    const unsubProfile = wsService.on<ProfileUpdatedPayload>(WS_EVENTS.PROFILE_UPDATED, handleProfileUpdated);
+    const unsubProfile = eventBus.on('user.profileUpdated', handleProfileUpdated);
 
     log.debug('Subscribed to profile update events');
 

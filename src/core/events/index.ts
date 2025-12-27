@@ -27,4 +27,5 @@ export {
   type MessageEvents,
   type TypingEvents,
   type ConnectionEvents,
+  type UserEvents,
 } from './EventBus';

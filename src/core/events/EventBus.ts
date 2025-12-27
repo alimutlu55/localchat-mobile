@@ -59,6 +59,14 @@ export interface RoomEvents {
     roomId: string;
     closedBy: string;
   };
+  'room.expiring': {
+    roomId: string;
+    expiresAt: string;
+    minutesRemaining: number;
+  };
+  'room.expired': {
+    roomId: string;
+  };
   'room.userJoined': {
     roomId: string;
     userId: string;
@@ -83,6 +91,11 @@ export interface RoomEvents {
     bannedBy: string;
     reason?: string;
     userName?: string;
+  };
+  'room.userUnbanned': {
+    roomId: string;
+    unbannedUserId: string;
+    unbannedBy: string;
   };
   'room.participantCountUpdated': {
     roomId: string;
@@ -121,6 +134,11 @@ export interface MessageEvents {
       userReacted: boolean;
     }>;
   };
+  'message.read': {
+    roomId: string;
+    readerId: string;
+    lastReadMessageId: string;
+  };
 }
 
 /**
@@ -135,6 +153,7 @@ export interface TypingEvents {
   'typing.stop': {
     roomId: string;
     userId: string;
+    displayName?: string; // May not be available in stop events
   };
 }
 
@@ -153,9 +172,20 @@ export interface ConnectionEvents {
 }
 
 /**
+ * User Events - Related to user profile updates
+ */
+export interface UserEvents {
+  'user.profileUpdated': {
+    userId: string;
+    displayName?: string;
+    profilePhotoUrl?: string;
+  };
+}
+
+/**
  * All events combined
  */
-export interface AllEvents extends RoomEvents, MessageEvents, TypingEvents, ConnectionEvents {}
+export interface AllEvents extends RoomEvents, MessageEvents, TypingEvents, ConnectionEvents, UserEvents {}
 
 /**
  * Event names as a union type

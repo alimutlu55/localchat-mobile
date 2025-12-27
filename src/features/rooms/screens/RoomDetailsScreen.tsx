@@ -42,7 +42,8 @@ import {
   AlertCircle,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../../../navigation/types';
-import { roomService, ParticipantDTO, messageService, wsService, WS_EVENTS } from '../../../services';
+import { roomService, ParticipantDTO, messageService } from '../../../services';
+import { eventBus } from '../../../core/events';
 import { Room, ChatMessage } from '../../../types';
 import { useUserId } from '../../user/store';
 import { useRoom, useRoomActions, useMyRooms } from '../hooks';
@@ -241,15 +242,15 @@ export default function RoomDetailsScreen() {
 
     loadParticipants();
 
-    // Re-fetch participants when users join or leave
-    const unsubJoined = wsService.on(WS_EVENTS.USER_JOINED, (payload: any) => {
+    // Re-fetch participants when users join or leave via EventBus
+    const unsubJoined = eventBus.on('room.userJoined', (payload) => {
       if (payload.roomId === roomId) {
         log.debug('User joined, refreshing participants');
         loadParticipants();
       }
     });
 
-    const unsubLeft = wsService.on(WS_EVENTS.USER_LEFT, (payload: any) => {
+    const unsubLeft = eventBus.on('room.userLeft', (payload) => {
       if (payload.roomId === roomId) {
         log.debug('User left, refreshing participants');
         loadParticipants();
