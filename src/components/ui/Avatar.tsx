@@ -6,6 +6,7 @@
 
 import React from 'react';
 import { View, Text, Image, StyleSheet, ViewStyle, ImageStyle } from 'react-native';
+import { theme } from '../../core/theme';
 
 interface AvatarProps {
   uri?: string | null;
@@ -63,16 +64,16 @@ export function Avatar({ uri, name = '', size = 'medium', style }: AvatarProps) 
 
 const styles = StyleSheet.create({
   container: {
-    backgroundColor: '#fff7ed',
+    backgroundColor: theme.tokens.action.secondary.default,
     justifyContent: 'center',
     alignItems: 'center',
   },
   image: {
-    backgroundColor: '#e5e7eb',
+    backgroundColor: theme.tokens.border.subtle,
   },
   initials: {
     fontWeight: '600',
-    color: '#f97316',
+    color: theme.tokens.text.onSecondary,
   },
 });
 

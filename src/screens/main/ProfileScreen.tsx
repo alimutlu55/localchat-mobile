@@ -30,6 +30,7 @@ import { RootStackParamList } from '../../navigation/types';
 import { useAuth } from '../../features/auth';
 import { useCurrentUser } from '../../features/user/store';
 import { AvatarDisplay } from '../../components/profile';
+import { theme } from '../../core/theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -55,7 +56,7 @@ function MenuItem({ icon, label, onPress, showBadge, danger }: MenuItemProps) {
         {label}
       </Text>
       {showBadge && <View style={styles.badge} />}
-      <ChevronRight size={20} color="#9ca3af" />
+      <ChevronRight size={20} color={theme.tokens.text.tertiary} />
     </TouchableOpacity>
   );
 }
@@ -127,7 +128,7 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          <ChevronRight size={20} color="#9ca3af" />
+          <ChevronRight size={20} color={theme.tokens.text.tertiary} />
         </TouchableOpacity>
 
         {/* Upgrade Banner (for anonymous users) */}
@@ -137,27 +138,27 @@ export default function ProfileScreen() {
             onPress={handleUpgrade}
             activeOpacity={0.8}
           >
-            <Crown size={24} color="#f97316" />
+            <Crown size={24} color={theme.tokens.brand.primary} />
             <View style={styles.upgradeContent}>
               <Text style={styles.upgradeTitle}>Upgrade Your Account</Text>
               <Text style={styles.upgradeText}>
                 Sync across devices and never lose your chats
               </Text>
             </View>
-            <ChevronRight size={20} color="#f97316" />
+            <ChevronRight size={20} color={theme.tokens.brand.primary} />
           </TouchableOpacity>
         )}
 
         {/* Stats */}
         <View style={styles.statsContainer}>
           <View style={styles.statItem}>
-            <MessageCircle size={20} color="#f97316" />
+            <MessageCircle size={20} color={theme.tokens.brand.primary} />
             <Text style={styles.statValue}>0</Text>
             <Text style={styles.statLabel}>Rooms Joined</Text>
           </View>
           <View style={styles.statDivider} />
           <View style={styles.statItem}>
-            <Crown size={20} color="#f97316" />
+            <Crown size={20} color={theme.tokens.brand.primary} />
             <Text style={styles.statValue}>0</Text>
             <Text style={styles.statLabel}>Rooms Created</Text>
           </View>
@@ -217,24 +218,24 @@ export default function ProfileScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: theme.tokens.bg.canvas,
   },
   header: {
     paddingHorizontal: 20,
     paddingVertical: 16,
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.tokens.bg.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: theme.tokens.border.subtle,
   },
   headerTitle: {
     fontSize: 28,
     fontWeight: '700',
-    color: '#1f2937',
+    color: theme.tokens.text.primary,
   },
   userCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.tokens.bg.surface,
     marginHorizontal: 16,
     marginTop: 16,
     padding: 16,
@@ -249,7 +250,7 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#fff7ed',
+    backgroundColor: theme.tokens.action.secondary.default,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 14,
@@ -258,12 +259,12 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: theme.tokens.bg.subtle,
   },
   avatarText: {
     fontSize: 24,
     fontWeight: '600',
-    color: '#f97316',
+    color: theme.tokens.brand.primary,
   },
   userInfo: {
     flex: 1,
@@ -271,7 +272,7 @@ const styles = StyleSheet.create({
   userName: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1f2937',
+    color: theme.tokens.text.primary,
     marginBottom: 4,
   },
   userMeta: {
@@ -280,7 +281,7 @@ const styles = StyleSheet.create({
   },
   userEmail: {
     fontSize: 14,
-    color: '#6b7280',
+    color: theme.tokens.text.secondary,
   },
   anonymousBadge: {
     backgroundColor: '#f3f4f6',
@@ -290,19 +291,19 @@ const styles = StyleSheet.create({
   },
   anonymousText: {
     fontSize: 12,
-    color: '#6b7280',
+    color: theme.tokens.text.secondary,
     fontWeight: '500',
   },
   upgradeBanner: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#fff7ed',
+    backgroundColor: theme.tokens.action.secondary.default,
     marginHorizontal: 16,
     marginTop: 12,
     padding: 16,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#fed7aa',
+    borderColor: theme.tokens.action.secondary.active,
   },
   upgradeContent: {
     flex: 1,
@@ -311,12 +312,12 @@ const styles = StyleSheet.create({
   upgradeTitle: {
     fontSize: 15,
     fontWeight: '600',
-    color: '#1f2937',
+    color: theme.tokens.text.primary,
     marginBottom: 2,
   },
   upgradeText: {
     fontSize: 13,
-    color: '#6b7280',
+    color: theme.tokens.text.secondary,
   },
   statsContainer: {
     flexDirection: 'row',
@@ -338,17 +339,17 @@ const styles = StyleSheet.create({
   statValue: {
     fontSize: 24,
     fontWeight: '700',
-    color: '#1f2937',
+    color: theme.tokens.text.primary,
     marginTop: 8,
   },
   statLabel: {
     fontSize: 12,
-    color: '#6b7280',
+    color: theme.tokens.text.secondary,
     marginTop: 2,
   },
   statDivider: {
     width: 1,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: theme.tokens.border.subtle,
     marginVertical: 8,
   },
   menuSection: {
@@ -358,14 +359,14 @@ const styles = StyleSheet.create({
   menuSectionTitle: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#6b7280',
+    color: theme.tokens.text.secondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 8,
     marginLeft: 4,
   },
   menuCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.tokens.bg.surface,
     borderRadius: 16,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -380,7 +381,7 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: theme.tokens.border.subtle,
   },
   menuIcon: {
     width: 36,
@@ -392,27 +393,27 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
   menuIconDanger: {
-    backgroundColor: '#fef2f2',
+    backgroundColor: theme.tokens.status.error.bg,
   },
   menuLabel: {
     flex: 1,
     fontSize: 15,
-    color: '#1f2937',
+    color: theme.tokens.text.primary,
   },
   menuLabelDanger: {
-    color: '#ef4444',
+    color: theme.tokens.text.error,
   },
   badge: {
     width: 8,
     height: 8,
     borderRadius: 4,
-    backgroundColor: '#f97316',
+    backgroundColor: theme.tokens.brand.primary,
     marginRight: 8,
   },
   version: {
     textAlign: 'center',
     fontSize: 12,
-    color: '#9ca3af',
+    color: theme.tokens.text.tertiary,
     marginTop: 32,
     marginBottom: 24,
   },

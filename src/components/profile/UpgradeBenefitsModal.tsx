@@ -20,6 +20,7 @@ import {
   Users,
   ChevronRight,
 } from 'lucide-react-native';
+import { theme } from '../../core/theme';
 
 interface UpgradeBenefitsModalProps {
   isOpen: boolean;
@@ -30,29 +31,29 @@ interface UpgradeBenefitsModalProps {
 const BENEFITS = [
   {
     icon: Shield,
-    iconColor: '#22c55e',
-    iconBg: '#f0fdf4',
+    iconColor: theme.palette.emerald[500],
+    iconBg: theme.palette.emerald[50],
     title: 'Persistent Identity',
     description: 'Keep your profile and history across devices',
   },
   {
     icon: Bell,
-    iconColor: '#3b82f6',
-    iconBg: '#eff6ff',
+    iconColor: theme.palette.blue[500],
+    iconBg: theme.palette.blue[50],
     title: 'Saved Preferences',
     description: 'Your settings sync automatically',
   },
   {
     icon: Users,
-    iconColor: '#8b5cf6',
-    iconBg: '#f5f3ff',
+    iconColor: theme.palette.rose[500],
+    iconBg: theme.palette.rose[50],
     title: 'Friend Connections',
     description: 'Connect with others and build relationships',
   },
   {
     icon: Sparkles,
-    iconColor: '#f97316',
-    iconBg: '#fff7ed',
+    iconColor: theme.tokens.brand.primary,
+    iconBg: theme.tokens.action.secondary.default,
     title: 'Verification Badge',
     description: 'Show others you\'re a verified member',
   },
@@ -74,13 +75,13 @@ export function UpgradeBenefitsModal({
         <View style={styles.modal}>
           {/* Close button */}
           <TouchableOpacity style={styles.closeButton} onPress={onClose}>
-            <X size={20} color="#6b7280" />
+            <X size={20} color={theme.tokens.text.tertiary} />
           </TouchableOpacity>
 
           {/* Header */}
           <View style={styles.header}>
             <View style={styles.iconContainer}>
-              <Sparkles size={28} color="#f97316" />
+              <Sparkles size={28} color={theme.tokens.brand.primary} />
             </View>
             <Text style={styles.title}>Upgrade Your Account</Text>
             <Text style={styles.subtitle}>
@@ -107,7 +108,7 @@ export function UpgradeBenefitsModal({
           <View style={styles.actions}>
             <TouchableOpacity style={styles.upgradeButton} onPress={onUpgrade}>
               <Text style={styles.upgradeButtonText}>Upgrade Now</Text>
-              <ChevronRight size={20} color="#ffffff" />
+              <ChevronRight size={20} color={theme.tokens.text.onPrimary} />
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.laterButton} onPress={onClose}>
@@ -129,7 +130,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   modal: {
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.tokens.bg.surface,
     borderRadius: 20,
     width: '100%',
     maxWidth: 360,
@@ -142,7 +143,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: theme.tokens.bg.subtle,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1,
@@ -155,7 +156,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 32,
-    backgroundColor: '#fff7ed',
+    backgroundColor: theme.tokens.action.secondary.default,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -208,7 +209,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f97316',
+    backgroundColor: theme.tokens.brand.primary,
     paddingVertical: 14,
     paddingHorizontal: 24,
     borderRadius: 12,
@@ -217,7 +218,7 @@ const styles = StyleSheet.create({
   upgradeButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: theme.tokens.text.onPrimary,
   },
   laterButton: {
     alignItems: 'center',

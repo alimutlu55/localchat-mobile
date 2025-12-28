@@ -13,6 +13,7 @@ import {
   ViewStyle,
   TextStyle,
 } from 'react-native';
+import { theme } from '../../core/theme';
 
 type ButtonVariant = 'primary' | 'secondary' | 'outline' | 'ghost' | 'danger';
 type ButtonSize = 'small' | 'medium' | 'large';
@@ -74,7 +75,7 @@ export function Button({
       {loading ? (
         <ActivityIndicator
           size="small"
-          color={variant === 'primary' || variant === 'danger' ? '#ffffff' : '#f97316'}
+          color={variant === 'primary' || variant === 'danger' ? theme.tokens.action.primary.contrast : theme.tokens.action.primary.default}
         />
       ) : (
         <>
@@ -101,21 +102,21 @@ const styles = StyleSheet.create({
 
   // Variants
   primary: {
-    backgroundColor: '#f97316',
+    backgroundColor: theme.tokens.action.primary.default,
   },
   secondary: {
-    backgroundColor: '#fff7ed',
+    backgroundColor: theme.tokens.action.secondary.default,
   },
   outline: {
     backgroundColor: 'transparent',
     borderWidth: 1,
-    borderColor: '#f97316',
+    borderColor: theme.tokens.action.primary.default,
   },
   ghost: {
     backgroundColor: 'transparent',
   },
   danger: {
-    backgroundColor: '#ef4444',
+    backgroundColor: theme.tokens.action.danger.default,
   },
 
   // Sizes
@@ -139,19 +140,19 @@ const styles = StyleSheet.create({
 
   // Text variants
   primaryText: {
-    color: '#ffffff',
+    color: theme.tokens.action.primary.contrast,
   },
   secondaryText: {
-    color: '#f97316',
+    color: theme.tokens.action.secondary.text,
   },
   outlineText: {
-    color: '#f97316',
+    color: theme.tokens.action.primary.default,
   },
   ghostText: {
-    color: '#f97316',
+    color: theme.tokens.action.ghost.text,
   },
   dangerText: {
-    color: '#ffffff',
+    color: theme.tokens.action.danger.contrast,
   },
 
   // Text sizes
@@ -168,13 +169,24 @@ const styles = StyleSheet.create({
   // Disabled states
   disabled: {
     opacity: 0.6,
+    backgroundColor: theme.tokens.action.disabled.bg,
   },
-  primaryDisabled: {},
-  secondaryDisabled: {},
-  outlineDisabled: {},
+  primaryDisabled: {
+    backgroundColor: theme.tokens.action.disabled.bg,
+  },
+  secondaryDisabled: {
+    backgroundColor: theme.tokens.action.disabled.bg,
+  },
+  outlineDisabled: {
+    borderColor: theme.tokens.action.disabled.text,
+  },
   ghostDisabled: {},
-  dangerDisabled: {},
-  disabledText: {},
+  dangerDisabled: {
+    backgroundColor: theme.tokens.action.disabled.bg,
+  },
+  disabledText: {
+    color: theme.tokens.action.disabled.text,
+  },
 });
 
 export default Button;

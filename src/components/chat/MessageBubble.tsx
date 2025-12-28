@@ -39,6 +39,7 @@ import {
   Trash2,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import { theme } from '../../core/theme';
 import { ChatMessage } from '../../types';
 import { AvatarDisplay } from '../profile';
 
@@ -143,22 +144,28 @@ export function MessageBubble({
 
     switch (message.status) {
       case 'sending':
-        return <Clock size={12} color="rgba(255, 255, 255, 0.6)" />;
+        return <Clock size={12} color={theme.tokens.text.onPrimary} style={{ opacity: 0.6 }} />;
       case 'sent':
-        return <Check size={12} color="rgba(255, 255, 255, 0.7)" />;
+        return <Check size={12} color={theme.tokens.text.onPrimary} style={{ opacity: 0.7 }} />;
       case 'delivered':
-        return <CheckCheck size={12} color="rgba(255, 255, 255, 0.7)" />;
+        return <CheckCheck size={12} color={theme.tokens.text.onPrimary} style={{ opacity: 0.7 }} />;
       case 'read':
-        return <CheckCheck size={12} color="#ffffff" />;
+        return <CheckCheck size={12} color={theme.tokens.text.onPrimary} />;
       case 'failed':
-        return <AlertCircle size={14} color="#fca5a5" />;
+        return <AlertCircle size={14} color={theme.tokens.text.error} />;
       default:
         return null;
     }
   };
 
   const getAvatarColor = (name: string) => {
-    const colors = ['#f97316', '#8b5cf6', '#ec4899', '#10b981', '#3b82f6'];
+    const colors = [
+      theme.tokens.categories.food,
+      theme.tokens.categories.events,
+      theme.tokens.categories.sports,
+      theme.tokens.categories.traffic,
+      theme.tokens.categories.neighborhood,
+    ];
     let hash = 0;
     for (let i = 0; i < name.length; i++) {
       hash = name.charCodeAt(i) + ((hash << 5) - hash);
@@ -223,7 +230,7 @@ export function MessageBubble({
               activeOpacity={0.85}
             >
               <LinearGradient
-                colors={['#f97316', '#ef4444']}
+                colors={[theme.tokens.brand.primary, theme.tokens.brand.secondary]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={[styles.bubble, styles.bubbleOwn]}
@@ -349,7 +356,7 @@ export function MessageBubble({
             <View style={styles.contextMenu}>
               <TouchableOpacity style={styles.menuItem} onPress={handleCopy}>
                 <Text style={styles.menuItemText}>Copy</Text>
-                <Copy size={20} color="#334155" />
+                <Copy size={20} color={theme.tokens.text.primary} />
               </TouchableOpacity>
 
               {!isOwn && (
@@ -360,7 +367,7 @@ export function MessageBubble({
                     onPress={handleReport}
                   >
                     <Text style={styles.menuItemText}>Report</Text>
-                    <Flag size={20} color="#334155" />
+                    <Flag size={20} color={theme.tokens.text.primary} />
                   </TouchableOpacity>
 
                   <View style={styles.menuDivider} />
@@ -373,7 +380,7 @@ export function MessageBubble({
                     <Text style={[styles.menuItemText, hasBlocked ? styles.menuItemDisabledText : styles.menuItemDanger]}>
                       {hasBlocked ? 'Already Blocked' : 'Block User'}
                     </Text>
-                    <Ban size={20} color={hasBlocked ? '#9ca3af' : '#ef4444'} />
+                    <Ban size={20} color={hasBlocked ? theme.tokens.text.tertiary : theme.tokens.text.error} />
                   </TouchableOpacity>
                 </>
               )}
@@ -482,7 +489,7 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 15,
     fontWeight: 'bold',
-    color: '#ffffff',
+    color: theme.tokens.text.onPrimary,
   },
   messageContent: {
     maxWidth: '80%',
@@ -496,11 +503,11 @@ const styles = StyleSheet.create({
   messageSender: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#334155',
+    color: theme.tokens.text.primary,
   },
   messageTime: {
     fontSize: 12,
-    color: '#94a3b8',
+    color: theme.tokens.text.tertiary,
   },
   bubbleWrapper: {
     flexDirection: 'row',
@@ -514,31 +521,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   bubble: {
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.tokens.bg.surface,
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
     borderWidth: 1,
-    borderColor: '#f1f5f9',
-    shadowColor: '#000',
+    borderColor: theme.tokens.border.subtle,
+    shadowColor: theme.tokens.border.strong,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.05,
     shadowRadius: 2,
     elevation: 1,
   },
   bubbleOwn: {
-    backgroundColor: '#f97316',
+    backgroundColor: theme.tokens.action.primary.default,
     borderWidth: 0,
     borderColor: 'transparent',
   },
   messageText: {
     fontSize: 16,
-    color: '#1e293b',
+    color: theme.tokens.text.primary,
     lineHeight: 22,
     flexShrink: 1,
   },
   messageTextOwn: {
-    color: '#ffffff',
+    color: theme.tokens.text.onPrimary,
   },
   bubbleContent: {
     paddingBottom: 4,
@@ -571,27 +578,27 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     gap: 2,
     borderWidth: 1.5,
-    shadowColor: '#000',
+    shadowColor: theme.tokens.border.strong,
     shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.1,
     shadowRadius: 1,
     elevation: 2,
   },
   reactionPillOwn: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e2e8f0',
+    backgroundColor: theme.tokens.bg.surface,
+    borderColor: theme.tokens.border.subtle,
   },
   reactionPillIncoming: {
-    backgroundColor: '#ffffff',
-    borderColor: '#e2e8f0',
+    backgroundColor: theme.tokens.bg.surface,
+    borderColor: theme.tokens.border.subtle,
   },
   reactionPillActiveOwn: {
-    backgroundColor: '#fff7ed',
-    borderColor: '#fdba74',
+    backgroundColor: theme.tokens.action.secondary.default,
+    borderColor: theme.tokens.brand.primary,
   },
   reactionPillActiveIncoming: {
-    backgroundColor: '#fff7ed',
-    borderColor: '#fdba74',
+    backgroundColor: theme.tokens.action.secondary.default,
+    borderColor: theme.tokens.brand.primary,
   },
   reactionEmoji: {
     fontSize: 12,
@@ -601,16 +608,16 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   reactionCountOwn: {
-    color: '#475569',
+    color: theme.tokens.text.secondary,
   },
   reactionCountIncoming: {
-    color: '#475569',
+    color: theme.tokens.text.secondary,
   },
   reactionCountActiveOwn: {
-    color: '#f97316',
+    color: theme.tokens.brand.primary,
   },
   reactionCountActiveIncoming: {
-    color: '#f97316',
+    color: theme.tokens.brand.primary,
   },
   ownMessageMeta: {
     flexDirection: 'row',
@@ -626,7 +633,7 @@ const styles = StyleSheet.create({
   },
   messageTimeInside: {
     fontSize: 11,
-    color: '#94a3b8',
+    color: theme.tokens.text.tertiary,
     marginLeft: 8,
     flexShrink: 0,
   },
@@ -637,7 +644,7 @@ const styles = StyleSheet.create({
   },
   emojiBar: {
     flexDirection: 'row',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: theme.tokens.bg.surface,
     borderRadius: 30,
     paddingHorizontal: 8,
     paddingVertical: 6,
@@ -645,7 +652,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     width: '100%',
-    shadowColor: '#000',
+    shadowColor: theme.tokens.border.strong,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -661,21 +668,21 @@ const styles = StyleSheet.create({
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    backgroundColor: theme.tokens.bg.subtle,
     justifyContent: 'center',
     alignItems: 'center',
   },
   plusIcon: {
-    color: '#64748b',
+    color: theme.tokens.text.secondary,
     fontSize: 18,
     fontWeight: '300',
   },
   contextMenu: {
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: theme.tokens.bg.surface,
     borderRadius: 16,
     width: '100%',
     overflow: 'hidden',
-    shadowColor: '#000',
+    shadowColor: theme.tokens.border.strong,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 8,
@@ -690,18 +697,18 @@ const styles = StyleSheet.create({
   },
   menuItemText: {
     fontSize: 16,
-    color: '#334155',
+    color: theme.tokens.text.primary,
     fontWeight: '400',
   },
   menuItemDisabledText: {
-    color: '#94a3b8',
+    color: theme.tokens.text.tertiary,
   },
   menuItemDanger: {
-    color: '#ef4444',
+    color: theme.tokens.text.error,
   },
   menuDivider: {
     height: 0.5,
-    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+    backgroundColor: theme.tokens.border.subtle,
     marginHorizontal: 16,
   },
   menuItemDisabled: {
@@ -709,7 +716,7 @@ const styles = StyleSheet.create({
   },
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.2)',
+    backgroundColor: 'rgba(0, 0, 0, 0.4)',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -719,7 +726,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   drawerContent: {
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.tokens.bg.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     height: '50%',
@@ -729,7 +736,7 @@ const styles = StyleSheet.create({
   drawerHandle: {
     width: 40,
     height: 5,
-    backgroundColor: '#e5e5ea',
+    backgroundColor: theme.tokens.border.strong,
     borderRadius: 2.5,
     alignSelf: 'center',
     marginTop: 10,
@@ -741,12 +748,12 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   sectionHeader: {
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.tokens.bg.surface,
     paddingVertical: 8,
     marginBottom: 4,
   },
   searchBar: {
-    backgroundColor: '#f2f2f7',
+    backgroundColor: theme.tokens.bg.canvas,
     borderRadius: 10,
     paddingHorizontal: 12,
     flexDirection: 'row',
@@ -756,7 +763,7 @@ const styles = StyleSheet.create({
   searchInput: {
     flex: 1,
     fontSize: 16,
-    color: '#000000',
+    color: theme.tokens.text.primary,
     padding: 0,
   },
   drawerBody: {
@@ -766,7 +773,7 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   sectionTitle: {
-    color: '#8e8e93',
+    color: theme.tokens.text.tertiary,
     fontSize: 12,
     fontWeight: '600',
     marginBottom: 12,
@@ -795,8 +802,8 @@ const styles = StyleSheet.create({
     justifyContent: 'space-around',
     paddingVertical: 10,
     borderTopWidth: 0.5,
-    borderTopColor: '#e5e5ea',
-    backgroundColor: '#ffffff',
+    borderTopColor: theme.tokens.border.subtle,
+    backgroundColor: theme.tokens.bg.surface,
     position: 'absolute',
     bottom: 0,
     left: 0,
@@ -822,8 +829,8 @@ const styles = StyleSheet.create({
   },
   systemMessageText: {
     fontSize: 12,
-    color: '#9ca3af',
-    backgroundColor: '#f3f4f6',
+    color: theme.tokens.text.tertiary,
+    backgroundColor: theme.tokens.bg.subtle,
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 12,
@@ -833,17 +840,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 2,
     marginLeft: 4,
-    backgroundColor: '#fef2f2',
+    backgroundColor: theme.tokens.status.error.bg,
     paddingHorizontal: 6,
     paddingVertical: 2,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#fee2e2',
+    borderColor: theme.tokens.border.subtle,
   },
   reportedText: {
     fontSize: 9,
     fontWeight: '700',
-    color: '#ef4444',
+    color: theme.tokens.text.error,
     textTransform: 'uppercase',
   },
 });

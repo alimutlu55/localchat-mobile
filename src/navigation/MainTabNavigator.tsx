@@ -9,6 +9,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { StyleSheet } from 'react-native';
 import { Map, MessageCircle, User } from 'lucide-react-native';
 import { MainTabParamList } from './types';
+import { theme } from '../core/theme';
 
 // Screens
 import {
@@ -28,8 +29,8 @@ interface TabIconProps {
   size: number;
 }
 
-const ACTIVE_COLOR = '#f97316';
-const INACTIVE_COLOR = '#9ca3af';
+const ACTIVE_COLOR = theme.tokens.brand.primary;
+const INACTIVE_COLOR = theme.tokens.text.tertiary;
 
 /**
  * Main Tab Navigator Component
@@ -93,9 +94,9 @@ export function MainTabNavigator() {
 
 const styles = StyleSheet.create({
   tabBar: {
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.tokens.bg.surface,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
+    borderTopColor: theme.tokens.border.subtle,
     paddingTop: 8,
     paddingBottom: 8,
     height: 60,

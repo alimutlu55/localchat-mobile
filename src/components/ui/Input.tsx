@@ -17,6 +17,7 @@ import {
   TextStyle,
 } from 'react-native';
 import { Eye, EyeOff } from 'lucide-react-native';
+import { theme } from '../../core/theme';
 
 interface InputProps extends TextInputProps {
   label?: string;
@@ -62,7 +63,7 @@ export function Input({
 
         <TextInput
           style={inputStyles}
-          placeholderTextColor="#9ca3af"
+          placeholderTextColor={theme.tokens.text.tertiary}
           secureTextEntry={isPassword && !showPassword}
           onFocus={() => setIsFocused(true)}
           onBlur={() => setIsFocused(false)}
@@ -76,9 +77,9 @@ export function Input({
             hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
           >
             {showPassword ? (
-              <EyeOff size={20} color="#9ca3af" />
+              <EyeOff size={20} color={theme.tokens.text.tertiary} />
             ) : (
-              <Eye size={20} color="#9ca3af" />
+              <Eye size={20} color={theme.tokens.text.tertiary} />
             )}
           </TouchableOpacity>
         )}
@@ -101,30 +102,30 @@ const styles = StyleSheet.create({
   label: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: theme.tokens.text.secondary,
     marginBottom: 8,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f9fafb',
+    backgroundColor: theme.tokens.bg.subtle,
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: theme.tokens.border.subtle,
     overflow: 'hidden',
   },
   inputContainerFocused: {
-    borderColor: '#f97316',
-    backgroundColor: '#ffffff',
+    borderColor: theme.tokens.border.focus,
+    backgroundColor: theme.tokens.bg.surface,
   },
   inputContainerError: {
-    borderColor: '#ef4444',
-    backgroundColor: '#fef2f2',
+    borderColor: theme.tokens.border.error,
+    backgroundColor: theme.tokens.status.error.bg,
   },
   input: {
     flex: 1,
     fontSize: 16,
-    color: '#1f2937',
+    color: theme.tokens.text.primary,
     paddingVertical: 14,
     paddingHorizontal: 14,
   },
@@ -142,12 +143,12 @@ const styles = StyleSheet.create({
   },
   error: {
     fontSize: 12,
-    color: '#ef4444',
+    color: theme.tokens.text.error,
     marginTop: 6,
   },
   hint: {
     fontSize: 12,
-    color: '#9ca3af',
+    color: theme.tokens.text.tertiary,
     marginTop: 6,
   },
 });

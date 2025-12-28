@@ -14,6 +14,7 @@ import React from 'react';
 import { View, TouchableOpacity, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import { RefreshCw, ChevronRight } from 'lucide-react-native';
 import { AvatarDisplay } from '../../../components/profile';
+import { theme } from '../../../core/theme';
 
 interface MapHeaderProps {
   /** User avatar URL */
@@ -76,9 +77,9 @@ export function MapHeader({
             activeOpacity={0.7}
           >
             {isRefreshing ? (
-              <ActivityIndicator size="small" color="#f97316" />
+              <ActivityIndicator size="small" color={theme.tokens.brand.primary} />
             ) : (
-              <RefreshCw size={16} color="#f97316" strokeWidth={2} />
+              <RefreshCw size={16} color={theme.tokens.brand.primary} strokeWidth={2} />
             )}
           </TouchableOpacity>
         </View>
@@ -96,7 +97,7 @@ export function MapHeader({
             <Text style={styles.badgeText}>{myRoomsCount}</Text>
           </View>
         )}
-        <ChevronRight size={16} color="#6b7280" />
+        <ChevronRight size={16} color={theme.tokens.text.tertiary} />
       </TouchableOpacity>
     </View>
   );
@@ -119,7 +120,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#fff',
+    backgroundColor: theme.tokens.bg.surface,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
@@ -141,7 +142,7 @@ const styles = StyleSheet.create({
   roomCountCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.tokens.bg.surface,
     paddingHorizontal: 14,
     paddingVertical: 8,
     borderRadius: 20,
@@ -155,20 +156,20 @@ const styles = StyleSheet.create({
   roomCountText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: theme.tokens.text.secondary,
   },
   refreshButton: {
     width: 28,
     height: 28,
     borderRadius: 14,
-    backgroundColor: '#fff7ed',
+    backgroundColor: theme.tokens.action.secondary.default,
     justifyContent: 'center',
     alignItems: 'center',
   },
   myRoomsButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.tokens.bg.surface,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
@@ -182,13 +183,13 @@ const styles = StyleSheet.create({
   myRoomsText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#374151',
+    color: theme.tokens.text.secondary,
   },
   badge: {
     minWidth: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: '#f97316',
+    backgroundColor: theme.tokens.brand.primary,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 5,
@@ -196,7 +197,7 @@ const styles = StyleSheet.create({
   badgeText: {
     fontSize: 11,
     fontWeight: '700',
-    color: '#ffffff',
+    color: theme.tokens.text.onPrimary,
   },
 });
 

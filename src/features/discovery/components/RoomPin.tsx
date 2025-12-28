@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Animated } from 'react-native';
 import { MessageCircle, Lock, Clock } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Room } from '../../../types';
+import { theme } from '../../../core/theme';
 
 interface RoomPinProps {
     room: Room;
@@ -98,15 +99,15 @@ export const RoomPin = memo(({ room, isSelected }: RoomPinProps) => {
     const pinSize = getPinSize();
 
     const getPinColors = () => {
-        if (room.isFull) return ['#9ca3af', '#6b7280'];
-        if (room.isExpiringSoon) return ['#f97316', '#ea580c'];
-        return ['#fb923c', '#f43f5e'];
+        if (room.isFull) return [theme.tokens.text.tertiary, theme.tokens.text.secondary];
+        if (room.isExpiringSoon) return [theme.palette.orange[400], theme.palette.orange[600]];
+        return [theme.tokens.brand.primary, theme.palette.rose[500]];
     };
 
     const getTailColor = () => {
-        if (room.isFull) return '#6b7280';
-        if (room.isExpiringSoon) return '#ea580c';
-        return '#f43f5e';
+        if (room.isFull) return theme.tokens.text.secondary;
+        if (room.isExpiringSoon) return theme.palette.orange[600];
+        return theme.palette.rose[500];
     };
 
     return (
@@ -129,11 +130,11 @@ export const RoomPin = memo(({ room, isSelected }: RoomPinProps) => {
                     ]}
                 >
                     {room.isFull ? (
-                        <Lock size={pinSize * 0.45} color="#ffffff" />
+                        <Lock size={pinSize * 0.45} color={theme.tokens.text.onPrimary} />
                     ) : room.emoji ? (
                         <Text style={{ fontSize: pinSize * 0.45 }}>{room.emoji}</Text>
                     ) : (
-                        <MessageCircle size={pinSize * 0.45} color="#ffffff" />
+                        <MessageCircle size={pinSize * 0.45} color={theme.tokens.text.onPrimary} />
                     )}
 
                     {/* Participant count badge - top right */}
@@ -166,7 +167,7 @@ export const RoomPin = memo(({ room, isSelected }: RoomPinProps) => {
                 {/* Expiring soon indicator (Clock) - bottom right */}
                 {room.isExpiringSoon && (
                     <Animated.View style={[styles.clockIconContainer, { transform: [{ scale: clockPulseAnim }] }]}>
-                        <Clock size={12} color="#ea580c" strokeWidth={3} />
+                        <Clock size={12} color={theme.tokens.brand.primary} strokeWidth={3} />
                     </Animated.View>
                 )}
             </View>
@@ -206,7 +207,7 @@ const styles = StyleSheet.create({
     },
     pinSelected: {
         borderWidth: 3,
-        borderColor: '#ffffff',
+        borderColor: theme.tokens.text.onPrimary,
         shadowOpacity: 0.4,
         shadowRadius: 8,
     },
@@ -214,7 +215,7 @@ const styles = StyleSheet.create({
         position: 'absolute',
         top: -4,
         right: -4,
-        backgroundColor: '#ffffff',
+        backgroundColor: theme.tokens.bg.surface,
         borderRadius: 12,
         minWidth: 24,
         height: 24,
@@ -229,7 +230,7 @@ const styles = StyleSheet.create({
     badgeText: {
         fontSize: 11,
         fontWeight: '500',
-        color: '#111827',
+        color: theme.tokens.text.primary,
     },
     newBadge: {
         position: 'absolute',
@@ -237,7 +238,7 @@ const styles = StyleSheet.create({
         left: '50%',
         marginLeft: -20, // (40 width / 2)
         width: 40,
-        backgroundColor: '#22c55e',
+        backgroundColor: theme.tokens.text.success,
         paddingVertical: 2,
         borderRadius: 10,
         alignItems: 'center',
@@ -248,7 +249,7 @@ const styles = StyleSheet.create({
         elevation: 4,
     },
     newBadgeText: {
-        color: '#ffffff',
+        color: theme.tokens.text.onPrimary,
         fontSize: 10,
         fontWeight: '500',
     },
@@ -256,7 +257,7 @@ const styles = StyleSheet.create({
         position: 'absolute',
         bottom: -4,
         right: -4,
-        backgroundColor: '#ffffff',
+        backgroundColor: theme.tokens.bg.surface,
         borderRadius: 10,
         padding: 2,
         shadowColor: '#000',
@@ -272,9 +273,9 @@ const styles = StyleSheet.create({
         width: 14,
         height: 14,
         borderRadius: 7,
-        backgroundColor: '#ef4444',
+        backgroundColor: theme.tokens.text.error,
         borderWidth: 2,
-        borderColor: '#ffffff',
+        borderColor: theme.tokens.text.onPrimary,
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 2 },
         shadowOpacity: 0.2,

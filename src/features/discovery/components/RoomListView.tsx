@@ -38,6 +38,7 @@ import { Room } from '../../../types';
 import { useMyRooms, useRoomDiscovery } from '../../rooms/hooks';
 import { CATEGORIES } from '../../../constants';
 import { calculateDistance } from '../../../utils/format';
+import { theme } from '../../../core/theme';
 
 // Build category filter options: ['All', 'Food & Dining', 'Events', ...]
 const CATEGORY_FILTERS = ['All', ...CATEGORIES.map(cat => cat.label)];
@@ -159,9 +160,9 @@ const RoomListItem = memo(function RoomListItem({
 
     const getTimeColor = () => {
         const hoursLeft = (room.expiresAt.getTime() - Date.now()) / (1000 * 60 * 60);
-        if (hoursLeft < 0.25) return '#dc2626';
-        if (hoursLeft < 1) return '#ea580c';
-        return '#16a34a';
+        if (hoursLeft < 0.25) return theme.tokens.text.error;
+        if (hoursLeft < 1) return theme.tokens.brand.primary;
+        return theme.tokens.text.success;
     };
 
     const formatDistance = (meters: number): string => {
@@ -176,17 +177,17 @@ const RoomListItem = memo(function RoomListItem({
     };
 
     const getDistanceColor = (meters: number): string => {
-        if (meters < 500) return '#16a34a'; // Green - very close
-        if (meters < 2000) return '#ea580c'; // Orange - nearby
-        return '#6b7280'; // Gray - far
+        if (meters < 500) return theme.tokens.text.success; // Green - very close
+        if (meters < 2000) return theme.tokens.brand.primary; // Orange - nearby
+        return theme.tokens.text.tertiary; // Gray - far
     };
 
     const getGradientColors = () => {
         // Soft Peach/Apricot Palette - "Just enough color"
-        if (room.isExpiringSoon) return ['#fb923c', '#fdba74']; // Warmer orange-peach
+        if (room.isExpiringSoon) return [theme.palette.orange[400], theme.palette.orange[300]]; // Warmer orange-peach
 
         // Smooth Peach - A step up from cream, elegant and visible
-        return ['#fff7ed', '#ffedd5']; // Very light peach to soft apricot
+        return [theme.tokens.action.secondary.default, theme.tokens.action.secondary.active]; // Very light peach to soft apricot
     };
 
     const handlePress = () => {
@@ -219,13 +220,13 @@ const RoomListItem = memo(function RoomListItem({
                     <View style={styles.statusBadgesContainer}>
                         {room.isNew && (
                             <View style={[styles.statusBadge, styles.newBadge]}>
-                                <Sparkles size={8} color="#ffffff" />
+                                <Sparkles size={8} color={theme.tokens.text.onPrimary} />
                                 <Text style={styles.statusBadgeText}>New</Text>
                             </View>
                         )}
                         {room.isHighActivity && (
                             <View style={[styles.statusBadge, styles.activeBadge]}>
-                                <Zap size={8} color="#ffffff" />
+                                <Zap size={8} color={theme.tokens.text.onPrimary} />
                                 <Text style={styles.statusBadgeText}>Active</Text>
                             </View>
                         )}
@@ -240,7 +241,7 @@ const RoomListItem = memo(function RoomListItem({
                         </Text>
                         <View style={styles.topRightMeta}>
                             {room.isExpiringSoon && (
-                                <Clock size={12} color="#ea580c" strokeWidth={3} />
+                                <Clock size={12} color={theme.tokens.brand.primary} strokeWidth={3} />
                             )}
                             <Text style={[styles.metaText, { color: getDistanceColor(roomDistance), fontWeight: '600' }]}>
                                 {formatDistance(roomDistance)}
@@ -251,7 +252,7 @@ const RoomListItem = memo(function RoomListItem({
                     {/* Meta Row: People & Time */}
                     <View style={styles.roomMeta}>
                         <View style={styles.metaItem}>
-                            <Users size={12} color="#6b7280" />
+                            <Users size={12} color={theme.tokens.text.tertiary} />
                             <Text style={styles.metaText}>
                                 {room.participantCount}
                             </Text>
@@ -304,7 +305,7 @@ const EmptyState = memo(function EmptyState({
             {hasSearch ? (
                 <>
                     <View style={styles.emptyIconSearch}>
-                        <Search size={32} color="#9ca3af" />
+                        <Search size={32} color={theme.tokens.text.tertiary} />
                     </View>
                     <Text style={styles.emptyTitle}>No rooms found</Text>
                     <Text style={styles.emptySubtitle}>
@@ -317,7 +318,7 @@ const EmptyState = memo(function EmptyState({
             ) : (
                 <>
                     <View style={styles.emptyIcon}>
-                        <MapPin size={40} color="#f97316" />
+                        <MapPin size={40} color={theme.tokens.brand.primary} />
                     </View>
                     <Text style={styles.emptyTitle}>No rooms nearby</Text>
                     <Text style={styles.emptySubtitle}>
@@ -505,7 +506,7 @@ export function RoomListView({
     if (isLoading) {
         return (
             <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#f97316" />
+                <ActivityIndicator size="large" color={theme.tokens.brand.primary} />
                 <Text style={styles.loadingText}>Loading rooms...</Text>
             </View>
         );
@@ -521,24 +522,24 @@ export function RoomListView({
                         style={[styles.filterButton, showFilters && styles.filterButtonActive]}
                         onPress={() => setShowFilters(!showFilters)}
                     >
-                        <SlidersHorizontal size={20} color={showFilters ? '#f97316' : '#6b7280'} />
+                        <SlidersHorizontal size={20} color={showFilters ? theme.tokens.brand.primary : theme.tokens.text.tertiary} />
                     </TouchableOpacity>
                 </View>
 
                 {/* Search */}
                 <View style={styles.searchContainer}>
-                    <Search size={18} color="#9ca3af" style={styles.searchIcon} />
+                    <Search size={18} color={theme.tokens.text.tertiary} style={styles.searchIcon} />
                     <TextInput
                         style={styles.searchInput}
                         placeholder="Search rooms..."
-                        placeholderTextColor="#9ca3af"
+                        placeholderTextColor={theme.tokens.text.tertiary}
                         value={searchQuery}
                         onChangeText={setSearchQuery}
                         autoCapitalize="none"
                     />
                     {searchQuery.length > 0 && (
                         <TouchableOpacity style={styles.clearButton} onPress={handleClearSearch}>
-                            <X size={16} color="#6b7280" />
+                            <X size={16} color={theme.tokens.text.tertiary} />
                         </TouchableOpacity>
                     )}
                 </View>
@@ -622,7 +623,7 @@ export function RoomListView({
                             {/* Loading more indicator */}
                             {isLoadingMore && (
                                 <View style={styles.loadingMoreContainer}>
-                                    <ActivityIndicator size="small" color="#f97316" />
+                                    <ActivityIndicator size="small" color={theme.tokens.brand.primary} />
                                     <Text style={styles.loadingMoreText}>Loading more rooms...</Text>
                                 </View>
                             )}
@@ -692,11 +693,9 @@ export function RoomListView({
                                 disabled={isJoining}
                             >
                                 {isJoining ? (
-                                    <ActivityIndicator size="small" color="#ffffff" />
+                                    <ActivityIndicator size="small" color={theme.tokens.text.onPrimary} />
                                 ) : (
-                                    <>
-                                        <Text style={styles.confirmButtonText}>Join Room</Text>
-                                    </>
+                                    <Text style={styles.confirmButtonText}>Join Room</Text>
                                 )}
                             </TouchableOpacity>
                         </View>
@@ -710,13 +709,13 @@ export function RoomListView({
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f9fafb',
+        backgroundColor: theme.tokens.bg.canvas,
     },
     loadingContainer: {
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#f9fafb',
+        backgroundColor: theme.tokens.bg.canvas,
     },
     loadingText: {
         marginTop: 12,
@@ -724,9 +723,9 @@ const styles = StyleSheet.create({
         color: '#6b7280',
     },
     header: {
-        backgroundColor: '#ffffff',
+        backgroundColor: theme.tokens.bg.surface,
         borderBottomWidth: 1,
-        borderBottomColor: '#e5e7eb',
+        borderBottomColor: theme.tokens.border.subtle,
         paddingHorizontal: 16,
         paddingTop: 24,
         paddingBottom: 12,
@@ -796,7 +795,7 @@ const styles = StyleSheet.create({
         paddingHorizontal: 12,
         paddingVertical: 6,
         borderRadius: 8,
-        backgroundColor: '#f3f4f6',
+        backgroundColor: theme.tokens.bg.subtle,
         marginRight: 8,
     },
     sortChipSelected: {

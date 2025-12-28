@@ -21,6 +21,7 @@ import {
   Pressable,
   Animated,
 } from 'react-native';
+import { theme } from '../../core/theme';
 import {
   Info,
   Bell,
@@ -81,16 +82,16 @@ export function ChatRoomMenu({
                 onClose();
               }}
             >
-              <Info size={20} color="#374151" />
+              <Info size={20} color={theme.tokens.text.secondary} />
               <Text style={styles.menuItemText}>Room Info</Text>
             </TouchableOpacity>
 
             {/* Mute Notifications */}
             <TouchableOpacity style={styles.menuItem} onPress={handleMute}>
               {isMuted ? (
-                <Bell size={20} color="#374151" />
+                <Bell size={20} color={theme.tokens.text.secondary} />
               ) : (
-                <BellOff size={20} color="#374151" />
+                <BellOff size={20} color={theme.tokens.text.secondary} />
               )}
               <Text style={styles.menuItemText}>
                 {isMuted ? 'Unmute' : 'Mute Notifications'}
@@ -108,7 +109,7 @@ export function ChatRoomMenu({
                 onClose();
               }}
             >
-              <Flag size={20} color="#374151" />
+              <Flag size={20} color={theme.tokens.text.secondary} />
               <Text style={styles.menuItemText}>Report Room</Text>
             </TouchableOpacity>
 
@@ -121,7 +122,7 @@ export function ChatRoomMenu({
                   onClose();
                 }}
               >
-                <XOctagon size={20} color="#ef4444" />
+                <XOctagon size={20} color={theme.tokens.text.error} />
                 <Text style={[styles.menuItemText, styles.dangerText]}>
                   Close Room
                 </Text>
@@ -136,7 +137,7 @@ export function ChatRoomMenu({
                 onClose();
               }}
             >
-              <LogOut size={20} color="#ef4444" />
+              <LogOut size={20} color={theme.tokens.text.error} />
               <Text style={[styles.menuItemText, styles.dangerText]}>
                 Leave Room
               </Text>
@@ -159,7 +160,7 @@ const styles = StyleSheet.create({
     right: 16,
   },
   menu: {
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.tokens.bg.surface,
     borderRadius: 16,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
@@ -169,7 +170,7 @@ const styles = StyleSheet.create({
     minWidth: 200,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: theme.tokens.border.subtle,
   },
   menuItem: {
     flexDirection: 'row',
@@ -180,14 +181,14 @@ const styles = StyleSheet.create({
   },
   menuItemText: {
     fontSize: 15,
-    color: '#374151',
+    color: theme.tokens.text.secondary,
   },
   dangerText: {
-    color: '#ef4444',
+    color: theme.tokens.text.error,
   },
   divider: {
     height: 1,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: theme.tokens.border.subtle,
   },
 });
 

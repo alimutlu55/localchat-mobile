@@ -12,6 +12,7 @@ import {
 import { X, UserX, RotateCcw } from 'lucide-react-native';
 import { roomService, BannedUserDTO } from '../../services';
 import { AvatarDisplay } from '../profile';
+import { theme } from '../../core/theme';
 
 interface BannedUsersModalProps {
     roomId: string;
@@ -84,9 +85,9 @@ export function BannedUsersModal({
                 disabled={!!isUnbanning}
             >
                 {isUnbanning === item.userId ? (
-                    <ActivityIndicator size="small" color="#f97316" />
+                    <ActivityIndicator size="small" color={theme.tokens.brand.primary} />
                 ) : (
-                    <RotateCcw size={20} color="#f97316" />
+                    <RotateCcw size={20} color={theme.tokens.brand.primary} />
                 )}
             </TouchableOpacity>
         </View>
@@ -104,12 +105,12 @@ export function BannedUsersModal({
                     <View style={styles.header}>
                         <Text style={styles.title}>Banned Users</Text>
                         <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                            <X size={24} color="#6b7280" />
+                            <X size={24} color={theme.tokens.text.tertiary} />
                         </TouchableOpacity>
                     </View>
 
                     {isLoading ? (
-                        <ActivityIndicator size="large" color="#f97316" style={styles.loader} />
+                        <ActivityIndicator size="large" color={theme.tokens.brand.primary} style={styles.loader} />
                     ) : (
                         <FlatList
                             data={bannedUsers}
@@ -117,7 +118,7 @@ export function BannedUsersModal({
                             keyExtractor={(item) => item.userId}
                             ListEmptyComponent={
                                 <View style={styles.emptyState}>
-                                    <UserX size={48} color="#e5e7eb" />
+                                    <UserX size={48} color={theme.tokens.border.subtle} />
                                     <Text style={styles.emptyText}>No banned users in this room</Text>
                                 </View>
                             }
@@ -137,7 +138,7 @@ const styles = StyleSheet.create({
         justifyContent: 'flex-end',
     },
     content: {
-        backgroundColor: '#ffffff',
+        backgroundColor: theme.tokens.bg.surface,
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
         height: '70%',
@@ -149,12 +150,12 @@ const styles = StyleSheet.create({
         justifyContent: 'space-between',
         padding: 20,
         borderBottomWidth: 1,
-        borderBottomColor: '#f3f4f6',
+        borderBottomColor: theme.tokens.border.subtle,
     },
     title: {
         fontSize: 18,
         fontWeight: '700',
-        color: '#1f2937',
+        color: theme.tokens.text.primary,
     },
     closeButton: {
         padding: 4,
@@ -169,7 +170,7 @@ const styles = StyleSheet.create({
     userItem: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#f9fafb',
+        backgroundColor: theme.tokens.bg.canvas,
         borderRadius: 12,
         padding: 16,
         marginBottom: 12,
@@ -186,28 +187,28 @@ const styles = StyleSheet.create({
     displayName: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#1f2937',
+        color: theme.tokens.text.primary,
         marginBottom: 2,
     },
     userId: {
         fontSize: 15,
         fontWeight: '600',
-        color: '#374151',
+        color: theme.tokens.text.secondary,
         marginBottom: 2,
     },
     bannedAt: {
         fontSize: 12,
-        color: '#9ca3af',
+        color: theme.tokens.text.tertiary,
     },
     reason: {
         fontSize: 13,
-        color: '#6b7280',
+        color: theme.tokens.text.secondary,
         marginTop: 4,
         fontStyle: 'italic',
     },
     unbanButton: {
         padding: 8,
-        backgroundColor: '#fff7ed',
+        backgroundColor: theme.tokens.action.secondary.default,
         borderRadius: 8,
     },
     emptyState: {
@@ -219,7 +220,7 @@ const styles = StyleSheet.create({
     emptyText: {
         marginTop: 12,
         fontSize: 16,
-        color: '#9ca3af',
+        color: theme.tokens.text.tertiary,
         textAlign: 'center',
     },
 });

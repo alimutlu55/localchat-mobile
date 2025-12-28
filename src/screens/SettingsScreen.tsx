@@ -31,6 +31,7 @@ import {
 } from 'lucide-react-native';
 import { useAuth } from '../features/auth';
 import { storage, STORAGE_KEYS } from '../services';
+import { theme } from '../core/theme';
 
 /**
  * Setting Toggle Component
@@ -54,8 +55,8 @@ function SettingToggle({ icon, label, description, value, onToggle }: SettingTog
       <Switch
         value={value}
         onValueChange={onToggle}
-        trackColor={{ false: '#d1d5db', true: '#fdba74' }}
-        thumbColor={value ? '#f97316' : '#f4f4f5'}
+        trackColor={{ false: theme.tokens.border.strong, true: theme.tokens.action.secondary.active }}
+        thumbColor={value ? theme.tokens.brand.primary : theme.tokens.bg.subtle}
       />
     </View>
   );
@@ -80,7 +81,7 @@ function SettingLink({ icon, label, description, onPress, danger }: SettingLinkP
         <Text style={[styles.settingLabel, danger && styles.settingLabelDanger]}>{label}</Text>
         {description && <Text style={styles.settingDescription}>{description}</Text>}
       </View>
-      <ChevronRight size={20} color="#9ca3af" />
+      <ChevronRight size={20} color={theme.tokens.text.tertiary} />
     </TouchableOpacity>
   );
 }
@@ -200,7 +201,7 @@ export default function SettingsScreen() {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <ArrowLeft size={24} color="#1f2937" />
+          <ArrowLeft size={24} color={theme.tokens.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Settings</Text>
         <View style={styles.headerSpacer} />
@@ -216,7 +217,7 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>Notifications</Text>
           <View style={styles.sectionCard}>
             <SettingToggle
-              icon={<Bell size={20} color="#6b7280" />}
+              icon={<Bell size={20} color={theme.tokens.text.secondary} />}
               label="Push Notifications"
               description="Receive alerts for new messages"
               value={notifications}
@@ -230,14 +231,14 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>Privacy</Text>
           <View style={styles.sectionCard}>
             <SettingLink
-              icon={<Shield size={20} color="#6b7280" />}
+              icon={<Shield size={20} color={theme.tokens.text.secondary} />}
               label="Privacy & Security"
               description="Visibility, location, blocked users"
               onPress={() => navigation.navigate('PrivacySettings' as never)}
             />
             <View style={styles.divider} />
             <SettingToggle
-              icon={<MapPin size={20} color="#6b7280" />}
+              icon={<MapPin size={20} color={theme.tokens.text.secondary} />}
               label="Location Services"
               description="Allow app to access your location"
               value={locationEnabled}
@@ -251,7 +252,7 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>Appearance</Text>
           <View style={styles.sectionCard}>
             <SettingToggle
-              icon={<Moon size={20} color="#6b7280" />}
+              icon={<Moon size={20} color={theme.tokens.text.secondary} />}
               label="Dark Mode"
               description="Use dark color theme"
               value={darkMode}
@@ -259,7 +260,7 @@ export default function SettingsScreen() {
             />
             <View style={styles.divider} />
             <SettingLink
-              icon={<Globe size={20} color="#6b7280" />}
+              icon={<Globe size={20} color={theme.tokens.text.secondary} />}
               label="Language"
               description="English"
               onPress={handleLanguage}
@@ -272,7 +273,7 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>Data</Text>
           <View style={styles.sectionCard}>
             <SettingLink
-              icon={<Trash2 size={20} color="#6b7280" />}
+              icon={<Trash2 size={20} color={theme.tokens.text.secondary} />}
               label="Clear App Data"
               description="Remove cached data"
               onPress={handleClearData}
@@ -285,7 +286,7 @@ export default function SettingsScreen() {
           <Text style={styles.sectionTitle}>Account</Text>
           <View style={styles.sectionCard}>
             <SettingLink
-              icon={<Trash2 size={20} color="#ef4444" />}
+              icon={<Trash2 size={20} color={theme.tokens.text.error} />}
               label="Delete Account"
               description="Permanently delete your account"
               onPress={handleDeleteAccount}
@@ -307,7 +308,7 @@ export default function SettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: theme.tokens.bg.canvas,
   },
   header: {
     flexDirection: 'row',
@@ -315,9 +316,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.tokens.bg.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: theme.tokens.border.subtle,
   },
   backButton: {
     width: 44,
@@ -328,7 +329,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1f2937',
+    color: theme.tokens.text.primary,
   },
   headerSpacer: {
     width: 44,
@@ -345,14 +346,14 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#6b7280',
+    color: theme.tokens.text.secondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 8,
     marginLeft: 4,
   },
   sectionCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.tokens.bg.surface,
     borderRadius: 12,
     overflow: 'hidden',
     shadowColor: '#000',
@@ -371,13 +372,13 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 10,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: theme.tokens.bg.subtle,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   settingIconDanger: {
-    backgroundColor: '#fef2f2',
+    backgroundColor: theme.tokens.status.error.bg,
   },
   settingContent: {
     flex: 1,
@@ -385,19 +386,19 @@ const styles = StyleSheet.create({
   settingLabel: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#1f2937',
+    color: theme.tokens.text.primary,
   },
   settingLabelDanger: {
-    color: '#ef4444',
+    color: theme.tokens.text.error,
   },
   settingDescription: {
     fontSize: 12,
-    color: '#9ca3af',
+    color: theme.tokens.text.tertiary,
     marginTop: 2,
   },
   divider: {
     height: 1,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: theme.tokens.border.subtle,
     marginLeft: 62,
   },
   appInfo: {
@@ -406,12 +407,12 @@ const styles = StyleSheet.create({
   },
   appVersion: {
     fontSize: 14,
-    color: '#9ca3af',
+    color: theme.tokens.text.tertiary,
     marginBottom: 4,
   },
   appCopyright: {
     fontSize: 12,
-    color: '#d1d5db',
+    color: theme.tokens.text.tertiary,
   },
 });
 

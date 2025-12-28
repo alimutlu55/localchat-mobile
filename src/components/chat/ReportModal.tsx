@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { X, AlertTriangle, Check } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { theme } from '../../core/theme';
 
 export type ReportReason =
   | 'spam'
@@ -67,7 +68,7 @@ function CheckboxOption({ label, isChecked, onToggle, disabled = false }: { labe
       activeOpacity={disabled ? 1 : 0.7}
     >
       <View style={[styles.checkboxOuter, isChecked && styles.checkboxOuterSelected, disabled && styles.checkboxOuterDisabled]}>
-        {isChecked && <Check size={14} color={disabled ? "#9ca3af" : "#ffffff"} />}
+        {isChecked && <Check size={14} color={disabled ? theme.tokens.text.tertiary : theme.tokens.text.onPrimary} />}
       </View>
       <Text style={[styles.checkboxLabel, disabled && styles.checkboxLabelDisabled]}>{label}</Text>
     </TouchableOpacity>
@@ -159,14 +160,14 @@ export function ReportModal({
           <View style={styles.header}>
             <Text style={styles.title}>{getTitle()}</Text>
             <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-              <X size={24} color="#64748b" />
+              <X size={24} color={theme.tokens.text.tertiary} />
             </TouchableOpacity>
           </View>
 
           {submitted ? (
             <View style={styles.successContainer}>
               <View style={styles.successIcon}>
-                <Check size={32} color="#22c55e" />
+                <Check size={32} color={theme.tokens.text.success} />
               </View>
               <Text style={styles.successTitle}>Thank You</Text>
               <Text style={styles.successText}>
@@ -199,7 +200,7 @@ export function ReportModal({
                   <TextInput
                     style={styles.detailsInput}
                     placeholder="Provide more context about the issue..."
-                    placeholderTextColor="#94a3b8"
+                    placeholderTextColor={theme.tokens.text.tertiary}
                     multiline
                     numberOfLines={4}
                     value={details}
@@ -243,7 +244,7 @@ export function ReportModal({
                 disabled={!selectedReason || isSubmitting}
               >
                 {isSubmitting ? (
-                  <ActivityIndicator color="#ffffff" />
+                  <ActivityIndicator color={theme.tokens.text.onPrimary} />
                 ) : (
                   <Text style={styles.submitButtonText}>Submit Report</Text>
                 )}
@@ -270,7 +271,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(15, 23, 42, 0.4)',
   },
   modal: {
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.tokens.bg.surface,
     borderTopLeftRadius: 24,
     borderTopRightRadius: 24,
     maxHeight: '90%',
@@ -283,7 +284,7 @@ const styles = StyleSheet.create({
   handle: {
     width: 40,
     height: 4,
-    backgroundColor: '#e2e8f0',
+    backgroundColor: theme.tokens.border.subtle,
     borderRadius: 2,
     alignSelf: 'center',
     marginTop: 12,
@@ -295,12 +296,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: theme.tokens.border.subtle,
   },
   title: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#0f172a',
+    color: theme.tokens.text.primary,
   },
   closeButton: {
     position: 'absolute',
@@ -316,20 +317,20 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 14,
     fontWeight: '500',
-    color: '#64748b',
+    color: theme.tokens.text.tertiary,
     marginBottom: 8,
     marginLeft: 4,
   },
   card: {
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.tokens.bg.surface,
     borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#f1f5f9',
+    borderColor: theme.tokens.border.subtle,
     overflow: 'hidden',
   },
   divider: {
     height: 1,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: theme.tokens.bg.subtle,
     marginHorizontal: 16,
   },
   radioItem: {
@@ -339,33 +340,33 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
   },
   radioItemSelected: {
-    backgroundColor: '#f8fafc',
+    backgroundColor: theme.tokens.bg.subtle,
   },
   radioOuter: {
     width: 22,
     height: 22,
     borderRadius: 11,
     borderWidth: 2,
-    borderColor: '#cbd5e1',
+    borderColor: theme.tokens.border.subtle,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   radioOuterSelected: {
-    borderColor: '#3b82f6',
+    borderColor: theme.tokens.brand.primary,
   },
   radioInner: {
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#3b82f6',
+    backgroundColor: theme.tokens.brand.primary,
   },
   radioLabel: {
     fontSize: 15,
-    color: '#334155',
+    color: theme.tokens.text.secondary,
   },
   radioLabelSelected: {
-    color: '#0f172a',
+    color: theme.tokens.text.primary,
     fontWeight: '500',
   },
   checkboxItem: {
@@ -379,69 +380,69 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 6,
     borderWidth: 2,
-    borderColor: '#cbd5e1',
+    borderColor: theme.tokens.border.subtle,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   checkboxOuterSelected: {
-    borderColor: '#3b82f6',
-    backgroundColor: '#3b82f6',
+    borderColor: theme.tokens.brand.primary,
+    backgroundColor: theme.tokens.brand.primary,
   },
   checkboxLabel: {
     fontSize: 15,
-    color: '#334155',
+    color: theme.tokens.text.secondary,
   },
   checkboxItemDisabled: {
     opacity: 0.6,
   },
   checkboxOuterDisabled: {
-    borderColor: '#9ca3af',
-    backgroundColor: '#e5e7eb',
+    borderColor: theme.tokens.text.tertiary,
+    backgroundColor: theme.tokens.bg.subtle,
   },
   checkboxLabelDisabled: {
-    color: '#9ca3af',
+    color: theme.tokens.text.tertiary,
   },
   detailsInput: {
     paddingHorizontal: 16,
     paddingVertical: 12,
     fontSize: 16,
-    color: '#0f172a',
+    color: theme.tokens.text.primary,
     height: 120,
     textAlignVertical: 'top',
   },
   charCount: {
     fontSize: 12,
-    color: '#94a3b8',
+    color: theme.tokens.text.tertiary,
     textAlign: 'right',
     paddingHorizontal: 16,
     paddingBottom: 8,
   },
   submitButton: {
-    backgroundColor: '#3b82f6',
+    backgroundColor: theme.tokens.brand.primary,
     paddingVertical: 16,
     borderRadius: 16,
     alignItems: 'center',
     marginBottom: 16,
-    shadowColor: '#3b82f6',
+    shadowColor: theme.tokens.brand.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
   },
   submitButtonDisabled: {
-    backgroundColor: '#e2e8f0',
+    backgroundColor: theme.tokens.bg.subtle,
     shadowOpacity: 0,
     elevation: 0,
   },
   submitButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: theme.tokens.text.onPrimary,
   },
   footerNote: {
     fontSize: 13,
-    color: '#94a3b8',
+    color: theme.tokens.text.tertiary,
     textAlign: 'center',
     marginBottom: 20,
   },
@@ -453,7 +454,7 @@ const styles = StyleSheet.create({
     width: 72,
     height: 72,
     borderRadius: 36,
-    backgroundColor: '#f0fdf4',
+    backgroundColor: theme.tokens.status.success.bg,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 20,
@@ -461,12 +462,12 @@ const styles = StyleSheet.create({
   successTitle: {
     fontSize: 22,
     fontWeight: '600',
-    color: '#0f172a',
+    color: theme.tokens.text.primary,
     marginBottom: 12,
   },
   successText: {
     fontSize: 16,
-    color: '#64748b',
+    color: theme.tokens.text.tertiary,
     textAlign: 'center',
     lineHeight: 24,
   },
@@ -474,14 +475,14 @@ const styles = StyleSheet.create({
     marginHorizontal: 20,
     marginVertical: 12,
     padding: 16,
-    backgroundColor: '#f0f9ff',
+    backgroundColor: theme.tokens.status.info.bg,
     borderRadius: 12,
     borderLeftWidth: 4,
-    borderLeftColor: '#3b82f6',
+    borderLeftColor: theme.tokens.status.info.main,
   },
   infoText: {
     fontSize: 14,
-    color: '#1e40af',
+    color: theme.tokens.status.info.main,
     lineHeight: 20,
   },
 });

@@ -32,6 +32,7 @@ import {
     Shield,
     PlusCircle,
 } from 'lucide-react-native';
+import { theme } from '../../core/theme';
 import { Room } from '../../types';
 import { ParticipantList } from './ParticipantList';
 import { roomService, ParticipantDTO } from '../../services';
@@ -60,7 +61,7 @@ export function RoomInfoDrawer({
     const insets = useSafeAreaInsets();
     const { height: SCREEN_HEIGHT } = useWindowDimensions();
     const DRAWER_HEIGHT = SCREEN_HEIGHT * 0.95; // 95% of screen height for nearly fullscreen
-    
+
     const [participants, setParticipants] = useState<ParticipantDTO[]>([]);
     const [isLoadingParticipants, setIsLoadingParticipants] = useState(false);
     const [showParticipantList, setShowParticipantList] = useState(false);
@@ -208,7 +209,7 @@ export function RoomInfoDrawer({
                 >
                     {/* Header */}
                     <View style={styles.header}>
-                        <View style={[styles.emojiContainer, { backgroundColor: '#fff5f5' }]}>
+                        <View style={[styles.emojiContainer, { backgroundColor: theme.tokens.action.secondary.default }]}>
                             <Text style={styles.emoji}>💬</Text>
                         </View>
                         <View style={styles.headerText}>
@@ -243,7 +244,7 @@ export function RoomInfoDrawer({
                         <View style={styles.grid}>
                             <View style={styles.gridItem}>
                                 <View style={styles.gridItemHeader}>
-                                    <Users size={18} color="#6b7280" />
+                                    <Users size={18} color={theme.tokens.text.tertiary} />
                                     <Text style={styles.gridLabel}>Participants</Text>
                                 </View>
                                 <Text style={styles.gridValue}>{room.participantCount}/{room.maxParticipants}</Text>
@@ -251,7 +252,7 @@ export function RoomInfoDrawer({
 
                             <View style={styles.gridItem}>
                                 <View style={styles.gridItemHeader}>
-                                    <Clock size={18} color="#6b7280" />
+                                    <Clock size={18} color={theme.tokens.text.tertiary} />
                                     <Text style={styles.gridLabel}>Expires in</Text>
                                 </View>
                                 <Text style={styles.gridValue}>{room.timeRemaining}</Text>
@@ -259,7 +260,7 @@ export function RoomInfoDrawer({
 
                             <View style={styles.gridItem}>
                                 <View style={styles.gridItemHeader}>
-                                    <MapPin size={18} color="#6b7280" />
+                                    <MapPin size={18} color={theme.tokens.text.tertiary} />
                                     <Text style={styles.gridLabel}>Distance</Text>
                                 </View>
                                 <Text style={styles.gridValue}>{room.distanceDisplay || 'Nearby'}</Text>
@@ -267,7 +268,7 @@ export function RoomInfoDrawer({
 
                             <View style={styles.gridItem}>
                                 <View style={styles.gridItemHeader}>
-                                    <MessageCircle size={18} color="#6b7280" />
+                                    <MessageCircle size={18} color={theme.tokens.text.tertiary} />
                                     <Text style={styles.gridLabel}>Created</Text>
                                 </View>
                                 <Text style={styles.gridValue}>0m ago</Text>
@@ -277,7 +278,7 @@ export function RoomInfoDrawer({
 
                     {/* Share Button */}
                     <TouchableOpacity style={styles.shareButtonStyle} onPress={handleShare}>
-                        <Share2 size={20} color="#374151" />
+                        <Share2 size={20} color={theme.tokens.text.secondary} />
                         <Text style={styles.shareButtonText}>Share Room</Text>
                     </TouchableOpacity>
 
@@ -285,7 +286,7 @@ export function RoomInfoDrawer({
                     {isCreator && (
                         <View style={styles.creatorSection}>
                             <View style={styles.sectionTitleRow}>
-                                <Crown size={20} color="#f59e0b" />
+                                <Crown size={20} color={theme.tokens.status.warning.main} />
                                 <Text style={styles.creatorSectionTitle}>Creator Controls</Text>
                             </View>
 
@@ -296,7 +297,7 @@ export function RoomInfoDrawer({
                                             style={styles.creatorActionButton}
                                             onPress={handleExtendRoom}
                                         >
-                                            <PlusCircle size={20} color="#22c55e" />
+                                            <PlusCircle size={20} color={theme.tokens.status.success.main} />
                                             <Text style={styles.creatorActionText}>Extend Time</Text>
                                         </TouchableOpacity>
 
@@ -304,7 +305,7 @@ export function RoomInfoDrawer({
                                             style={styles.creatorActionButton}
                                             onPress={() => setShowParticipantList(true)}
                                         >
-                                            <Users size={20} color="#3b82f6" />
+                                            <Users size={20} color={theme.tokens.status.info.main} />
                                             <Text style={styles.creatorActionText}>Manage Users</Text>
                                         </TouchableOpacity>
 
@@ -312,7 +313,7 @@ export function RoomInfoDrawer({
                                             style={styles.creatorActionButton}
                                             onPress={() => setShowBannedUsers(true)}
                                         >
-                                            <Ban size={20} color="#ef4444" />
+                                            <Ban size={20} color={theme.tokens.text.error} />
                                             <Text style={styles.creatorActionText}>Banned Users</Text>
                                         </TouchableOpacity>
 
@@ -320,7 +321,7 @@ export function RoomInfoDrawer({
                                             style={styles.creatorActionButton}
                                             onPress={() => onCloseRoom && onCloseRoom()}
                                         >
-                                            <Lock size={20} color="#64748b" />
+                                            <Lock size={20} color={theme.tokens.text.tertiary} />
                                             <Text style={styles.creatorActionText}>Close Room</Text>
                                         </TouchableOpacity>
                                     </>
@@ -332,7 +333,7 @@ export function RoomInfoDrawer({
                     {/* Participants Inline List */}
                     <View style={styles.participantsSection}>
                         <View style={styles.sectionTitleRow}>
-                            <Users size={20} color="#6b7280" />
+                            <Users size={20} color={theme.tokens.text.tertiary} />
                             <Text style={styles.participantsSectionTitle}>Participants ({participants.length})</Text>
                         </View>
 
@@ -350,7 +351,7 @@ export function RoomInfoDrawer({
                                     <View style={styles.participantInfoText}>
                                         <View style={styles.nameRow}>
                                             <Text style={styles.participantName}>{participant.displayName}</Text>
-                                            <Shield size={14} color="#3b82f6" />
+                                            <Shield size={14} color={theme.tokens.status.info.main} />
                                             {participant.userId === currentUserId && (
                                                 <View style={styles.youBadge}>
                                                     <Text style={styles.youBadgeText}>You</Text>
@@ -397,10 +398,10 @@ const styles = StyleSheet.create({
         bottom: 0,
         left: 0,
         right: 0,
-        backgroundColor: '#ffffff',
+        backgroundColor: theme.tokens.bg.surface,
         borderTopLeftRadius: 24,
         borderTopRightRadius: 24,
-        shadowColor: '#000',
+        shadowColor: theme.tokens.border.strong,
         shadowOffset: { width: 0, height: -4 },
         shadowOpacity: 0.1,
         shadowRadius: 12,
@@ -414,7 +415,7 @@ const styles = StyleSheet.create({
     handle: {
         width: 36,
         height: 5,
-        backgroundColor: '#94a3b8',
+        backgroundColor: theme.tokens.text.tertiary,
         borderRadius: 3,
     },
     content: {
@@ -447,7 +448,7 @@ const styles = StyleSheet.create({
     title: {
         fontSize: 22,
         fontWeight: '600',
-        color: '#1f2937',
+        color: theme.tokens.text.primary,
         marginBottom: 6,
     },
     badgeRow: {
@@ -460,15 +461,15 @@ const styles = StyleSheet.create({
         borderRadius: 8,
     },
     categoryBadge: {
-        backgroundColor: '#f3e8ff',
+        backgroundColor: theme.tokens.status.info.bg,
     },
     categoryBadgeText: {
         fontSize: 12,
-        color: '#9333ea',
+        color: theme.tokens.status.info.main,
         fontWeight: '500',
     },
     creatorBadge: {
-        backgroundColor: '#dbeafe',
+        backgroundColor: theme.tokens.status.info.bg,
     },
     creatorBadgeText: {
         fontSize: 12,
@@ -476,11 +477,11 @@ const styles = StyleSheet.create({
         fontWeight: '500',
     },
     joinedBadge: {
-        backgroundColor: '#dcfce7',
+        backgroundColor: theme.tokens.status.success.bg,
     },
     joinedBadgeText: {
         fontSize: 12,
-        color: '#16a34a',
+        color: theme.tokens.status.success.main,
         fontWeight: '500',
     },
     section: {
@@ -489,12 +490,12 @@ const styles = StyleSheet.create({
     sectionHeading: {
         fontSize: 13,
         fontWeight: '500',
-        color: '#6b7280',
+        color: theme.tokens.text.tertiary,
         marginBottom: 12,
     },
     descriptionText: {
         fontSize: 15,
-        color: '#374151',
+        color: theme.tokens.text.secondary,
         lineHeight: 20,
     },
     grid: {
@@ -505,7 +506,7 @@ const styles = StyleSheet.create({
     gridItem: {
         flex: 1,
         minWidth: '45%',
-        backgroundColor: '#f8fafc',
+        backgroundColor: theme.tokens.bg.subtle,
         borderRadius: 12,
         padding: 12,
     },
@@ -517,18 +518,18 @@ const styles = StyleSheet.create({
     },
     gridLabel: {
         fontSize: 12,
-        color: '#6b7280',
+        color: theme.tokens.text.tertiary,
     },
     gridValue: {
         fontSize: 18,
         fontWeight: '500',
-        color: '#1f2937',
+        color: theme.tokens.text.primary,
     },
     shareButtonStyle: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#f1f5f9',
+        backgroundColor: theme.tokens.bg.subtle,
         borderRadius: 12,
         paddingVertical: 14,
         gap: 8,
@@ -537,12 +538,12 @@ const styles = StyleSheet.create({
     shareButtonText: {
         fontSize: 16,
         fontWeight: '500',
-        color: '#1f2937',
+        color: theme.tokens.text.primary,
     },
     creatorSection: {
         marginBottom: 24,
         borderTopWidth: 1,
-        borderTopColor: '#f1f5f9',
+        borderTopColor: theme.tokens.border.subtle,
         paddingTop: 20,
     },
     sectionTitleRow: {
@@ -554,7 +555,7 @@ const styles = StyleSheet.create({
     creatorSectionTitle: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#1f2937',
+        color: theme.tokens.text.primary,
     },
     creatorActions: {
         gap: 12,
@@ -562,7 +563,7 @@ const styles = StyleSheet.create({
     creatorActionButton: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#f8fafc',
+        backgroundColor: theme.tokens.bg.subtle,
         paddingVertical: 14,
         paddingHorizontal: 16,
         borderRadius: 12,
@@ -571,20 +572,20 @@ const styles = StyleSheet.create({
     creatorActionText: {
         fontSize: 15,
         fontWeight: '500',
-        color: '#1f2937',
+        color: theme.tokens.text.primary,
     },
     participantsSection: {
         borderTopWidth: 1,
-        borderTopColor: '#f1f5f9',
+        borderTopColor: theme.tokens.border.subtle,
         paddingTop: 16,
     },
     participantsSectionTitle: {
         fontSize: 14,
         fontWeight: '500',
-        color: '#374151',
+        color: theme.tokens.text.secondary,
     },
     participantsContainer: {
-        backgroundColor: '#f8fafc',
+        backgroundColor: theme.tokens.bg.subtle,
         borderRadius: 16,
         padding: 8,
         marginTop: 8,
@@ -598,7 +599,7 @@ const styles = StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: 12,
-        backgroundColor: '#ffedd5',
+        backgroundColor: theme.tokens.action.secondary.default,
         justifyContent: 'center',
         alignItems: 'center',
         marginRight: 16,
@@ -606,7 +607,7 @@ const styles = StyleSheet.create({
     avatarText: {
         fontSize: 18,
         fontWeight: '600',
-        color: '#9a3412',
+        color: theme.tokens.brand.primary,
     },
     participantInfoText: {
         flex: 1,
@@ -620,21 +621,21 @@ const styles = StyleSheet.create({
     participantName: {
         fontSize: 16,
         fontWeight: '500',
-        color: '#1f2937',
+        color: theme.tokens.text.primary,
     },
     youBadge: {
-        backgroundColor: '#e2e8f0',
+        backgroundColor: theme.tokens.bg.subtle,
         paddingHorizontal: 6,
         paddingVertical: 2,
         borderRadius: 4,
     },
     youBadgeText: {
         fontSize: 12,
-        color: '#64748b',
+        color: theme.tokens.text.tertiary,
         fontWeight: '500',
     },
     modBadge: {
-        backgroundColor: '#dbeafe',
+        backgroundColor: theme.tokens.status.info.bg,
         paddingHorizontal: 8,
         paddingVertical: 2,
         borderRadius: 4,
@@ -642,7 +643,7 @@ const styles = StyleSheet.create({
     },
     modBadgeText: {
         fontSize: 11,
-        color: '#2563eb',
+        color: theme.tokens.status.info.main,
         fontWeight: '500',
     },
 });

@@ -12,6 +12,7 @@
 import React from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { Plus, Minus, Navigation, Globe } from 'lucide-react-native';
+import { theme } from '../../../core/theme';
 
 interface MapControlsProps {
   /** Handler for zoom in */
@@ -45,7 +46,7 @@ export function MapControls({
           onPress={onZoomIn}
           activeOpacity={0.7}
         >
-          <Plus size={18} color="#374151" strokeWidth={1.5} />
+          <Plus size={18} color={theme.tokens.text.secondary} strokeWidth={1.5} />
         </TouchableOpacity>
         <View style={styles.zoomDivider} />
         <TouchableOpacity
@@ -53,7 +54,7 @@ export function MapControls({
           onPress={onZoomOut}
           activeOpacity={0.7}
         >
-          <Minus size={18} color="#374151" strokeWidth={1.5} />
+          <Minus size={18} color={theme.tokens.text.secondary} strokeWidth={1.5} />
         </TouchableOpacity>
       </View>
 
@@ -68,7 +69,7 @@ export function MapControls({
       >
         <Navigation
           size={18}
-          color={hasUserLocation ? '#2563eb' : '#6b7280'}
+          color={hasUserLocation ? theme.tokens.status.info.main : theme.tokens.text.tertiary}
           strokeWidth={1.5}
         />
       </TouchableOpacity>
@@ -80,7 +81,7 @@ export function MapControls({
           onPress={onResetView}
           activeOpacity={0.7}
         >
-          <Globe size={18} color="#f97316" strokeWidth={1.5} />
+          <Globe size={18} color={theme.tokens.brand.primary} strokeWidth={1.5} />
         </TouchableOpacity>
       )}
     </View>
@@ -98,7 +99,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 12,
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.tokens.bg.surface,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -107,13 +108,13 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: theme.tokens.border.subtle,
   },
   controlButtonActive: {
-    backgroundColor: '#eff6ff',
+    backgroundColor: theme.tokens.status.info.bg,
   },
   zoomCard: {
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.tokens.bg.surface,
     borderRadius: 16,
     padding: 2,
     shadowColor: '#000',
@@ -122,7 +123,7 @@ const styles = StyleSheet.create({
     shadowRadius: 3,
     elevation: 2,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: theme.tokens.border.subtle,
   },
   zoomButton: {
     width: 36,
@@ -133,7 +134,7 @@ const styles = StyleSheet.create({
   },
   zoomDivider: {
     height: 1,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: theme.tokens.border.subtle,
     marginVertical: 1,
   },
 });

@@ -31,6 +31,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
+import { theme } from '../../../core/theme';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   ArrowLeft,
@@ -490,7 +491,7 @@ export default function ChatRoomScreen() {
   if (!room && !initialRoom) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#f97316" />
+        <ActivityIndicator size="large" color={theme.tokens.brand.primary} />
       </View>
     );
   }
@@ -511,7 +512,7 @@ export default function ChatRoomScreen() {
         <ConnectionBanner state={connectionState} />
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <ArrowLeft size={24} color="#1f2937" />
+            <ArrowLeft size={24} color={theme.tokens.text.primary} />
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.headerContent} onPress={handleRoomInfo}>
@@ -524,7 +525,7 @@ export default function ChatRoomScreen() {
           </TouchableOpacity>
 
           <TouchableOpacity style={styles.menuButton} onPress={() => setShowMenu(true)}>
-            <MoreVertical size={22} color="#6b7280" />
+            <MoreVertical size={22} color={theme.tokens.text.tertiary} />
           </TouchableOpacity>
         </View>
       </View>
@@ -538,7 +539,7 @@ export default function ChatRoomScreen() {
         {/* Show loading indicator while fetching messages */}
         {isLoading ? (
           <View style={styles.loadingMessages}>
-            <ActivityIndicator size="large" color="#f97316" />
+            <ActivityIndicator size="large" color={theme.tokens.brand.primary} />
           </View>
         ) : (
           <FlatList
@@ -580,7 +581,7 @@ export default function ChatRoomScreen() {
               ref={inputRef}
               style={styles.input}
               placeholder="Type a message..."
-              placeholderTextColor="#94a3b8"
+              placeholderTextColor={theme.tokens.text.tertiary}
               value={inputText}
               onChangeText={setInputText}
               multiline
@@ -592,7 +593,7 @@ export default function ChatRoomScreen() {
             onPress={handleSubmit}
             disabled={!canSend}
           >
-            <Send size={22} color={canSend ? '#f97316' : '#94a3b8'} />
+            <Send size={22} color={canSend ? theme.tokens.brand.primary : theme.tokens.text.tertiary} />
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -640,7 +641,7 @@ export default function ChatRoomScreen() {
             onPress={() => setShowBlockedWarning(false)}
           />
           <View style={styles.warningModal}>
-            <AlertCircle size={32} color="#f97316" />
+            <AlertCircle size={32} color={theme.tokens.brand.primary} />
             <Text style={styles.warningTitle}>Blocked user in chat</Text>
             <Text style={styles.warningDescription}>
               A user you've blocked is in this chat.
@@ -674,13 +675,13 @@ export default function ChatRoomScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.tokens.bg.surface,
   },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.tokens.bg.surface,
   },
   loadingMessages: {
     flex: 1,
@@ -688,9 +689,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   headerContainer: {
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.tokens.bg.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#f1f5f9',
+    borderBottomColor: theme.tokens.border.subtle,
     zIndex: 10,
   },
   header: {
@@ -712,11 +713,11 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#0f172a',
+    color: theme.tokens.text.primary,
   },
   headerSubtitle: {
     fontSize: 12,
-    color: '#94a3b8',
+    color: theme.tokens.text.tertiary,
     marginTop: 1,
   },
   menuButton: {
@@ -760,26 +761,26 @@ const styles = StyleSheet.create({
   emptyTitle: {
     fontSize: 20,
     fontWeight: '600',
-    color: '#1e293b',
+    color: theme.tokens.text.primary,
     marginBottom: 8,
   },
   emptySubtitle: {
     fontSize: 16,
-    color: '#64748b',
+    color: theme.tokens.text.secondary,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
     paddingVertical: 12,
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.tokens.bg.surface,
     borderTopWidth: 1,
-    borderTopColor: '#f1f5f9',
+    borderTopColor: theme.tokens.border.subtle,
     gap: 12,
   },
   inputWrapper: {
     flex: 1,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: theme.tokens.bg.subtle,
     borderRadius: 12,
     minHeight: 40,
     justifyContent: 'center',
@@ -787,7 +788,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1,
     fontSize: 16,
-    color: '#0f172a',
+    color: theme.tokens.text.primary,
     paddingHorizontal: 16,
     paddingVertical: 8,
   },
@@ -795,7 +796,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: theme.tokens.bg.subtle,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -810,7 +811,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.5)',
   },
   warningModal: {
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.tokens.bg.surface,
     borderRadius: 24,
     padding: 24,
     width: '100%',
@@ -820,14 +821,14 @@ const styles = StyleSheet.create({
   warningTitle: {
     fontSize: 20,
     fontWeight: '700',
-    color: '#0f172a',
+    color: theme.tokens.text.primary,
     textAlign: 'center',
     marginTop: 16,
     marginBottom: 8,
   },
   warningDescription: {
     fontSize: 15,
-    color: '#64748b',
+    color: theme.tokens.text.secondary,
     textAlign: 'center',
     marginBottom: 24,
   },
@@ -835,13 +836,13 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 52,
     borderRadius: 16,
-    backgroundColor: '#f97316',
+    backgroundColor: theme.tokens.brand.primary,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 12,
   },
   stayButtonText: {
-    color: '#ffffff',
+    color: theme.tokens.text.onPrimary,
     fontSize: 16,
     fontWeight: '600',
   },
@@ -849,12 +850,12 @@ const styles = StyleSheet.create({
     width: '100%',
     height: 52,
     borderRadius: 16,
-    backgroundColor: '#f1f5f9',
+    backgroundColor: theme.tokens.bg.subtle,
     justifyContent: 'center',
     alignItems: 'center',
   },
   leaveButtonText: {
-    color: '#475569',
+    color: theme.tokens.text.secondary,
     fontSize: 16,
     fontWeight: '600',
   },

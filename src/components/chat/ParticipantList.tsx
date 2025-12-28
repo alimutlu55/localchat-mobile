@@ -30,6 +30,7 @@ import {
 } from 'lucide-react-native';
 import { roomService, ParticipantDTO } from '../../services';
 import { AvatarDisplay } from '../profile';
+import { theme } from '../../core/theme';
 
 interface ParticipantListProps {
   roomId: string;
@@ -128,9 +129,9 @@ export function ParticipantList({
   const getRoleIcon = (role: string) => {
     switch (role) {
       case 'creator':
-        return <Crown size={14} color="#f59e0b" />;
+        return <Crown size={14} color={theme.tokens.status.warning.main} />;
       case 'moderator':
-        return <Shield size={14} color="#3b82f6" />;
+        return <Shield size={14} color={theme.tokens.status.info.main} />;
       default:
         return null;
     }
@@ -141,14 +142,14 @@ export function ParticipantList({
       case 'creator':
         return (
           <View style={[styles.roleBadge, styles.creatorBadge]}>
-            <Crown size={10} color="#f59e0b" />
+            <Crown size={10} color={theme.tokens.status.warning.main} />
             <Text style={styles.creatorBadgeText}>Creator</Text>
           </View>
         );
       case 'moderator':
         return (
           <View style={[styles.roleBadge, styles.modBadge]}>
-            <Shield size={10} color="#3b82f6" />
+            <Shield size={10} color={theme.tokens.status.info.main} />
             <Text style={styles.modBadgeText}>Mod</Text>
           </View>
         );
@@ -186,21 +187,21 @@ export function ParticipantList({
         {canModerate && (
           <View style={styles.actions}>
             {isProcessing ? (
-              <ActivityIndicator size="small" color="#f97316" />
+              <ActivityIndicator size="small" color={theme.tokens.brand.primary} />
             ) : (
               <>
                 <TouchableOpacity
                   style={styles.actionButtonWithLabel}
                   onPress={() => handleKick(item.userId, item.displayName)}
                 >
-                  <UserX size={16} color="#f97316" />
+                  <Users size={20} color={theme.tokens.brand.primary} />
                   <Text style={styles.actionButtonText}>Kick</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={styles.actionButtonWithLabel}
                   onPress={() => handleBanClick(item.userId, item.displayName)}
                 >
-                  <Ban size={16} color="#ef4444" />
+                  <Ban size={16} color={theme.tokens.text.error} />
                   <Text style={styles.actionButtonText}>Ban</Text>
                 </TouchableOpacity>
               </>
@@ -227,20 +228,20 @@ export function ParticipantList({
             {/* Header */}
             <View style={styles.header}>
               <View style={styles.headerIcon}>
-                <Users size={20} color="#f97316" />
+                <Users size={20} color={theme.tokens.brand.primary} />
               </View>
               <Text style={styles.title}>
                 Participants ({participants.length})
               </Text>
               <TouchableOpacity onPress={onClose} style={styles.closeButton}>
-                <X size={20} color="#6b7280" />
+                <X size={20} color={theme.tokens.text.tertiary} />
               </TouchableOpacity>
             </View>
 
             {/* Content */}
             {isLoading ? (
               <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#f97316" />
+                <ActivityIndicator size="large" color={theme.tokens.brand.primary} />
               </View>
             ) : error ? (
               <View style={styles.errorContainer}>
@@ -279,7 +280,7 @@ export function ParticipantList({
             <TextInput
               style={styles.reasonInput}
               placeholder="Reason (optional)"
-              placeholderTextColor="#9ca3af"
+              placeholderTextColor={theme.tokens.text.tertiary}
               value={banReason}
               onChangeText={setBanReason}
               multiline
@@ -313,7 +314,7 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   modal: {
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.tokens.bg.surface,
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
     maxHeight: '80%',
@@ -322,7 +323,7 @@ const styles = StyleSheet.create({
   handle: {
     width: 36,
     height: 4,
-    backgroundColor: '#d1d5db',
+    backgroundColor: theme.tokens.border.subtle,
     borderRadius: 2,
     alignSelf: 'center',
     marginTop: 8,
@@ -333,13 +334,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: theme.tokens.border.subtle,
   },
   headerIcon: {
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#fff7ed',
+    backgroundColor: theme.tokens.action.secondary.default,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -348,7 +349,7 @@ const styles = StyleSheet.create({
     flex: 1,
     fontSize: 18,
     fontWeight: '600',
-    color: '#1f2937',
+    color: theme.tokens.text.primary,
   },
   closeButton: {
     width: 32,
@@ -366,18 +367,18 @@ const styles = StyleSheet.create({
   },
   errorText: {
     fontSize: 14,
-    color: '#ef4444',
+    color: theme.tokens.text.error,
     marginBottom: 12,
   },
   retryButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: theme.tokens.bg.subtle,
     borderRadius: 8,
   },
   retryText: {
     fontSize: 14,
-    color: '#374151',
+    color: theme.tokens.text.primary,
     fontWeight: '500',
   },
   list: {
@@ -388,13 +389,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: theme.tokens.border.subtle,
   },
   avatar: {
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#e5e7eb',
+    backgroundColor: theme.tokens.bg.subtle,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -425,7 +426,7 @@ const styles = StyleSheet.create({
   },
   youLabel: {
     fontSize: 13,
-    color: '#9ca3af',
+    color: theme.tokens.text.tertiary,
     fontWeight: '400',
   },
   roleBadge: {
@@ -437,12 +438,12 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   creatorBadge: {
-    backgroundColor: '#fef3c7',
+    backgroundColor: theme.tokens.status.warning.bg,
   },
   creatorBadgeText: {
     fontSize: 10,
     fontWeight: '600',
-    color: '#f59e0b',
+    color: theme.tokens.status.warning.main,
   },
   modBadge: {
     backgroundColor: '#dbeafe',
@@ -460,7 +461,7 @@ const styles = StyleSheet.create({
     width: 36,
     height: 36,
     borderRadius: 18,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: theme.tokens.bg.subtle,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -470,13 +471,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: theme.tokens.bg.subtle,
     gap: 6,
   },
   actionButtonText: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#374151',
+    color: theme.tokens.text.secondary,
   },
   // Ban Dialog
   dialogOverlay: {
@@ -487,7 +488,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   dialog: {
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.tokens.bg.surface,
     borderRadius: 16,
     padding: 20,
     width: '100%',
@@ -496,20 +497,20 @@ const styles = StyleSheet.create({
   dialogTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1f2937',
+    color: theme.tokens.text.primary,
     marginBottom: 8,
   },
   dialogMessage: {
     fontSize: 14,
-    color: '#6b7280',
+    color: theme.tokens.text.tertiary,
     marginBottom: 16,
   },
   reasonInput: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: theme.tokens.bg.subtle,
     borderRadius: 8,
     padding: 12,
     fontSize: 14,
-    color: '#1f2937',
+    color: theme.tokens.text.primary,
     marginBottom: 16,
     minHeight: 60,
     textAlignVertical: 'top',
@@ -528,19 +529,19 @@ const styles = StyleSheet.create({
   dialogButtonCancelText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: theme.tokens.text.secondary,
   },
   dialogButtonConfirm: {
     flex: 1,
     padding: 12,
     borderRadius: 8,
-    backgroundColor: '#ef4444',
+    backgroundColor: theme.tokens.text.error,
     alignItems: 'center',
   },
   dialogButtonConfirmText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#ffffff',
+    color: theme.tokens.text.onPrimary,
   },
 });
 

@@ -13,6 +13,7 @@ import {
   TouchableOpacity,
 } from 'react-native';
 import { CATEGORIES } from '../../constants';
+import { theme } from '../../core/theme';
 
 interface CategoryChipsProps {
   selectedCategory: string | null;
@@ -88,17 +89,17 @@ const styles = StyleSheet.create({
   chip: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.tokens.bg.surface,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 20,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: theme.tokens.border.subtle,
     gap: 6,
   },
   chipSelected: {
-    backgroundColor: '#fff7ed',
-    borderColor: '#f97316',
+    backgroundColor: theme.tokens.action.secondary.default,
+    borderColor: theme.tokens.brand.primary,
   },
   chipEmoji: {
     fontSize: 14,
@@ -106,11 +107,11 @@ const styles = StyleSheet.create({
   chipText: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#6b7280',
+    color: theme.tokens.text.secondary,
     textTransform: 'capitalize',
   },
   chipTextSelected: {
-    color: '#f97316',
+    color: theme.tokens.brand.primary,
   },
 });
 

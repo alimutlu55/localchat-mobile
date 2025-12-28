@@ -14,6 +14,7 @@ import {
   Text,
 } from 'react-native';
 import { ChevronDown } from 'lucide-react-native';
+import { theme } from '../../core/theme';
 
 interface ScrollToBottomButtonProps {
   visible: boolean;
@@ -77,7 +78,7 @@ export function ScrollToBottomButton({
         onPress={onPress}
         activeOpacity={0.8}
       >
-        <ChevronDown size={24} color="#6b7280" />
+        <ChevronDown size={24} color={theme.tokens.text.tertiary} />
 
         {/* Unread badge */}
         {unreadCount > 0 && (
@@ -102,7 +103,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.tokens.bg.surface,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -118,13 +119,13 @@ const styles = StyleSheet.create({
     minWidth: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#f97316',
+    backgroundColor: theme.tokens.brand.primary,
     justifyContent: 'center',
     alignItems: 'center',
     paddingHorizontal: 6,
   },
   badgeText: {
-    color: '#ffffff',
+    color: theme.tokens.text.onPrimary,
     fontSize: 11,
     fontWeight: '600',
   },

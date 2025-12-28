@@ -14,6 +14,7 @@ import {
   Pressable,
 } from 'react-native';
 import { ChevronDown, Check } from 'lucide-react-native';
+import { theme } from '../../core/theme';
 
 export type SortOption = 'distance' | 'participants' | 'newest' | 'expiring';
 
@@ -53,7 +54,7 @@ export function SortDropdown({ value, onChange }: SortDropdownProps) {
         activeOpacity={0.7}
       >
         <Text style={styles.triggerText}>{selectedOption?.label}</Text>
-        <ChevronDown size={16} color="#6b7280" />
+        <ChevronDown size={16} color={theme.tokens.text.tertiary} />
       </TouchableOpacity>
 
       <Modal
@@ -82,7 +83,7 @@ export function SortDropdown({ value, onChange }: SortDropdownProps) {
                   <Text style={styles.optionDescription}>{option.description}</Text>
                 </View>
                 {value === option.value && (
-                  <Check size={20} color="#f97316" />
+                  <Check size={20} color={theme.tokens.brand.primary} />
                 )}
               </TouchableOpacity>
             ))}
@@ -97,18 +98,18 @@ const styles = StyleSheet.create({
   trigger: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.tokens.bg.surface,
     paddingHorizontal: 12,
     paddingVertical: 8,
     borderRadius: 8,
     borderWidth: 1,
-    borderColor: '#e5e7eb',
+    borderColor: theme.tokens.border.subtle,
     gap: 6,
   },
   triggerText: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#374151',
+    color: theme.tokens.text.primary,
   },
   overlay: {
     flex: 1,
@@ -118,7 +119,7 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   dropdown: {
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.tokens.bg.surface,
     borderRadius: 16,
     width: '100%',
     maxWidth: 320,
@@ -127,7 +128,7 @@ const styles = StyleSheet.create({
   dropdownTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6b7280',
+    color: theme.tokens.text.secondary,
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
@@ -143,14 +144,14 @@ const styles = StyleSheet.create({
   optionLabel: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#1f2937',
+    color: theme.tokens.text.primary,
   },
   optionLabelSelected: {
-    color: '#f97316',
+    color: theme.tokens.brand.primary,
   },
   optionDescription: {
     fontSize: 12,
-    color: '#9ca3af',
+    color: theme.tokens.text.tertiary,
     marginTop: 2,
   },
 });

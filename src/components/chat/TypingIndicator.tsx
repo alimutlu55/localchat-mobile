@@ -7,6 +7,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
+import { theme } from '../../core/theme';
 
 interface TypingIndicatorProps {
   users: string[];
@@ -111,11 +112,11 @@ const styles = StyleSheet.create({
     width: 6,
     height: 6,
     borderRadius: 3,
-    backgroundColor: '#f97316',
+    backgroundColor: theme.tokens.brand.primary,
   },
   text: {
     fontSize: 12,
-    color: '#9ca3af',
+    color: theme.tokens.text.tertiary,
     fontStyle: 'italic',
   },
 });

@@ -11,6 +11,7 @@
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { theme } from '../../core/theme';
 import {
   UserPlus,
   UserMinus,
@@ -58,34 +59,34 @@ export function SystemMessage({ type, content, timestamp }: SystemMessageProps) 
   const getIconColor = () => {
     switch (type) {
       case 'user_joined':
-        return '#22c55e'; // green
+        return theme.tokens.status.success.main;
       case 'user_left':
-        return '#9ca3af'; // gray
+        return theme.tokens.text.tertiary;
       case 'user_kicked':
-        return '#f97316'; // orange
+        return theme.tokens.brand.primary;
       case 'user_banned':
-        return '#ef4444'; // red
+        return theme.tokens.status.error.main;
       case 'room_closed':
-        return '#6b7280'; // gray
+        return theme.tokens.text.secondary;
       default:
-        return '#6b7280';
+        return theme.tokens.text.secondary;
     }
   };
 
   const getBackgroundColor = () => {
     switch (type) {
       case 'user_joined':
-        return '#f0fdf4';
+        return theme.tokens.status.success.bg;
       case 'user_left':
-        return '#f3f4f6';
+        return theme.tokens.bg.subtle;
       case 'user_kicked':
-        return '#fff7ed';
+        return theme.tokens.action.secondary.default;
       case 'user_banned':
-        return '#fef2f2';
+        return theme.tokens.status.error.bg;
       case 'room_closed':
-        return '#f3f4f6';
+        return theme.tokens.bg.subtle;
       default:
-        return '#f3f4f6';
+        return theme.tokens.bg.subtle;
     }
   };
 
@@ -144,11 +145,11 @@ const styles = StyleSheet.create({
   },
   text: {
     fontSize: 12,
-    color: '#6b7280',
+    color: theme.tokens.text.secondary,
   },
   time: {
     fontSize: 10,
-    color: '#9ca3af',
+    color: theme.tokens.text.tertiary,
     marginLeft: 4,
   },
 });

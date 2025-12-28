@@ -34,6 +34,7 @@ import {
 } from 'lucide-react-native';
 import { useSettings } from '../../features/user';
 import { blockService, BlockedUser } from '../../services';
+import { theme } from '../../core/theme';
 
 type LocationMode = 'precise' | 'approximate' | 'manual' | 'off';
 
@@ -122,7 +123,7 @@ export default function PrivacySettingsScreen() {
           style={styles.backButton}
           onPress={() => navigation.goBack()}
         >
-          <ArrowLeft size={24} color="#1f2937" />
+          <ArrowLeft size={24} color={theme.tokens.text.primary} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Privacy & Security</Text>
         <View style={styles.placeholder} />
@@ -134,7 +135,7 @@ export default function PrivacySettingsScreen() {
         <View style={styles.card}>
           <View style={styles.settingRow}>
             <View style={styles.settingIcon}>
-              <Eye size={20} color="#374151" />
+              <Eye size={20} color={theme.tokens.text.secondary} />
             </View>
             <View style={styles.settingContent}>
               <Text style={styles.settingLabel}>Show Online Status</Text>
@@ -145,8 +146,8 @@ export default function PrivacySettingsScreen() {
             <Switch
               value={showOnlineStatus}
               onValueChange={(value) => handleToggle('showOnlineStatus', value)}
-              trackColor={{ false: '#d1d5db', true: '#fdba74' }}
-              thumbColor={showOnlineStatus ? '#f97316' : '#f4f4f5'}
+              trackColor={{ false: theme.tokens.border.strong, true: theme.tokens.action.secondary.active }}
+              thumbColor={showOnlineStatus ? theme.tokens.brand.primary : theme.tokens.bg.subtle}
             />
           </View>
 
@@ -154,7 +155,7 @@ export default function PrivacySettingsScreen() {
 
           <View style={styles.settingRow}>
             <View style={styles.settingIcon}>
-              <Clock size={20} color="#374151" />
+              <Clock size={20} color={theme.tokens.text.secondary} />
             </View>
             <View style={styles.settingContent}>
               <Text style={styles.settingLabel}>Show Last Seen</Text>
@@ -165,8 +166,8 @@ export default function PrivacySettingsScreen() {
             <Switch
               value={showLastSeen}
               onValueChange={(value) => handleToggle('showLastSeen', value)}
-              trackColor={{ false: '#d1d5db', true: '#fdba74' }}
-              thumbColor={showLastSeen ? '#f97316' : '#f4f4f5'}
+              trackColor={{ false: theme.tokens.border.strong, true: theme.tokens.action.secondary.active }}
+              thumbColor={showLastSeen ? theme.tokens.brand.primary : theme.tokens.bg.subtle}
             />
           </View>
 
@@ -174,7 +175,7 @@ export default function PrivacySettingsScreen() {
 
           <View style={styles.settingRow}>
             <View style={styles.settingIcon}>
-              <Check size={20} color="#374151" />
+              <Check size={20} color={theme.tokens.text.secondary} />
             </View>
             <View style={styles.settingContent}>
               <Text style={styles.settingLabel}>Read Receipts</Text>
@@ -185,8 +186,8 @@ export default function PrivacySettingsScreen() {
             <Switch
               value={showReadReceipts}
               onValueChange={(value) => handleToggle('showReadReceipts', value)}
-              trackColor={{ false: '#d1d5db', true: '#fdba74' }}
-              thumbColor={showReadReceipts ? '#f97316' : '#f4f4f5'}
+              trackColor={{ false: theme.tokens.border.strong, true: theme.tokens.action.secondary.active }}
+              thumbColor={showReadReceipts ? theme.tokens.brand.primary : theme.tokens.bg.subtle}
             />
           </View>
         </View>
@@ -203,7 +204,7 @@ export default function PrivacySettingsScreen() {
             onPress={() => setShowLocationPicker(!showLocationPicker)}
           >
             <View style={styles.settingIcon}>
-              <MapPin size={20} color="#374151" />
+              <MapPin size={20} color={theme.tokens.text.secondary} />
             </View>
             <View style={styles.settingContent}>
               <Text style={styles.settingLabel}>Location Mode</Text>
@@ -211,7 +212,7 @@ export default function PrivacySettingsScreen() {
                 {LOCATION_MODES.find(m => m.value === locationMode)?.label}
               </Text>
             </View>
-            <ChevronRight size={20} color="#9ca3af" />
+            <ChevronRight size={20} color={theme.tokens.text.tertiary} />
           </TouchableOpacity>
 
           {showLocationPicker && (
@@ -247,7 +248,7 @@ export default function PrivacySettingsScreen() {
             onPress={() => navigation.navigate('BlockedUsers' as never)}
           >
             <View style={styles.settingIcon}>
-              <UserX size={20} color="#374151" />
+              <UserX size={20} color={theme.tokens.text.secondary} />
             </View>
             <View style={styles.settingContent}>
               <Text style={styles.settingLabel}>Blocked Users</Text>
@@ -255,7 +256,7 @@ export default function PrivacySettingsScreen() {
                 {blockedCount} blocked user{blockedCount !== 1 ? 's' : ''}
               </Text>
             </View>
-            <ChevronRight size={20} color="#9ca3af" />
+            <ChevronRight size={20} color={theme.tokens.text.tertiary} />
           </TouchableOpacity>
         </View>
 
@@ -266,9 +267,7 @@ export default function PrivacySettingsScreen() {
             style={styles.settingRow}
             onPress={handleDeleteAccount}
           >
-            <View style={[styles.settingIcon, styles.dangerIcon]}>
-              <Trash2 size={20} color="#ef4444" />
-            </View>
+            <Trash2 size={20} color={theme.tokens.text.error} />
             <View style={styles.settingContent}>
               <Text style={[styles.settingLabel, styles.dangerText]}>
                 Delete Account
@@ -277,7 +276,7 @@ export default function PrivacySettingsScreen() {
                 Permanently delete your account and data
               </Text>
             </View>
-            <ChevronRight size={20} color="#9ca3af" />
+            <ChevronRight size={20} color={theme.tokens.text.tertiary} />
           </TouchableOpacity>
         </View>
 
@@ -290,7 +289,7 @@ export default function PrivacySettingsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: theme.tokens.bg.canvas,
   },
   header: {
     flexDirection: 'row',
@@ -298,9 +297,9 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.tokens.bg.surface,
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: theme.tokens.border.subtle,
   },
   backButton: {
     width: 44,
@@ -311,7 +310,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1f2937',
+    color: theme.tokens.text.primary,
   },
   placeholder: {
     width: 44,
@@ -323,7 +322,7 @@ const styles = StyleSheet.create({
   sectionTitle: {
     fontSize: 13,
     fontWeight: '600',
-    color: '#6b7280',
+    color: theme.tokens.text.secondary,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginBottom: 8,
@@ -331,12 +330,12 @@ const styles = StyleSheet.create({
   },
   sectionHint: {
     fontSize: 12,
-    color: '#9ca3af',
+    color: theme.tokens.text.tertiary,
     marginTop: 8,
     paddingHorizontal: 4,
   },
   card: {
-    backgroundColor: '#ffffff',
+    backgroundColor: theme.tokens.bg.surface,
     borderRadius: 12,
     overflow: 'hidden',
   },
@@ -349,13 +348,13 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 10,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: theme.tokens.bg.subtle,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
   },
   dangerIcon: {
-    backgroundColor: '#fef2f2',
+    backgroundColor: theme.tokens.status.error.bg,
   },
   settingContent: {
     flex: 1,
@@ -363,26 +362,26 @@ const styles = StyleSheet.create({
   settingLabel: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#1f2937',
+    color: theme.tokens.text.primary,
   },
   settingDescription: {
     fontSize: 13,
-    color: '#6b7280',
+    color: theme.tokens.text.secondary,
     marginTop: 2,
   },
   dangerText: {
-    color: '#ef4444',
+    color: theme.tokens.text.error,
   },
   divider: {
     height: 1,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: theme.tokens.border.subtle,
     marginLeft: 68,
   },
   locationPicker: {
     paddingHorizontal: 16,
     paddingBottom: 16,
     borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
+    borderTopColor: theme.tokens.border.subtle,
   },
   locationOption: {
     flexDirection: 'row',
@@ -394,7 +393,7 @@ const styles = StyleSheet.create({
     height: 20,
     borderRadius: 10,
     borderWidth: 2,
-    borderColor: '#d1d5db',
+    borderColor: theme.tokens.border.strong,
     justifyContent: 'center',
     alignItems: 'center',
     marginRight: 12,
@@ -403,7 +402,7 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: '#f97316',
+    backgroundColor: theme.tokens.brand.primary,
   },
   locationOptionContent: {
     flex: 1,
@@ -411,11 +410,11 @@ const styles = StyleSheet.create({
   locationOptionLabel: {
     fontSize: 15,
     fontWeight: '500',
-    color: '#1f2937',
+    color: theme.tokens.text.primary,
   },
   locationOptionDescription: {
     fontSize: 13,
-    color: '#6b7280',
+    color: theme.tokens.text.secondary,
     marginTop: 2,
   },
   bottomPadding: {

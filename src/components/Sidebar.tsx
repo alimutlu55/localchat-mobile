@@ -28,6 +28,7 @@ import {
 import { Room } from '../types';
 import { useAvatarUrl, useDisplayName, useIsAnonymous } from '../features/user/store';
 import { AvatarDisplay } from './profile';
+import { theme } from '../core/theme';
 
 const SIDEBAR_WIDTH = Dimensions.get('window').width * 0.85;
 
@@ -80,7 +81,7 @@ const RoomItem = React.memo(function RoomItem({
                         : `${room.participantCount} ${room.participantCount === 1 ? 'member' : 'members'}`}
                 </Text>
             </View>
-            <ChevronRight size={16} color="#9ca3af" />
+            <ChevronRight size={16} color={theme.tokens.text.tertiary} />
         </TouchableOpacity>
     );
 });
@@ -104,7 +105,7 @@ function EmptyState({ hasSearch }: { hasSearch: boolean }) {
     return (
         <View style={styles.emptyState}>
             <View style={styles.emptyIcon}>
-                <MessageSquare size={24} color="#d1d5db" />
+                <MessageSquare size={24} color={theme.tokens.text.tertiary} />
             </View>
             <Text style={styles.emptyTitle}>
                 {hasSearch ? 'No rooms found' : 'No rooms yet'}
@@ -245,16 +246,16 @@ export function Sidebar({
                     onPress={onClose}
                     hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
-                    <X size={20} color="#6b7280" />
+                    <X size={20} color={theme.tokens.text.secondary} />
                 </TouchableOpacity>
 
                 {/* Search */}
                 <View style={styles.searchContainer}>
-                    <Search size={18} color="#9ca3af" style={styles.searchIcon} />
+                    <Search size={18} color={theme.tokens.text.tertiary} style={styles.searchIcon} />
                     <TextInput
                         style={styles.searchInput}
                         placeholder="Search rooms..."
-                        placeholderTextColor="#9ca3af"
+                        placeholderTextColor={theme.tokens.text.tertiary}
                         value={searchQuery}
                         onChangeText={setSearchQuery}
                     />
@@ -336,7 +337,7 @@ export function Sidebar({
                             <Text style={styles.profileType}>Anonymous</Text>
                         )}
                     </View>
-                    <ChevronRight size={16} color="#9ca3af" />
+                    <ChevronRight size={16} color={theme.tokens.text.tertiary} />
                 </TouchableOpacity>
             </Animated.View>
         </View>
@@ -353,7 +354,7 @@ const styles = StyleSheet.create({
         top: 0,
         left: 0,
         bottom: 0,
-        backgroundColor: '#ffffff',
+        backgroundColor: theme.tokens.bg.surface,
         shadowColor: '#000',
         shadowOffset: { width: 2, height: 0 },
         shadowOpacity: 0.25,
@@ -367,7 +368,7 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: '#f3f4f6',
+        backgroundColor: theme.tokens.bg.subtle,
         justifyContent: 'center',
         alignItems: 'center',
         zIndex: 10,
@@ -375,7 +376,7 @@ const styles = StyleSheet.create({
     searchContainer: {
         flexDirection: 'row',
         alignItems: 'center',
-        backgroundColor: '#f3f4f6',
+        backgroundColor: theme.tokens.bg.subtle,
         marginHorizontal: 16,
         marginTop: 40,
         marginBottom: 16,
@@ -389,7 +390,7 @@ const styles = StyleSheet.create({
         flex: 1,
         height: 44,
         fontSize: 15,
-        color: '#1f2937',
+        color: theme.tokens.text.primary,
     },
     roomList: {
         flex: 1,
@@ -412,13 +413,13 @@ const styles = StyleSheet.create({
     sectionTitle: {
         fontSize: 11,
         fontWeight: '600',
-        color: '#9ca3af',
+        color: theme.tokens.text.tertiary,
         letterSpacing: 0.5,
     },
     sectionLine: {
         flex: 1,
         height: 1,
-        backgroundColor: '#f3f4f6',
+        backgroundColor: theme.tokens.border.subtle,
         marginLeft: 12,
     },
     roomItem: {
@@ -435,7 +436,7 @@ const styles = StyleSheet.create({
         width: 44,
         height: 44,
         borderRadius: 12,
-        backgroundColor: '#ffffff',
+        backgroundColor: theme.tokens.bg.surface,
         justifyContent: 'center',
         alignItems: 'center',
         shadowColor: '#000',
@@ -445,7 +446,7 @@ const styles = StyleSheet.create({
         elevation: 2,
     },
     roomEmojiExpired: {
-        backgroundColor: '#f3f4f6',
+        backgroundColor: theme.tokens.bg.subtle,
     },
     roomEmojiText: {
         fontSize: 20,
@@ -457,7 +458,7 @@ const styles = StyleSheet.create({
         width: 16,
         height: 16,
         borderRadius: 8,
-        backgroundColor: '#fbbf24',
+        backgroundColor: theme.tokens.status.warning.main,
         justifyContent: 'center',
         alignItems: 'center',
         shadowColor: '#000',
@@ -468,7 +469,7 @@ const styles = StyleSheet.create({
     },
     creatorBadgeText: {
         fontSize: 8,
-        color: '#ffffff',
+        color: theme.tokens.text.onPrimary,
         fontWeight: 'bold',
     },
     roomInfo: {
@@ -478,15 +479,15 @@ const styles = StyleSheet.create({
     roomTitle: {
         fontSize: 14,
         fontWeight: '500',
-        color: '#1f2937',
+        color: theme.tokens.text.primary,
         marginBottom: 2,
     },
     roomTitleExpired: {
-        color: '#6b7280',
+        color: theme.tokens.text.secondary,
     },
     roomMeta: {
         fontSize: 12,
-        color: '#9ca3af',
+        color: theme.tokens.text.tertiary,
     },
     emptyState: {
         alignItems: 'center',
@@ -497,7 +498,7 @@ const styles = StyleSheet.create({
         width: 56,
         height: 56,
         borderRadius: 16,
-        backgroundColor: '#f9fafb',
+        backgroundColor: theme.tokens.bg.subtle,
         justifyContent: 'center',
         alignItems: 'center',
         marginBottom: 16,
@@ -505,12 +506,12 @@ const styles = StyleSheet.create({
     emptyTitle: {
         fontSize: 15,
         fontWeight: '600',
-        color: '#6b7280',
+        color: theme.tokens.text.secondary,
         marginBottom: 4,
     },
     emptySubtitle: {
         fontSize: 13,
-        color: '#9ca3af',
+        color: theme.tokens.text.tertiary,
     },
     profileButton: {
         flexDirection: 'row',
@@ -519,7 +520,7 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
         paddingHorizontal: 12,
         borderTopWidth: 1,
-        borderTopColor: '#f3f4f6',
+        borderTopColor: theme.tokens.border.subtle,
     },
     profileInfo: {
         flex: 1,
@@ -528,11 +529,11 @@ const styles = StyleSheet.create({
     profileName: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#1f2937',
+        color: theme.tokens.text.primary,
     },
     profileType: {
         fontSize: 12,
-        color: '#9ca3af',
+        color: theme.tokens.text.tertiary,
     },
 });
 

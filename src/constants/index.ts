@@ -4,6 +4,7 @@
  * Centralized configuration for the LocalChat mobile app.
  * Environment-specific values should be loaded from env variables in production.
  */
+import { theme } from '../core/theme';
 
 /**
  * API Configuration
@@ -78,13 +79,13 @@ export const ROOM_CONFIG = {
    * Button colors for room joining flow
    */
   COLORS: {
-    JOIN: '#f97316',       // Orange
-    ENTER: '#22c55e',      // Green
-    JOINING: '#f97316',    // Orange (with opacity in UI)
-    SUCCESS: '#22c55e',    // Green
-    ERROR: '#ef4444',      // Red
-    DISABLED: '#d1d5db',   // Gray
-    DISABLED_TEXT: '#6b7280',
+    JOIN: theme.tokens.room.join,
+    ENTER: theme.tokens.room.enter,
+    JOINING: theme.tokens.room.join,
+    SUCCESS: theme.tokens.room.success,
+    ERROR: theme.tokens.room.error,
+    DISABLED: theme.tokens.room.disabled,
+    DISABLED_TEXT: theme.tokens.room.disabledText,
   },
 };
 
@@ -194,13 +195,13 @@ export const WS_EVENTS = {
  * Matches backend RoomCategory enum exactly
  */
 export const CATEGORIES = [
-  { id: 'FOOD', emoji: '🍕', label: 'Food & Dining', color: '#f97316' },
-  { id: 'EVENTS', emoji: '🎉', label: 'Events & Gatherings', color: '#f59e0b' },
-  { id: 'SPORTS', emoji: '⚽', label: 'Sports & Recreation', color: '#22c55e' },
-  { id: 'TRAFFIC', emoji: '🚗', label: 'Traffic & Transit', color: '#3b82f6' },
-  { id: 'NEIGHBORHOOD', emoji: '🏘️', label: 'Neighborhood', color: '#8b5cf6' },
-  { id: 'LOST_FOUND', emoji: '🔍', label: 'Lost & Found', color: '#ec4899' },
-  { id: 'EMERGENCY', emoji: '🚨', label: 'Emergency & Safety', color: '#ef4444' },
-  { id: 'GENERAL', emoji: '💬', label: 'General', color: '#6366f1' },
+  { id: 'FOOD', emoji: '🍕', label: 'Food & Dining', color: theme.tokens.categories.food },
+  { id: 'EVENTS', emoji: '🎉', label: 'Events & Gatherings', color: theme.tokens.categories.events },
+  { id: 'SPORTS', emoji: '⚽', label: 'Sports & Recreation', color: theme.tokens.categories.sports },
+  { id: 'TRAFFIC', emoji: '🚗', label: 'Traffic & Transit', color: theme.tokens.categories.traffic },
+  { id: 'NEIGHBORHOOD', emoji: '🏘️', label: 'Neighborhood', color: theme.tokens.categories.neighborhood },
+  { id: 'LOST_FOUND', emoji: '🔍', label: 'Lost & Found', color: theme.tokens.categories.lostFound },
+  { id: 'EMERGENCY', emoji: '🚨', label: 'Emergency & Safety', color: theme.tokens.categories.emergency },
+  { id: 'GENERAL', emoji: '💬', label: 'General', color: theme.tokens.categories.general },
 ] as const;
 

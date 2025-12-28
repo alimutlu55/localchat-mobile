@@ -21,6 +21,7 @@ import {
 } from 'react-native';
 import { X, Shuffle, Check } from 'lucide-react-native';
 import { SvgUri } from 'react-native-svg';
+import { theme } from '../../core/theme';
 
 // DiceBear avatar styles
 const AVATAR_STYLES = [
@@ -134,7 +135,7 @@ export function AvatarPicker({
           <View style={styles.header}>
             <Text style={styles.title}>Choose Avatar</Text>
             <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-              <X size={20} color="#6b7280" />
+              <X size={20} color={theme.tokens.text.secondary} />
             </TouchableOpacity>
           </View>
 
@@ -182,7 +183,7 @@ export function AvatarPicker({
             <View style={styles.gridHeader}>
               <Text style={styles.gridTitle}>Select an avatar</Text>
               <TouchableOpacity style={styles.shuffleButton} onPress={handleShuffle}>
-                <Shuffle size={16} color="#f97316" />
+                <Shuffle size={16} color={theme.tokens.brand.primary} />
                 <Text style={styles.shuffleText}>Shuffle</Text>
               </TouchableOpacity>
             </View>
@@ -206,7 +207,7 @@ export function AvatarPicker({
                   </View>
                   {selectedAvatarUrl === option.url && (
                     <View style={styles.selectedCheck}>
-                      <Check size={12} color="#ffffff" />
+                      <Check size={12} color={theme.tokens.text.onPrimary} />
                     </View>
                   )}
                 </TouchableOpacity>
@@ -254,14 +255,14 @@ const SIZE_STYLES = {
 /**
  * Fallback component showing initials
  */
-function AvatarFallback({ 
-  displayName, 
-  dimensions, 
+function AvatarFallback({
+  displayName,
+  dimensions,
   style,
   isPlaceholder = false,
-}: { 
-  displayName: string; 
-  dimensions: { container: number; text: number }; 
+}: {
+  displayName: string;
+  dimensions: { container: number; text: number };
   style?: any;
   isPlaceholder?: boolean;
 }) {
@@ -271,12 +272,12 @@ function AvatarFallback({
         width: dimensions.container,
         height: dimensions.container,
         borderRadius: dimensions.container / 2,
-        backgroundColor: isPlaceholder ? '#e5e7eb' : '#f97316',
+        backgroundColor: isPlaceholder ? theme.tokens.bg.subtle : theme.tokens.brand.primary,
         justifyContent: 'center',
         alignItems: 'center',
       }, style]}
     >
-      <Text style={{ fontSize: dimensions.text, fontWeight: '600', color: isPlaceholder ? '#9ca3af' : '#ffffff' }}>
+      <Text style={{ fontSize: dimensions.text, fontWeight: '600', color: isPlaceholder ? theme.tokens.text.tertiary : theme.tokens.text.onPrimary }}>
         {displayName?.charAt(0).toUpperCase() || 'U'}
       </Text>
     </View>
@@ -317,9 +318,9 @@ export function AvatarDisplay({ avatarUrl, displayName, size = 'md', style }: Av
   // No URL or error - show fallback with initials
   if (!validAvatarUrl || hasError) {
     return (
-      <AvatarFallback 
-        displayName={displayName} 
-        dimensions={dimensions} 
+      <AvatarFallback
+        displayName={displayName}
+        dimensions={dimensions}
         style={style}
         isPlaceholder={false}
       />
@@ -334,7 +335,7 @@ export function AvatarDisplay({ avatarUrl, displayName, size = 'md', style }: Av
         width: dimensions.container,
         height: dimensions.container,
         borderRadius: dimensions.container / 2,
-        backgroundColor: '#f3f4f6',
+        backgroundColor: theme.tokens.bg.subtle,
         overflow: 'hidden',
         justifyContent: 'center',
         alignItems: 'center',
@@ -342,7 +343,7 @@ export function AvatarDisplay({ avatarUrl, displayName, size = 'md', style }: Av
     >
       {/* Show initials while loading */}
       {isLoading && (
-        <View 
+        <View
           style={{
             position: 'absolute',
             width: '100%',
@@ -352,12 +353,12 @@ export function AvatarDisplay({ avatarUrl, displayName, size = 'md', style }: Av
             zIndex: 1,
           }}
         >
-          <Text style={{ fontSize: dimensions.text, fontWeight: '600', color: '#9ca3af' }}>
+          <Text style={{ fontSize: dimensions.text, fontWeight: '600', color: theme.tokens.text.tertiary }}>
             {displayName?.charAt(0).toUpperCase() || 'U'}
           </Text>
         </View>
       )}
-      
+
       {/* Actual avatar image */}
       {isSvg ? (
         <SvgUri
@@ -395,7 +396,7 @@ const styles = StyleSheet.create({
   handle: {
     width: 36,
     height: 4,
-    backgroundColor: '#d1d5db',
+    backgroundColor: theme.tokens.border.strong,
     borderRadius: 2,
     alignSelf: 'center',
     marginTop: 8,
@@ -407,7 +408,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
+    borderBottomColor: theme.tokens.border.subtle,
   },
   title: {
     fontSize: 18,
@@ -428,12 +429,12 @@ const styles = StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 60,
-    backgroundColor: '#f9fafb',
+    backgroundColor: theme.tokens.bg.subtle,
     justifyContent: 'center',
     alignItems: 'center',
     overflow: 'hidden',
     borderWidth: 3,
-    borderColor: '#f97316',
+    borderColor: theme.tokens.border.focus,
   },
   previewImage: {
     width: 110,
@@ -451,18 +452,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: theme.tokens.bg.subtle,
   },
   styleTabActive: {
-    backgroundColor: '#fff7ed',
+    backgroundColor: theme.tokens.action.secondary.default,
   },
   styleTabText: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#6b7280',
+    color: theme.tokens.text.secondary,
   },
   styleTabTextActive: {
-    color: '#f97316',
+    color: theme.tokens.brand.primary,
   },
   gridContainer: {
     padding: 20,
@@ -476,7 +477,7 @@ const styles = StyleSheet.create({
   gridTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#374151',
+    color: theme.tokens.text.secondary,
   },
   shuffleButton: {
     flexDirection: 'row',
@@ -484,13 +485,13 @@ const styles = StyleSheet.create({
     gap: 6,
     paddingHorizontal: 12,
     paddingVertical: 6,
-    backgroundColor: '#fff7ed',
+    backgroundColor: theme.tokens.action.secondary.default,
     borderRadius: 16,
   },
   shuffleText: {
     fontSize: 13,
     fontWeight: '500',
-    color: '#f97316',
+    color: theme.tokens.brand.primary,
   },
   grid: {
     flexDirection: 'row',
@@ -501,7 +502,7 @@ const styles = StyleSheet.create({
     width: '22%',
     aspectRatio: 1,
     borderRadius: 12,
-    backgroundColor: '#f9fafb',
+    backgroundColor: theme.tokens.bg.subtle,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 2,
@@ -509,8 +510,8 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   avatarOptionSelected: {
-    borderColor: '#f97316',
-    backgroundColor: '#fff7ed',
+    borderColor: theme.tokens.border.focus,
+    backgroundColor: theme.tokens.action.secondary.default,
   },
   avatarImageContainer: {
     width: '80%',
@@ -527,7 +528,7 @@ const styles = StyleSheet.create({
     width: 20,
     height: 20,
     borderRadius: 10,
-    backgroundColor: '#f97316',
+    backgroundColor: theme.tokens.brand.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -535,21 +536,21 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 34,
     borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
+    borderTopColor: theme.tokens.border.subtle,
   },
   confirmButton: {
-    backgroundColor: '#f97316',
+    backgroundColor: theme.tokens.action.primary.default,
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
   },
   confirmButtonDisabled: {
-    backgroundColor: '#d1d5db',
+    backgroundColor: theme.tokens.action.disabled.bg,
   },
   confirmButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: theme.tokens.action.primary.contrast,
   },
 });
 

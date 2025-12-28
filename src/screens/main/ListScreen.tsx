@@ -26,6 +26,7 @@ import { useRoomDiscovery, useJoinRoom, useMyRooms } from '../../features/rooms/
 import { RoomListView } from '../../features/discovery/components';
 import { Sidebar } from '../../components/Sidebar';
 import { ProfileDrawer } from '../../components/ProfileDrawer';
+import { theme } from '../../core/theme';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -156,7 +157,7 @@ export default function ListScreen() {
                         onPress={() => setIsSidebarOpen(true)}
                         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                     >
-                        <Menu size={24} color="#374151" />
+                        <Menu size={24} color={theme.tokens.text.primary} />
                     </TouchableOpacity>
 
                     {/* Center: Title */}
@@ -168,7 +169,7 @@ export default function ListScreen() {
                         onPress={handleCreateRoom}
                         activeOpacity={0.8}
                     >
-                        <Plus size={20} color="#ffffff" />
+                        <Plus size={20} color={theme.tokens.text.onPrimary} />
                     </TouchableOpacity>
                 </View>
             </SafeAreaView>
@@ -190,13 +191,13 @@ export default function ListScreen() {
                         style={styles.viewToggleButton}
                         onPress={handleBackToMap}
                     >
-                        <MapIcon size={18} color="#6b7280" />
+                        <MapIcon size={18} color={theme.tokens.text.tertiary} />
                         <Text style={styles.viewToggleText}>Map</Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={[styles.viewToggleButton, styles.viewToggleButtonActive]}
                     >
-                        <List size={18} color="#ffffff" />
+                        <List size={18} color={theme.tokens.text.onPrimary} />
                         <Text style={styles.viewToggleTextActive}>List</Text>
                     </TouchableOpacity>
                 </View>
@@ -234,12 +235,12 @@ export default function ListScreen() {
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f9fafb',
+        backgroundColor: theme.tokens.bg.canvas,
     },
     header: {
         backgroundColor: 'rgba(255, 255, 255, 0.95)',
         borderBottomWidth: 1,
-        borderBottomColor: '#e5e7eb',
+        borderBottomColor: theme.tokens.border.subtle,
     },
     headerContent: {
         flexDirection: 'row',
@@ -258,7 +259,7 @@ const styles = StyleSheet.create({
     headerTitle: {
         fontSize: 20,
         fontWeight: '400',
-        color: '#1f2937',
+        color: theme.tokens.text.primary,
     },
     headerCreateButton: {
         width: 36,
@@ -277,7 +278,7 @@ const styles = StyleSheet.create({
     },
     viewToggle: {
         flexDirection: 'row',
-        backgroundColor: '#ffffff',
+        backgroundColor: theme.tokens.bg.surface,
         borderRadius: 16,
         padding: 8,
         shadowColor: '#000',
@@ -286,7 +287,7 @@ const styles = StyleSheet.create({
         shadowRadius: 12,
         elevation: 8,
         borderWidth: 1,
-        borderColor: '#e5e7eb',
+        borderColor: theme.tokens.border.subtle,
     },
     viewToggleButton: {
         flexDirection: 'row',
@@ -301,11 +302,11 @@ const styles = StyleSheet.create({
     },
     viewToggleText: {
         fontSize: 14,
-        color: '#6b7280',
+        color: theme.tokens.text.tertiary,
     },
     viewToggleTextActive: {
         fontSize: 14,
-        color: '#ffffff',
+        color: theme.tokens.text.onPrimary,
         fontWeight: '500',
     },
 });

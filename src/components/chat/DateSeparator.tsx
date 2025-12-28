@@ -7,6 +7,7 @@
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
+import { theme } from '../../core/theme';
 
 interface DateSeparatorProps {
   date: Date;
@@ -81,7 +82,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   badge: {
-    backgroundColor: '#f1f5f9',
+    backgroundColor: theme.tokens.bg.subtle,
     paddingHorizontal: 16,
     paddingVertical: 6,
     borderRadius: 20,
@@ -89,7 +90,7 @@ const styles = StyleSheet.create({
   text: {
     fontSize: 12,
     fontWeight: '500',
-    color: '#64748b',
+    color: theme.tokens.text.secondary,
   },
 });
 
