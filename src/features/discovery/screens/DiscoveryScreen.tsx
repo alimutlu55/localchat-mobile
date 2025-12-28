@@ -388,6 +388,10 @@ export default function DiscoveryScreen() {
                     {isMapReady &&
                         features.map((feature) => {
                             if (checkIsCluster(feature)) {
+                                // Skip clusters with invalid data
+                                if (!feature.properties?.cluster_id) {
+                                    return null;
+                                }
                                 return (
                                     <ClusterMarker
                                         key={`cluster-${feature.properties.cluster_id}`}
@@ -397,7 +401,11 @@ export default function DiscoveryScreen() {
                                 );
                             }
 
-                            const room = feature.properties.room;
+                            const room = feature.properties?.room;
+                            // Skip rooms with invalid data
+                            if (!room?.id || room.latitude == null || room.longitude == null) {
+                                return null;
+                            }
                             return (
                                 <RoomMarker
                                     key={`room-${room.id}`}

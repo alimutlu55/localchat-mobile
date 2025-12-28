@@ -139,7 +139,7 @@ export default function OnboardingScreen() {
             setTimeout(() => {
                 navigation.reset({
                     index: 0,
-                    routes: [{ name: 'Main' }],
+                    routes: [{ name: 'Discovery' }],
                 });
             }, delay);
         } catch (err) {

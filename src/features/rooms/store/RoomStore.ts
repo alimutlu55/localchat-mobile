@@ -26,8 +26,12 @@ import { create } from 'zustand';
 import { subscribeWithSelector } from 'zustand/middleware';
 import { Room } from '../../../types';
 import { createLogger } from '../../../shared/utils/logger';
+import { storage } from '../../../services/storage';
 
 const log = createLogger('RoomStore');
+
+// Storage key for persisted muted rooms
+const MUTED_ROOMS_STORAGE_KEY = '@localchat/muted_rooms';
 
 // =============================================================================
 // Types
@@ -51,6 +55,12 @@ export interface RoomStoreState {
    * Used for map/list views
    */
   discoveredRoomIds: Set<string>;
+
+  /**
+   * Set of room IDs that have notifications muted
+   * Persisted to AsyncStorage for persistence across sessions
+   */
+  mutedRoomIds: Set<string>;
 
   /**
    * Loading states for async operations
@@ -139,6 +149,35 @@ export interface RoomStoreActions {
   addDiscoveredRoomIds: (ids: string[]) => void;
 
   // =========================================================================
+  // Mute Operations
+  // =========================================================================
+
+  /**
+   * Mute notifications for a room
+   */
+  muteRoom: (roomId: string) => void;
+
+  /**
+   * Unmute notifications for a room
+   */
+  unmuteRoom: (roomId: string) => void;
+
+  /**
+   * Toggle mute state for a room
+   */
+  toggleMuteRoom: (roomId: string) => void;
+
+  /**
+   * Check if a room is muted
+   */
+  isRoomMuted: (roomId: string) => boolean;
+
+  /**
+   * Load muted rooms from storage (called on app init)
+   */
+  loadMutedRooms: () => Promise<void>;
+
+  // =========================================================================
   // UI State Operations
   // =========================================================================
 
@@ -182,6 +221,7 @@ const initialState: RoomStoreState = {
   rooms: new Map(),
   joinedRoomIds: new Set(),
   discoveredRoomIds: new Set(),
+  mutedRoomIds: new Set(),
   isLoading: false,
   isLoadingMore: false,
   currentPage: 0,
@@ -346,6 +386,59 @@ export const useRoomStore = create<RoomStore>()(
     },
 
     // =========================================================================
+    // Mute Operations
+    // =========================================================================
+
+    muteRoom: (roomId: string) => {
+      set((state) => {
+        if (state.mutedRoomIds.has(roomId)) return state;
+        const newMuted = new Set(state.mutedRoomIds);
+        newMuted.add(roomId);
+        // Persist to storage
+        storage.set(MUTED_ROOMS_STORAGE_KEY, Array.from(newMuted));
+        log.debug('Room muted', { roomId });
+        return { mutedRoomIds: newMuted };
+      });
+    },
+
+    unmuteRoom: (roomId: string) => {
+      set((state) => {
+        if (!state.mutedRoomIds.has(roomId)) return state;
+        const newMuted = new Set(state.mutedRoomIds);
+        newMuted.delete(roomId);
+        // Persist to storage
+        storage.set(MUTED_ROOMS_STORAGE_KEY, Array.from(newMuted));
+        log.debug('Room unmuted', { roomId });
+        return { mutedRoomIds: newMuted };
+      });
+    },
+
+    toggleMuteRoom: (roomId: string) => {
+      const isMuted = get().mutedRoomIds.has(roomId);
+      if (isMuted) {
+        get().unmuteRoom(roomId);
+      } else {
+        get().muteRoom(roomId);
+      }
+    },
+
+    isRoomMuted: (roomId: string) => {
+      return get().mutedRoomIds.has(roomId);
+    },
+
+    loadMutedRooms: async () => {
+      try {
+        const saved = await storage.get<string[]>(MUTED_ROOMS_STORAGE_KEY);
+        if (saved && Array.isArray(saved)) {
+          set({ mutedRoomIds: new Set(saved) });
+          log.debug('Loaded muted rooms', { count: saved.length });
+        }
+      } catch (error) {
+        log.error('Failed to load muted rooms', { error });
+      }
+    },
+
+    // =========================================================================
     // UI State Operations
     // =========================================================================
 
@@ -438,6 +531,12 @@ export const selectIsJoined = (roomId: string) => (state: RoomStore) =>
   state.joinedRoomIds.has(roomId);
 
 /**
+ * Check if a room is muted
+ */
+export const selectIsRoomMuted = (roomId: string) => (state: RoomStore) =>
+  state.mutedRoomIds.has(roomId);
+
+/**
  * Select loading state
  */
 export const selectIsLoading = (state: RoomStore) => state.isLoading;
@@ -474,6 +573,13 @@ export function useStoreRoom(roomId: string): Room | undefined {
  */
 export function useIsRoomJoinedStore(roomId: string): boolean {
   return useRoomStore((state) => state.joinedRoomIds.has(roomId));
+}
+
+/**
+ * Hook to check if a room is muted
+ */
+export function useIsRoomMutedStore(roomId: string): boolean {
+  return useRoomStore((state) => state.mutedRoomIds.has(roomId));
 }
 
 /**

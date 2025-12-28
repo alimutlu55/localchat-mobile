@@ -16,6 +16,7 @@ import React, { useEffect, useRef } from 'react';
 import { useUserStore, useCurrentUser } from './UserStore';
 import { eventBus } from '../../../core/events';
 import { createLogger } from '../../../shared/utils/logger';
+import { notificationService } from '../../../services';
 
 const log = createLogger('UserStoreProvider');
 
@@ -37,6 +38,18 @@ function UserStoreInitializer() {
   const updateUser = useUserStore((s) => s.updateUser);
   const pruneAvatarCache = useUserStore((s) => s.pruneAvatarCache);
   const preloadAvatar = useUserStore((s) => s.preloadAvatar);
+
+  // Set up notification settings getter from UserStore
+  useEffect(() => {
+    notificationService.setSettingsGetter(() => {
+      const state = useUserStore.getState();
+      return {
+        pushNotifications: state.preferences.notificationsEnabled,
+        messageNotifications: state.preferences.messageNotificationsEnabled,
+      };
+    });
+    log.debug('Notification settings getter configured');
+  }, []);
 
   // Subscribe to EventBus profile updates (from other devices/sessions)
   useEffect(() => {
@@ -74,6 +87,11 @@ function UserStoreInitializer() {
       log.debug('Unsubscribed from profile update events');
     };
   }, [currentUser, updateUser, preloadAvatar]);
+
+  // Set current user ID in notification service (to avoid self-notifications)
+  useEffect(() => {
+    notificationService.setCurrentUser(currentUser?.id ?? null);
+  }, [currentUser?.id]);
 
   // Periodic avatar cache cleanup
   useEffect(() => {

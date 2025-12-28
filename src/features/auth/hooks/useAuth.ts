@@ -19,7 +19,7 @@
  */
 
 import { useAuthStore } from '../store/AuthStore';
-import { useCurrentUser } from '../../user';
+import { useCurrentUser } from '../../user/store';
 import { useUpdateProfile } from './useUpdateProfile';
 
 /**

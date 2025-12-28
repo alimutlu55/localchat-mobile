@@ -21,11 +21,11 @@
  * - All auth operations use hooks from features/auth
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, NavigationContainerRef } from '@react-navigation/native';
 import { UIProvider } from './src/context';
 import { RoomStoreProvider } from './src/features/rooms';
 import { UserStoreProvider } from './src/features/user';
@@ -35,6 +35,8 @@ import { GlobalDrawers } from './src/components/GlobalDrawers';
 import { LoadingScreen } from './src/screens';
 import { api } from './src/services';
 import { wsService } from './src/services';
+import { notificationService } from './src/services';
+import { RootStackParamList } from './src/navigation/types';
 
 // Initialize i18n
 import './src/i18n';
@@ -44,6 +46,7 @@ import './src/i18n';
  */
 export default function App() {
   const [isInitializing, setIsInitializing] = useState(true);
+  const navigationRef = useRef<NavigationContainerRef<RootStackParamList>>(null);
 
   useEffect(() => {
     // Initialize auth store and setup API error callback
@@ -68,9 +71,33 @@ export default function App() {
 
     initialize();
 
+    // Initialize notification service
+    const cleanupNotifications = notificationService.initialize();
+    
+    // Request notification permissions
+    notificationService.requestPermissions().then((granted) => {
+      console.log('[App] Notification permissions:', granted ? 'granted' : 'denied');
+    });
+
+    // Handle notification taps - navigate to the room
+    const notificationSubscription = notificationService.addNotificationResponseListener(
+      (response) => {
+        const data = response.notification.request.content.data;
+        if (data?.type === 'message' && data?.roomId) {
+          // Navigate to chat room when notification is tapped
+          navigationRef.current?.navigate('ChatRoom', {
+            roomId: data.roomId as string,
+            roomName: (data.roomName as string) || 'Chat Room',
+          });
+        }
+      }
+    );
+
     // Cleanup
     return () => {
       wsService.cleanup();
+      cleanupNotifications();
+      notificationSubscription.remove();
     };
   }, []);
 
@@ -82,7 +109,7 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <NavigationContainer>
+        <NavigationContainer ref={navigationRef}>
           {/* UserStoreProvider handles WebSocket subscriptions for user data */}
           <UserStoreProvider>
             <UIProvider>

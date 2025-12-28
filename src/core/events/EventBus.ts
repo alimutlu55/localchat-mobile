@@ -61,6 +61,7 @@ export interface RoomEvents {
   };
   'room.expiring': {
     roomId: string;
+    roomName?: string;
     expiresAt: string;
     minutesRemaining: number;
   };
@@ -106,6 +107,7 @@ export interface RoomEvents {
 export interface MessageEvents {
   'message.new': {
     roomId: string;
+    roomName?: string;
     messageId: string;
     content: string;
     sender: {

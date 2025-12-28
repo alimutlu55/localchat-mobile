@@ -50,12 +50,12 @@ import { ChatMessage, Room } from '../../../types';
 import { useUserId } from '../../user/store';
 
 // Services
-import { blockService, roomService, messageService } from '../../../services';
+import { blockService, roomService, messageService, notificationService } from '../../../services';
 
 // Hooks
 import { useChatMessages, useChatInput } from '../hooks';
 import { useRoom, useRoomActions } from '../../rooms/hooks';
-import { useRoomStore } from '../../rooms/store';
+import { useRoomStore, useIsRoomMutedStore } from '../../rooms/store';
 
 // Components
 import {
@@ -149,8 +149,12 @@ export default function ChatRoomScreen() {
 
   const userId = useUserId();
   const updateRoom = useRoomStore((s) => s.updateRoom);
+  const toggleMuteRoom = useRoomStore((s) => s.toggleMuteRoom);
   const { leaveRoom, isLeaving } = useRoomActions();
   const insets = useSafeAreaInsets();
+
+  // Mute state from RoomStore
+  const isMuted = useIsRoomMutedStore(roomId);
 
   // Use new useRoom hook for room data with caching and WebSocket updates
   const { room: cachedRoom } = useRoom(roomId, {
@@ -178,6 +182,19 @@ export default function ChatRoomScreen() {
   const isAtBottomRef = useRef(true);
   const isClosingRoomRef = useRef(false); // Track if owner is closing the room
 
+  // Safe navigation helper - navigates to home even if no back stack
+  const navigateToHome = useCallback(() => {
+    if (navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      // Reset to Discovery screen if no back stack
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Discovery' }],
+      });
+    }
+  }, [navigation]);
+
   // Blocked Users Hook
   const { blockedUserIds, blockUser, isBlocked } = useBlockedUsers();
 
@@ -193,7 +210,7 @@ export default function ChatRoomScreen() {
     onAccessDenied: (reason) => {
       if (reason === 'banned') {
         Alert.alert('Access Denied', 'You are banned from this room.', [
-          { text: 'OK', onPress: () => navigation.goBack() },
+          { text: 'OK', onPress: () => navigateToHome() },
         ]);
       } else {
         navigation.replace('RoomDetails', { roomId, initialRoom });
@@ -205,17 +222,17 @@ export default function ChatRoomScreen() {
         return;
       }
       Alert.alert('Room Closed', 'This room has been closed.', [
-        { text: 'OK', onPress: () => navigation.goBack() },
+        { text: 'OK', onPress: () => navigateToHome() },
       ]);
     },
     onUserKicked: () => {
       Alert.alert('Removed from Room', 'You have been removed from this room.', [
-        { text: 'OK', onPress: () => navigation.goBack() },
+        { text: 'OK', onPress: () => navigateToHome() },
       ]);
     },
     onUserBanned: (reason) => {
       Alert.alert('Banned from Room', reason || 'You have been banned from this room.', [
-        { text: 'OK', onPress: () => navigation.goBack() },
+        { text: 'OK', onPress: () => navigateToHome() },
       ]);
     },
   });
@@ -224,6 +241,22 @@ export default function ChatRoomScreen() {
   const { inputText, setInputText, handleSubmit, typingUsers, canSend } = useChatInput(
     roomId,
     sendMessage
+  );
+
+  // ==========================================================================
+  // Track active room for notifications (suppress notifications when in room)
+  // ==========================================================================
+
+  useFocusEffect(
+    useCallback(() => {
+      // When screen is focused, set this room as active
+      notificationService.setActiveRoom(roomId);
+
+      return () => {
+        // When screen loses focus, clear active room
+        notificationService.setActiveRoom(null);
+      };
+    }, [roomId])
   );
 
   // ==========================================================================
@@ -605,7 +638,8 @@ export default function ChatRoomScreen() {
         onRoomInfo={handleRoomInfo}
         onLeave={handleLeaveRoom}
         onReport={handleReportRoom}
-        onMute={() => { }}
+        onMute={() => toggleMuteRoom(roomId)}
+        isMuted={isMuted}
         isCreator={isCreator}
         onCloseRoom={isCreator ? handleCloseRoom : undefined}
       />

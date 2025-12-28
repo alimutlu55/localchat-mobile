@@ -14,7 +14,7 @@ export type SubPage = 'main' | 'privacy' | 'notifications' | 'language' | 'help'
  */
 export interface UserStats {
     roomsJoined: number;
-    messagesSent: number;
+    messagesSent: number | null; // null = not available from backend
     memberSince: string;
 }
 

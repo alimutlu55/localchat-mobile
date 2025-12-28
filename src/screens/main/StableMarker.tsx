@@ -2,7 +2,7 @@ import React, { memo, useRef, useEffect, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Marker } from 'react-native-maps';
 import { Room } from '../../types';
-import { RoomPin } from '../../components/RoomPin';
+import { RoomPin } from '../../features/discovery/components/RoomPin';
 
 interface StableMarkerProps {
     room: Room;

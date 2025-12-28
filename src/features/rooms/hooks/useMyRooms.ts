@@ -30,7 +30,6 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react';
 import { Room } from '../../../types';
-import { eventBus } from '../../../core/events';
 import { roomService } from '../../../services';
 import { useRoomStore } from '../store';
 import { useUserId } from '../../user/store';
@@ -43,7 +42,7 @@ const log = createLogger('MyRooms');
 // =============================================================================
 
 export interface UseMyRoomsOptions {
-  /** Auto-fetch on mount (default: true) */
+  /** Auto-fetch on mount (default: false - RoomStoreProvider handles initial fetch) */
   autoFetch?: boolean;
   /** Include closed rooms (default: false) */
   includeClosed?: boolean;
@@ -86,7 +85,8 @@ export interface UseMyRoomsReturn {
 // =============================================================================
 
 export function useMyRooms(options: UseMyRoomsOptions = {}): UseMyRoomsReturn {
-  const { autoFetch = true, includeClosed = false } = options;
+  // autoFetch defaults to false since RoomStoreProvider handles initial fetch
+  const { autoFetch = false, includeClosed = false } = options;
 
   // Use RoomStore
   const setRooms = useRoomStore((s) => s.setRooms);
@@ -208,61 +208,18 @@ export function useMyRooms(options: UseMyRoomsOptions = {}): UseMyRoomsReturn {
     removeJoinedRoom(roomId);
   }, [removeJoinedRoom]);
 
-  // Auto-fetch on mount
+  // Auto-fetch on mount (only once)
   useEffect(() => {
     if (autoFetch && isAuthenticated && !hasFetchedRef.current) {
+      hasFetchedRef.current = true; // Mark as fetched BEFORE calling to prevent re-entry
       refresh();
     }
-  }, [autoFetch, isAuthenticated, refresh]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [autoFetch, isAuthenticated]); // Intentionally exclude 'refresh' - we only want to fetch once on mount
 
-  // EventBus event handlers for membership changes
-  useEffect(() => {
-    if (!userId) return;
-
-    // Handle user joining (from another device)
-    const handleUserJoined = (payload: { roomId: string; userId: string; userName: string }) => {
-      if (payload.userId === userId) {
-        log.debug('Current user joined room via EventBus', { roomId: payload.roomId });
-        addJoinedRoom(payload.roomId);
-      }
-    };
-
-    // Handle user leaving
-    const handleUserLeft = (payload: { roomId: string; userId: string }) => {
-      if (payload.userId === userId) {
-        log.debug('Current user left room via EventBus', { roomId: payload.roomId });
-        removeJoinedRoom(payload.roomId);
-      }
-    };
-
-    // Handle user kicked
-    const handleUserKicked = (payload: { roomId: string; kickedUserId: string }) => {
-      if (payload.kickedUserId === userId) {
-        log.warn('Current user was kicked', { roomId: payload.roomId });
-        removeJoinedRoom(payload.roomId);
-      }
-    };
-
-    // Handle user banned
-    const handleUserBanned = (payload: { roomId: string; bannedUserId: string }) => {
-      if (payload.bannedUserId === userId) {
-        log.warn('Current user was banned', { roomId: payload.roomId });
-        removeJoinedRoom(payload.roomId);
-      }
-    };
-
-    const unsubJoined = eventBus.on('room.userJoined', handleUserJoined);
-    const unsubLeft = eventBus.on('room.userLeft', handleUserLeft);
-    const unsubKicked = eventBus.on('room.userKicked', handleUserKicked);
-    const unsubBanned = eventBus.on('room.userBanned', handleUserBanned);
-
-    return () => {
-      unsubJoined();
-      unsubLeft();
-      unsubKicked();
-      unsubBanned();
-    };
-  }, [userId, addJoinedRoom, removeJoinedRoom]);
+  // NOTE: Event subscriptions for user joined/left/kicked/banned are now
+  // handled centrally by useRoomWebSocket in RoomStoreProvider.
+  // This avoids duplicate handlers when multiple components use useMyRooms.
 
   // Derived: active vs expired rooms
   const activeRooms = rooms.filter((r) => {

@@ -405,11 +405,24 @@ export const useUserStore = create<UserStore>()(
         updatePreferences: async (updates) => {
           const prevPreferences = get().preferences;
 
+          log.info('Updating preferences', { 
+            updates, 
+            prevNotificationsEnabled: prevPreferences.notificationsEnabled,
+            prevMessageNotificationsEnabled: prevPreferences.messageNotificationsEnabled,
+          });
+
           // Update state optimistically
           set((state) => ({
             preferences: { ...state.preferences, ...updates },
             isUpdating: true,
           }));
+
+          // Log the new state immediately after set
+          const newPreferences = get().preferences;
+          log.info('Preferences state updated', {
+            newNotificationsEnabled: newPreferences.notificationsEnabled,
+            newMessageNotificationsEnabled: newPreferences.messageNotificationsEnabled,
+          });
 
           try {
             // Separate backend and local settings
@@ -429,12 +442,14 @@ export const useUserStore = create<UserStore>()(
             if (Object.keys(backendUpdates).length > 0 && get().currentUser) {
               const { settingsService } = await import('../../../services');
               await settingsService.updateSettings(backendUpdates);
+              log.debug('Backend settings synced', { backendUpdates });
             }
 
             // Update local settings (always persisted)
             if (Object.keys(localUpdates).length > 0) {
               const { settingsService } = await import('../../../services');
               await settingsService.updateLocalSettings(localUpdates);
+              log.debug('Local settings synced', { localUpdates });
             }
 
             log.debug('Preferences updated successfully', { updates });

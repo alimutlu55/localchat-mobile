@@ -12,11 +12,13 @@ export {
   selectActiveRooms,
   selectMyRooms,
   selectIsJoined,
+  selectIsRoomMuted,
   selectIsLoading,
   selectPagination,
   // Derived hooks
   useStoreRoom,
   useIsRoomJoinedStore,
+  useIsRoomMutedStore,
   useMyRoomsStore,
   useDiscoveredRoomsStore,
   useActiveRoomsStore,

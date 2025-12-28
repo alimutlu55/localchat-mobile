@@ -29,8 +29,8 @@ export const RoomMarker = memo(function RoomMarker({
   isSelected, 
   onPress 
 }: RoomMarkerProps) {
-  // Skip rendering if coordinates are invalid
-  if (room.latitude == null || room.longitude == null) {
+  // Skip rendering if room or coordinates are invalid
+  if (!room?.id || room.latitude == null || room.longitude == null) {
     return null;
   }
 
@@ -76,7 +76,16 @@ export const ClusterMarker = memo(function ClusterMarker({
   cluster, 
   onPress 
 }: ClusterMarkerProps) {
-  const [lng, lat] = cluster.geometry.coordinates;
+  const coordinates = cluster.geometry?.coordinates;
+  
+  // Skip rendering if coordinates are invalid
+  if (!coordinates || coordinates.length < 2 || 
+      coordinates[0] == null || coordinates[1] == null ||
+      !cluster.properties?.cluster_id) {
+    return null;
+  }
+  
+  const [lng, lat] = coordinates;
 
   return (
     <MarkerView
@@ -90,7 +99,7 @@ export const ClusterMarker = memo(function ClusterMarker({
         activeOpacity={0.8}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       >
-        <MapCluster count={cluster.properties.point_count} />
+        <MapCluster count={cluster.properties.point_count || 0} />
       </TouchableOpacity>
     </MarkerView>
   );

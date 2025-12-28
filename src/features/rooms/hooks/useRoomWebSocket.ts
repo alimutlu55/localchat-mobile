@@ -25,7 +25,7 @@
 import { useEffect, useRef } from 'react';
 import { eventBus } from '../../../core/events';
 import { wsService, roomService } from '../../../services';
-import { useRoomStore } from '../store';
+import { useRoomStore } from '../store/RoomStore';
 import { Room } from '../../../types';
 import { createLogger } from '../../../shared/utils/logger';
 
@@ -44,15 +44,20 @@ export function useRoomWebSocket(userId?: string): void {
   const userIdRef = useRef(userId);
   userIdRef.current = userId;
 
-  // Get store actions
-  const setRoom = useRoomStore((s) => s.setRoom);
-  const updateRoom = useRoomStore((s) => s.updateRoom);
-  const removeRoom = useRoomStore((s) => s.removeRoom);
-  const addJoinedRoom = useRoomStore((s) => s.addJoinedRoom);
-  const removeJoinedRoom = useRoomStore((s) => s.removeJoinedRoom);
-  const addDiscoveredRoomIds = useRoomStore((s) => s.addDiscoveredRoomIds);
+  // Use refs for store actions to avoid re-subscription on every render
+  // Zustand actions are stable, but we use refs to guarantee the effect only runs once
+  const storeActionsRef = useRef({
+    setRoom: useRoomStore.getState().setRoom,
+    updateRoom: useRoomStore.getState().updateRoom,
+    removeRoom: useRoomStore.getState().removeRoom,
+    addJoinedRoom: useRoomStore.getState().addJoinedRoom,
+    removeJoinedRoom: useRoomStore.getState().removeJoinedRoom,
+    addDiscoveredRoomIds: useRoomStore.getState().addDiscoveredRoomIds,
+  });
 
   useEffect(() => {
+    // Get actions from ref (stable reference)
+    const { setRoom, updateRoom, removeRoom, addJoinedRoom, removeJoinedRoom, addDiscoveredRoomIds } = storeActionsRef.current;
     log.debug('Subscribing to room WebSocket events');
 
     // =========================================================================
@@ -201,13 +206,17 @@ export function useRoomWebSocket(userId?: string): void {
       processedKickEvents.add(eventKey);
       setTimeout(() => processedKickEvents.delete(eventKey), EVENT_DEDUP_TTL);
 
-      log.debug('User kicked', { userId: payload.kickedUserId, roomId: payload.roomId });
-
       const currentUserId = userIdRef.current;
+      log.info('User kicked event received', { 
+        kickedUserId: payload.kickedUserId, 
+        currentUserId, 
+        roomId: payload.roomId,
+        isCurrentUser: payload.kickedUserId === currentUserId 
+      });
 
       // If current user was kicked
       if (payload.kickedUserId === currentUserId) {
-        log.warn('Current user was kicked');
+        log.warn('Current user was kicked - removing from room');
         removeJoinedRoom(payload.roomId);
         wsService.unsubscribe(payload.roomId);
         return;
@@ -238,13 +247,21 @@ export function useRoomWebSocket(userId?: string): void {
       processedBanEvents.add(eventKey);
       setTimeout(() => processedBanEvents.delete(eventKey), EVENT_DEDUP_TTL);
 
-      log.debug('User banned', { userId: payload.bannedUserId, roomId: payload.roomId });
+      log.info('User banned event received', { 
+        bannedUserId: payload.bannedUserId, 
+        roomId: payload.roomId 
+      });
 
       const currentUserId = userIdRef.current;
+      log.info('Checking if current user was banned', {
+        bannedUserId: payload.bannedUserId,
+        currentUserId,
+        isCurrentUser: payload.bannedUserId === currentUserId
+      });
 
       // If current user was banned
       if (payload.bannedUserId === currentUserId) {
-        log.warn('Current user was banned');
+        log.warn('Current user was banned - removing from room');
         removeJoinedRoom(payload.roomId);
         removeRoom(payload.roomId); // Remove from discovery too
         wsService.unsubscribe(payload.roomId);
@@ -312,7 +329,7 @@ export function useRoomWebSocket(userId?: string): void {
       unsubBanned();
       unsubUnbanned();
     };
-  }, [setRoom, updateRoom, removeRoom, addJoinedRoom, removeJoinedRoom, addDiscoveredRoomIds]);
+  }, []); // Empty deps - only subscribe once, actions accessed via ref/getState()
 }
 
 export default useRoomWebSocket;

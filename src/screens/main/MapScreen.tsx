@@ -689,11 +689,22 @@ export default function MapScreen() {
         {/* Room Markers and Clusters - using MarkerView for stability */}
         {mapReady && features.map((feature: MapFeature) => {
           const [lng, lat] = feature.geometry.coordinates;
+          
+          // Skip features with invalid coordinates to prevent native crash
+          if (lng == null || lat == null || !isFinite(lng) || !isFinite(lat)) {
+            return null;
+          }
+          
           // Use stable keys that survive re-clustering
           const stableKey = getStableFeatureKey(feature);
           const id = isCluster(feature)
             ? `cluster-${feature.properties.cluster_id}`
             : `room-${feature.properties.eventId}`;
+
+          // Skip if id is undefined/null
+          if (!id || !stableKey) {
+            return null;
+          }
 
           if (isCluster(feature)) {
             return (
@@ -714,7 +725,7 @@ export default function MapScreen() {
           }
 
           const room = feature.properties.room;
-          if (room.latitude == null || room.longitude == null) {
+          if (!room || room.latitude == null || room.longitude == null) {
             return null;
           }
 

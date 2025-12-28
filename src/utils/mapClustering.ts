@@ -35,7 +35,13 @@ export type MapFeature = EventFeature | ClusterFeature;
 // Convert rooms to GeoJSON features
 export function roomsToGeoJSON(rooms: Room[]): EventFeature[] {
     return rooms
-        .filter(room => room.latitude !== undefined && room.longitude !== undefined)
+        .filter(room => 
+            room.latitude != null && 
+            room.longitude != null && 
+            isFinite(room.latitude) && 
+            isFinite(room.longitude) &&
+            room.id != null
+        )
         .map(room => ({
             type: 'Feature' as const,
             properties: {
@@ -104,7 +110,20 @@ export function getClustersForBounds(
         // Expand bounds by 50% to prevent edge flickering when panning
         const expandedBounds = getExpandedBounds(bounds, 0.5);
         // Use floor for consistent zoom levels
-        return index.getClusters(expandedBounds, Math.floor(zoom)) as MapFeature[];
+        const features = index.getClusters(expandedBounds, Math.floor(zoom)) as MapFeature[];
+        
+        // Filter out any invalid features to prevent native crashes
+        return features.filter(feature => {
+            if (!feature?.geometry?.coordinates) return false;
+            const [lng, lat] = feature.geometry.coordinates;
+            if (lng == null || lat == null || !isFinite(lng) || !isFinite(lat)) return false;
+            
+            if (isCluster(feature)) {
+                return feature.properties?.cluster_id != null;
+            } else {
+                return feature.properties?.room?.id != null;
+            }
+        });
     } catch (e) {
         console.warn('Supercluster error:', e);
         return [];

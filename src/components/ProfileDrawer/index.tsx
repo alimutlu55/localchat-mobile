@@ -2,11 +2,12 @@
  * ProfileDrawer Component - Main Container
  *
  * Bottom sheet drawer for user profile and settings.
- * Refactored into smaller, focused components for better maintainability.
+ * Uses useProfileDrawer hook for all data and actions.
  * 
  * Architecture:
- * - This file handles: orchestration, state management, navigation
- * - Sub-components handle: specific UI sections
+ * - useProfileDrawer hook: data fetching, business logic, actions
+ * - This file: orchestration, UI rendering, page navigation
+ * - Sub-components: specific UI sections (presentational)
  */
 
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
@@ -15,11 +16,7 @@ import {
     Text,
     StyleSheet,
     TouchableOpacity,
-    Alert,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
-import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../../navigation/types';
 import {
     LogOut,
     ChevronRight,
@@ -30,9 +27,7 @@ import {
     ArrowLeft,
 } from 'lucide-react-native';
 import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
-import { useCurrentUser, useSettings } from '../../features/user';
-import { useMyRooms } from '../../features/rooms/hooks';
-import { blockService } from '../../services';
+import { useProfileDrawer } from '../../features/user';
 
 // Sub-components
 import { ProfileHeader } from './ProfileHeader';
@@ -43,8 +38,7 @@ import { NotificationSettings } from './NotificationSettings';
 import { AboutSection } from './AboutSection';
 import { BlockedUsersPage } from './BlockedUsersPage';
 import { Section, SettingRow } from './shared';
-import { SubPage, BlockedUser } from './shared/types';
-import { Room } from '../../types';
+import { SubPage } from './shared/types';
 
 interface ProfileDrawerProps {
     isOpen: boolean;
@@ -56,22 +50,36 @@ interface ProfileDrawerProps {
  * Main ProfileDrawer Component
  */
 export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps) {
-    const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-    const user = useCurrentUser();
-    const { rooms: myRooms } = useMyRooms();
+    // =========================================================================
+    // Hook - All data and actions from useProfileDrawer
+    // =========================================================================
+    const {
+        user,
+        isAnonymous,
+        stats,
+        myRooms,
+        blockedUsers,
+        notificationSettings,
+        privacySettings,
+        updateNotificationSettings,
+        updatePrivacySettings,
+        appVersion,
+        language,
+        locationMode,
+        handleEditProfile,
+        handleRoomPress,
+        handleUpgrade,
+        handleSignOut,
+        handleDeleteAccount,
+        openTermsOfService,
+        openPrivacyPolicy,
+        openHelpCenter,
+    } = useProfileDrawer();
 
     // =========================================================================
-    // State
+    // Local State - UI only
     // =========================================================================
     const [currentPage, setCurrentPage] = useState<SubPage>('main');
-
-    // Use global settings state
-    const { settings, updateSettings } = useSettings();
-
-    // Blocked users state
-    const [blockedUsers, setBlockedUsers] = useState<BlockedUser[]>([]);
-    const [isLoadingBlocked, setIsLoadingBlocked] = useState(false);
-    const [unblockingId, setUnblockingId] = useState<string | null>(null);
 
     // BottomSheet refs and config
     const bottomSheetRef = useRef<BottomSheet>(null);
@@ -81,28 +89,17 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
     // Effects
     // =========================================================================
 
-    const loadBlockedUsers = useCallback(async () => {
-        setIsLoadingBlocked(true);
-        try {
-            const users = await blockService.getBlockedUsers();
-            setBlockedUsers(users);
-        } catch (error) {
-            console.error('Failed to load blocked users:', error);
-        } finally {
-            setIsLoadingBlocked(false);
-        }
-    }, []);
-
     // Control sheet based on isOpen prop
     useEffect(() => {
         if (isOpen) {
             bottomSheetRef.current?.expand();
             setCurrentPage('main');
-            loadBlockedUsers();
+            // Refresh blocked users when drawer opens
+            blockedUsers.refresh();
         } else {
             bottomSheetRef.current?.close();
         }
-    }, [isOpen, loadBlockedUsers]);
+    }, [isOpen]);
 
     // =========================================================================
     // Handlers
@@ -126,99 +123,6 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
         []
     );
 
-    const handleEditProfile = useCallback(() => {
-        onClose();
-        navigation.navigate('EditProfile');
-    }, [onClose, navigation]);
-
-    const handleUpgrade = useCallback(() => {
-        console.log('Upgrade account');
-        // TODO: Navigate to upgrade screen
-    }, []);
-
-    const handleRoomPress = useCallback((room: Room) => {
-        onClose();
-        navigation.navigate('ChatRoom', { roomId: room.id, initialRoom: room });
-    }, [onClose, navigation]);
-
-    const handleSignOut = useCallback(() => {
-        Alert.alert(
-            'Sign Out',
-            'Are you sure you want to sign out?',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Sign Out',
-                    style: 'destructive',
-                    onPress: () => {
-                        onSignOut();
-                        onClose();
-                    },
-                },
-            ]
-        );
-    }, [onSignOut, onClose]);
-
-    const handleDeleteAccount = useCallback(() => {
-        Alert.alert(
-            'Delete Account',
-            'This action cannot be undone. All your data will be permanently deleted.',
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Delete',
-                    style: 'destructive',
-                    onPress: () => {
-                        // TODO: Implement account deletion
-                        console.log('Delete account');
-                    },
-                },
-            ]
-        );
-    }, []);
-
-    const handleUnblock = useCallback((blockedUser: BlockedUser) => {
-        Alert.alert(
-            'Unblock User',
-            `Are you sure you want to unblock ${blockedUser.displayName || 'this user'}?`,
-            [
-                { text: 'Cancel', style: 'cancel' },
-                {
-                    text: 'Unblock',
-                    onPress: async () => {
-                        setUnblockingId(blockedUser.blockedId);
-                        try {
-                            await blockService.unblockUser(blockedUser.blockedId);
-                            setBlockedUsers(prev => prev.filter(u => u.blockedId !== blockedUser.blockedId));
-                        } catch (error) {
-                            Alert.alert('Error', 'Failed to unblock user');
-                        } finally {
-                            setUnblockingId(null);
-                        }
-                    },
-                },
-            ]
-        );
-    }, []);
-
-    // =========================================================================
-    // Derived Data
-    // =========================================================================
-
-    const memberSince = useMemo(() => {
-        if (!user?.createdAt) return 'Recently';
-        return new Date(user.createdAt).toLocaleDateString(undefined, {
-            month: 'short',
-            year: 'numeric'
-        });
-    }, [user?.createdAt]);
-
-    const stats = useMemo(() => ({
-        roomsJoined: myRooms.length,
-        messagesSent: user?.isAnonymous ? 12 : 148, // Mocked for now
-        memberSince
-    }), [myRooms.length, user?.isAnonymous, memberSince]);
-
     // =========================================================================
     // Render Functions
     // =========================================================================
@@ -228,38 +132,41 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
             <ProfileHeader
                 user={user}
                 stats={stats}
-                onEditProfile={handleEditProfile}
+                onEditProfile={() => handleEditProfile(onClose)}
             />
 
             <UpgradeBanner
-                isAnonymous={user?.isAnonymous || false}
-                onUpgrade={handleUpgrade}
+                isAnonymous={isAnonymous}
+                onUpgrade={() => handleUpgrade(onClose)}
             />
 
             <ActiveRoomsList
                 rooms={myRooms}
-                onRoomPress={handleRoomPress}
+                onRoomPress={(room) => handleRoomPress(room, onClose)}
             />
 
             <AccountSettings
-                blockedUsersCount={blockedUsers.length}
+                blockedUsersCount={blockedUsers.count}
                 onPrivacyPress={() => setCurrentPage('privacy')}
                 onBlockedUsersPress={() => setCurrentPage('blocked')}
             />
 
             <NotificationSettings
-                pushNotifications={settings.notificationsEnabled}
-                messageNotifications={settings.messageNotificationsEnabled}
-                soundEnabled={settings.soundEnabled}
-                onPushToggle={(val) => updateSettings({ notificationsEnabled: val })}
-                onMessageToggle={(val) => updateSettings({ messageNotificationsEnabled: val })}
-                onSoundToggle={(val) => updateSettings({ soundEnabled: val })}
+                pushNotifications={notificationSettings.pushNotifications}
+                messageNotifications={notificationSettings.messageNotifications}
+                onPushToggle={(val) => updateNotificationSettings({ pushNotifications: val })}
+                onMessageToggle={(val) => updateNotificationSettings({ messageNotifications: val })}
             />
 
             <AboutSection
-                onHelpPress={() => setCurrentPage('help')}
+                appVersion={appVersion}
+                language={language}
+                locationMode={locationMode}
+                onHelpPress={openHelpCenter}
                 onLanguagePress={() => setCurrentPage('language')}
-                onLocationPress={() => console.log('Location mode')}
+                onLocationPress={() => setCurrentPage('privacy')}
+                onTermsPress={openTermsOfService}
+                onPrivacyPolicyPress={openPrivacyPolicy}
             />
 
             {/* Danger Zone */}
@@ -275,7 +182,10 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
             </View>
 
             {/* Sign Out */}
-            <TouchableOpacity style={styles.signOutButton} onPress={handleSignOut}>
+            <TouchableOpacity 
+                style={styles.signOutButton} 
+                onPress={() => handleSignOut(onClose)}
+            >
                 <LogOut size={20} color="#6b7280" />
                 <Text style={styles.signOutText}>Sign Out</Text>
             </TouchableOpacity>
@@ -309,15 +219,15 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
                                 icon={Eye}
                                 label="Show Online Status"
                                 isToggle
-                                isEnabled={true}
-                                onToggle={() => { }}
+                                isEnabled={privacySettings.showOnlineStatus}
+                                onToggle={(val) => updatePrivacySettings({ showOnlineStatus: val })}
                             />
                             <SettingRow
                                 icon={Globe}
                                 label="Show Last Seen"
                                 isToggle
-                                isEnabled={true}
-                                onToggle={() => { }}
+                                isEnabled={privacySettings.showLastSeen}
+                                onToggle={(val) => updatePrivacySettings({ showLastSeen: val })}
                             />
                         </Section>
                     </View>
@@ -327,17 +237,17 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
                     'Language',
                     <View style={styles.subPageContent}>
                         <Text style={styles.infoText}>
-                            Language settings coming soon...
+                            Language settings coming soon. Currently using: {(language || 'en').toUpperCase()}
                         </Text>
                     </View>
                 );
             case 'blocked':
                 return (
                     <BlockedUsersPage
-                        blockedUsers={blockedUsers}
-                        isLoading={isLoadingBlocked}
-                        unblockingId={unblockingId}
-                        onUnblock={handleUnblock}
+                        blockedUsers={blockedUsers.blockedUsers}
+                        isLoading={blockedUsers.isLoading}
+                        unblockingId={blockedUsers.unblockingId}
+                        onUnblock={blockedUsers.unblockUser}
                         onBack={() => setCurrentPage('main')}
                     />
                 );

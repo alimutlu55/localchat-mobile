@@ -486,6 +486,7 @@ class WebSocketService {
       case WS_EVENTS.MESSAGE_NEW:
         eventBus.emit('message.new', {
           roomId: payload.roomId,
+          roomName: payload.roomName, // Include room name for notifications
           messageId: payload.id || payload.messageId, // Backend sends 'id', not 'messageId'
           content: payload.content,
           sender: payload.sender || {
@@ -554,24 +555,27 @@ class WebSocketService {
         break;
 
       case WS_EVENTS.USER_JOINED:
+        // Backend sends user object: { id, displayName, profilePhotoUrl }
         eventBus.emit('room.userJoined', {
           roomId: payload.roomId,
-          userId: payload.userId,
-          userName: payload.displayName,
+          userId: payload.user?.id || payload.userId,
+          userName: payload.user?.displayName || payload.displayName,
           participantCount: payload.participantCount,
         });
         break;
 
       case WS_EVENTS.USER_LEFT:
+        // Backend sends user object: { id, displayName, profilePhotoUrl }
         eventBus.emit('room.userLeft', {
           roomId: payload.roomId,
-          userId: payload.userId,
-          userName: payload.displayName,
+          userId: payload.user?.id || payload.userId,
+          userName: payload.user?.displayName || payload.displayName,
           participantCount: payload.participantCount,
         });
         break;
 
       case WS_EVENTS.USER_KICKED:
+        console.log('[WS] USER_KICKED payload:', JSON.stringify(payload));
         eventBus.emit('room.userKicked', {
           roomId: payload.roomId,
           kickedUserId: payload.kickedUserId,
@@ -581,6 +585,7 @@ class WebSocketService {
         break;
 
       case WS_EVENTS.USER_BANNED:
+        console.log('[WS] USER_BANNED payload:', JSON.stringify(payload));
         eventBus.emit('room.userBanned', {
           roomId: payload.roomId,
           bannedUserId: payload.bannedUserId,

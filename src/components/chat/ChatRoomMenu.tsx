@@ -11,7 +11,7 @@
  * Matches web version exactly.
  */
 
-import React, { useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -19,7 +19,6 @@ import {
   TouchableOpacity,
   Modal,
   Pressable,
-  Animated,
 } from 'react-native';
 import { theme } from '../../core/theme';
 import {
@@ -38,6 +37,7 @@ interface ChatRoomMenuProps {
   onLeave: () => void;
   onReport: () => void;
   onMute: () => void;
+  isMuted: boolean;
   isCreator?: boolean;
   onCloseRoom?: () => void;
 }
@@ -49,13 +49,11 @@ export function ChatRoomMenu({
   onLeave,
   onReport,
   onMute,
+  isMuted,
   isCreator = false,
   onCloseRoom,
 }: ChatRoomMenuProps) {
-  const [isMuted, setIsMuted] = useState(false);
-
   const handleMute = () => {
-    setIsMuted(!isMuted);
     onMute();
     onClose();
   };

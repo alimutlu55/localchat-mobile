@@ -23,6 +23,8 @@ import { Room } from '../types';
 export interface RoomNavParams {
   /** NEW: Pass roomId for data fetching from store */
   roomId?: string;
+  /** Room name for display (optional) */
+  roomName?: string;
   /** NEW: Optional initial data for optimistic rendering */
   initialRoom?: Room;
   /** LEGACY: Full room object (deprecated, use roomId instead) */

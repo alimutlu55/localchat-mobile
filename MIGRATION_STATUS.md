@@ -1,72 +1,43 @@
 # LocalChat Mobile - Migration Status
 
-## ✅ Completed Migration
+## ✅ Architecture Complete
 
-### Services (10/10 - 100%)
-| Web Service | Mobile Service | Status |
-|-------------|----------------|--------|
-| `api.ts` | `api.ts` | ✅ Complete - REST client with auth |
-| `authService.ts` | `auth.ts` | ✅ Complete - Login, register, anonymous |
-| `roomService.ts` | `room.ts` | ✅ Complete - CRUD, join/leave |
-| `messageService.ts` | `message.ts` | ✅ Complete - Send, history |
-| `websocketService.ts` | `websocket.ts` | ✅ Complete - Real-time messaging |
-| `settingsService.ts` | `settings.ts` | ✅ Complete - User preferences |
-| `blockService.ts` | `block.ts` | ✅ Complete - Block/unblock users |
-| `onboardingService.ts` | `onboarding.ts` | ✅ Complete - First-time flow |
-| (localStorage) | `storage.ts` | ✅ Complete - AsyncStorage + SecureStore |
+### State Management (Zustand - Single Source of Truth)
+| Store | Purpose | Status |
+|-------|---------|--------|
+| `AuthStore` | Authentication flows, tokens | ✅ Complete |
+| `UserStore` | User data, preferences, avatar cache | ✅ Complete |
+| `RoomStore` | Room data, membership, discovery | ✅ Complete |
 
-### Screens (14 screens)
-| Screen | Status | Notes |
-|--------|--------|-------|
-| `SplashScreen` | ✅ Complete | App loading screen |
-| `WelcomeScreen` | ✅ Complete | Landing with login options |
-| `LoginScreen` | ✅ Complete | Email/password login |
-| `RegisterScreen` | ✅ Complete | User registration |
-| `AnonymousLoginScreen` | ✅ Complete | Quick anonymous entry |
-| `ForgotPasswordScreen` | ✅ Complete | Password reset request |
-| `MapScreen` | ✅ Complete | Discovery with map markers |
-| `RoomsScreen` | ✅ Complete | User's joined/created rooms |
-| `ProfileScreen` | ✅ Complete | Profile tab with stats |
-| `ChatRoomScreen` | ✅ Complete | Real-time messaging |
-| `CreateRoomScreen` | ✅ Complete | Room creation form |
-| `RoomDetailsScreen` | ✅ Complete | Room info & moderation |
-| `SettingsScreen` | ✅ Complete | App settings |
-| `EditProfileScreen` | ✅ Complete | Profile editing |
+### Provider Hierarchy (Clean - 3 Providers)
+```
+GestureHandlerRootView
+└── SafeAreaProvider
+    └── NavigationContainer
+        └── UserStoreProvider    // Zustand + WebSocket handlers
+            └── UIProvider       // UI state (sidebar, drawers)
+                └── RoomStoreProvider  // Zustand + WebSocket handlers
+```
 
-### Contexts (3/4 - 75%)
-| Context | Status | Notes |
-|---------|--------|-------|
-| `AuthContext` | ✅ Complete | Auth state management |
-| `RoomContext` | ✅ Complete | Room state management |
-| `SettingsContext` | ✅ Complete | Settings state |
-| `NavigationContext` | ⏭️ Skip | Not needed (React Navigation handles) |
+### Feature Modules
+| Feature | Hooks | Store | Status |
+|---------|-------|-------|--------|
+| `auth` | useAuth, useLogin, useLogout | AuthStore | ✅ Complete |
+| `user` | useCurrentUser, useSettings, useBlockedUsers, useProfileDrawer | UserStore | ✅ Complete |
+| `rooms` | useRoom, useJoinRoom, useMyRooms, useRoomDiscovery | RoomStore | ✅ Complete |
+| `chat` | useChatMessages, useChatInput | (uses RoomStore) | ✅ Complete |
+| `discovery` | useMapClustering | (uses RoomStore) | ✅ Complete |
 
-### Hooks (1/2 - 50%)
-| Hook | Status | Notes |
-|------|--------|-------|
-| `useGeolocation` | ✅ Complete | Device location |
-| `useApplySettings` | ⏭️ Skip | Merged into SettingsContext |
+### EventBus Integration
+- ✅ WebSocket → EventBus → Stores (decoupled)
+- ✅ Room events: created, updated, closed, expiring
+- ✅ User events: kicked, banned, unbanned
+- ✅ Message events: new, ack, read
 
-### UI Components (4 base components)
-| Component | Status |
-|-----------|--------|
-| `Button` | ✅ Complete |
-| `Input` | ✅ Complete |
-| `Avatar` | ✅ Complete |
-| `Loading` | ✅ Complete |
-
-### Types (3 files)
-| Type File | Status |
-|-----------|--------|
-| `user.ts` | ✅ Complete |
-| `room.ts` | ✅ Complete |
-| `message.ts` | ✅ Complete |
-
-### i18n
-| File | Status |
-|------|--------|
-| `index.ts` | ✅ Complete |
-| `locales/en.json` | ✅ Complete |
+### Removed (Dead Code)
+- ❌ AuthContext (replaced by AuthStore)
+- ❌ SettingsContext (replaced by UserStore.preferences)
+- ❌ RoomCacheContext (replaced by RoomStore)
 
 ---
 

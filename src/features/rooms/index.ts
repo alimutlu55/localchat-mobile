@@ -8,7 +8,6 @@
  * - hooks/: Business logic (useRoom, useRoomActions, useRoomWebSocket)
  * - screens/: UI screens (CreateRoom, RoomDetails, RoomInfo)
  * - components/: Reusable room-specific components
- * - context/: Legacy exports (deprecated, kept for compatibility)
  *
  * Usage:
  * ```typescript
@@ -27,7 +26,3 @@ export * from './screens';
 
 // Components
 export * from './components';
-
-// Context (deprecated - kept for backward compatibility)
-// New code should not use these
-export * from './context';

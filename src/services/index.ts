@@ -13,6 +13,7 @@ export { messageService } from './message';
 export { blockService } from './block';
 export { settingsService } from './settings';
 export { onboardingService } from './onboarding';
+export { notificationService } from './notifications';
 
 // Re-export constants
 export { STORAGE_KEYS, WS_EVENTS } from '../constants';

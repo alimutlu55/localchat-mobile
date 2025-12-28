@@ -127,9 +127,10 @@ export function useRoom(
     [roomId, setRoom, isJoined]
   );
 
-  // Initial load
+  // Initial load - only fetch once when roomId changes
   useEffect(() => {
     isMountedRef.current = true;
+    // Reset hasFetchedRef when roomId changes
     hasFetchedRef.current = false;
 
     if (!roomId) {
@@ -138,30 +139,30 @@ export function useRoom(
     }
 
     // Check store first
-    if (storeRoom && skipFetchIfCached) {
+    const currentStoreRoom = useRoomStore.getState().rooms.get(roomId);
+    
+    if (currentStoreRoom && skipFetchIfCached) {
       // Use stored data, don't fetch
       setIsLoading(false);
+      hasFetchedRef.current = true;
       log.debug('Using stored room', { roomId });
-    } else if (storeRoom) {
-      // Show stored data immediately, but fetch fresh
+    } else if (currentStoreRoom) {
+      // Show stored data immediately, but fetch fresh once
       setIsLoading(false);
-      if (!hasFetchedRef.current) {
-        hasFetchedRef.current = true;
-        log.debug('Have stored room, fetching fresh', { roomId });
-        fetchRoom(false);
-      }
+      hasFetchedRef.current = true;
+      log.debug('Have stored room, fetching fresh', { roomId });
+      fetchRoom(false);
     } else {
       // No stored data, must fetch
-      if (!hasFetchedRef.current) {
-        hasFetchedRef.current = true;
-        fetchRoom(false);
-      }
+      hasFetchedRef.current = true;
+      fetchRoom(false);
     }
 
     return () => {
       isMountedRef.current = false;
     };
-  }, [roomId, storeRoom, skipFetchIfCached, fetchRoom]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [roomId]); // Only re-run when roomId changes
 
   // Build room with hasJoined flag
   const room = storeRoom

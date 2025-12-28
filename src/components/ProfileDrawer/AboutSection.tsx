@@ -10,16 +10,34 @@ import { HelpCircle, Scale, Eye, Globe, MapPin, Languages } from 'lucide-react-n
 import { Section, SettingRow } from './shared';
 
 interface AboutSectionProps {
+    appVersion: string;
+    language: string;
+    locationMode: string;
     onHelpPress: () => void;
     onLanguagePress: () => void;
     onLocationPress: () => void;
+    onTermsPress: () => void;
+    onPrivacyPolicyPress: () => void;
 }
 
 export function AboutSection({
+    appVersion,
+    language,
+    locationMode,
     onHelpPress,
     onLanguagePress,
     onLocationPress,
+    onTermsPress,
+    onPrivacyPolicyPress,
 }: AboutSectionProps) {
+    // Format location mode for display (with fallback)
+    const locationModeDisplay = locationMode 
+        ? locationMode.charAt(0).toUpperCase() + locationMode.slice(1)
+        : 'Approximate';
+    
+    // Format language for display
+    const languageDisplay = language === 'en' ? 'English' : (language || 'EN').toUpperCase();
+
     return (
         <>
             {/* Privacy & Safety */}
@@ -27,7 +45,7 @@ export function AboutSection({
                 <SettingRow
                     icon={MapPin}
                     label="Location Mode"
-                    value="Precise"
+                    value={locationModeDisplay}
                     onPress={onLocationPress}
                 />
             </Section>
@@ -37,7 +55,7 @@ export function AboutSection({
                 <SettingRow
                     icon={Languages}
                     label="Language"
-                    value="English"
+                    value={languageDisplay}
                     onPress={onLanguagePress}
                 />
             </Section>
@@ -52,17 +70,17 @@ export function AboutSection({
                 <SettingRow
                     icon={Scale}
                     label="Terms of Service"
-                    onPress={() => console.log('Terms')}
+                    onPress={onTermsPress}
                 />
                 <SettingRow
                     icon={Eye}
                     label="Privacy Policy"
-                    onPress={() => console.log('Privacy policy')}
+                    onPress={onPrivacyPolicyPress}
                 />
                 <View style={styles.settingRow}>
                     <Globe size={20} color="#6b7280" />
                     <Text style={styles.settingLabel}>Version</Text>
-                    <Text style={styles.settingValue}>1.0.0</Text>
+                    <Text style={styles.settingValue}>{appVersion}</Text>
                 </View>
             </Section>
         </>

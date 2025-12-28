@@ -9,17 +9,20 @@ import { View, Text, StyleSheet } from 'react-native';
 
 interface StatItemProps {
     label: string;
-    value: string | number;
+    value: string | number | null;
     icon: React.ComponentType<{ size: number; color: string }>;
 }
 
 export function StatItem({ label, value, icon: Icon }: StatItemProps) {
+    // Format display value - show dash for null
+    const displayValue = value === null ? '—' : value;
+    
     return (
         <View style={styles.statItem}>
             <View style={styles.statIconContainer}>
                 <Icon size={16} color="#f97316" />
             </View>
-            <Text style={styles.statValue}>{value}</Text>
+            <Text style={styles.statValue}>{displayValue}</Text>
             <Text style={styles.statLabel}>{label}</Text>
         </View>
     );

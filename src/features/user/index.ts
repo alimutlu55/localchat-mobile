@@ -33,4 +33,17 @@ export {
 } from './store';
 
 // Hook exports
-export { useUserAvatar, useAvatarLoading, useSettings } from './hooks';
+export {
+  useUserAvatar,
+  useAvatarLoading,
+  useSettings,
+  useBlockedUsers,
+  useProfileDrawer,
+} from './hooks';
+
+// Type exports
+export type {
+  ProfileStats,
+  PrivacySettings,
+  NotificationSettingsData,
+} from './hooks';

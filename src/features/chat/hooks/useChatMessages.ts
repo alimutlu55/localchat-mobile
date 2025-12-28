@@ -25,7 +25,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { eventBus } from '../../../core/events';
-import { messageService, wsService, roomService } from '../../../services';
+import { messageService, wsService, roomService, notificationService } from '../../../services';
 import {
   ChatMessage,
   MessageStatus,
@@ -49,6 +49,10 @@ const log = createLogger('ChatMessages');
 // Deduplication: Track processed message IDs to prevent duplicates from server
 const processedMessageIds = new Set<string>();
 const MESSAGE_DEDUP_TTL = 10000; // 10 seconds
+
+// Deduplication: Track processed kick/ban events to prevent duplicate alerts
+const processedKickBanEvents = new Set<string>();
+const KICK_BAN_DEDUP_TTL = 5000; // 5 seconds
 
 // =============================================================================
 // Types
@@ -197,17 +201,22 @@ export function useChatMessages(
   // ==========================================================================
 
   useEffect(() => {
-    // Subscribe to room on mount
+    // Ensure we're subscribed to the room WebSocket when entering chat
+    // This is a safety net in case RoomStoreProvider hasn't subscribed yet
     wsService.subscribe(roomId);
-    log.debug('Subscribed to room', { roomId });
-
+    log.debug('Ensured WebSocket subscription for chat room', { roomId });
+    
     // Load initial messages
     loadMessages();
 
-    // Cleanup on unmount
+    // Set this as the active room for notifications (suppress notifications for current room)
+    notificationService.setActiveRoom(roomId);
+
+    // Cleanup on unmount - don't unsubscribe here, let RoomStoreProvider manage it
     return () => {
-      wsService.unsubscribe(roomId);
-      log.debug('Unsubscribed from room', { roomId });
+      // Clear active room so notifications can be shown again
+      notificationService.setActiveRoom(null);
+      log.debug('Cleared active room for notifications', { roomId });
     };
   }, [roomId, loadMessages]);
 
@@ -450,6 +459,15 @@ export function useChatMessages(
 
       // If current user was kicked
       if (payload.kickedUserId === userId) {
+        // Deduplicate to prevent double alerts
+        const eventKey = `kick:${roomId}:${userId}`;
+        if (processedKickBanEvents.has(eventKey)) {
+          log.debug('Skipping duplicate kick event', { eventKey });
+          return;
+        }
+        processedKickBanEvents.add(eventKey);
+        setTimeout(() => processedKickBanEvents.delete(eventKey), KICK_BAN_DEDUP_TTL);
+
         optionsRef.current.onUserKicked?.();
         // Ensure cache is refreshed for UI
         try {
@@ -482,6 +500,15 @@ export function useChatMessages(
 
       // If current user was banned
       if (payload.bannedUserId === userId) {
+        // Deduplicate to prevent double alerts
+        const eventKey = `ban:${roomId}:${userId}`;
+        if (processedKickBanEvents.has(eventKey)) {
+          log.debug('Skipping duplicate ban event', { eventKey });
+          return;
+        }
+        processedKickBanEvents.add(eventKey);
+        setTimeout(() => processedKickBanEvents.delete(eventKey), KICK_BAN_DEDUP_TTL);
+
         optionsRef.current.onUserBanned?.(payload.reason);
         try {
           const fresh = await roomService.getRoom(roomId);
