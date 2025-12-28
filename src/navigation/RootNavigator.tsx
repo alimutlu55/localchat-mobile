@@ -14,6 +14,10 @@
  * - unknown, loading, loggingOut → LoadingScreen (stable, prevents unmounting)
  * - guest, authenticating → AuthNavigator
  * - authenticated → App screens
+ *
+ * Smooth Transitions:
+ * - Uses fade animation when switching between auth and app stacks
+ * - Minimum logout duration prevents flickering
  */
 
 import React from 'react';
@@ -67,7 +71,9 @@ export function RootNavigator() {
         <Stack.Navigator
             screenOptions={{
                 headerShown: false,
-                animation: 'slide_from_right',
+                // Use fade for smoother transitions between stacks
+                animation: 'fade',
+                animationDuration: 200,
                 contentStyle: { backgroundColor: '#ffffff' },
             }}
         >
@@ -83,9 +89,15 @@ export function RootNavigator() {
             ) : (
                 // App Flow - only when status === 'authenticated'
                 <>
-                    <Stack.Screen name="Discovery" component={DiscoveryScreen} />
+                    <Stack.Screen 
+                        name="Discovery" 
+                        component={DiscoveryScreen}
+                        options={{
+                            animation: 'fade',
+                        }}
+                    />
 
-                    {/* Standalone Screens */}
+                    {/* Standalone Screens - use slide animation within app */}
                     <Stack.Screen
                         name="ChatRoom"
                         component={ChatRoomScreen}

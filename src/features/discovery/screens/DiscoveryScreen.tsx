@@ -80,9 +80,19 @@ export default function DiscoveryScreen() {
     // View mode state
     const [viewMode, setViewMode] = useState<ViewMode>('map');
 
+    // ==========================================================================
+    // Map Initialization & Smooth Transitions
+    // ==========================================================================
+
     // Map stabilization state - prevents marker rendering until map is fully ready
     // This fixes a native crash where MapLibre tries to insert nil subviews
     const [isMapStable, setIsMapStable] = useState(false);
+
+    // Map overlay opacity - fades out to reveal map smoothly
+    const mapOverlayOpacity = useRef(new Animated.Value(1)).current;
+
+    // Markers opacity - fade in markers after map is stable
+    const markersOpacity = useRef(new Animated.Value(0)).current;
 
     // Animation for view switching
     const listOpacity = useRef(new Animated.Value(0)).current;
@@ -123,19 +133,39 @@ export default function DiscoveryScreen() {
         defaultZoom: 13,
     });
 
-    // Stabilize map after it reports ready (prevents native crashes)
+    // Smooth map initialization sequence
     useEffect(() => {
         if (isMapReady) {
-            // Small delay to let MapLibre finish internal setup
-            const timer = setTimeout(() => {
+            // Phase 1: Wait for map to stabilize internally (100ms)
+            const stabilizeTimer = setTimeout(() => {
                 setIsMapStable(true);
-                log.debug('Map stabilized, enabling markers');
+                log.debug('Map stabilized, starting fade-in sequence');
+
+                // Phase 2: Fade out the overlay to reveal the map (300ms)
+                Animated.timing(mapOverlayOpacity, {
+                    toValue: 0,
+                    duration: 300,
+                    useNativeDriver: true,
+                }).start();
+
+                // Phase 3: Fade in markers after a brief pause (200ms delay, 400ms fade)
+                setTimeout(() => {
+                    Animated.timing(markersOpacity, {
+                        toValue: 1,
+                        duration: 400,
+                        useNativeDriver: true,
+                    }).start();
+                }, 200);
             }, 100);
-            return () => clearTimeout(timer);
+
+            return () => clearTimeout(stabilizeTimer);
         } else {
+            // Reset animations when map is not ready
             setIsMapStable(false);
+            mapOverlayOpacity.setValue(1);
+            markersOpacity.setValue(0);
         }
-    }, [isMapReady]);
+    }, [isMapReady, mapOverlayOpacity, markersOpacity]);
 
     // Room discovery - using hooks instead of context
     const {
@@ -435,8 +465,28 @@ export default function DiscoveryScreen() {
                         })}
                 </MapView>
 
-                {/* Map Controls */}
-                <View style={styles.mapControls}>
+                {/* Map Loading Overlay - Fades out when map is ready */}
+                <Animated.View
+                    style={[
+                        styles.mapLoadingOverlay,
+                        { opacity: mapOverlayOpacity },
+                    ]}
+                    pointerEvents={isMapStable ? 'none' : 'auto'}
+                >
+                    <View style={styles.mapLoadingContent}>
+                        <ActivityIndicator size="large" color="#f97316" />
+                        <Text style={styles.mapLoadingText}>Loading map...</Text>
+                    </View>
+                </Animated.View>
+
+                {/* Map Controls - Only show when map is stable */}
+                <Animated.View 
+                    style={[
+                        styles.mapControls,
+                        { opacity: markersOpacity }
+                    ]}
+                    pointerEvents={isMapStable ? 'auto' : 'none'}
+                >
                     <View style={styles.zoomCard}>
                         <TouchableOpacity style={styles.zoomButton} onPress={zoomIn} activeOpacity={0.7}>
                             <Plus size={20} color="#374151" />
@@ -460,24 +510,24 @@ export default function DiscoveryScreen() {
                             <Globe size={20} color="#f97316" />
                         </TouchableOpacity>
                     )}
-                </View>
+                </Animated.View>
 
-                {/* Events Counter */}
-                <View style={styles.eventsCounter}>
+                {/* Events Counter - Fade in with markers */}
+                <Animated.View style={[styles.eventsCounter, { opacity: markersOpacity }]}>
                     <Text style={styles.eventsCounterText}>
                         {totalEventsInView} {totalEventsInView === 1 ? 'event' : 'events'} in view
                     </Text>
-                </View>
+                </Animated.View>
 
                 {/* Empty State */}
-                {activeRooms.length === 0 && !isLoadingRooms && (
-                    <View style={styles.emptyState}>
+                {activeRooms.length === 0 && !isLoadingRooms && isMapStable && (
+                    <Animated.View style={[styles.emptyState, { opacity: markersOpacity }]}>
                         <Text style={styles.emptyTitle}>No rooms nearby</Text>
                         <Text style={styles.emptyText}>Be the first to start a conversation!</Text>
                         <TouchableOpacity style={styles.createButton} onPress={handleCreateRoom}>
                             <Text style={styles.createButtonText}>Create Room</Text>
                         </TouchableOpacity>
-                    </View>
+                    </Animated.View>
                 )}
             </Animated.View>
 
@@ -571,6 +621,22 @@ const styles = StyleSheet.create({
     },
     map: {
         flex: 1,
+    },
+    mapLoadingOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: '#f9fafb',
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 10,
+    },
+    mapLoadingContent: {
+        alignItems: 'center',
+        gap: 16,
+    },
+    mapLoadingText: {
+        fontSize: 16,
+        color: '#6b7280',
+        fontWeight: '500',
     },
     listContainer: {
         ...StyleSheet.absoluteFillObject,

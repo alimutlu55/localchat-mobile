@@ -21,7 +21,10 @@ type NavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Welcome'>;
 export default function WelcomeScreen() {
   const navigation = useNavigation<NavigationProp>();
   const { loginAnonymous, isLoading: authLoading, clearError } = useAuth();
-  const [isCheckingDevice, setIsCheckingDevice] = useState(true);
+  
+  // Start as false to avoid showing loading state when arriving from logout
+  // The loading state was causing a flicker during the logout → welcome transition
+  const [isCheckingDevice, setIsCheckingDevice] = useState(false);
   const [isDirectLoginLoading, setIsDirectLoginLoading] = useState(false);
   const hasCheckedRef = useRef(false);
 

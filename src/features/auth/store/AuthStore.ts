@@ -186,6 +186,12 @@ async function cleanupSession(): Promise<void> {
     log.debug('Session cleanup complete');
 }
 
+/**
+ * Minimum time to show loading screen during logout.
+ * This prevents jarring flickering when logout is very fast.
+ */
+const MIN_LOGOUT_DURATION_MS = 400;
+
 // =============================================================================
 // Store Implementation
 // =============================================================================
@@ -347,9 +353,19 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
         set({ status: 'loggingOut', isLoading: true });
         log.debug('Logout initiated - entering loggingOut state');
 
+        // Track start time to ensure minimum logout duration
+        const startTime = Date.now();
+
         try {
             // Perform orchestrated cleanup (WS, stores, tokens)
             await cleanupSession();
+
+            // Ensure minimum logout duration for smooth UX
+            // This prevents jarring flickering when cleanup is very fast
+            const elapsed = Date.now() - startTime;
+            if (elapsed < MIN_LOGOUT_DURATION_MS) {
+                await new Promise((resolve) => setTimeout(resolve, MIN_LOGOUT_DURATION_MS - elapsed));
+            }
 
             // ONLY NOW transition to guest - navigation can safely switch
             set({
