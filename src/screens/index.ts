@@ -8,6 +8,7 @@ export { default as LoadingScreen } from './LoadingScreen';
 
 // Auth screens
 export { default as WelcomeScreen } from './auth/WelcomeScreen';
+export { default as EmailEntryScreen } from './auth/EmailEntryScreen';
 export { default as LoginScreen } from './auth/LoginScreen';
 export { default as RegisterScreen } from './auth/RegisterScreen';
 export { default as AnonymousLoginScreen } from './auth/AnonymousLoginScreen';

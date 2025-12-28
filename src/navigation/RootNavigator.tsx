@@ -30,10 +30,11 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  * Root Navigator Component
  */
 export function RootNavigator() {
-    const { isLoading, isAuthenticated } = useAuth();
+    const { isInitializing, isAuthenticated } = useAuth();
 
-    // Show loading screen while auth is initializing
-    if (isLoading) {
+    // Show loading screen only during initial auth check (app startup)
+    // NOT during login/register operations - those should keep nav mounted
+    if (isInitializing) {
         return <LoadingScreen />;
     }
 

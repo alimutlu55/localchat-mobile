@@ -20,6 +20,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { ArrowLeft, User, Sparkles } from 'lucide-react-native';
 import { useAuth } from '../../features/auth';
+import { onboardingService } from '../../services/onboarding';
 
 export default function AnonymousLoginScreen() {
   const navigation = useNavigation();
@@ -28,20 +29,14 @@ export default function AnonymousLoginScreen() {
 
   const handleContinue = async () => {
     if (!displayName.trim()) {
-      Alert.alert('Display Name Required', 'Please enter a display name to continue.');
-      return;
-    }
-
-    if (displayName.trim().length < 2) {
-      Alert.alert('Display Name Too Short', 'Display name must be at least 2 characters.');
       return;
     }
 
     try {
       await loginAnonymous(displayName.trim());
-      // Navigation will be handled by RootNavigator based on auth state
+      await onboardingService.markDeviceOnboarded();
     } catch (err) {
-      Alert.alert('Error', 'Failed to continue. Please try again.');
+      console.error('[AnonymousLoginScreen] error:', err);
     }
   };
 
@@ -72,48 +67,55 @@ export default function AnonymousLoginScreen() {
 
         {/* Content */}
         <View style={styles.content}>
-          <View style={styles.iconContainer}>
-            <User size={32} color="#f97316" />
+          <View style={styles.logoContainer}>
+            <View style={styles.logoCircle}>
+              <User size={32} color="#f97316" />
+            </View>
           </View>
 
-          <Text style={styles.title}>Choose a Display Name</Text>
+          <Text style={styles.title}>Choose a display name</Text>
           <Text style={styles.subtitle}>
             This is how others will see you in chat rooms.
             You can change it anytime.
           </Text>
 
-          <View style={styles.inputContainer}>
-            <TextInput
-              style={styles.input}
-              placeholder="Enter display name"
-              placeholderTextColor="#9ca3af"
-              value={displayName}
-              onChangeText={setDisplayName}
-              maxLength={20}
-              autoCapitalize="words"
-              autoCorrect={false}
-            />
-            <TouchableOpacity
-              style={styles.randomButton}
-              onPress={generateRandomName}
-            >
-              <Sparkles size={20} color="#f97316" />
-            </TouchableOpacity>
-          </View>
+          <View style={styles.inputGroup}>
+            <View style={styles.inputContainer}>
+              <Text style={[
+                styles.floatingLabel,
+                displayName && styles.floatingLabelActive
+              ]}>
+                Display Name
+              </Text>
+              <TextInput
+                style={styles.input}
+                placeholder=""
+                placeholderTextColor="#9ca3af"
+                value={displayName}
+                onChangeText={setDisplayName}
+                maxLength={20}
+                autoCapitalize="words"
+                autoCorrect={false}
+              />
+              <TouchableOpacity
+                style={styles.randomButton}
+                onPress={generateRandomName}
+              >
+                <Sparkles size={20} color="#9ca3af" />
+              </TouchableOpacity>
+            </View>
 
-          <Text style={styles.hint}>
-            Tip: Tap the sparkle icon for a random name
-          </Text>
+            <Text style={styles.hint}>
+              Tip: Tap the sparkle icon for a random name
+            </Text>
+          </View>
 
           {error && (
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>{error}</Text>
             </View>
           )}
-        </View>
 
-        {/* Footer */}
-        <View style={styles.footer}>
           <TouchableOpacity
             style={[
               styles.continueButton,
@@ -124,7 +126,7 @@ export default function AnonymousLoginScreen() {
             activeOpacity={0.8}
           >
             {isLoading ? (
-              <ActivityIndicator color="#ffffff" />
+              <ActivityIndicator color="#1f2937" />
             ) : (
               <Text style={styles.continueButtonText}>Continue</Text>
             )}
@@ -157,84 +159,105 @@ const styles = StyleSheet.create({
     height: 44,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#f3f4f6',
+    borderRadius: 22,
   },
   content: {
     flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 24,
+    paddingTop: 20,
   },
-  iconContainer: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
-    backgroundColor: '#fff7ed',
-    justifyContent: 'center',
+  logoContainer: {
     alignItems: 'center',
     marginBottom: 24,
   },
+  logoCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#fff7ed',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '700',
     color: '#1f2937',
+    textAlign: 'center',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#6b7280',
-    lineHeight: 24,
+    textAlign: 'center',
+    lineHeight: 22,
     marginBottom: 32,
+  },
+  inputGroup: {
+    marginBottom: 24,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#f9fafb',
-    borderRadius: 16,
+    borderRadius: 12,
     borderWidth: 1,
     borderColor: '#e5e7eb',
     paddingHorizontal: 16,
+    position: 'relative',
+  },
+  floatingLabel: {
+    position: 'absolute',
+    left: 16,
+    top: 18,
+    fontSize: 16,
+    color: '#9ca3af',
+    zIndex: 1,
+  },
+  floatingLabelActive: {
+    top: 8,
+    fontSize: 12,
+    color: '#6b7280',
   },
   input: {
     flex: 1,
     fontSize: 16,
     color: '#1f2937',
-    paddingVertical: 16,
+    paddingTop: 24,
+    paddingBottom: 12,
   },
   randomButton: {
     padding: 8,
   },
   hint: {
-    fontSize: 14,
+    fontSize: 13,
     color: '#9ca3af',
-    marginTop: 12,
+    marginTop: 8,
+    marginLeft: 4,
   },
   errorContainer: {
-    backgroundColor: '#fef2f2',
-    borderRadius: 12,
-    padding: 12,
-    marginTop: 16,
+    marginTop: 8,
+    marginBottom: 16,
+    paddingHorizontal: 4,
   },
   errorText: {
-    fontSize: 14,
-    color: '#dc2626',
-  },
-  footer: {
-    paddingHorizontal: 24,
-    paddingBottom: 24,
+    fontSize: 13,
+    color: '#ef4444',
   },
   continueButton: {
-    backgroundColor: '#f97316',
+    backgroundColor: '#f3f4f6',
     paddingVertical: 16,
-    borderRadius: 16,
+    borderRadius: 12,
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 24,
   },
   continueButtonDisabled: {
-    backgroundColor: '#fdba74',
+    opacity: 0.6,
   },
   continueButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: '#1f2937',
   },
   infoText: {
     fontSize: 13,

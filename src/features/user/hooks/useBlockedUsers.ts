@@ -9,6 +9,7 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { Alert } from 'react-native';
 import { blockService, BlockedUser } from '../../../services/block';
 import { createLogger } from '../../../shared/utils/logger';
+import { useAuthStore } from '../../auth';
 
 const log = createLogger('useBlockedUsers');
 
@@ -47,6 +48,9 @@ export function useBlockedUsers(): UseBlockedUsersReturn {
   const [unblockingId, setUnblockingId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Get auth state to prevent fetching when not authenticated
+  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+
   // Track if we've fetched at least once
   const hasFetched = useRef(false);
 
@@ -54,6 +58,12 @@ export function useBlockedUsers(): UseBlockedUsersReturn {
    * Fetch blocked users from API
    */
   const refresh = useCallback(async () => {
+    // Don't fetch if not authenticated
+    if (!isAuthenticated) {
+      log.debug('Skipping blocked users fetch - not authenticated');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
@@ -69,16 +79,22 @@ export function useBlockedUsers(): UseBlockedUsersReturn {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [isAuthenticated]);
 
   /**
-   * Initial fetch on mount
+   * Initial fetch on mount, and refetch when auth state changes
    */
   useEffect(() => {
-    if (!hasFetched.current) {
+    if (isAuthenticated && !hasFetched.current) {
       refresh();
     }
-  }, [refresh]);
+    // Clear state when user logs out
+    if (!isAuthenticated) {
+      setBlockedUsers([]);
+      setError(null);
+      hasFetched.current = false;
+    }
+  }, [isAuthenticated, refresh]);
 
   /**
    * Unblock user without confirmation (for programmatic use)

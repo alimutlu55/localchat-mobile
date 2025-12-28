@@ -23,6 +23,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ArrowLeft, Mail, Lock, User, Eye, EyeOff } from 'lucide-react-native';
 import { AuthStackParamList } from '../../navigation/types';
 import { useAuth } from '../../features/auth';
+import { onboardingService } from '../../services/onboarding';
 
 type NavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Register'>;
 
@@ -35,39 +36,49 @@ export default function RegisterScreen() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
+
+  const displayError = localError || error;
 
   const validateForm = (): boolean => {
     if (!displayName.trim()) {
-      Alert.alert('Missing Field', 'Please enter a display name.');
+      setLocalError('Please enter a display name');
       return false;
     }
     if (!email.trim()) {
-      Alert.alert('Missing Field', 'Please enter your email.');
+      setLocalError('Please enter your email address');
+      return false;
+    }
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setLocalError('Please enter a valid email address');
       return false;
     }
     if (!password) {
-      Alert.alert('Missing Field', 'Please enter a password.');
+      setLocalError('Please enter a password');
       return false;
     }
     if (password.length < 8) {
-      Alert.alert('Weak Password', 'Password must be at least 8 characters.');
+      setLocalError('Password must be at least 8 characters');
       return false;
     }
     if (password !== confirmPassword) {
-      Alert.alert('Password Mismatch', 'Passwords do not match.');
+      setLocalError('Passwords do not match');
       return false;
     }
+    setLocalError(null);
     return true;
   };
 
   const handleRegister = async () => {
+    clearError();
     if (!validateForm()) return;
 
     try {
       await register(email.trim(), password, displayName.trim());
-      // Navigation will be handled by RootNavigator
+      await onboardingService.markDeviceOnboarded();
     } catch (err) {
-      // Error is handled by context
+      // Error handled by useAuth
     }
   };
 
@@ -75,11 +86,12 @@ export default function RegisterScreen() {
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
         style={styles.keyboardView}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
         <ScrollView
           contentContainerStyle={styles.scrollContent}
           keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
           {/* Header */}
           <View style={styles.header}>
@@ -93,67 +105,87 @@ export default function RegisterScreen() {
 
           {/* Content */}
           <View style={styles.content}>
-            <Text style={styles.title}>Create Account</Text>
+            <Text style={styles.title}>Create account</Text>
             <Text style={styles.subtitle}>
               Join the community and start connecting
             </Text>
 
             {/* Display Name Input */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Display Name</Text>
               <View style={styles.inputContainer}>
-                <User size={20} color="#9ca3af" />
+                <Text style={[
+                  styles.floatingLabel,
+                  displayName && styles.floatingLabelActive
+                ]}>
+                  Display Name
+                </Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="How others will see you"
+                  placeholder=""
                   placeholderTextColor="#9ca3af"
                   value={displayName}
                   onChangeText={(text) => {
                     setDisplayName(text);
+                    setLocalError(null);
                     clearError();
                   }}
                   maxLength={20}
-                  autoCapitalize="words"
-                />
-              </View>
-            </View>
-
-            {/* Email Input */}
-            <View style={styles.inputGroup}>
-              <Text style={styles.label}>Email</Text>
-              <View style={styles.inputContainer}>
-                <Mail size={20} color="#9ca3af" />
-                <TextInput
-                  style={styles.input}
-                  placeholder="Enter your email"
-                  placeholderTextColor="#9ca3af"
-                  value={email}
-                  onChangeText={(text) => {
-                    setEmail(text);
-                    clearError();
-                  }}
-                  keyboardType="email-address"
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
               </View>
             </View>
 
-            {/* Password Input */}
+            {/* Email Input */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Password</Text>
               <View style={styles.inputContainer}>
-                <Lock size={20} color="#9ca3af" />
+                <Text style={[
+                  styles.floatingLabel,
+                  email && styles.floatingLabelActive
+                ]}>
+                  Email
+                </Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="At least 8 characters"
+                  placeholder=""
+                  placeholderTextColor="#9ca3af"
+                  value={email}
+                  onChangeText={(text) => {
+                    setEmail(text);
+                    setLocalError(null);
+                    clearError();
+                  }}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  autoComplete="email"
+                />
+              </View>
+            </View>
+
+            {/* Password Input */}
+            <View style={styles.inputGroup}>
+              <View style={styles.inputContainer}>
+                <Text style={[
+                  styles.floatingLabel,
+                  password && styles.floatingLabelActive
+                ]}>
+                  Password
+                </Text>
+                <TextInput
+                  style={styles.input}
+                  placeholder=""
                   placeholderTextColor="#9ca3af"
                   value={password}
                   onChangeText={(text) => {
                     setPassword(text);
+                    setLocalError(null);
                     clearError();
                   }}
                   secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  textContentType="oneTimeCode"
                 />
                 <TouchableOpacity
                   onPress={() => setShowPassword(!showPassword)}
@@ -170,24 +202,35 @@ export default function RegisterScreen() {
 
             {/* Confirm Password Input */}
             <View style={styles.inputGroup}>
-              <Text style={styles.label}>Confirm Password</Text>
               <View style={styles.inputContainer}>
-                <Lock size={20} color="#9ca3af" />
+                <Text style={[
+                  styles.floatingLabel,
+                  confirmPassword && styles.floatingLabelActive
+                ]}>
+                  Confirm Password
+                </Text>
                 <TextInput
                   style={styles.input}
-                  placeholder="Re-enter password"
+                  placeholder=""
                   placeholderTextColor="#9ca3af"
                   value={confirmPassword}
-                  onChangeText={setConfirmPassword}
+                  onChangeText={(text) => {
+                    setConfirmPassword(text);
+                    setLocalError(null);
+                    clearError();
+                  }}
                   secureTextEntry={!showPassword}
+                  autoCapitalize="none"
+                  autoCorrect={false}
+                  textContentType="oneTimeCode"
                 />
               </View>
             </View>
 
             {/* Error Message */}
-            {error && (
+            {displayError && (
               <View style={styles.errorContainer}>
-                <Text style={styles.errorText}>{error}</Text>
+                <Text style={styles.errorText}>{displayError}</Text>
               </View>
             )}
 
@@ -202,16 +245,16 @@ export default function RegisterScreen() {
               activeOpacity={0.8}
             >
               {isLoading ? (
-                <ActivityIndicator color="#ffffff" />
+                <ActivityIndicator color="#1f2937" />
               ) : (
-                <Text style={styles.registerButtonText}>Create Account</Text>
+                <Text style={styles.registerButtonText}>Continue</Text>
               )}
             </TouchableOpacity>
 
             {/* Login Link */}
             <View style={styles.loginContainer}>
               <Text style={styles.loginText}>Already have an account?</Text>
-              <TouchableOpacity onPress={() => navigation.navigate('Login')}>
+              <TouchableOpacity onPress={() => navigation.navigate('EmailEntry')}>
                 <Text style={styles.loginLink}>Sign in</Text>
               </TouchableOpacity>
             </View>
@@ -232,6 +275,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
+    paddingBottom: 40,
   },
   header: {
     paddingHorizontal: 16,
@@ -242,31 +286,26 @@ const styles = StyleSheet.create({
     height: 44,
     justifyContent: 'center',
     alignItems: 'center',
+    backgroundColor: '#f3f4f6',
+    borderRadius: 22,
   },
   content: {
-    flex: 1,
     paddingHorizontal: 24,
-    paddingTop: 12,
+    paddingTop: 20,
   },
   title: {
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '700',
     color: '#1f2937',
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#6b7280',
     marginBottom: 32,
   },
   inputGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
+    marginBottom: 16,
   },
   inputContainer: {
     flexDirection: 'row',
@@ -275,40 +314,53 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#e5e7eb',
-    paddingHorizontal: 14,
-    gap: 12,
+    paddingHorizontal: 16,
+    position: 'relative',
+  },
+  floatingLabel: {
+    position: 'absolute',
+    left: 16,
+    top: 18,
+    fontSize: 16,
+    color: '#9ca3af',
+    zIndex: 1,
+  },
+  floatingLabelActive: {
+    top: 8,
+    fontSize: 12,
+    color: '#6b7280',
   },
   input: {
     flex: 1,
     fontSize: 16,
     color: '#1f2937',
-    paddingVertical: 14,
+    paddingTop: 24,
+    paddingBottom: 12,
   },
   errorContainer: {
-    backgroundColor: '#fef2f2',
-    borderRadius: 12,
-    padding: 12,
+    marginTop: 8,
     marginBottom: 16,
+    paddingHorizontal: 4,
   },
   errorText: {
-    fontSize: 14,
-    color: '#dc2626',
+    fontSize: 13,
+    color: '#ef4444',
   },
   registerButton: {
-    backgroundColor: '#f97316',
+    backgroundColor: '#f3f4f6',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
-    marginTop: 8,
+    marginTop: 16,
     marginBottom: 24,
   },
   registerButtonDisabled: {
-    backgroundColor: '#fdba74',
+    opacity: 0.6,
   },
   registerButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: '#1f2937',
   },
   loginContainer: {
     flexDirection: 'row',
@@ -323,7 +375,7 @@ const styles = StyleSheet.create({
   loginLink: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#f97316',
+    color: '#1f2937',
   },
 });
 

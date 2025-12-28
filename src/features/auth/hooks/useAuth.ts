@@ -32,6 +32,7 @@ export function useAuth() {
     const register = useAuthStore((state) => state.register);
     const loginAnonymous = useAuthStore((state) => state.loginAnonymous);
     const logout = useAuthStore((state) => state.logout);
+    const isInitializing = useAuthStore((state) => state.isInitializing);
     const isLoading = useAuthStore((state) => state.isLoading);
     const error = useAuthStore((state) => state.error);
     const clearError = useAuthStore((state) => state.clearError);
@@ -48,7 +49,8 @@ export function useAuth() {
         user,
 
         // Auth state
-        isLoading,
+        isInitializing, // Use this for showing app loading screen
+        isLoading,      // Use this for operation loading indicators
         isAuthenticated,
         error,
 

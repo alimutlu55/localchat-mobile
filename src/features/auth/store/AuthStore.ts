@@ -25,7 +25,14 @@ const log = createLogger('AuthStore');
 
 export interface AuthStoreState {
     /**
-     * Loading state for auth operations
+     * Whether auth is still initializing (app startup)
+     * Used by RootNavigator to show loading screen
+     */
+    isInitializing: boolean;
+
+    /**
+     * Loading state for auth operations (login, register, etc)
+     * Does NOT trigger navigator remount
      */
     isLoading: boolean;
 
@@ -89,7 +96,8 @@ export type AuthStore = AuthStoreState & AuthStoreActions;
 // =============================================================================
 
 const initialState: AuthStoreState = {
-    isLoading: true, // Start with true, will be set to false after initialization
+    isInitializing: true, // Start with true, set to false after auth initialization
+    isLoading: false, // Operation loading, start false
     error: null,
     isAuthenticated: false,
 };
@@ -125,7 +133,8 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             log.debug('Login successful', { userId: user.id });
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Login failed';
-            log.error('Login failed', { error: message });
+            // Use warn instead of error - invalid credentials is expected user behavior
+            log.warn('Login unsuccessful', { reason: message });
             set({ error: message, isLoading: false, isAuthenticated: false });
             throw err;
         }
@@ -150,7 +159,8 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             log.debug('Registration successful', { userId: user.id });
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Registration failed';
-            log.error('Registration failed', { error: message });
+            // Use warn instead of error - registration failures are expected scenarios
+            log.warn('Registration unsuccessful', { reason: message });
             set({ error: message, isLoading: false, isAuthenticated: false });
             throw err;
         }
@@ -175,7 +185,8 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             log.debug('Anonymous login successful', { userId: user.id });
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Anonymous login failed';
-            log.error('Anonymous login failed', { error: message });
+            // Use warn instead of error - anonymous login failures are usually expected
+            log.warn('Anonymous login unsuccessful', { reason: message });
             set({ error: message, isLoading: false, isAuthenticated: false });
             throw err;
         }
@@ -244,7 +255,6 @@ export async function initializeAuthStore(): Promise<void> {
 
     try {
         log.debug('Initializing auth store...');
-        store.setLoading(true);
 
         // Let authService initialize and load cached user
         const user = await authService.initialize();
@@ -267,7 +277,8 @@ export async function initializeAuthStore(): Promise<void> {
         log.error('Auth initialization error', { error: err });
         store.setAuthenticated(false);
     } finally {
-        store.setLoading(false);
+        // Mark initialization as complete - this allows navigator to render
+        useAuthStore.setState({ isInitializing: false });
     }
 }
 

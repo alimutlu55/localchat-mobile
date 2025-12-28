@@ -59,7 +59,7 @@ export default function ForgotPasswordScreen() {
 
         <View style={styles.successContent}>
           <View style={styles.successIcon}>
-            <CheckCircle size={48} color="#22c55e" />
+            <CheckCircle size={48} color="#1f2937" />
           </View>
           <Text style={styles.successTitle}>Check your email</Text>
           <Text style={styles.successText}>
@@ -95,28 +95,32 @@ export default function ForgotPasswordScreen() {
 
         {/* Content */}
         <View style={styles.content}>
-          <Text style={styles.title}>Reset Password</Text>
+          <Text style={styles.title}>Reset password</Text>
           <Text style={styles.subtitle}>
             Enter your email address and we'll send you a link to reset your password.
           </Text>
 
           {/* Email Input */}
-          <View style={styles.inputGroup}>
-            <Text style={styles.label}>Email</Text>
-            <View style={styles.inputContainer}>
-              <Mail size={20} color="#9ca3af" />
-              <TextInput
-                style={styles.input}
-                placeholder="Enter your email"
-                placeholderTextColor="#9ca3af"
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-                autoCorrect={false}
-                autoFocus
-              />
-            </View>
+          <View style={styles.inputWrapper}>
+            <Text style={[
+              styles.floatingLabel,
+              email && styles.floatingLabelActive
+            ]}>
+              Email
+            </Text>
+            <TextInput
+              style={styles.input}
+              placeholder=""
+              placeholderTextColor="#9ca3af"
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoComplete="email"
+              textContentType="emailAddress"
+              autoFocus
+            />
           </View>
 
           {/* Submit Button */}
@@ -130,7 +134,7 @@ export default function ForgotPasswordScreen() {
             activeOpacity={0.8}
           >
             {isLoading ? (
-              <ActivityIndicator color="#ffffff" />
+              <ActivityIndicator color="#1f2937" />
             ) : (
               <Text style={styles.submitButtonText}>Send Reset Link</Text>
             )}
@@ -156,6 +160,8 @@ const styles = StyleSheet.create({
   backButton: {
     width: 44,
     height: 44,
+    borderRadius: 22,
+    backgroundColor: '#f3f4f6',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -176,44 +182,48 @@ const styles = StyleSheet.create({
     lineHeight: 24,
     marginBottom: 32,
   },
-  inputGroup: {
+  inputWrapper: {
+    position: 'relative',
     marginBottom: 24,
   },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#374151',
-    marginBottom: 8,
+  floatingLabel: {
+    position: 'absolute',
+    left: 16,
+    top: 18,
+    fontSize: 16,
+    color: '#9ca3af',
+    zIndex: 1,
   },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
+  floatingLabelActive: {
+    top: 8,
+    fontSize: 12,
+    color: '#6b7280',
+  },
+  input: {
     backgroundColor: '#f9fafb',
     borderRadius: 12,
     borderWidth: 1,
     borderColor: '#e5e7eb',
-    paddingHorizontal: 14,
-    gap: 12,
-  },
-  input: {
-    flex: 1,
+    paddingHorizontal: 16,
+    paddingTop: 24,
+    paddingBottom: 12,
     fontSize: 16,
     color: '#1f2937',
-    paddingVertical: 14,
   },
   submitButton: {
-    backgroundColor: '#f97316',
+    backgroundColor: '#f3f4f6',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',
+    marginTop: 8,
   },
   submitButtonDisabled: {
-    backgroundColor: '#fdba74',
+    opacity: 0.6,
   },
   submitButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: '#1f2937',
   },
   successContent: {
     flex: 1,
@@ -225,7 +235,9 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 40,
-    backgroundColor: '#dcfce7',
+    backgroundColor: '#f9fafb',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
@@ -244,7 +256,7 @@ const styles = StyleSheet.create({
     marginBottom: 32,
   },
   backToLoginButton: {
-    backgroundColor: '#f97316',
+    backgroundColor: '#f3f4f6',
     paddingVertical: 16,
     paddingHorizontal: 32,
     borderRadius: 12,
@@ -252,7 +264,7 @@ const styles = StyleSheet.create({
   backToLoginText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: '#1f2937',
   },
 });
 

@@ -2,20 +2,110 @@
  * Welcome Screen
  *
  * First screen users see - allows them to choose login method.
+ * For returning anonymous users (device already onboarded), skips to direct login.
  */
 
-import React from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, Image } from 'react-native';
+import React, { useState, useRef, useCallback } from 'react';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MessageCircle, Mail, User } from 'lucide-react-native';
 import { AuthStackParamList } from '../../navigation/types';
+import { onboardingService } from '../../services/onboarding';
+import { storage } from '../../services/storage';
+import { useAuth } from '../../features/auth';
 
 type NavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Welcome'>;
 
 export default function WelcomeScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const { loginAnonymous, isLoading: authLoading, clearError } = useAuth();
+  const [isCheckingDevice, setIsCheckingDevice] = useState(true);
+  const [isDirectLoginLoading, setIsDirectLoginLoading] = useState(false);
+  const hasCheckedRef = useRef(false);
+
+  // Use useFocusEffect to only run when this screen is actually focused
+  // This prevents auto-login from triggering when user is on Login/Register screen
+  useFocusEffect(
+    useCallback(() => {
+      // Simply show the welcome screen - no auto-login
+      // User must explicitly tap "Continue Anonymously" to login anonymously
+      clearError();
+      setIsCheckingDevice(false);
+
+      return () => {
+        // Cleanup if needed
+      };
+    }, [])
+  );
+
+  /**
+   * Perform direct anonymous login for returning devices.
+   * Backend will recognize the deviceId and return the existing anonymous user.
+   * If no anonymous user exists (e.g., user previously signed in with email),
+   * backend will create a new one with the provided random display name.
+   */
+  const performDirectAnonymousLogin = async () => {
+    // Clear any stale errors before attempting login
+    clearError();
+    setIsDirectLoginLoading(true);
+    try {
+      // Generate a random name for new anonymous users
+      // If user already has an anonymous account, backend ignores this
+      const randomName = `User${Math.floor(Math.random() * 10000)}`;
+      await loginAnonymous(randomName);
+      // Ensure device is marked as onboarded for future visits
+      await onboardingService.markDeviceOnboarded();
+      // Navigation will be handled by RootNavigator based on auth state
+    } catch (error) {
+      console.error('[WelcomeScreen] Direct anonymous login failed:', error);
+      // Fall back to showing welcome screen
+      setIsDirectLoginLoading(false);
+      setIsCheckingDevice(false);
+    }
+  };
+
+  /**
+   * Handle "Continue Anonymously" button press.
+   * For onboarded devices, performs direct login (no need for display name).
+   * For new devices, goes through full onboarding flow.
+   */
+  const handleContinueAnonymously = async () => {
+    const isDeviceOnboarded = await onboardingService.isDeviceOnboarded();
+    // Also check for existing device_id as fallback
+    const existingDeviceId = await storage.get<string>('device_id');
+
+    if (isDeviceOnboarded || existingDeviceId) {
+      // Device already onboarded - perform direct login
+      if (!isDeviceOnboarded && existingDeviceId) {
+        // Migration case - mark as onboarded
+        await onboardingService.markDeviceOnboarded();
+      }
+      await performDirectAnonymousLogin();
+    } else {
+      // First time - go through full onboarding flow
+      navigation.navigate('AnonymousLogin');
+    }
+  };
+
+  // Show loading while checking device status or performing direct login
+  if (isCheckingDevice || isDirectLoginLoading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <View style={styles.loadingContainer}>
+          <View style={styles.logoContainer}>
+            <MessageCircle size={48} color="#f97316" strokeWidth={2} />
+          </View>
+          <Text style={styles.title}>LocalChat</Text>
+          <ActivityIndicator size="large" color="#f97316" style={styles.loader} />
+          <Text style={styles.loadingText}>
+            {isDirectLoginLoading ? 'Signing you in...' : 'Loading...'}
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -23,9 +113,11 @@ export default function WelcomeScreen() {
         {/* Logo & Branding */}
         <View style={styles.header}>
           <View style={styles.logoContainer}>
-            <MessageCircle size={48} color="#f97316" strokeWidth={2} />
+            <View style={styles.logoCircle}>
+              <MessageCircle size={32} color="#f97316" />
+            </View>
           </View>
-          <Text style={styles.title}>LocalChat</Text>
+          <Text style={styles.title}>Welcome to LocalChat</Text>
           <Text style={styles.subtitle}>
             Connect with people nearby.{'\n'}Share moments, ask questions, make friends.
           </Text>
@@ -34,21 +126,29 @@ export default function WelcomeScreen() {
         {/* Action Buttons */}
         <View style={styles.actions}>
           <TouchableOpacity
-            style={styles.primaryButton}
-            onPress={() => navigation.navigate('AnonymousLogin')}
+            style={[styles.primaryButton, authLoading && styles.buttonDisabled]}
+            onPress={() => navigation.navigate('EmailEntry')}
             activeOpacity={0.8}
+            disabled={authLoading}
           >
-            <User size={20} color="#ffffff" strokeWidth={2} />
-            <Text style={styles.primaryButtonText}>Continue Anonymously</Text>
+            <Mail size={20} color="#1f2937" />
+            <Text style={styles.primaryButtonText}>Sign in with Email</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
             style={styles.secondaryButton}
-            onPress={() => navigation.navigate('Login')}
+            onPress={handleContinueAnonymously}
             activeOpacity={0.8}
+            disabled={authLoading}
           >
-            <Mail size={20} color="#f97316" strokeWidth={2} />
-            <Text style={styles.secondaryButtonText}>Sign in with Email</Text>
+            {authLoading ? (
+              <ActivityIndicator color="#374151" />
+            ) : (
+              <>
+                <User size={20} color="#374151" />
+                <Text style={styles.secondaryButtonText}>Continue Anonymously</Text>
+              </>
+            )}
           </TouchableOpacity>
 
           <View style={styles.signupContainer}>
@@ -75,6 +175,20 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#ffffff',
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+  },
+  loader: {
+    marginTop: 24,
+  },
+  loadingText: {
+    marginTop: 16,
+    fontSize: 16,
+    color: '#6b7280',
+  },
   content: {
     flex: 1,
     paddingHorizontal: 24,
@@ -85,25 +199,29 @@ const styles = StyleSheet.create({
     marginBottom: 48,
   },
   logoContainer: {
-    width: 96,
-    height: 96,
-    borderRadius: 24,
-    backgroundColor: '#fff7ed',
-    justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 24,
   },
+  logoCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#fff7ed',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   title: {
-    fontSize: 32,
+    fontSize: 28,
     fontWeight: '700',
     color: '#1f2937',
     marginBottom: 12,
+    textAlign: 'center',
   },
   subtitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: '#6b7280',
     textAlign: 'center',
-    lineHeight: 24,
+    lineHeight: 22,
   },
   actions: {
     gap: 12,
@@ -112,31 +230,36 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#f97316',
+    backgroundColor: '#f3f4f6',
     paddingVertical: 16,
     paddingHorizontal: 24,
-    borderRadius: 16,
+    borderRadius: 12,
     gap: 10,
+  },
+  buttonDisabled: {
+    opacity: 0.6,
   },
   primaryButtonText: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: '#1f2937',
   },
   secondaryButton: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: '#fff7ed',
-    paddingVertical: 16,
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#e5e7eb',
+    paddingVertical: 14,
     paddingHorizontal: 24,
-    borderRadius: 16,
+    borderRadius: 12,
     gap: 10,
   },
   secondaryButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#f97316',
+    color: '#374151',
   },
   signupContainer: {
     flexDirection: 'row',
@@ -165,4 +288,3 @@ const styles = StyleSheet.create({
     lineHeight: 18,
   },
 });
-

@@ -181,13 +181,13 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
                 </TouchableOpacity>
             </View>
 
-            {/* Sign Out */}
-            <TouchableOpacity 
-                style={styles.signOutButton} 
+            {/* Log Out */}
+            <TouchableOpacity
+                style={styles.signOutButton}
                 onPress={() => handleSignOut(onClose)}
             >
                 <LogOut size={20} color="#6b7280" />
-                <Text style={styles.signOutText}>Sign Out</Text>
+                <Text style={styles.signOutText}>Log Out</Text>
             </TouchableOpacity>
         </View>
     );
@@ -358,6 +358,23 @@ const styles = StyleSheet.create({
         fontSize: 14,
         fontWeight: '500',
         color: '#6b7280',
+        marginLeft: 8,
+    },
+    signInButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: '#fff7ed',
+        borderRadius: 16,
+        paddingVertical: 14,
+        marginBottom: 20,
+        borderWidth: 1,
+        borderColor: '#fed7aa',
+    },
+    signInText: {
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#f97316',
         marginLeft: 8,
     },
     subPageHeader: {

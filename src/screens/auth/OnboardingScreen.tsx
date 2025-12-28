@@ -15,10 +15,10 @@ import {
     TouchableOpacity,
     Animated,
     Platform,
+    ActivityIndicator,
     Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
 import { MapPin, Bell, Check, X, AlertCircle } from 'lucide-react-native';
@@ -190,35 +190,31 @@ export default function OnboardingScreen() {
     // Loading state
     if (currentStep === 'checking') {
         return (
-            <LinearGradient
-                colors={['#fff7ed', '#ffffff', '#fff1f2']}
-                style={styles.container}
-            >
+            <View style={styles.container}>
                 <View style={styles.loadingContainer}>
-                    <View style={styles.spinner} />
+                    <ActivityIndicator size="large" color="#1f2937" />
                     <Text style={styles.loadingText}>Loading...</Text>
                 </View>
-            </LinearGradient>
+            </View>
         );
     }
 
     return (
-        <LinearGradient
-            colors={['#fff7ed', '#ffffff', '#fff1f2']}
-            style={styles.container}
-        >
+        <View style={styles.container}>
             <SafeAreaView style={styles.safeArea}>
                 {/* Header */}
                 <View style={styles.header}>
                     <TouchableOpacity onPress={handleBack} style={styles.backButton}>
-                        <X size={24} color="#374151" />
+                        <X size={24} color="#1f2937" />
                     </TouchableOpacity>
-                    {currentStep !== 'complete' && (
-                        <Text style={styles.stepIndicator}>
-                            Step {currentStepNumber} of {totalSteps}
-                        </Text>
-                    )}
-                    <View style={styles.backButton} />
+                    <View style={styles.headerCenter}>
+                        {currentStep !== 'complete' && (
+                            <Text style={styles.stepIndicator}>
+                                {currentStepNumber} of {totalSteps}
+                            </Text>
+                        )}
+                    </View>
+                    <View style={styles.backButtonPlaceholder} />
                 </View>
 
                 {/* Error Banner */}
@@ -239,7 +235,7 @@ export default function OnboardingScreen() {
                                     {
                                         width: progressAnim.interpolate({
                                             inputRange: [0, 1],
-                                            outputRange: ['0%', '100%'],
+                                            outputRange: ['10%', '100%'],
                                         }),
                                     },
                                 ]}
@@ -254,90 +250,69 @@ export default function OnboardingScreen() {
                         styles.content,
                         {
                             opacity: fadeAnim,
-                            transform: [{ translateX: slideAnim }],
+                            transform: [{ translateY: slideAnim }],
                         },
                     ]}
                 >
                     {currentStep === 'location' && (
                         <View style={styles.stepContainer}>
-                            <Text style={styles.mainTitle}>Let's get started</Text>
-
-                            <View style={styles.card}>
-                                <View style={[styles.iconContainer, { backgroundColor: '#fed7aa' }]}>
-                                    <MapPin size={32} color="#ea580c" />
-                                </View>
-
-                                <Text style={styles.cardTitle}>Enable Location</Text>
-                                <Text style={styles.cardDescription}>
-                                    We need your location to show you nearby conversations and events happening around you.
-                                </Text>
-
-                                <TouchableOpacity
-                                    onPress={handleAllowLocation}
-                                    disabled={locationGranted}
-                                    activeOpacity={0.8}
-                                >
-                                    <LinearGradient
-                                        colors={['#f97316', '#e11d48']}
-                                        start={{ x: 0, y: 0 }}
-                                        end={{ x: 1, y: 0 }}
-                                        style={[styles.primaryButton, locationGranted && styles.buttonDisabled]}
-                                    >
-                                        {locationGranted ? (
-                                            <View style={styles.buttonContent}>
-                                                <Check size={20} color="#ffffff" />
-                                                <Text style={styles.primaryButtonText}>Location Allowed</Text>
-                                            </View>
-                                        ) : (
-                                            <Text style={styles.primaryButtonText}>Allow Location</Text>
-                                        )}
-                                    </LinearGradient>
-                                </TouchableOpacity>
-
-                                <Text style={styles.privacyNote}>
-                                    <Text style={styles.privacyHighlight}>Privacy: </Text>
-                                    Your exact location is never shared with others
-                                </Text>
+                            <View style={styles.iconContainer}>
+                                <MapPin size={40} color="#1f2937" strokeWidth={1.5} />
                             </View>
+
+                            <Text style={styles.mainTitle}>Enable location</Text>
+                            <Text style={styles.cardDescription}>
+                                We need your location to show you nearby conversations and events happening around you.
+                            </Text>
+
+                            <TouchableOpacity
+                                style={[styles.primaryButton, locationGranted && styles.buttonSuccess]}
+                                onPress={handleAllowLocation}
+                                disabled={locationGranted}
+                                activeOpacity={0.8}
+                            >
+                                {locationGranted ? (
+                                    <View style={styles.buttonContent}>
+                                        <Check size={20} color="#1f2937" />
+                                        <Text style={styles.primaryButtonText}>Enabled</Text>
+                                    </View>
+                                ) : (
+                                    <Text style={styles.primaryButtonText}>Continue</Text>
+                                )}
+                            </TouchableOpacity>
+
+                            <Text style={styles.privacyNote}>
+                                Your exact location is never shared with others.
+                            </Text>
                         </View>
                     )}
 
                     {currentStep === 'notifications' && (
                         <View style={styles.stepContainer}>
-                            <Text style={styles.mainTitle}>Stay updated</Text>
-
-                            <View style={styles.card}>
-                                <View style={[styles.iconContainer, { backgroundColor: '#fecdd3' }]}>
-                                    <Bell size={32} color="#e11d48" />
-                                </View>
-
-                                <View style={styles.cardTitleRow}>
-                                    <Text style={styles.cardTitle}>Notifications</Text>
-                                    <Text style={styles.optionalBadge}>(Optional)</Text>
-                                </View>
-                                <Text style={styles.cardDescription}>
-                                    Get notified when someone replies to your messages or when new events appear nearby.
-                                </Text>
-
-                                <TouchableOpacity onPress={handleAllowNotifications} activeOpacity={0.8}>
-                                    <LinearGradient
-                                        colors={['#f97316', '#e11d48']}
-                                        start={{ x: 0, y: 0 }}
-                                        end={{ x: 1, y: 0 }}
-                                        style={styles.primaryButton}
-                                    >
-                                        <Text style={styles.primaryButtonText}>Allow Notifications</Text>
-                                    </LinearGradient>
-                                </TouchableOpacity>
-
-                                <TouchableOpacity onPress={handleSkipNotifications} style={styles.skipButton}>
-                                    <Text style={styles.skipButtonText}>Skip for now</Text>
-                                </TouchableOpacity>
-
-                                <Text style={styles.privacyNote}>
-                                    You can change this anytime in Settings
-                                </Text>
+                            <View style={styles.iconContainer}>
+                                <Bell size={40} color="#1f2937" strokeWidth={1.5} />
                             </View>
+
+                            <Text style={styles.mainTitle}>Stay updated</Text>
+                            <Text style={styles.cardDescription}>
+                                Get notified when someone replies to your messages or when new events appear nearby.
+                            </Text>
+
+                            <TouchableOpacity
+                                style={styles.primaryButton}
+                                onPress={handleAllowNotifications}
+                                activeOpacity={0.8}
+                            >
+                                <Text style={styles.primaryButtonText}>Enable notifications</Text>
+                            </TouchableOpacity>
+
+                            <TouchableOpacity
+                                onPress={handleSkipNotifications}
+                                style={styles.skipButton}
+                                activeOpacity={0.6}
+                            >
+                                <Text style={styles.skipButtonText}>Maybe later</Text>
+                            </TouchableOpacity>
                         </View>
                     )}
 
@@ -349,41 +324,36 @@ export default function OnboardingScreen() {
                                     { transform: [{ scale: checkScaleAnim }] },
                                 ]}
                             >
-                                <Check size={48} color="#ffffff" strokeWidth={3} />
+                                <Check size={48} color="#1f2937" strokeWidth={3} />
                             </Animated.View>
 
                             <Text style={styles.completeTitle}>You're all set!</Text>
                             <Text style={styles.completeDescription}>
-                                Creating your anonymous profile...
+                                Creating your private profile...
                             </Text>
-
-                            <View style={styles.completeBadge}>
-                                <View style={styles.pulseDot} />
-                                <Text style={styles.completeBadgeText}>Anonymous & Private</Text>
-                            </View>
                         </View>
                     )}
                 </Animated.View>
 
-                {/* Privacy Footer */}
+                {/* Footer */}
                 {currentStep !== 'complete' && (
                     <View style={styles.footer}>
-                        <View style={styles.footerCard}>
+                        <View style={styles.privacyBadge}>
                             <Text style={styles.footerText}>
-                                <Text style={styles.footerHighlight}>🔒 Stay anonymous </Text>
-                                No email required. You'll get a random fun name.
+                                🔒 Your data remains private and local
                             </Text>
                         </View>
                     </View>
                 )}
             </SafeAreaView>
-        </LinearGradient>
+        </View>
     );
 }
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
+        backgroundColor: '#ffffff',
     },
     safeArea: {
         flex: 1,
@@ -392,14 +362,6 @@ const styles = StyleSheet.create({
         flex: 1,
         justifyContent: 'center',
         alignItems: 'center',
-    },
-    spinner: {
-        width: 48,
-        height: 48,
-        borderRadius: 24,
-        borderWidth: 4,
-        borderColor: '#fed7aa',
-        borderTopColor: '#f97316',
     },
     loadingText: {
         marginTop: 16,
@@ -414,15 +376,24 @@ const styles = StyleSheet.create({
         paddingVertical: 12,
     },
     backButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 20,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
+        backgroundColor: '#f3f4f6',
         justifyContent: 'center',
         alignItems: 'center',
     },
+    headerCenter: {
+        flex: 1,
+        alignItems: 'center',
+    },
+    backButtonPlaceholder: {
+        width: 44,
+    },
     stepIndicator: {
         fontSize: 14,
-        color: '#6b7280',
+        fontWeight: '600',
+        color: '#1f2937',
     },
     errorBanner: {
         flexDirection: 'row',
@@ -432,9 +403,7 @@ const styles = StyleSheet.create({
         marginBottom: 16,
         padding: 16,
         backgroundColor: '#fef2f2',
-        borderRadius: 16,
-        borderWidth: 1,
-        borderColor: '#fecaca',
+        borderRadius: 12,
     },
     errorText: {
         flex: 1,
@@ -443,89 +412,62 @@ const styles = StyleSheet.create({
     },
     progressContainer: {
         paddingHorizontal: 24,
-        marginBottom: 32,
+        marginTop: 8,
+        marginBottom: 40,
     },
     progressTrack: {
         height: 4,
-        backgroundColor: '#e5e7eb',
+        backgroundColor: '#f3f4f6',
         borderRadius: 2,
         overflow: 'hidden',
     },
     progressFill: {
         height: '100%',
-        backgroundColor: '#f97316',
+        backgroundColor: '#1f2937',
         borderRadius: 2,
     },
     content: {
         flex: 1,
-        paddingHorizontal: 24,
+        paddingHorizontal: 32,
         justifyContent: 'center',
     },
     stepContainer: {
         alignItems: 'center',
     },
+    iconContainer: {
+        width: 80,
+        height: 80,
+        borderRadius: 40,
+        backgroundColor: '#f9fafb',
+        justifyContent: 'center',
+        alignItems: 'center',
+        marginBottom: 32,
+    },
     mainTitle: {
         fontSize: 28,
-        fontWeight: '400',
-        color: '#111827',
-        marginBottom: 32,
+        fontWeight: '700',
+        color: '#1f2937',
+        marginBottom: 16,
         textAlign: 'center',
-    },
-    card: {
-        width: '100%',
-        backgroundColor: '#ffffff',
-        borderRadius: 24,
-        padding: 24,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 16,
-        elevation: 8,
-        borderWidth: 1,
-        borderColor: '#f3f4f6',
-    },
-    iconContainer: {
-        width: 64,
-        height: 64,
-        borderRadius: 16,
-        justifyContent: 'center',
-        alignItems: 'center',
-        alignSelf: 'center',
-        marginBottom: 20,
-    },
-    cardTitle: {
-        fontSize: 20,
-        fontWeight: '600',
-        color: '#111827',
-        textAlign: 'center',
-        marginBottom: 8,
-    },
-    cardTitleRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: 8,
-        marginBottom: 8,
-    },
-    optionalBadge: {
-        fontSize: 14,
-        color: '#6b7280',
     },
     cardDescription: {
-        fontSize: 15,
+        fontSize: 16,
         color: '#6b7280',
         textAlign: 'center',
-        lineHeight: 22,
-        marginBottom: 24,
+        lineHeight: 24,
+        marginBottom: 48,
     },
     primaryButton: {
+        width: '100%',
+        backgroundColor: '#f3f4f6',
         paddingVertical: 16,
-        paddingHorizontal: 24,
-        borderRadius: 16,
+        borderRadius: 12,
         alignItems: 'center',
     },
-    buttonDisabled: {
-        opacity: 0.6,
+    buttonSuccess: {
+        backgroundColor: '#f9fafb',
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
     },
     buttonContent: {
         flexDirection: 'row',
@@ -535,25 +477,24 @@ const styles = StyleSheet.create({
     primaryButtonText: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#ffffff',
+        color: '#1f2937',
     },
     skipButton: {
-        marginTop: 12,
+        marginTop: 20,
         paddingVertical: 12,
+        width: '100%',
         alignItems: 'center',
     },
     skipButtonText: {
         fontSize: 15,
+        fontWeight: '600',
         color: '#6b7280',
     },
     privacyNote: {
-        fontSize: 12,
+        fontSize: 13,
         color: '#9ca3af',
         textAlign: 'center',
-        marginTop: 16,
-    },
-    privacyHighlight: {
-        color: '#f97316',
+        marginTop: 24,
     },
     completeContainer: {
         alignItems: 'center',
@@ -562,60 +503,39 @@ const styles = StyleSheet.create({
         width: 96,
         height: 96,
         borderRadius: 48,
+        backgroundColor: '#f9fafb',
         justifyContent: 'center',
         alignItems: 'center',
-        marginBottom: 24,
-        backgroundColor: '#22c55e',
+        marginBottom: 32,
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
     },
     completeTitle: {
         fontSize: 28,
-        fontWeight: '500',
-        color: '#111827',
-        marginBottom: 8,
+        fontWeight: '700',
+        color: '#1f2937',
+        marginBottom: 12,
     },
     completeDescription: {
         fontSize: 16,
         color: '#6b7280',
-        marginBottom: 32,
-    },
-    completeBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        backgroundColor: 'rgba(255, 255, 255, 0.8)',
-        borderRadius: 20,
-        borderWidth: 1,
-        borderColor: '#bbf7d0',
-    },
-    pulseDot: {
-        width: 8,
-        height: 8,
-        borderRadius: 4,
-        backgroundColor: '#22c55e',
-    },
-    completeBadgeText: {
-        fontSize: 14,
-        color: '#374151',
     },
     footer: {
         paddingHorizontal: 24,
-        paddingBottom: 24,
+        paddingBottom: 32,
+        alignItems: 'center',
     },
-    footerCard: {
-        backgroundColor: 'rgba(255, 255, 255, 0.6)',
-        borderRadius: 16,
-        padding: 16,
+    privacyBadge: {
+        backgroundColor: '#f9fafb',
+        paddingHorizontal: 16,
+        paddingVertical: 8,
+        borderRadius: 20,
         borderWidth: 1,
-        borderColor: '#fed7aa',
+        borderColor: '#f3f4f6',
     },
     footerText: {
         fontSize: 12,
         color: '#6b7280',
-        textAlign: 'center',
-    },
-    footerHighlight: {
-        color: '#f97316',
+        fontWeight: '500',
     },
 });

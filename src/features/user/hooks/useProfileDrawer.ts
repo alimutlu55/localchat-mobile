@@ -17,6 +17,7 @@ import { useBlockedUsers } from './useBlockedUsers';
 import { useMyRooms } from '../../rooms/hooks';
 import { useAuth } from '../../auth';
 import { Room } from '../../../types';
+import { storage } from '../../../services/storage';
 import { createLogger } from '../../../shared/utils/logger';
 
 const log = createLogger('useProfileDrawer');
@@ -160,9 +161,9 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
   const stats = useMemo<ProfileStats>(() => {
     const memberSince = user?.createdAt
       ? new Date(user.createdAt).toLocaleDateString(undefined, {
-          month: 'short',
-          year: 'numeric',
-        })
+        month: 'short',
+        year: 'numeric',
+      })
       : 'Recently';
 
     return {
@@ -208,15 +209,15 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
         mappedUpdates.messageNotificationsEnabled = updates.messageNotifications;
       }
 
-      log.info('Updating notification settings', { 
-        uiUpdates: updates, 
+      log.info('Updating notification settings', {
+        uiUpdates: updates,
         mappedUpdates,
         currentSettings: {
           notificationsEnabled: settings.notificationsEnabled,
           messageNotificationsEnabled: settings.messageNotificationsEnabled,
         }
       });
-      
+
       updateSettings(mappedUpdates);
     },
     [updateSettings, settings.notificationsEnabled, settings.messageNotificationsEnabled]
@@ -251,13 +252,17 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
   );
 
   const handleUpgrade = useCallback(
-    (onClose: () => void) => {
+    async (onClose: () => void) => {
       onClose();
-      // Navigate to Auth stack -> Register screen for account upgrade
-      // The register screen should handle the "upgrade from anonymous" flow
-      navigation.navigate('Auth', { screen: 'Register' });
+      // Set a flag to tell WelcomeScreen NOT to auto-login as anonymous
+      // This prevents the loop where user logs out but gets immediately logged back in
+      await storage.set('skip_auto_login', true);
+      // Log out the anonymous user
+      // RootNavigator will automatically show the Auth flow (Login/Register options)
+      logout();
+      log.info('Anonymous user initiating sign in - logging out to show auth flow');
     },
-    [navigation]
+    [logout]
   );
 
   // =========================================================================
@@ -266,15 +271,17 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
 
   const handleSignOut = useCallback(
     (onClose: () => void) => {
-      Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+      Alert.alert('Log Out', 'Are you sure you want to log out?', [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Sign Out',
+          text: 'Log Out',
           style: 'destructive',
-          onPress: () => {
+          onPress: async () => {
+            // Set flag to prevent auto-login as anonymous on WelcomeScreen
+            await storage.set('skip_auto_login', true);
             logout();
             onClose();
-            log.info('User signed out');
+            log.info('User logged out');
           },
         },
       ]);

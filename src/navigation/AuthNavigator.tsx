@@ -11,6 +11,7 @@ import { AuthStackParamList } from './types';
 // Screens
 import {
   WelcomeScreen,
+  EmailEntryScreen,
   LoginScreen,
   RegisterScreen,
   AnonymousLoginScreen,
@@ -32,6 +33,7 @@ export function AuthNavigator() {
       }}
     >
       <Stack.Screen name="Welcome" component={WelcomeScreen} />
+      <Stack.Screen name="EmailEntry" component={EmailEntryScreen} />
       <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen name="AnonymousLogin" component={AnonymousLoginScreen} />
