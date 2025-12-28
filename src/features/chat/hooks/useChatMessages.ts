@@ -4,6 +4,10 @@
  * Manages chat message state, EventBus subscriptions, and message operations.
  * Extracted from ChatRoomScreen to separate concerns.
  *
+ * CRITICAL: This hook includes guards against auth state transitions.
+ * All EventBus handlers check if still authenticated before processing.
+ * This prevents crashes during logout when components may still be mounted.
+ *
  * Responsibilities:
  * - Load message history on mount
  * - Subscribe to real-time message updates via EventBus
@@ -40,6 +44,7 @@ import {
   RoomClosedPayload,
 } from '../../../types';
 import { useUserId, useDisplayName, useAvatarUrl } from '../../user/store';
+import { useAuthStore } from '../../auth/store/AuthStore';
 import { createLogger } from '../../../shared/utils/logger';
 import { isNotParticipant, isUserBanned } from '../../../shared/utils/errors';
 import { useRoomStore } from '../../rooms/store';
@@ -53,6 +58,15 @@ const MESSAGE_DEDUP_TTL = 10000; // 10 seconds
 // Deduplication: Track processed kick/ban events to prevent duplicate alerts
 const processedKickBanEvents = new Set<string>();
 const KICK_BAN_DEDUP_TTL = 5000; // 5 seconds
+
+/**
+ * Helper to check if still authenticated
+ * Used in event handlers to prevent processing during logout
+ */
+function isStillAuthenticated(): boolean {
+  const status = useAuthStore.getState().status;
+  return status === 'authenticated';
+}
 
 // =============================================================================
 // Types
@@ -164,6 +178,25 @@ export function useChatMessages(
   const optionsRef = useRef(options);
   optionsRef.current = options;
 
+  // GUARD: If no userId, we're likely in a logout transition
+  // Return early with empty state to prevent crashes
+  if (!userId) {
+    return {
+      messages: [],
+      isLoading: false,
+      error: null,
+      connectionState: 'disconnected',
+      sendMessage: () => {
+        log.warn('sendMessage called without userId - likely during logout');
+      },
+      addReaction: () => {
+        log.warn('addReaction called without userId - likely during logout');
+      },
+      refresh: async () => {},
+      markMessagesAsRead: () => {},
+    };
+  }
+
   // ==========================================================================
   // Load Initial Messages
   // ==========================================================================
@@ -227,6 +260,12 @@ export function useChatMessages(
   useEffect(() => {
     // Handle new messages via EventBus
     const unsubMessage = eventBus.on('message.new', (payload) => {
+      // GUARD: Skip if not authenticated (during logout)
+      if (!isStillAuthenticated()) {
+        log.debug('Skipping message.new - not authenticated');
+        return;
+      }
+
       if (payload.roomId !== roomId) return;
 
       // Deduplication: Skip if we've already processed this message
@@ -294,6 +333,9 @@ export function useChatMessages(
 
     // Handle message acknowledgments via EventBus
     const unsubAck = eventBus.on('message.ack', (payload) => {
+      // GUARD: Skip if not authenticated (during logout)
+      if (!isStillAuthenticated()) return;
+
       const { clientMessageId, messageId, status } = payload;
 
       // Normalize status
@@ -316,6 +358,9 @@ export function useChatMessages(
     // Handle messages read event via EventBus - update status to 'read' for own messages
     // This is triggered when another user reads messages in the room
     const unsubRead = eventBus.on('message.read', (payload) => {
+      // GUARD: Skip if not authenticated (during logout)
+      if (!isStillAuthenticated()) return;
+
       if (payload.roomId !== roomId) return;
 
       const { readerId, lastReadMessageId } = payload;
@@ -359,6 +404,8 @@ export function useChatMessages(
 
     // Handle reactions via EventBus
     const unsubReaction = eventBus.on('message.reaction', (payload) => {
+      // GUARD: Skip if not authenticated (during logout)
+      if (!isStillAuthenticated()) return;
       if (payload.roomId !== roomId) return;
 
       setMessages((prev) =>
@@ -397,6 +444,9 @@ export function useChatMessages(
   useEffect(() => {
     // Handle room closed via EventBus
     const unsubRoomClosed = eventBus.on('room.closed', (payload) => {
+      // GUARD: Skip if not authenticated (during logout)
+      if (!isStillAuthenticated()) return;
+
       if (payload.roomId === roomId) {
         log.info('Room closed', { roomId, closedBy: payload.closedBy });
         
@@ -413,6 +463,9 @@ export function useChatMessages(
 
     // Handle room expiring via EventBus (server sends this before room expires)
     const unsubRoomExpiring = eventBus.on('room.expiring', (payload) => {
+      // GUARD: Skip if not authenticated (during logout)
+      if (!isStillAuthenticated()) return;
+
       if (payload.roomId !== roomId) return;
 
       log.info('Room expiring', { roomId, minutesRemaining: payload.minutesRemaining });
@@ -426,6 +479,9 @@ export function useChatMessages(
 
     // Handle user joined (show system message) via EventBus
     const unsubUserJoined = eventBus.on('room.userJoined', (payload) => {
+      // GUARD: Skip if not authenticated (during logout)
+      if (!isStillAuthenticated()) return;
+
       if (payload.roomId !== roomId) return;
 
       const joinedDisplayName = payload.userName || 'Someone';
@@ -441,6 +497,9 @@ export function useChatMessages(
 
     // Handle user left (show system message) via EventBus
     const unsubUserLeft = eventBus.on('room.userLeft', (payload) => {
+      // GUARD: Skip if not authenticated (during logout)
+      if (!isStillAuthenticated()) return;
+
       if (payload.roomId !== roomId) return;
 
       // Show system message for others leaving
@@ -455,6 +514,9 @@ export function useChatMessages(
 
     // Handle user kicked via EventBus
     const unsubUserKicked = eventBus.on('room.userKicked', async (payload) => {
+      // GUARD: Skip if not authenticated (during logout)
+      if (!isStillAuthenticated()) return;
+
       if (payload.roomId !== roomId) return;
 
       // If current user was kicked
@@ -496,6 +558,9 @@ export function useChatMessages(
 
     // Handle user banned via EventBus
     const unsubUserBanned = eventBus.on('room.userBanned', async (payload) => {
+      // GUARD: Skip if not authenticated (during logout)
+      if (!isStillAuthenticated()) return;
+
       if (payload.roomId !== roomId) return;
 
       // If current user was banned

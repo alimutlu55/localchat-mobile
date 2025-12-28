@@ -80,6 +80,10 @@ export default function DiscoveryScreen() {
     // View mode state
     const [viewMode, setViewMode] = useState<ViewMode>('map');
 
+    // Map stabilization state - prevents marker rendering until map is fully ready
+    // This fixes a native crash where MapLibre tries to insert nil subviews
+    const [isMapStable, setIsMapStable] = useState(false);
+
     // Animation for view switching
     const listOpacity = useRef(new Animated.Value(0)).current;
 
@@ -118,6 +122,20 @@ export default function DiscoveryScreen() {
         defaultCenter: userLocation || undefined,
         defaultZoom: 13,
     });
+
+    // Stabilize map after it reports ready (prevents native crashes)
+    useEffect(() => {
+        if (isMapReady) {
+            // Small delay to let MapLibre finish internal setup
+            const timer = setTimeout(() => {
+                setIsMapStable(true);
+                log.debug('Map stabilized, enabling markers');
+            }, 100);
+            return () => clearTimeout(timer);
+        } else {
+            setIsMapStable(false);
+        }
+    }, [isMapReady]);
 
     // Room discovery - using hooks instead of context
     const {
@@ -377,7 +395,7 @@ export default function DiscoveryScreen() {
                     )}
 
                     {/* User Location Marker */}
-                    {isMapReady && userLocation && (
+                    {isMapStable && userLocation && (
                         <View style={styles.userLocationMarkerContainer}>
                             <View style={styles.userLocationPulse} />
                             <View style={styles.userLocationDot} />
@@ -385,7 +403,7 @@ export default function DiscoveryScreen() {
                     )}
 
                     {/* Room Markers and Clusters */}
-                    {isMapReady &&
+                    {isMapStable &&
                         features.map((feature) => {
                             if (checkIsCluster(feature)) {
                                 // Skip clusters with invalid data

@@ -3,6 +3,17 @@
  *
  * The main navigator for the application.
  * Handles authentication branching (Auth vs Main) and global modal screens.
+ *
+ * CRITICAL: Navigation switching is controlled by auth status state machine.
+ * We show loading screen during ALL transition states to prevent:
+ * - Crashes from stale closures accessing null user
+ * - Race conditions during logout cleanup
+ * - Screen unmounting while effects are still running
+ *
+ * State Machine → Navigation:
+ * - unknown, loading, loggingOut → LoadingScreen (stable, prevents unmounting)
+ * - guest, authenticating → AuthNavigator
+ * - authenticated → App screens
  */
 
 import React from 'react';
@@ -28,15 +39,29 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 
 /**
  * Root Navigator Component
+ *
+ * Uses auth status state machine for safe navigation transitions.
  */
 export function RootNavigator() {
-    const { isInitializing, isAuthenticated } = useAuth();
+    const { status, isTransitioning } = useAuth();
 
-    // Show loading screen only during initial auth check (app startup)
-    // NOT during login/register operations - those should keep nav mounted
-    if (isInitializing) {
+    // CRITICAL: Show loading during ALL transition states
+    // This prevents screens from unmounting while cleanup is in progress
+    // States: 'unknown' | 'loading' | 'loggingOut'
+    //
+    // Note: We explicitly check for 'loggingOut' to keep screens mounted
+    // until cleanup is complete. This prevents crashes from:
+    // - EventBus handlers running with null userId
+    // - useEffect cleanups accessing cleared stores
+    // - Navigation happening during async operations
+    if (status === 'unknown' || status === 'loading' || status === 'loggingOut') {
         return <LoadingScreen />;
     }
+
+    // Determine if we should show auth screens
+    // 'guest' = not logged in
+    // 'authenticating' = login/register in progress (keep auth screens visible)
+    const showAuthScreens = status === 'guest' || status === 'authenticating';
 
     return (
         <Stack.Navigator
@@ -46,7 +71,7 @@ export function RootNavigator() {
                 contentStyle: { backgroundColor: '#ffffff' },
             }}
         >
-            {!isAuthenticated ? (
+            {showAuthScreens ? (
                 // Auth Flow
                 <Stack.Screen
                     name="Auth"
@@ -56,7 +81,7 @@ export function RootNavigator() {
                     }}
                 />
             ) : (
-                // App Flow
+                // App Flow - only when status === 'authenticated'
                 <>
                     <Stack.Screen name="Discovery" component={DiscoveryScreen} />
 
@@ -67,7 +92,7 @@ export function RootNavigator() {
                         options={{
                             headerShown: false,
                             gestureEnabled: true,
-                            animation: 'slide_from_right', // Standard push animation
+                            animation: 'slide_from_right',
                         }}
                     />
                     <Stack.Screen

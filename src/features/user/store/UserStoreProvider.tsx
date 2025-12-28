@@ -4,6 +4,9 @@
  * Initializes the UserStore with EventBus subscriptions for real-time updates.
  * Should be mounted at the app level.
  *
+ * CRITICAL: Now uses auth status state machine to handle transitions safely.
+ * EventBus handlers check auth status before processing.
+ *
  * Handles:
  * - Subscribing to EventBus profile update events
  * - Preloading user avatars
@@ -14,6 +17,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { useUserStore, useCurrentUser } from './UserStore';
+import { useAuthStore } from '../../auth/store/AuthStore';
 import { eventBus } from '../../../core/events';
 import { createLogger } from '../../../shared/utils/logger';
 import { notificationService } from '../../../services';
@@ -33,6 +37,7 @@ interface UserStoreProviderProps {
 function UserStoreInitializer() {
   const cleanupIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const currentUser = useCurrentUser();
+  const authStatus = useAuthStore((s) => s.status);
 
   // Get store actions
   const updateUser = useUserStore((s) => s.updateUser);
@@ -55,7 +60,20 @@ function UserStoreInitializer() {
   useEffect(() => {
     if (!currentUser) return;
 
+    // Don't subscribe during logout - prevents stale closure issues
+    if (authStatus === 'loggingOut') {
+      log.debug('Skipping EventBus subscription - auth status is loggingOut');
+      return;
+    }
+
     const handleProfileUpdated = (payload: { userId: string; displayName?: string; profilePhotoUrl?: string }) => {
+      // GUARD: Check auth status before processing
+      const currentStatus = useAuthStore.getState().status;
+      if (currentStatus !== 'authenticated') {
+        log.debug('Skipping profile update - not authenticated', { currentStatus });
+        return;
+      }
+
       // Only update if it's the current user's profile
       if (payload.userId === currentUser.id) {
         log.debug('Profile update received via EventBus', { payload });
@@ -86,7 +104,7 @@ function UserStoreInitializer() {
       unsubProfile();
       log.debug('Unsubscribed from profile update events');
     };
-  }, [currentUser, updateUser, preloadAvatar]);
+  }, [currentUser, authStatus, updateUser, preloadAvatar]);
 
   // Set current user ID in notification service (to avoid self-notifications)
   useEffect(() => {

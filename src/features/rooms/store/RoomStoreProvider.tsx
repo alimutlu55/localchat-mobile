@@ -4,6 +4,9 @@
  * A provider component that initializes the RoomStore with WebSocket subscriptions.
  * This component should be mounted at the app level, after AuthProvider.
  *
+ * CRITICAL: This component now uses auth status state machine to handle transitions.
+ * It checks for 'loggingOut' status to prevent fetching during logout.
+ *
  * It handles:
  * - Subscribing to EventBus events and updating RoomStore
  * - Fetching initial "my rooms" data when user is authenticated
@@ -16,6 +19,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { useCurrentUser } from '../../user/store';
+import { useAuthStore } from '../../auth/store/AuthStore';
 import { useRoomStore } from './RoomStore';
 import { useRoomWebSocket } from '../hooks/useRoomWebSocket';
 import { roomService, notificationService, wsService } from '../../../services';
@@ -33,9 +37,12 @@ interface RoomStoreProviderProps {
  */
 function RoomStoreInitializer() {
   const user = useCurrentUser();
+  const authStatus = useAuthStore((s) => s.status);
 
   // Subscribe to WebSocket events via EventBus
-  useRoomWebSocket(user?.id);
+  // Pass null userId if logging out to prevent event handling
+  const effectiveUserId = authStatus === 'loggingOut' ? undefined : user?.id;
+  useRoomWebSocket(effectiveUserId);
 
   // Get store actions
   const setRooms = useRoomStore((s) => s.setRooms);
@@ -77,7 +84,14 @@ function RoomStoreInitializer() {
   const subscribedRoomsRef = useRef<Set<string>>(new Set());
 
   // Fetch user's joined rooms on mount and when user changes
+  // CRITICAL: Also check authStatus to prevent fetching during logout
   useEffect(() => {
+    // Don't do anything during logout transition - AuthStore handles cleanup
+    if (authStatus === 'loggingOut') {
+      log.debug('Skipping room fetch - auth status is loggingOut');
+      return;
+    }
+
     if (!user) {
       // User logged out - unsubscribe from all rooms and reset store
       log.debug('User logged out, unsubscribing from rooms and resetting store');
@@ -86,6 +100,12 @@ function RoomStoreInitializer() {
       });
       subscribedRoomsRef.current.clear();
       reset();
+      return;
+    }
+
+    // Only fetch if actually authenticated
+    if (authStatus !== 'authenticated') {
+      log.debug('Skipping room fetch - auth status is not authenticated', { authStatus });
       return;
     }
 
@@ -127,7 +147,13 @@ function RoomStoreInitializer() {
 
         log.info('My rooms loaded and subscribed', { count: activeRooms.length });
       } catch (error) {
-        log.error('Failed to fetch my rooms', error);
+        // Check if we're still authenticated before logging error
+        // (could have logged out during the fetch)
+        if (useAuthStore.getState().status === 'authenticated') {
+          log.error('Failed to fetch my rooms', error);
+        } else {
+          log.debug('Room fetch failed, but user is no longer authenticated');
+        }
       }
     };
 
@@ -140,7 +166,7 @@ function RoomStoreInitializer() {
       });
       subscribedRoomsRef.current.clear();
     };
-  }, [user, setRooms, setJoinedRoomIds, reset]);
+  }, [user, authStatus, setRooms, setJoinedRoomIds, reset]);
 
   return null;
 }

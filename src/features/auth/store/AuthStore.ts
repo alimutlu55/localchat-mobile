@@ -1,23 +1,49 @@
 /**
  * AuthStore - Zustand-based Authentication State Management
  *
- * Handles authentication flows only (login, logout, register).
- * User data is managed by UserStore, not here.
+ * Handles authentication flows using a state machine approach.
+ * 
+ * State Machine:
+ *   unknown → loading → guest ←─────────────┐
+ *                ↓        ↓                  │
+ *                ↓   authenticating          │
+ *                ↓        ↓                  │
+ *                └──→ authenticated ────→ loggingOut
  *
  * Design Principles:
- * - Separation of concerns: Auth flow ≠ User data
+ * - State machine prevents race conditions during auth transitions
+ * - Explicit states for loading/logout prevent crashes from stale closures
  * - Works with UserStore: After login, calls UserStore.setUser()
  * - Manages WebSocket: Connects/disconnects on auth state change
- * - Minimal API surface: Only auth-related state and actions
+ * - Cleanup is orchestrated before state transitions
  */
 
 import { create } from 'zustand';
 import { authService } from '../../../services/auth';
 import { wsService } from '../../../services';
 import { useUserStore } from '../../user/store/UserStore';
+import { useRoomStore } from '../../rooms/store/RoomStore';
+import { eventBus } from '../../../core/events';
 import { createLogger } from '../../../shared/utils/logger';
+import { User } from '../../../types';
 
 const log = createLogger('AuthStore');
+
+// =============================================================================
+// Auth Status (State Machine)
+// =============================================================================
+
+/**
+ * Authentication status representing discrete states in the auth lifecycle.
+ * Using explicit states prevents race conditions during transitions.
+ */
+export type AuthStatus =
+    | 'unknown'        // App just opened, haven't checked storage yet
+    | 'loading'        // Checking stored credentials
+    | 'guest'          // No authenticated user, show auth screens
+    | 'authenticating' // Login/register in progress
+    | 'authenticated'  // User is logged in
+    | 'loggingOut';    // Logout in progress, cleanup running
 
 // =============================================================================
 // Types
@@ -25,14 +51,26 @@ const log = createLogger('AuthStore');
 
 export interface AuthStoreState {
     /**
+     * Current auth status (state machine state)
+     * Replaces boolean isAuthenticated for safer transitions
+     */
+    status: AuthStatus;
+
+    /**
+     * Current authenticated user (single source of truth)
+     * Only non-null when status === 'authenticated'
+     */
+    user: User | null;
+
+    /**
      * Whether auth is still initializing (app startup)
-     * Used by RootNavigator to show loading screen
+     * @deprecated Use status === 'unknown' || status === 'loading' instead
      */
     isInitializing: boolean;
 
     /**
      * Loading state for auth operations (login, register, etc)
-     * Does NOT trigger navigator remount
+     * @deprecated Use status === 'authenticating' instead
      */
     isLoading: boolean;
 
@@ -42,7 +80,8 @@ export interface AuthStoreState {
     error: string | null;
 
     /**
-     * Whether user is authenticated (derived from UserStore)
+     * Whether user is authenticated
+     * @deprecated Use status === 'authenticated' instead
      */
     isAuthenticated: boolean;
 }
@@ -64,7 +103,7 @@ export interface AuthStoreActions {
     loginAnonymous: (displayName?: string) => Promise<void>;
 
     /**
-     * Logout user
+     * Logout user - orchestrated cleanup before state transition
      */
     logout: () => Promise<void>;
 
@@ -75,6 +114,7 @@ export interface AuthStoreActions {
 
     /**
      * Update loading state
+     * @deprecated Use status transitions instead
      */
     setLoading: (isLoading: boolean) => void;
 
@@ -85,8 +125,21 @@ export interface AuthStoreActions {
 
     /**
      * Update isAuthenticated flag
+     * @deprecated Use status transitions instead
      */
     setAuthenticated: (isAuthenticated: boolean) => void;
+
+    /**
+     * Get the current user synchronously
+     * Returns null if not authenticated
+     */
+    getUser: () => User | null;
+
+    /**
+     * Check if currently in a transition state (loading, authenticating, loggingOut)
+     * Navigation should show loading screen during transitions
+     */
+    isTransitioning: () => boolean;
 }
 
 export type AuthStore = AuthStoreState & AuthStoreActions;
@@ -96,11 +149,42 @@ export type AuthStore = AuthStoreState & AuthStoreActions;
 // =============================================================================
 
 const initialState: AuthStoreState = {
-    isInitializing: true, // Start with true, set to false after auth initialization
-    isLoading: false, // Operation loading, start false
+    status: 'unknown',
+    user: null,
+    isInitializing: true, // Deprecated - kept for backward compatibility
+    isLoading: false, // Deprecated - kept for backward compatibility
     error: null,
-    isAuthenticated: false,
+    isAuthenticated: false, // Deprecated - kept for backward compatibility
 };
+
+// =============================================================================
+// Helper: Orchestrated Session Cleanup
+// =============================================================================
+
+/**
+ * Performs cleanup in deterministic order during logout.
+ * This prevents race conditions where components access cleared state.
+ */
+async function cleanupSession(): Promise<void> {
+    log.debug('Starting session cleanup...');
+
+    // 1. Disconnect WebSocket first (stops incoming events)
+    wsService.disconnect();
+
+    // 2. Small delay to allow pending WS operations to complete
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    // 3. Clear room store (removes all room subscriptions and data)
+    useRoomStore.getState().reset();
+
+    // 4. Clear user store
+    useUserStore.getState().clearUser();
+
+    // 5. Clear auth tokens from storage
+    await authService.logout();
+
+    log.debug('Session cleanup complete');
+}
 
 // =============================================================================
 // Store Implementation
@@ -115,7 +199,15 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
     // =========================================================================
 
     login: async (email: string, password: string) => {
-        set({ isLoading: true, error: null });
+        const currentStatus = get().status;
+
+        // Prevent login if already authenticated or in transition
+        if (currentStatus === 'authenticated' || currentStatus === 'authenticating' || currentStatus === 'loggingOut') {
+            log.warn('Login blocked - invalid state', { currentStatus });
+            return;
+        }
+
+        set({ status: 'authenticating', isLoading: true, error: null });
 
         try {
             log.debug('Login attempt', { email });
@@ -123,25 +215,44 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             // Call auth service
             const user = await authService.login(email, password);
 
-            // Update UserStore with logged-in user
+            // Update UserStore with logged-in user (kept for backward compatibility)
             useUserStore.getState().setUser(user);
 
             // Connect WebSocket
             await wsService.connect();
 
-            set({ isAuthenticated: true, isLoading: false });
+            set({
+                status: 'authenticated',
+                user,
+                isAuthenticated: true,
+                isLoading: false,
+                isInitializing: false,
+            });
             log.debug('Login successful', { userId: user.id });
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Login failed';
-            // Use warn instead of error - invalid credentials is expected user behavior
             log.warn('Login unsuccessful', { reason: message });
-            set({ error: message, isLoading: false, isAuthenticated: false });
+            set({
+                status: 'guest',
+                user: null,
+                error: message,
+                isLoading: false,
+                isAuthenticated: false,
+            });
             throw err;
         }
     },
 
     register: async (email: string, password: string, displayName: string) => {
-        set({ isLoading: true, error: null });
+        const currentStatus = get().status;
+
+        // Prevent register if already authenticated or in transition
+        if (currentStatus === 'authenticated' || currentStatus === 'authenticating' || currentStatus === 'loggingOut') {
+            log.warn('Register blocked - invalid state', { currentStatus });
+            return;
+        }
+
+        set({ status: 'authenticating', isLoading: true, error: null });
 
         try {
             log.debug('Register attempt', { email, displayName });
@@ -149,25 +260,44 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             // Call auth service
             const user = await authService.register(email, password, displayName);
 
-            // Update UserStore with new user
+            // Update UserStore with new user (kept for backward compatibility)
             useUserStore.getState().setUser(user);
 
             // Connect WebSocket
             await wsService.connect();
 
-            set({ isAuthenticated: true, isLoading: false });
+            set({
+                status: 'authenticated',
+                user,
+                isAuthenticated: true,
+                isLoading: false,
+                isInitializing: false,
+            });
             log.debug('Registration successful', { userId: user.id });
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Registration failed';
-            // Use warn instead of error - registration failures are expected scenarios
             log.warn('Registration unsuccessful', { reason: message });
-            set({ error: message, isLoading: false, isAuthenticated: false });
+            set({
+                status: 'guest',
+                user: null,
+                error: message,
+                isLoading: false,
+                isAuthenticated: false,
+            });
             throw err;
         }
     },
 
     loginAnonymous: async (displayName?: string) => {
-        set({ isLoading: true, error: null });
+        const currentStatus = get().status;
+
+        // Prevent login if already authenticated or in transition
+        if (currentStatus === 'authenticated' || currentStatus === 'authenticating' || currentStatus === 'loggingOut') {
+            log.warn('Anonymous login blocked - invalid state', { currentStatus });
+            return;
+        }
+
+        set({ status: 'authenticating', isLoading: true, error: null });
 
         try {
             log.debug('Anonymous login attempt', { displayName });
@@ -175,45 +305,73 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             // Call auth service
             const user = await authService.loginAnonymous(displayName);
 
-            // Update UserStore with anonymous user
+            // Update UserStore with anonymous user (kept for backward compatibility)
             useUserStore.getState().setUser(user);
 
             // Connect WebSocket
             await wsService.connect();
 
-            set({ isAuthenticated: true, isLoading: false });
+            set({
+                status: 'authenticated',
+                user,
+                isAuthenticated: true,
+                isLoading: false,
+                isInitializing: false,
+            });
             log.debug('Anonymous login successful', { userId: user.id });
         } catch (err) {
             const message = err instanceof Error ? err.message : 'Anonymous login failed';
-            // Use warn instead of error - anonymous login failures are usually expected
             log.warn('Anonymous login unsuccessful', { reason: message });
-            set({ error: message, isLoading: false, isAuthenticated: false });
+            set({
+                status: 'guest',
+                user: null,
+                error: message,
+                isLoading: false,
+                isAuthenticated: false,
+            });
             throw err;
         }
     },
 
     logout: async () => {
-        set({ isLoading: true });
+        const currentStatus = get().status;
+
+        // Prevent double logout or logout during other transitions
+        if (currentStatus === 'loggingOut' || currentStatus === 'guest' || currentStatus === 'authenticating') {
+            log.warn('Logout blocked - invalid state', { currentStatus });
+            return;
+        }
+
+        // CRITICAL: Set loggingOut FIRST - this keeps navigation stable
+        // Navigation will show loading screen during loggingOut state
+        set({ status: 'loggingOut', isLoading: true });
+        log.debug('Logout initiated - entering loggingOut state');
 
         try {
-            log.debug('Logout initiated');
+            // Perform orchestrated cleanup (WS, stores, tokens)
+            await cleanupSession();
 
-            // Disconnect WebSocket first
-            wsService.disconnect();
-
-            // Call auth service to clear tokens
-            await authService.logout();
-
-            // Clear UserStore
-            useUserStore.getState().clearUser();
-
-            set({ isAuthenticated: false, isLoading: false, error: null });
-            log.debug('Logout successful');
+            // ONLY NOW transition to guest - navigation can safely switch
+            set({
+                status: 'guest',
+                user: null,
+                isAuthenticated: false,
+                isLoading: false,
+                isInitializing: false,
+                error: null,
+            });
+            log.debug('Logout successful - transitioned to guest state');
         } catch (err) {
-            log.error('Logout error', { error: err });
-            // Even if logout fails, clear local state
-            useUserStore.getState().clearUser();
-            set({ isAuthenticated: false, isLoading: false });
+            log.error('Logout error during cleanup', { error: err });
+            // Even if cleanup fails, we must transition to guest
+            // Otherwise user is stuck in loggingOut state
+            set({
+                status: 'guest',
+                user: null,
+                isAuthenticated: false,
+                isLoading: false,
+                isInitializing: false,
+            });
         }
     },
 
@@ -222,6 +380,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
     },
 
     setLoading: (isLoading: boolean) => {
+        // Deprecated - kept for backward compatibility
         set({ isLoading });
     },
 
@@ -230,7 +389,21 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
     },
 
     setAuthenticated: (isAuthenticated: boolean) => {
-        set({ isAuthenticated });
+        // Deprecated - kept for backward compatibility
+        // Updates both old boolean and new status
+        set({
+            isAuthenticated,
+            status: isAuthenticated ? 'authenticated' : 'guest',
+        });
+    },
+
+    getUser: () => {
+        return get().user;
+    },
+
+    isTransitioning: () => {
+        const status = get().status;
+        return status === 'unknown' || status === 'loading' || status === 'authenticating' || status === 'loggingOut';
     },
 }));
 
@@ -241,6 +414,17 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
 export const selectIsAuthenticated = (state: AuthStore) => state.isAuthenticated;
 export const selectIsLoading = (state: AuthStore) => state.isLoading;
 export const selectError = (state: AuthStore) => state.error;
+export const selectStatus = (state: AuthStore) => state.status;
+export const selectUser = (state: AuthStore) => state.user;
+
+/**
+ * Selector to check if navigation should show loading screen
+ * Returns true during any transition state
+ */
+export const selectIsTransitioning = (state: AuthStore) => {
+    const { status } = state;
+    return status === 'unknown' || status === 'loading' || status === 'authenticating' || status === 'loggingOut';
+};
 
 // =============================================================================
 // Initialization Helper
@@ -251,34 +435,51 @@ export const selectError = (state: AuthStore) => state.error;
  * Call this once on app startup
  */
 export async function initializeAuthStore(): Promise<void> {
-    const store = useAuthStore.getState();
+    // Transition from unknown to loading
+    useAuthStore.setState({ status: 'loading' });
+    log.debug('Initializing auth store - status: loading');
 
     try {
-        log.debug('Initializing auth store...');
-
         // Let authService initialize and load cached user
         const user = await authService.initialize();
 
         if (user) {
             // User is logged in, update stores
             useUserStore.getState().setUser(user);
-            store.setAuthenticated(true);
 
             // Connect WebSocket
             await wsService.connect();
 
-            log.debug('Auth initialized with user', { userId: user.id });
+            // Transition to authenticated with user data
+            useAuthStore.setState({
+                status: 'authenticated',
+                user,
+                isAuthenticated: true,
+                isInitializing: false,
+                isLoading: false,
+            });
+            log.debug('Auth initialized with user', { userId: user.id, status: 'authenticated' });
         } else {
-            // No user, not authenticated
-            store.setAuthenticated(false);
-            log.debug('Auth initialized - no user');
+            // No user, transition to guest
+            useAuthStore.setState({
+                status: 'guest',
+                user: null,
+                isAuthenticated: false,
+                isInitializing: false,
+                isLoading: false,
+            });
+            log.debug('Auth initialized - no user', { status: 'guest' });
         }
     } catch (err) {
         log.error('Auth initialization error', { error: err });
-        store.setAuthenticated(false);
-    } finally {
-        // Mark initialization as complete - this allows navigator to render
-        useAuthStore.setState({ isInitializing: false });
+        // On error, transition to guest (safe default)
+        useAuthStore.setState({
+            status: 'guest',
+            user: null,
+            isAuthenticated: false,
+            isInitializing: false,
+            isLoading: false,
+        });
     }
 }
 
