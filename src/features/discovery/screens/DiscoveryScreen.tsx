@@ -12,7 +12,7 @@
  * ~400 LOC (down from 975 LOC)
  */
 
-import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
     View,
     Text,
@@ -39,20 +39,17 @@ import { RootStackParamList } from '../../../navigation/types';
 // Types
 import { Room } from '../../../types';
 
-// Constants
-import { ROOM_CONFIG } from '../../../constants';
-
 // Context
 import { useUIActions } from '../../../context';
 
 // Features
-import { useRoomDiscovery, useJoinRoom, useMyRooms } from '../../rooms/hooks';
+import { useJoinRoom, useMyRooms } from '../../rooms/hooks';
 
 // Components - now from feature module
 import { RoomListView, RoomMarker, ClusterMarker } from '../components';
 
 // Hooks
-import { useMapState, useUserLocation, useMapClustering } from '../hooks';
+import { useMapState, useUserLocation, useMapClustering, useViewportRoomDiscovery } from '../hooks';
 
 // Styles
 import { HUDDLE_MAP_STYLE } from '../../../styles/mapStyle';
@@ -87,6 +84,12 @@ export default function DiscoveryScreen() {
     // Map stabilization state - prevents marker rendering until map is fully ready
     // This fixes a native crash where MapLibre tries to insert nil subviews
     const [isMapStable, setIsMapStable] = useState(false);
+
+    // Track if initial data has loaded - prevent marker rendering during first fetch
+    const [hasInitialData, setHasInitialData] = useState(false);
+
+    // Combined flag: only render markers when BOTH map is stable AND we have data
+    const canRenderMarkers = isMapStable && hasInitialData;
 
     // Map overlay opacity - fades out to reveal map smoothly
     const mapOverlayOpacity = useRef(new Animated.Value(1)).current;
@@ -134,9 +137,12 @@ export default function DiscoveryScreen() {
     });
 
     // Smooth map initialization sequence
+    // CRITICAL: Increased delays to prevent MapLibre native crashes
+    // The native layer needs time to stabilize before React adds markers
     useEffect(() => {
         if (isMapReady) {
-            // Phase 1: Wait for map to stabilize internally (100ms)
+            // Phase 1: Wait for map to stabilize internally (300ms - increased from 100ms)
+            // This gives MapLibre time to finish internal setup
             const stabilizeTimer = setTimeout(() => {
                 setIsMapStable(true);
                 log.debug('Map stabilized, starting fade-in sequence');
@@ -148,15 +154,16 @@ export default function DiscoveryScreen() {
                     useNativeDriver: true,
                 }).start();
 
-                // Phase 3: Fade in markers after a brief pause (200ms delay, 400ms fade)
+                // Phase 3: Fade in markers after rooms have loaded (500ms delay, 400ms fade)
+                // Increased delay to ensure room fetch has completed
                 setTimeout(() => {
                     Animated.timing(markersOpacity, {
                         toValue: 1,
                         duration: 400,
                         useNativeDriver: true,
                     }).start();
-                }, 200);
-            }, 100);
+                }, 500);
+            }, 300);
 
             return () => clearTimeout(stabilizeTimer);
         } else {
@@ -167,16 +174,31 @@ export default function DiscoveryScreen() {
         }
     }, [isMapReady, mapOverlayOpacity, markersOpacity]);
 
-    // Room discovery - using hooks instead of context
+    // Viewport-based room discovery - fetches rooms based on map bounds
     const {
-        rooms: discoveredRooms,
+        rooms: viewportRooms,
         isLoading: isLoadingRooms,
-        refresh: fetchDiscoveredRoomsHook,
-    } = useRoomDiscovery({
-        latitude: userLocation?.latitude || 0,
-        longitude: userLocation?.longitude || 0,
-        autoFetch: false, // We'll fetch manually after location is ready
+        totalInViewport,
+        refetch: refetchViewportRooms,
+    } = useViewportRoomDiscovery({
+        bounds,
+        zoom,
+        isMapReady,
+        isMapMoving: false, // We handle this via debounce in the hook
+        autoFetch: true,
     });
+
+    // Track when we have initial data to prevent marker rendering during first fetch
+    useEffect(() => {
+        if (!hasInitialData && viewportRooms.length > 0 && !isLoadingRooms) {
+            // Small delay to let MapLibre stabilize after data arrives
+            const timer = setTimeout(() => {
+                setHasInitialData(true);
+                log.debug('Initial data loaded, markers can now render', { roomCount: viewportRooms.length });
+            }, 200);
+            return () => clearTimeout(timer);
+        }
+    }, [viewportRooms.length, isLoadingRooms, hasInitialData]);
 
     const { join: joinRoomHook } = useJoinRoom();
     const { activeRooms: myActiveRooms } = useMyRooms();
@@ -190,20 +212,8 @@ export default function DiscoveryScreen() {
         return result.success;
     };
 
-    // Wrapper for fetchDiscoveredRooms to match expected signature
-    const fetchDiscoveredRooms = async (lat: number, lng: number, radius?: number) => {
-        await fetchDiscoveredRoomsHook();
-    };
-
-    // Use discovered rooms for activeRooms (filtered in useRoomDiscovery)
-    // Note: discoveredRooms is now reactive to room removals (e.g., when banned)
-    const activeRooms = useMemo(() => {
-        const now = Date.now();
-        return discoveredRooms.filter(room => {
-            const isExpired = room.expiresAt && room.expiresAt.getTime() < now;
-            return !isExpired && room.status !== 'closed' && room.status !== 'expired';
-        });
-    }, [discoveredRooms]);
+    // Use viewport rooms directly - already filtered in the hook
+    const activeRooms = viewportRooms;
 
     const { openSidebar } = useUIActions();
 
@@ -220,27 +230,6 @@ export default function DiscoveryScreen() {
         zoom,
         isMapReady,
     });
-
-    // ==========================================================================
-    // Room Fetching
-    // ==========================================================================
-
-    // Track if initial fetch has been done (prevents re-fetch on callback changes)
-    const hasFetchedRef = useRef(false);
-
-    useEffect(() => {
-        // Only fetch once when we first get user location
-        if (userLocation && !hasFetchedRef.current) {
-            hasFetchedRef.current = true;
-            fetchDiscoveredRooms(
-                userLocation.latitude,
-                userLocation.longitude,
-                ROOM_CONFIG.DEFAULT_RADIUS
-            ).catch((error) => {
-                log.error('Failed to fetch rooms', error);
-            });
-        }
-    }, [userLocation, fetchDiscoveredRooms]);
 
     // ==========================================================================
     // Handlers
@@ -425,7 +414,7 @@ export default function DiscoveryScreen() {
                     )}
 
                     {/* User Location Marker */}
-                    {isMapStable && userLocation && (
+                    {canRenderMarkers && userLocation && (
                         <View style={styles.userLocationMarkerContainer}>
                             <View style={styles.userLocationPulse} />
                             <View style={styles.userLocationDot} />
@@ -433,7 +422,7 @@ export default function DiscoveryScreen() {
                     )}
 
                     {/* Room Markers and Clusters */}
-                    {isMapStable &&
+                    {canRenderMarkers &&
                         features.map((feature) => {
                             if (checkIsCluster(feature)) {
                                 // Skip clusters with invalid data
