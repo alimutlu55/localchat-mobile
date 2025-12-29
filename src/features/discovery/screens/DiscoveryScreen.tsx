@@ -75,28 +75,19 @@ export default function DiscoveryScreen() {
     const [viewMode, setViewMode] = useState<ViewMode>('map');
 
     // ==========================================================================
-    // Auth Status - MUST be first to prevent scoping issues
+    // Auth Status & Logout Protection
     // ==========================================================================
 
-    // Auth Status - Check for logout to prevent map recycling crash
     const { status: authStatus } = useAuth();
 
-    // Use ref to track logout state synchronously (no re-render delay)
+    // Track logout state synchronously to hide markers before unmounting
+    // Prevents Fabric view recycling crash during navigation transitions
     const isLoggingOutRef = useRef(false);
-
-    // CRITICAL: Update ref synchronously during render when logout detected
-    // This happens BEFORE navigation unmounts the screen
     if (authStatus === 'loggingOut' && !isLoggingOutRef.current) {
-        log.debug('[LOGOUT DEBUG] Logout detected! Hiding markers synchronously');
         isLoggingOutRef.current = true;
     } else if (authStatus !== 'loggingOut' && isLoggingOutRef.current) {
         isLoggingOutRef.current = false;
     }
-
-    // Log auth status changes for debugging
-    useEffect(() => {
-        log.debug('[LOGOUT DEBUG] Auth status changed', { authStatus, isLoggingOut: isLoggingOutRef.current });
-    }, [authStatus]);
 
     // ==========================================================================
     // Map Initialization & Smooth Transitions
@@ -109,23 +100,8 @@ export default function DiscoveryScreen() {
     // Track if initial data has loaded - prevent marker rendering during first fetch
     const [hasInitialData, setHasInitialData] = useState(false);
 
-    // Combined flag: only render markers when BOTH map is stable AND we have data AND not logging out
-    // CRITICAL: Prevents "Attempt to recycle a mounted view" crash during logout
-    //  Using ref for synchronous logout detection without waiting for re-render
+    // Markers render only when map is ready, data loaded, and not logging out
     const canRenderMarkers = isMapStable && hasInitialData && authStatus !== 'loggingOut' && !isLoggingOutRef.current;
-
-    // Log canRenderMarkers changes for debugging
-    useEffect(() => {
-        log.debug('[LOGOUT DEBUG] canRenderMarkers changed', {
-            canRenderMarkers,
-            isMapStable,
-            hasInitialData,
-            authStatus,
-            reason: !canRenderMarkers
-                ? `Markers hidden: ${!isMapStable ? 'map not stable' : !hasInitialData ? 'no data' : authStatus === 'loggingOut' ? 'LOGGING OUT' : 'unknown'}`
-                : 'Markers visible'
-        });
-    }, [canRenderMarkers, isMapStable, hasInitialData, authStatus]);
 
     // Map overlay opacity - fades out to reveal map smoothly
     const mapOverlayOpacity = useRef(new Animated.Value(1)).current;
@@ -263,24 +239,6 @@ export default function DiscoveryScreen() {
             return () => clearTimeout(timer);
         }
     }, [serverFeatures.length, isLoadingClusters, hasInitialData]);
-
-    // Log screen lifecycle for debugging logout crash
-    useEffect(() => {
-        log.debug('[LOGOUT DEBUG] DiscoveryScreen MOUNTED');
-        return () => {
-            log.debug('[LOGOUT DEBUG] DiscoveryScreen UNMOUNTING');
-        };
-    }, []);
-
-    // Log marker rendering count
-    useEffect(() => {
-        const markerCount = canRenderMarkers ? serverFeatures.length : 0;
-        log.debug('[LOGOUT DEBUG] Rendering markers', {
-            canRenderMarkers,
-            markerCount,
-            userLocationVisible: canRenderMarkers && !!userLocation
-        });
-    }, [canRenderMarkers, serverFeatures.length, userLocation]);
 
     const { join: joinRoomHook } = useJoinRoom();
     const { activeRooms: myActiveRooms } = useMyRooms();
@@ -543,13 +501,12 @@ export default function DiscoveryScreen() {
 
     return (
         <View style={styles.container}>
-            {/* Map View - Hide visually during logout but keep mounted to prevent Fabric crashes */}
+            {/* Map View - Hidden during logout to prevent Fabric crashes */}
             <Animated.View
                 style={[
                     styles.mapContainer,
                     {
                         opacity: listOpacity.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
-                        // Hide map during logout without unmounting
                         ...(authStatus === 'loggingOut' && { opacity: 0 })
                     },
                 ]}
@@ -577,7 +534,7 @@ export default function DiscoveryScreen() {
                     />
 
 
-                    {/* User Location Marker - Animated pulse to show user's position */}
+                    {/* User Location Marker */}
                     {userLocation && (
                         <PointAnnotation
                             id="user-location"
@@ -600,7 +557,7 @@ export default function DiscoveryScreen() {
                         </PointAnnotation>
                     )}
 
-                    {/* Server-Side Clustered Markers - Always rendered but hidden with opacity when not ready */}
+                    {/* Server-Side Room & Cluster Markers */}
                     {serverFeatures.map((feature) => {
                         if (feature.properties.cluster) {
                             // Cluster marker

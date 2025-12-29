@@ -29,14 +29,6 @@ export const ServerRoomMarker = memo(function ServerRoomMarker({
 }: ServerRoomMarkerProps) {
   const { properties, geometry } = feature;
 
-  // Log mount/unmount for debugging
-  React.useEffect(() => {
-    console.log('[LOGOUT DEBUG] ServerRoomMarker MOUNTED', { roomId: properties.roomId });
-    return () => {
-      console.log('[LOGOUT DEBUG] ServerRoomMarker UNMOUNTING', { roomId: properties.roomId });
-    };
-  }, [properties.roomId]);
-
   // Skip if not a room or missing coordinates
   if (properties.cluster || !properties.roomId || !geometry?.coordinates) {
     return null;
