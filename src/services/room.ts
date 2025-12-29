@@ -366,6 +366,46 @@ class RoomService {
     const response = await api.get<ClusterResponse>(`/rooms/clusters?${params}`);
     return response;
   }
+
+  /**
+   * Search rooms by query text
+   * Backend searches across ALL rooms in database (not just nearby)
+   * 
+   * @param query Search text (title, description, category)
+   * @param latitude Optional user latitude for distance calculation
+   * @param longitude Optional user longitude for distance calculation
+   * @param radiusMeters Optional search radius in meters
+   * @param limit Maximum number of results (default: 50)
+   * @returns Array of rooms matching search query
+   */
+  async searchRooms(
+    query: string,
+    latitude?: number,
+    longitude?: number,
+    radiusMeters?: number,
+    limit: number = 50
+  ): Promise<Room[]> {
+    if (!query || query.trim().length === 0) {
+      return [];
+    }
+
+    const params = new URLSearchParams({
+      query: query.trim(),
+      limit: limit.toString(),
+    });
+
+    if (latitude !== undefined && longitude !== undefined) {
+      params.append('latitude', latitude.toString());
+      params.append('longitude', longitude.toString());
+    }
+
+    if (radiusMeters !== undefined) {
+      params.append('radiusMeters', radiusMeters.toString());
+    }
+
+    const response = await api.get<{ data: RoomDTO[] }>(`/rooms/search?${params}`);
+    return response.data.map(transformRoom);
+  }
 }
 
 /**

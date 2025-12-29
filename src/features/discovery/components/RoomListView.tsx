@@ -39,6 +39,7 @@ import { useMyRooms, useRoomDiscovery } from '../../rooms/hooks';
 import { CATEGORIES } from '../../../constants';
 import { calculateDistance } from '../../../utils/format';
 import { theme } from '../../../core/theme';
+import { roomService } from '../../../services/room';
 
 // Build category filter options: ['All', 'Food & Dining', 'Events', ...]
 const CATEGORY_FILTERS = ['All', ...CATEGORIES.map(cat => cat.label)];
@@ -355,6 +356,8 @@ export function RoomListView({
 }: RoomListViewProps) {
     const insets = useSafeAreaInsets();
     const [searchQuery, setSearchQuery] = useState('');
+    const [isSearching, setIsSearching] = useState(false);
+    const [searchResults, setSearchResults] = useState<Room[]>([]);
     const [selectedCategory, setSelectedCategory] = useState('All');
     const [sortBy, setSortBy] = useState<SortOption>('nearest');
     const [showFilters, setShowFilters] = useState(false);
@@ -400,22 +403,44 @@ export function RoomListView({
         return 0;
     }, [userLocation]);
 
-    // Filter and sort rooms
-    const filteredRooms = useMemo(() => {
-        let filtered = [...rooms];
-
-        // Search filter
-        if (searchQuery) {
-            const query = searchQuery.toLowerCase();
-            filtered = filtered.filter(
-                (room) =>
-                    room.title.toLowerCase().includes(query) ||
-                    room.description?.toLowerCase().includes(query) ||
-                    room.category.toLowerCase().includes(query)
-            );
+    // Backend search effect - debounced
+    React.useEffect(() => {
+        if (!searchQuery || searchQuery.trim().length < 2) {
+            setSearchResults([]);
+            setIsSearching(false);
+            return;
         }
 
-        // Category filter
+        setIsSearching(true);
+        const timer = setTimeout(async () => {
+            try {
+                const results = await roomService.searchRooms(
+                    searchQuery,
+                    userLocation?.latitude || userLocation?.lat,
+                    userLocation?.longitude || userLocation?.lng,
+                    undefined, // No radius filter for global search
+                    100 // Get up to 100 results
+                );
+                setSearchResults(results);
+            } catch (error) {
+                console.error('Search error:', error);
+                setSearchResults([]);
+            } finally {
+                setIsSearching(false);
+            }
+        }, 300); // 300ms debounce
+
+        return () => clearTimeout(timer);
+    }, [searchQuery, userLocation]);
+
+    // Filter and sort rooms
+    const filteredRooms = useMemo(() => {
+        // Use search results if searching, otherwise use provided rooms
+        let filtered = searchQuery && searchQuery.trim().length >= 2 
+            ? [...searchResults] 
+            : [...rooms];
+
+        // Category filter (apply to both search results and regular rooms)
         if (selectedCategory !== 'All') {
             const query = selectedCategory.toLowerCase().trim();
             filtered = filtered.filter((room) => {
@@ -450,7 +475,7 @@ export function RoomListView({
         });
 
         return filtered;
-    }, [rooms, searchQuery, selectedCategory, sortBy, getRoomDistance]);
+    }, [rooms, searchResults, searchQuery, selectedCategory, sortBy, getRoomDistance]);
 
     // Group rooms by distance
     const groupedRooms = useMemo(() => {
@@ -552,6 +577,13 @@ export function RoomListView({
                         <TouchableOpacity style={styles.clearButton} onPress={handleClearSearch}>
                             <X size={16} color={theme.tokens.text.tertiary} />
                         </TouchableOpacity>
+                    )}
+                    {isSearching && (
+                        <ActivityIndicator 
+                            size="small" 
+                            color={theme.tokens.brand.primary} 
+                            style={styles.searchLoadingIndicator}
+                        />
                     )}
                 </View>
             </View>
@@ -785,6 +817,9 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
         backgroundColor: '#e5e7eb',
+    },
+    searchLoadingIndicator: {
+        marginLeft: 4,
     },
     filterPanel: {
         backgroundColor: '#ffffff',
