@@ -24,10 +24,10 @@ interface RoomMarkerProps {
   onPress: (room: Room) => void;
 }
 
-export const RoomMarker = memo(function RoomMarker({ 
-  room, 
-  isSelected, 
-  onPress 
+export const RoomMarker = memo(function RoomMarker({
+  room,
+  isSelected,
+  onPress
 }: RoomMarkerProps) {
   // Skip rendering if room or coordinates are invalid
   if (!room?.id || room.latitude == null || room.longitude == null) {
@@ -39,7 +39,7 @@ export const RoomMarker = memo(function RoomMarker({
       key={`room-${room.id}`}
       id={`room-${room.id}`}
       coordinate={[room.longitude, room.latitude]}
-      anchor={{ x: 0.5, y: 1 }}
+      anchor={{ x: 0.5, y: 0.5 }}
     >
       <TouchableOpacity
         onPress={() => onPress(room)}
@@ -72,19 +72,19 @@ interface ClusterMarkerProps {
   onPress: (cluster: ClusterFeature) => void;
 }
 
-export const ClusterMarker = memo(function ClusterMarker({ 
-  cluster, 
-  onPress 
+export const ClusterMarker = memo(function ClusterMarker({
+  cluster,
+  onPress
 }: ClusterMarkerProps) {
   const coordinates = cluster.geometry?.coordinates;
-  
+
   // Skip rendering if coordinates are invalid
-  if (!coordinates || coordinates.length < 2 || 
-      coordinates[0] == null || coordinates[1] == null ||
-      !cluster.properties?.cluster_id) {
+  if (!coordinates || coordinates.length < 2 ||
+    coordinates[0] == null || coordinates[1] == null ||
+    !cluster.properties?.cluster_id) {
     return null;
   }
-  
+
   const [lng, lat] = coordinates;
 
   return (

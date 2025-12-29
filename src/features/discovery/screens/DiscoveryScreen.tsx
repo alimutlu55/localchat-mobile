@@ -494,8 +494,8 @@ export default function DiscoveryScreen() {
                         </View>
                     )}
 
-                    {/* Server-Side Clustered Markers */}
-                    {canRenderMarkers &&
+                    {/* Server-Side Clustered Markers - Hidden when too close for privacy (zoom > 12 ≈ < 2km altitude) */}
+                    {canRenderMarkers && zoom <= 12 &&
                         serverFeatures.map((feature) => {
                             if (feature.properties.cluster) {
                                 // Cluster marker

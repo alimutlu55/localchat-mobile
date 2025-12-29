@@ -104,11 +104,7 @@ export const RoomPin = memo(({ room, isSelected }: RoomPinProps) => {
         return [theme.tokens.brand.primary, theme.palette.rose[500]];
     };
 
-    const getTailColor = () => {
-        if (room.isFull) return theme.tokens.text.secondary;
-        if (room.isExpiringSoon) return theme.palette.orange[600];
-        return theme.palette.rose[500];
-    };
+
 
     return (
         <Animated.View style={[styles.container, { transform: [{ scale: scaleAnim }] }]}>
@@ -137,15 +133,6 @@ export const RoomPin = memo(({ room, isSelected }: RoomPinProps) => {
                         <MessageCircle size={pinSize * 0.45} color={theme.tokens.text.onPrimary} />
                     )}
 
-                    {/* Participant count badge - top right */}
-                    {!room.isFull && room.participantCount > 0 && (
-                        <View style={styles.badge}>
-                            <Text style={styles.badgeText}>
-                                {room.participantCount > 99 ? '99+' : room.participantCount}
-                            </Text>
-                        </View>
-                    )}
-
                     {/* New badge - centered above */}
                     {room.isNew && (
                         <View style={styles.newBadge}>
@@ -170,15 +157,16 @@ export const RoomPin = memo(({ room, isSelected }: RoomPinProps) => {
                         <Clock size={12} color={theme.tokens.brand.primary} strokeWidth={3} />
                     </Animated.View>
                 )}
-            </View>
 
-            {/* Tail - triangle below to complete the pin look */}
-            <View
-                style={[
-                    styles.tail,
-                    { borderTopColor: getTailColor() },
-                ]}
-            />
+                {/* Participant count badge - top right extension */}
+                {!room.isFull && room.participantCount > 0 && (
+                    <View style={styles.participantBadge}>
+                        <Text style={styles.participantBadgeText}>
+                            {room.participantCount > 999 ? '999+' : room.participantCount}
+                        </Text>
+                    </View>
+                )}
+            </View>
         </Animated.View>
     );
 });
@@ -211,25 +199,27 @@ const styles = StyleSheet.create({
         shadowOpacity: 0.4,
         shadowRadius: 8,
     },
-    badge: {
+    participantBadge: {
         position: 'absolute',
-        top: -4,
-        right: -4,
+        top: -6,
+        right: -6,
         backgroundColor: theme.tokens.bg.surface,
-        borderRadius: 12,
-        minWidth: 24,
-        height: 24,
+        borderRadius: 10,
+        paddingHorizontal: 6,
+        paddingVertical: 2,
+        minWidth: 20,
         alignItems: 'center',
         justifyContent: 'center',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.2,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.25,
         shadowRadius: 2,
         elevation: 4,
+        zIndex: 10,
     },
-    badgeText: {
+    participantBadgeText: {
         fontSize: 11,
-        fontWeight: '500',
+        fontWeight: '700',
         color: theme.tokens.text.primary,
     },
     newBadge: {
@@ -282,17 +272,7 @@ const styles = StyleSheet.create({
         shadowRadius: 2,
         elevation: 4,
     },
-    tail: {
-        width: 0,
-        height: 0,
-        borderLeftWidth: 6,
-        borderRightWidth: 6,
-        borderTopWidth: 10,
-        borderLeftColor: 'transparent',
-        borderRightColor: 'transparent',
-        marginTop: -2, // Match web overlap
-        zIndex: 1,
-    },
+
 });
 
 

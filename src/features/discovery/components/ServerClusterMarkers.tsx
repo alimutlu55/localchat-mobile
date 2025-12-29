@@ -22,20 +22,20 @@ interface ServerRoomMarkerProps {
   onPress: (feature: ClusterFeature) => void;
 }
 
-export const ServerRoomMarker = memo(function ServerRoomMarker({ 
-  feature, 
-  isSelected, 
-  onPress 
+export const ServerRoomMarker = memo(function ServerRoomMarker({
+  feature,
+  isSelected,
+  onPress
 }: ServerRoomMarkerProps) {
   const { properties, geometry } = feature;
-  
+
   // Skip if not a room or missing coordinates
   if (properties.cluster || !properties.roomId || !geometry?.coordinates) {
     return null;
   }
 
   const [lng, lat] = geometry.coordinates;
-  
+
   if (lng == null || lat == null) {
     return null;
   }
@@ -55,7 +55,7 @@ export const ServerRoomMarker = memo(function ServerRoomMarker({
       key={`server-room-${properties.roomId}`}
       id={`server-room-${properties.roomId}`}
       coordinate={[lng, lat]}
-      anchor={{ x: 0.5, y: 1 }}
+      anchor={{ x: 0.5, y: 0.5 }}
     >
       <TouchableOpacity
         onPress={() => onPress(feature)}
@@ -85,19 +85,19 @@ interface ServerClusterMarkerProps {
   onPress: (feature: ClusterFeature) => void;
 }
 
-export const ServerClusterMarker = memo(function ServerClusterMarker({ 
-  feature, 
-  onPress 
+export const ServerClusterMarker = memo(function ServerClusterMarker({
+  feature,
+  onPress
 }: ServerClusterMarkerProps) {
   const { properties, geometry } = feature;
-  
+
   // Skip if not a cluster or missing data
   if (!properties.cluster || properties.clusterId == null || !geometry?.coordinates) {
     return null;
   }
-  
+
   const [lng, lat] = geometry.coordinates;
-  
+
   if (lng == null || lat == null) {
     return null;
   }
