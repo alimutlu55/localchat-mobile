@@ -687,7 +687,9 @@ export default function MapScreen() {
         )}
 
         {/* Room Markers and Clusters - using MarkerView for stability */}
-        {mapReady && features.map((feature: MapFeature) => {
+        {/* Key on feature set hash to force atomic remount and prevent native index crash */}
+        {mapReady && features.length > 0 && <React.Fragment key={`markers-${features.length}-${features.map(f => isCluster(f) ? f.properties.cluster_id : f.properties.eventId).join(',')}`}>
+        {features.map((feature: MapFeature) => {
           const [lng, lat] = feature.geometry.coordinates;
           
           // Skip features with invalid coordinates to prevent native crash
@@ -747,6 +749,7 @@ export default function MapScreen() {
             </MarkerView>
           );
         })}
+        </React.Fragment>}
       </MapView>
 
       {/* Header */}
