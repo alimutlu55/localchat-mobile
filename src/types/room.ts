@@ -102,3 +102,75 @@ export interface CreateRoomRequest {
   maxParticipants?: number;
 }
 
+// =============================================================================
+// Server-Side Clustering Types
+// =============================================================================
+
+/**
+ * Request for server-side room clustering
+ */
+export interface ClusterRequest {
+  minLng: number;
+  minLat: number;
+  maxLng: number;
+  maxLat: number;
+  zoom: number;
+  category?: string;
+}
+
+/**
+ * Server cluster response - GeoJSON FeatureCollection
+ */
+export interface ClusterResponse {
+  type: 'FeatureCollection';
+  features: ClusterFeature[];
+  metadata: ClusterMetadata;
+}
+
+/**
+ * Metadata about clustering response
+ */
+export interface ClusterMetadata {
+  totalRooms: number;
+  clusterCount: number;
+  individualCount: number;
+  zoom: number;
+  processingTimeMs: number;
+  clustered: boolean;
+}
+
+/**
+ * GeoJSON Feature - either a cluster or individual room
+ */
+export interface ClusterFeature {
+  type: 'Feature';
+  geometry: {
+    type: 'Point';
+    coordinates: [number, number]; // [lng, lat]
+  };
+  properties: ClusterProperties;
+}
+
+/**
+ * Properties for cluster or room feature
+ */
+export interface ClusterProperties {
+  cluster: boolean;
+  // Cluster-specific properties
+  clusterId?: number;
+  pointCount?: number;
+  pointCountAbbreviated?: string;
+  // Bounding box of all points in this cluster [minLng, minLat, maxLng, maxLat]
+  // Used to zoom to fit all children when cluster is clicked
+  expansionBounds?: [number, number, number, number];
+  // Room-specific properties (when cluster = false)
+  roomId?: string;
+  title?: string;
+  category?: string;
+  categoryIcon?: string;
+  participantCount?: number;
+  status?: string;
+  expiresAt?: string;
+}
+
+

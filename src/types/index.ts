@@ -22,6 +22,11 @@ export type {
   RoomSortBy,
   CreateRoomRequest,
   RoomParticipant,
+  ClusterRequest,
+  ClusterResponse,
+  ClusterMetadata,
+  ClusterFeature,
+  ClusterProperties,
 } from './room';
 
 // Message types

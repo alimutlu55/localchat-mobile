@@ -18,7 +18,7 @@
  */
 
 import { api } from './api';
-import { Room, RoomParticipant, CreateRoomRequest, RoomCategory, RoomSortBy } from '../types';
+import { Room, RoomParticipant, CreateRoomRequest, RoomCategory, RoomSortBy, ClusterResponse } from '../types';
 import { randomizeForRoomCreation, randomizeForRoomJoin, randomizeForDiscovery } from '../utils/locationPrivacy';
 
 /**
@@ -328,6 +328,43 @@ class RoomService {
       reason: reason.toUpperCase().replace('-', '_'),
       details,
     });
+  }
+
+  /**
+   * Get clustered rooms within a bounding box (server-side clustering).
+   * Use this for low zoom levels to reduce client-side computation.
+   * 
+   * @param minLng Western boundary longitude
+   * @param minLat Southern boundary latitude
+   * @param maxLng Eastern boundary longitude
+   * @param maxLat Northern boundary latitude
+   * @param zoom Current map zoom level (1-20)
+   * @param category Optional category filter
+   * @returns ClusterResponse with GeoJSON features and metadata
+   */
+  async getClusters(
+    minLng: number,
+    minLat: number,
+    maxLng: number,
+    maxLat: number,
+    zoom: number,
+    category?: string
+  ): Promise<ClusterResponse> {
+    const params = new URLSearchParams({
+      minLng: minLng.toString(),
+      minLat: minLat.toString(),
+      maxLng: maxLng.toString(),
+      maxLat: maxLat.toString(),
+      zoom: zoom.toString(),
+    });
+
+    if (category) {
+      params.append('category', category);
+    }
+
+    // Server returns ClusterResponse directly (not wrapped in ApiResponse.data)
+    const response = await api.get<ClusterResponse>(`/rooms/clusters?${params}`);
+    return response;
   }
 }
 

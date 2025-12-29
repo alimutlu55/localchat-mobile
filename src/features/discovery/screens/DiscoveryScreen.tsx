@@ -1,25 +1,23 @@
 /**
- * Discovery Screen (Refactored)
+ * Discovery Screen (Server-Side Clustering)
  *
- * Unified discovery screen using extracted hooks for separation of concerns.
+ * Unified discovery screen using server-side clustering for optimal performance.
+ * All clustering is done on the server using PostGIS ST_ClusterDBSCAN.
  *
  * Architecture:
  * - useMapState: Map camera, bounds, zoom controls
  * - useUserLocation: User geolocation with permissions
- * - useMapClustering: Room clustering logic
+ * - useServerClustering: Server-side clustering via API
  * - UI is purely presentational
- *
- * ~400 LOC (down from 975 LOC)
  */
 
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import {
     View,
     Text,
     StyleSheet,
     TouchableOpacity,
     ActivityIndicator,
-    Alert,
     Animated,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -28,8 +26,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
     MapView,
     Camera,
-    ShapeSource,
-    CircleLayer,
 } from '@maplibre/maplibre-react-native';
 import { Plus, Minus, Navigation, Menu, Map as MapIcon, List, Globe } from 'lucide-react-native';
 
@@ -37,7 +33,7 @@ import { Plus, Minus, Navigation, Menu, Map as MapIcon, List, Globe } from 'luci
 import { RootStackParamList } from '../../../navigation/types';
 
 // Types
-import { Room } from '../../../types';
+import { Room, ClusterFeature } from '../../../types';
 
 // Context
 import { useUIActions } from '../../../context';
@@ -45,18 +41,17 @@ import { useUIActions } from '../../../context';
 // Features
 import { useJoinRoom, useMyRooms } from '../../rooms/hooks';
 
-// Components - now from feature module
-import { RoomListView, RoomMarker, ClusterMarker } from '../components';
+// Components
+import { RoomListView, ServerRoomMarker, ServerClusterMarker } from '../components';
 
 // Hooks
-import { useMapState, useUserLocation, useMapClustering, useViewportRoomDiscovery } from '../hooks';
+import { useMapState, useUserLocation, useServerClustering } from '../hooks';
 
 // Styles
 import { HUDDLE_MAP_STYLE } from '../../../styles/mapStyle';
 
 // Utils
 import { createLogger } from '../../../shared/utils/logger';
-import { ClusterFeature, isCluster as checkIsCluster } from '../../../utils/mapClustering';
 
 const log = createLogger('Discovery');
 
@@ -174,37 +169,37 @@ export default function DiscoveryScreen() {
         }
     }, [isMapReady, mapOverlayOpacity, markersOpacity]);
 
-    // Viewport-based room discovery - fetches rooms based on map bounds
+    // Server-side clustering - fetches pre-clustered data from backend
     const {
-        rooms: viewportRooms,
-        isLoading: isLoadingRooms,
-        totalInViewport,
-        refetch: refetchViewportRooms,
-    } = useViewportRoomDiscovery({
+        features: serverFeatures,
+        isLoading: isLoadingClusters,
+        metadata: clusterMetadata,
+        refetch: refetchClusters,
+    } = useServerClustering({
         bounds,
         zoom,
+        enabled: isMapReady,
         isMapReady,
-        isMapMoving: false, // We handle this via debounce in the hook
-        autoFetch: true,
     });
 
     // Track when we have initial data to prevent marker rendering during first fetch
     useEffect(() => {
-        if (!hasInitialData && viewportRooms.length > 0 && !isLoadingRooms) {
+        if (!hasInitialData && serverFeatures.length > 0 && !isLoadingClusters) {
             // Small delay to let MapLibre stabilize after data arrives
             const timer = setTimeout(() => {
                 setHasInitialData(true);
-                log.debug('Initial data loaded, markers can now render', { roomCount: viewportRooms.length });
+                log.debug('Initial data loaded, markers can now render', { featureCount: serverFeatures.length });
             }, 200);
             return () => clearTimeout(timer);
         }
-    }, [viewportRooms.length, isLoadingRooms, hasInitialData]);
+    }, [serverFeatures.length, isLoadingClusters, hasInitialData]);
 
     const { join: joinRoomHook } = useJoinRoom();
     const { activeRooms: myActiveRooms } = useMyRooms();
 
     // Local state for selected room
     const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
+    const [selectedFeature, setSelectedFeature] = useState<ClusterFeature | null>(null);
 
     // Wrapper for joinRoom to match expected signature
     const joinRoom = async (room: Room): Promise<boolean> => {
@@ -212,28 +207,146 @@ export default function DiscoveryScreen() {
         return result.success;
     };
 
-    // Use viewport rooms directly - already filtered in the hook
-    const activeRooms = viewportRooms;
+    // Extract rooms from server features for list view
+    const activeRooms = useMemo(() => {
+        return serverFeatures
+            .filter(f => !f.properties.cluster && f.properties.roomId)
+            .map(f => ({
+                id: f.properties.roomId!,
+                title: f.properties.title || '',
+                category: f.properties.category as Room['category'],
+                emoji: f.properties.categoryIcon || '💬',
+                participantCount: f.properties.participantCount || 0,
+                status: f.properties.status as Room['status'],
+                latitude: f.geometry.coordinates[1],
+                longitude: f.geometry.coordinates[0],
+                expiresAt: f.properties.expiresAt ? new Date(f.properties.expiresAt) : new Date(),
+                createdAt: new Date(),
+                maxParticipants: 500,
+                distance: 0,
+                timeRemaining: '',
+            } as Room));
+    }, [serverFeatures]);
+
+    // Total events count from server metadata
+    const totalEventsInView = clusterMetadata?.totalRooms || serverFeatures.length;
 
     const { openSidebar } = useUIActions();
-
-    // Map Clustering
-    const {
-        features,
-        totalEventsInView,
-        circlesGeoJSON,
-        getClusterLeaves,
-        getClusterExpansionZoom,
-    } = useMapClustering({
-        rooms: activeRooms,
-        bounds,
-        zoom,
-        isMapReady,
-    });
 
     // ==========================================================================
     // Handlers
     // ==========================================================================
+
+    // Handle room feature press (from server clustering)
+    const handleServerRoomPress = useCallback(
+        (feature: ClusterFeature) => {
+            const roomId = feature.properties.roomId;
+            if (!roomId) return;
+            
+            log.debug('Server room pressed', { roomId });
+
+            const [lng, lat] = feature.geometry.coordinates;
+
+            if (isMapReady && cameraRef.current && lng != null && lat != null) {
+                const targetZoom = Math.min(Math.max(zoom + 2, 14), 16);
+                const zoomDiff = Math.abs(targetZoom - zoom);
+
+                // Create minimal room for navigation
+                const room: Partial<Room> = {
+                    id: roomId,
+                    title: feature.properties.title,
+                    latitude: lat,
+                    longitude: lng,
+                    category: feature.properties.category as Room['category'],
+                };
+
+                // If already zoomed in enough, navigate directly
+                if (zoomDiff <= 1.5) {
+                    setSelectedFeature(feature);
+                    navigation.navigate('RoomDetails', { roomId, initialRoom: room as Room });
+                    return;
+                }
+
+                // Fly to room then navigate
+                const duration = calculateFlyDuration(targetZoom);
+                cameraRef.current.setCamera({
+                    centerCoordinate: [lng, lat],
+                    zoomLevel: targetZoom,
+                    animationDuration: duration,
+                    animationMode: 'flyTo',
+                });
+
+                setTimeout(() => {
+                    setSelectedFeature(feature);
+                    navigation.navigate('RoomDetails', { roomId, initialRoom: room as Room });
+                }, duration + 150);
+            } else {
+                navigation.navigate('RoomDetails', { roomId });
+            }
+        },
+        [navigation, isMapReady, zoom, calculateFlyDuration, cameraRef]
+    );
+
+    // Handle cluster feature press (from server clustering)
+    const handleServerClusterPress = useCallback(
+        (feature: ClusterFeature) => {
+            const pointCount = feature.properties.pointCount || 0;
+            const expansionBounds = feature.properties.expansionBounds;
+            
+            log.debug('Server cluster pressed', { 
+                clusterId: feature.properties.clusterId,
+                pointCount,
+                currentZoom: zoom,
+                hasExpansionBounds: !!expansionBounds
+            });
+            
+            if (!isMapReady || !cameraRef.current) return;
+
+            const [lng, lat] = feature.geometry.coordinates;
+
+            // If we have expansion bounds, use fitBounds to show all children
+            if (expansionBounds && expansionBounds.length === 4) {
+                const [minLng, minLat, maxLng, maxLat] = expansionBounds;
+                
+                // Add padding to the bounds (10% on each side)
+                const lngPadding = (maxLng - minLng) * 0.15;
+                const latPadding = (maxLat - minLat) * 0.15;
+                
+                const paddedBounds = {
+                    ne: [maxLng + lngPadding, maxLat + latPadding] as [number, number],
+                    sw: [minLng - lngPadding, minLat - latPadding] as [number, number],
+                };
+                
+                log.debug('Fitting to expansion bounds', { 
+                    original: expansionBounds,
+                    padded: paddedBounds
+                });
+
+                cameraRef.current.fitBounds(
+                    paddedBounds.ne,
+                    paddedBounds.sw,
+                    [50, 50, 50, 50], // padding in pixels
+                    600 // animation duration
+                );
+            } else {
+                // Fallback: zoom in by fixed amount centered on cluster
+                const targetZoom = Math.min(zoom + 3, 18);
+                
+                log.debug('No expansion bounds, using fixed zoom', { 
+                    from: zoom, 
+                    to: targetZoom 
+                });
+
+                cameraRef.current.setCamera({
+                    centerCoordinate: [lng, lat],
+                    zoomLevel: targetZoom,
+                    animationDuration: 600,
+                    animationMode: 'easeTo',
+                });
+            }
+        },
+        [isMapReady, zoom, cameraRef]
+    );
 
     const handleRoomPress = useCallback(
         (room: Room) => {
@@ -269,45 +382,6 @@ export default function DiscoveryScreen() {
             }
         },
         [navigation, setSelectedRoom, isMapReady, zoom, calculateFlyDuration, cameraRef]
-    );
-
-    const handleClusterPress = useCallback(
-        (cluster: ClusterFeature) => {
-            log.debug('Cluster pressed', { clusterId: cluster.properties.cluster_id });
-            if (!isMapReady || !cameraRef.current) return;
-
-            const [lng, lat] = cluster.geometry.coordinates;
-            const leaves = getClusterLeaves(cluster.properties.cluster_id);
-            const expansionZoom = getClusterExpansionZoom(cluster.properties.cluster_id);
-
-            // At max zoom, show first room
-            if (zoom >= 17 && expansionZoom > 18) {
-                const firstRoom = leaves[0].properties.room;
-                setSelectedRoom(firstRoom);
-                navigation.navigate('RoomDetails', { roomId: firstRoom.id, initialRoom: firstRoom });
-                return;
-            }
-
-            // Calculate target zoom
-            let targetZoom: number;
-            if (leaves.length <= 3) {
-                targetZoom = Math.min(expansionZoom + 1, 18);
-            } else if (leaves.length <= 10) {
-                targetZoom = Math.min(expansionZoom, 17);
-            } else {
-                targetZoom = Math.min(Math.max(expansionZoom - 1, zoom + 2), 16);
-            }
-            targetZoom = Math.max(targetZoom, zoom + 2);
-
-            const duration = calculateFlyDuration(targetZoom);
-            cameraRef.current.setCamera({
-                centerCoordinate: [lng, lat],
-                zoomLevel: targetZoom,
-                animationDuration: Math.min(duration, 1000),
-                animationMode: 'easeTo',
-            });
-        },
-        [isMapReady, zoom, getClusterLeaves, getClusterExpansionZoom, setSelectedRoom, navigation, calculateFlyDuration, cameraRef]
     );
 
     const handleCreateRoom = useCallback(() => {
@@ -388,31 +462,6 @@ export default function DiscoveryScreen() {
                         maxZoomLevel={18}
                     />
 
-                    {/* Room Circles */}
-                    {isMapReady && circlesGeoJSON.features.length > 0 && (
-                        <ShapeSource id="room-circles-source" shape={circlesGeoJSON}>
-                            <CircleLayer
-                                id="room-circles-layer"
-                                style={{
-                                    circleRadius: ['get', 'radius'],
-                                    circleColor: [
-                                        'case',
-                                        ['get', 'isExpiringSoon'],
-                                        'rgba(254, 215, 170, 0.2)',
-                                        'rgba(254, 205, 211, 0.2)',
-                                    ],
-                                    circleStrokeColor: [
-                                        'case',
-                                        ['get', 'isExpiringSoon'],
-                                        'rgba(249, 115, 22, 0.6)',
-                                        'rgba(244, 63, 94, 0.6)',
-                                    ],
-                                    circleStrokeWidth: 2,
-                                }}
-                            />
-                        </ShapeSource>
-                    )}
-
                     {/* User Location Marker */}
                     {canRenderMarkers && userLocation && (
                         <View style={styles.userLocationMarkerContainer}>
@@ -421,34 +470,33 @@ export default function DiscoveryScreen() {
                         </View>
                     )}
 
-                    {/* Room Markers and Clusters */}
+                    {/* Server-Side Clustered Markers */}
                     {canRenderMarkers &&
-                        features.map((feature) => {
-                            if (checkIsCluster(feature)) {
-                                // Skip clusters with invalid data
-                                if (!feature.properties?.cluster_id) {
+                        serverFeatures.map((feature) => {
+                            if (feature.properties.cluster) {
+                                // Cluster marker
+                                if (feature.properties.clusterId == null) {
                                     return null;
                                 }
                                 return (
-                                    <ClusterMarker
-                                        key={`cluster-${feature.properties.cluster_id}`}
-                                        cluster={feature as ClusterFeature}
-                                        onPress={handleClusterPress}
+                                    <ServerClusterMarker
+                                        key={`server-cluster-${feature.properties.clusterId}`}
+                                        feature={feature}
+                                        onPress={handleServerClusterPress}
                                     />
                                 );
                             }
 
-                            const room = feature.properties?.room;
-                            // Skip rooms with invalid data
-                            if (!room?.id || room.latitude == null || room.longitude == null) {
+                            // Individual room marker
+                            if (!feature.properties.roomId) {
                                 return null;
                             }
                             return (
-                                <RoomMarker
-                                    key={`room-${room.id}`}
-                                    room={room}
-                                    isSelected={selectedRoom?.id === room.id}
-                                    onPress={handleRoomPress}
+                                <ServerRoomMarker
+                                    key={`server-room-${feature.properties.roomId}`}
+                                    feature={feature}
+                                    isSelected={selectedFeature?.properties.roomId === feature.properties.roomId}
+                                    onPress={handleServerRoomPress}
                                 />
                             );
                         })}
@@ -509,7 +557,7 @@ export default function DiscoveryScreen() {
                 </Animated.View>
 
                 {/* Empty State */}
-                {activeRooms.length === 0 && !isLoadingRooms && isMapStable && (
+                {serverFeatures.length === 0 && !isLoadingClusters && isMapStable && (
                     <Animated.View style={[styles.emptyState, { opacity: markersOpacity }]}>
                         <Text style={styles.emptyTitle}>No rooms nearby</Text>
                         <Text style={styles.emptyText}>Be the first to start a conversation!</Text>
@@ -527,7 +575,7 @@ export default function DiscoveryScreen() {
             >
                 <RoomListView
                     rooms={activeRooms}
-                    isLoading={isLoadingRooms}
+                    isLoading={isLoadingClusters}
                     onJoinRoom={handleJoinRoom}
                     onEnterRoom={handleEnterRoom}
                     onCreateRoom={handleCreateRoom}

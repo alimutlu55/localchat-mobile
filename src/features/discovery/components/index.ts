@@ -7,7 +7,8 @@
  * - MapControls: Floating zoom/navigation controls
  * - MapHeader: Header bar with profile, room count, my rooms
  * - RoomListView: List view of rooms with filtering
- * - OptimizedMarkers: Memoized map markers
+ * - OptimizedMarkers: Memoized map markers (client-side clustering)
+ * - ServerClusterMarkers: Markers for server-side clustering
  * - MapCluster: Cluster visualization component
  * - RoomPin: Individual room marker
  */
@@ -16,5 +17,6 @@ export { MapControls } from './MapControls';
 export { MapHeader } from './MapHeader';
 export { RoomListView } from './RoomListView';
 export { RoomMarker, ClusterMarker } from './OptimizedMarkers';
+export { ServerRoomMarker, ServerClusterMarker } from './ServerClusterMarkers';
 export { MapCluster } from './MapCluster';
 export { RoomPin } from './RoomPin';

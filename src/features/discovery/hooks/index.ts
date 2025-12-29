@@ -5,7 +5,8 @@
  *
  * Exports:
  * - useMapState: Map viewport and interaction state
- * - useMapClustering: Room clustering for map
+ * - useMapClustering: Room clustering for map (client-side)
+ * - useServerClustering: Server-side clustering for low zoom levels
  * - useUserLocation: User geolocation tracking
  * - useMapDiscovery: Combined discovery with clustering
  * - useMapControls: Map viewport controls (zoom, pan, fly)
@@ -17,6 +18,9 @@ export type { UseMapStateReturn, UseMapStateOptions, MapCoordinate } from './use
 
 export { useMapClustering } from './useMapClustering';
 export type { UseMapClusteringReturn, UseMapClusteringOptions } from './useMapClustering';
+
+export { useServerClustering } from './useServerClustering';
+export type { UseServerClusteringReturn, UseServerClusteringOptions } from './useServerClustering';
 
 export { useUserLocation } from './useUserLocation';
 export type { UseUserLocationReturn, UseUserLocationOptions, UserLocation } from './useUserLocation';
