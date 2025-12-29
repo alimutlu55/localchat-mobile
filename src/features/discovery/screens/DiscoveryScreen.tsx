@@ -344,24 +344,26 @@ export default function DiscoveryScreen() {
                 // Calculate optimal zoom that will cause meaningful splitting
                 const optimalZoom = calcOptimalZoom(boundsSpan, zoom);
 
-                // Always progress at least 2 zoom levels for user feedback
-                const targetZoom = Math.max(zoom + 2, optimalZoom);
+                // ALWAYS progress enough to split the cluster
+                // Use at least optimalZoom + 1 to guarantee eps is small enough
+                // And always at least 2 zoom levels for visual feedback
+                const targetZoom = Math.max(zoom + 2, optimalZoom + 1);
 
                 // Calculate center of expansion bounds
                 const centerLng = (minLng + maxLng) / 2;
                 const centerLat = (minLat + maxLat) / 2;
 
                 log.debug('Cluster expansion calculated', {
-                    boundsSpan: boundsSpan.toFixed(2),
+                    boundsSpan: boundsSpan.toFixed(4),
+                    expansionBounds: [minLng.toFixed(4), minLat.toFixed(4), maxLng.toFixed(4), maxLat.toFixed(4)],
                     optimalZoom,
                     currentZoom: zoom,
                     targetZoom,
                     pointCount,
-                    center: [centerLng.toFixed(4), centerLat.toFixed(4)]
                 });
 
-                // Always use setCamera with calculated targetZoom
-                // This ensures the zoom matches our eps table for consistent splitting
+                // Use setCamera with calculated targetZoom
+                // The zoom level is chosen to ensure server eps will split the cluster
                 cameraRef.current.setCamera({
                     centerCoordinate: [centerLng, centerLat],
                     zoomLevel: Math.min(targetZoom, 18),
@@ -369,14 +371,11 @@ export default function DiscoveryScreen() {
                     animationMode: 'flyTo',
                 });
 
-                // Force refetch after animation
-                setTimeout(() => {
-                    log.debug('Forcing refetch after cluster expansion');
-                    refetchClusters();
-                }, 700);
+                // Mark for refetch - actual fetch happens when handleRegionDidChange updates bounds
+                refetchClusters();
             } else {
-                // No expansion bounds - zoom in by fixed amount
-                const zoomIncrement = pointCount > 100 ? 3 : pointCount > 20 ? 4 : 5;
+                // No expansion bounds - zoom in by fixed amount (more aggressive)
+                const zoomIncrement = pointCount > 100 ? 4 : pointCount > 20 ? 5 : 6;
                 const targetZoom = Math.min(zoom + zoomIncrement, 18);
 
                 log.debug('No expansion bounds, zooming by increment', {
@@ -393,9 +392,8 @@ export default function DiscoveryScreen() {
                     animationMode: 'flyTo',
                 });
 
-                setTimeout(() => {
-                    refetchClusters();
-                }, 700);
+                // Mark for refetch - actual fetch happens when handleRegionDidChange updates bounds
+                refetchClusters();
             }
         },
         [isMapReady, zoom, cameraRef, refetchClusters]
