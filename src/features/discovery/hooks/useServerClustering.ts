@@ -101,6 +101,7 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
 
   /**
    * Fetch clusters from server
+   * Expands bounds by 50% to pre-fetch data outside visible area
    */
   const fetchClusters = useCallback(
     async (fetchBounds: [number, number, number, number], fetchZoom: number) => {
@@ -109,24 +110,35 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
         return;
       }
 
+      // Expand bounds by 50% on each side to pre-fetch surrounding area
+      // This prevents flickering when panning as data is already loaded
       const [minLng, minLat, maxLng, maxLat] = fetchBounds;
+      const lngSpan = maxLng - minLng;
+      const latSpan = maxLat - minLat;
+      const expandedBounds: [number, number, number, number] = [
+        Math.max(-180, minLng - lngSpan * 0.5),
+        Math.max(-85, minLat - latSpan * 0.5),
+        Math.min(180, maxLng + lngSpan * 0.5),
+        Math.min(85, maxLat + latSpan * 0.5),
+      ];
 
       log.debug('Fetching server clusters', {
         bounds: fetchBounds,
+        expandedBounds,
         zoom: fetchZoom,
         category,
       });
 
       isFetchingRef.current = true;
-      setIsLoading(true);
+      // Don't set isLoading to true - keep old features visible during fetch
       setError(null);
 
       try {
         const response: ClusterResponse = await roomService.getClusters(
-          minLng,
-          minLat,
-          maxLng,
-          maxLat,
+          expandedBounds[0],
+          expandedBounds[1],
+          expandedBounds[2],
+          expandedBounds[3],
           Math.floor(fetchZoom), // Send integer zoom to server
           category
         );
@@ -195,7 +207,7 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
     // Fetch on zoom change - very sensitive
     const zoomChanged = lastZoom === null || Math.abs(zoom - lastZoom) >= 0.3;
     
-    // Fetch on pan - check center moved
+    // Fetch on pan - check center moved (use larger threshold to reduce fetches)
     let panChanged = false;
     if (lastBounds) {
       const [cWest, cSouth, cEast, cNorth] = bounds;
@@ -203,7 +215,8 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
       const centerLatDiff = Math.abs((cNorth + cSouth) / 2 - (lNorth + lSouth) / 2);
       const centerLngDiff = Math.abs((cEast + cWest) / 2 - (lEast + lWest) / 2);
       const viewportSize = Math.max(Math.abs(cEast - cWest), Math.abs(cNorth - cSouth));
-      const threshold = viewportSize * 0.15; // 15% of viewport
+      // Use 35% threshold - since we pre-fetch 50% extra, we have buffer before edge is reached
+      const threshold = viewportSize * 0.35;
       panChanged = centerLatDiff > threshold || centerLngDiff > threshold;
     }
 
