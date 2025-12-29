@@ -171,6 +171,10 @@ export interface ClusterProperties {
   participantCount?: number;
   status?: string;
   expiresAt?: string;
+  // Room state properties
+  isNew?: boolean;
+  isHighActivity?: boolean;
+  isExpiringSoon?: boolean;
 }
 
 

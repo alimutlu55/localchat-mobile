@@ -40,15 +40,29 @@ export const ServerRoomMarker = memo(function ServerRoomMarker({
     return null;
   }
 
-  // Create a minimal Room object for RoomPin
-  const roomForPin: Partial<Room> = {
+  // Memoize room object to prevent unnecessary RoomPin re-renders
+  const roomForPin = React.useMemo((): Partial<Room> => ({
     id: properties.roomId,
     title: properties.title || '',
     category: properties.category as Room['category'],
     emoji: properties.categoryIcon || '💬',
     participantCount: properties.participantCount || 0,
     status: properties.status as Room['status'],
-  };
+    isFull: properties.status === 'full',
+    isExpiringSoon: properties.isExpiringSoon || false,
+    isHighActivity: properties.isHighActivity || false,
+    isNew: properties.isNew || false,
+  }), [
+    properties.roomId,
+    properties.title,
+    properties.category,
+    properties.categoryIcon,
+    properties.participantCount,
+    properties.status,
+    properties.isExpiringSoon,
+    properties.isHighActivity,
+    properties.isNew,
+  ]);
 
   return (
     <MarkerView
@@ -69,9 +83,14 @@ export const ServerRoomMarker = memo(function ServerRoomMarker({
     </MarkerView>
   );
 }, (prevProps, nextProps) => {
+  // Enhanced comparison to prevent re-renders
   return (
     prevProps.feature.properties.roomId === nextProps.feature.properties.roomId &&
     prevProps.feature.properties.participantCount === nextProps.feature.properties.participantCount &&
+    prevProps.feature.properties.status === nextProps.feature.properties.status &&
+    prevProps.feature.properties.isExpiringSoon === nextProps.feature.properties.isExpiringSoon &&
+    prevProps.feature.properties.isHighActivity === nextProps.feature.properties.isHighActivity &&
+    prevProps.feature.properties.isNew === nextProps.feature.properties.isNew &&
     prevProps.isSelected === nextProps.isSelected
   );
 });

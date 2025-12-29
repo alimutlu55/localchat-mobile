@@ -26,6 +26,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
     MapView,
     Camera,
+    MarkerView,
 } from '@maplibre/maplibre-react-native';
 import { Plus, Minus, Navigation, Menu, Map as MapIcon, List, Globe } from 'lucide-react-native';
 
@@ -131,6 +132,33 @@ export default function DiscoveryScreen() {
         defaultCenter: userLocation || undefined,
         defaultZoom: 13,
     });
+
+    // User location pulse animation - after userLocation is declared
+    const userLocationPulseAnim = useRef(new Animated.Value(1)).current;
+
+    useEffect(() => {
+        if (userLocation) {
+            const pulseAnimation = Animated.loop(
+                Animated.sequence([
+                    Animated.timing(userLocationPulseAnim, {
+                        toValue: 1.3,
+                        duration: 1500,
+                        useNativeDriver: true,
+                    }),
+                    Animated.timing(userLocationPulseAnim, {
+                        toValue: 1,
+                        duration: 1500,
+                        useNativeDriver: true,
+                    }),
+                ])
+            );
+            pulseAnimation.start();
+
+            return () => {
+                pulseAnimation.stop();
+            };
+        }
+    }, [userLocation, userLocationPulseAnim]);
 
     // Smooth map initialization sequence
     // CRITICAL: Increased delays to prevent MapLibre native crashes
@@ -483,19 +511,31 @@ export default function DiscoveryScreen() {
                             zoomLevel: zoom,
                         }}
                         minZoomLevel={1}
-                        maxZoomLevel={18}
+                        maxZoomLevel={12}
                     />
 
-                    {/* User Location Marker */}
+
+                    {/* User Location Marker - Animated pulse to show user's position */}
                     {canRenderMarkers && userLocation && (
-                        <View style={styles.userLocationMarkerContainer}>
-                            <View style={styles.userLocationPulse} />
-                            <View style={styles.userLocationDot} />
-                        </View>
+                        <MarkerView
+                            id="user-location"
+                            coordinate={[userLocation.longitude, userLocation.latitude]}
+                            anchor={{ x: 0.5, y: 0.5 }}
+                        >
+                            <View style={styles.userLocationMarkerContainer}>
+                                <Animated.View
+                                    style={[
+                                        styles.userLocationPulse,
+                                        { transform: [{ scale: userLocationPulseAnim }] }
+                                    ]}
+                                />
+                                <View style={styles.userLocationDot} />
+                            </View>
+                        </MarkerView>
                     )}
 
-                    {/* Server-Side Clustered Markers - Hidden when too close for privacy (zoom > 12 ≈ < 2km altitude) */}
-                    {canRenderMarkers && zoom <= 12 &&
+                    {/* Server-Side Clustered Markers - Privacy protection handled by backend (zoom > 12 returns empty) */}
+                    {canRenderMarkers &&
                         serverFeatures.map((feature) => {
                             if (feature.properties.cluster) {
                                 // Cluster marker
