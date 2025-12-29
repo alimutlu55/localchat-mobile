@@ -2,54 +2,40 @@
  * Room Details Screen
  *
  * Shows room information, participants, and actions.
- *
- * Architecture:
- * - Receives roomId from navigation params
- * - Uses useRoom hook to fetch room data from RoomStore
- * - Optional initialRoom for optimistic rendering
- * - Uses useRoomActions for join/leave operations
+ * Refactored to display as a Full Screen View (Page Layout).
  */
 
-import React, { useState, useEffect, useCallback, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   ScrollView,
   TouchableOpacity,
-  FlatList,
   ActivityIndicator,
   Alert,
   Share,
   Dimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   X,
   Users,
   Clock,
-  MapPin,
   Crown,
-  LogOut,
   Lock,
-  Ban,
   Flag,
-  Shield,
   Share2,
-  MessageCircle,
-  Check,
-  AlertCircle,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../../../navigation/types';
 import { roomService, ParticipantDTO, messageService } from '../../../services';
 import { eventBus } from '../../../core/events';
-import { Room, ChatMessage } from '../../../types';
+import { ChatMessage } from '../../../types';
 import { useUserId } from '../../user/store';
 import { useRoom, useRoomActions, useMyRooms } from '../hooks';
 import { useRoomStore } from '../store';
-import { ROOM_CONFIG, executeJoinWithMinLoading } from '../../../constants';
 import { BannedUsersModal } from '../components';
 import { ReportModal, ReportReason } from '../../../components/chat/ReportModal';
 import { AvatarDisplay } from '../../../components/profile';
@@ -58,10 +44,10 @@ import { isUserBanned } from '../../../shared/utils/errors';
 
 const log = createLogger('RoomDetails');
 
-type JoinButtonState = 'default' | 'joining' | 'join-success' | 'joined' | 'error';
-
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'RoomDetails'>;
 type RoomDetailsRouteProp = RouteProp<RootStackParamList, 'RoomDetails'>;
+
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 /**
  * Participant Item Component
@@ -105,35 +91,36 @@ function ParticipantItem({
 
 /**
  * Room Details Screen Component
+ * Full Screen Layout (Not Card, Not Modal in visual style)
  */
 export default function RoomDetailsScreen() {
   const navigation = useNavigation<NavigationProp>();
   const route = useRoute<RoomDetailsRouteProp>();
+  const insets = useSafeAreaInsets();
 
   // Support both new (roomId) and legacy (room) navigation params
   const params = route.params;
   const roomId = params.roomId || params.room?.id;
   const initialRoom = params.initialRoom || params.room;
 
+  // Helpers to close modal
+  const handleClose = () => navigation.goBack();
+
   // Guard: roomId is required
   if (!roomId) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.closeButton}
-            onPress={() => navigation.goBack()}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          >
-            <X size={24} color="#6b7280" />
+      <View style={styles.container}>
+        <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}>
+          <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+            <X size={24} color="#1f2937" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Room Details</Text>
-          <View style={styles.headerSpacer} />
+          <Text style={styles.headerTitle}>Error</Text>
+          <View style={{ width: 40 }} />
         </View>
         <View style={styles.errorContent}>
           <Text style={styles.errorTitle}>Room Not Found</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -144,9 +131,8 @@ export default function RoomDetailsScreen() {
   const storeUpdateRoom = useRoomStore((s) => s.updateRoom);
 
   // Use useRoom hook for room data with caching
-  // Falls back to initialRoom while loading
-  const { room: fetchedRoom, isLoading: isRoomLoading, refresh: refreshRoom } = useRoom(roomId, {
-    skipFetchIfCached: false, // Always fetch fresh data
+  const { room: fetchedRoom, isLoading: isRoomLoading } = useRoom(roomId, {
+    skipFetchIfCached: false,
   });
 
   // Priority: fetched room > initial room from params
@@ -155,46 +141,38 @@ export default function RoomDetailsScreen() {
   // Handle case where room data is not available
   if (!room && !isRoomLoading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.closeButton}
-            onPress={() => navigation.goBack()}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          >
-            <X size={24} color="#6b7280" />
+      <View style={styles.container}>
+        <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}>
+          <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+            <X size={24} color="#1f2937" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Room Details</Text>
-          <View style={styles.headerSpacer} />
+          <Text style={styles.headerTitle}>Unavailable</Text>
+          <View style={{ width: 40 }} />
         </View>
         <View style={styles.errorContent}>
           <Text style={styles.errorTitle}>Room Not Found</Text>
           <Text style={styles.errorText}>This room is no longer available.</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
-  // Show loading while we don't have room data
+  // Show loading
   if (!room) {
     return (
-      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.closeButton}
-            onPress={() => navigation.goBack()}
-            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
-          >
-            <X size={24} color="#6b7280" />
+      <View style={styles.container}>
+        <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}>
+          <TouchableOpacity style={styles.closeButton} onPress={handleClose}>
+            <X size={24} color="#1f2937" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Room Details</Text>
-          <View style={styles.headerSpacer} />
+          <Text style={styles.headerTitle}>Loading</Text>
+          <View style={{ width: 40 }} />
         </View>
         <View style={styles.loadingContent}>
           <ActivityIndicator size="large" color="#f97316" />
           <Text style={styles.loadingText}>Loading room...</Text>
         </View>
-      </SafeAreaView>
+      </View>
     );
   }
 
@@ -214,8 +192,8 @@ export default function RoomDetailsScreen() {
 
   const [participants, setParticipants] = useState<ParticipantDTO[]>([]);
   const [recentMessages, setRecentMessages] = useState<ChatMessage[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
-  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+  const [setIsLoading] = useState(true);
+  const [setIsLoadingMessages] = useState(false);
   const [showBannedUsersModal, setShowBannedUsersModal] = useState(false);
 
   // Report state
@@ -231,16 +209,13 @@ export default function RoomDetailsScreen() {
   const isCreator = room.isCreator || false;
 
   /**
-   * Load participants and keep updated via WebSocket events
+   * Load participants
    */
   useEffect(() => {
     const loadParticipants = async () => {
       try {
         const data = await roomService.getParticipants(roomId);
         setParticipants(data);
-
-        // Update both legacy context and new store
-        storeUpdateRoom(roomId, { participantCount: data.length });
         storeUpdateRoom(roomId, { participantCount: data.length });
       } catch (error) {
         log.error('Failed to load participants', error);
@@ -251,17 +226,14 @@ export default function RoomDetailsScreen() {
 
     loadParticipants();
 
-    // Re-fetch participants when users join or leave via EventBus
     const unsubJoined = eventBus.on('room.userJoined', (payload) => {
       if (payload.roomId === roomId) {
-        log.debug('User joined, refreshing participants');
         loadParticipants();
       }
     });
 
     const unsubLeft = eventBus.on('room.userLeft', (payload) => {
       if (payload.roomId === roomId) {
-        log.debug('User left, refreshing participants');
         loadParticipants();
       }
     });
@@ -270,26 +242,18 @@ export default function RoomDetailsScreen() {
       unsubJoined();
       unsubLeft();
     };
-  }, [roomId, storeUpdateRoom, storeUpdateRoom]);
+  }, [roomId, storeUpdateRoom]);
 
   /**
-   * Load recent messages - only if user has joined
+   * Load recent messages
    */
   useEffect(() => {
     const loadRecentMessages = async () => {
-      log.debug('loadRecentMessages called', { hasJoined, roomId });
-
-      // Only load messages if user has joined the room
       if (!hasJoined) {
-        log.debug('Skipping message fetch - user has not joined');
         setRecentMessages([]);
         return;
       }
 
-      log.debug('Fetching messages for joined user');
-
-      // Small delay to ensure backend join is fully processed
-      // This prevents race condition where fetch happens before join completes
       await new Promise(resolve => setTimeout(resolve, 200));
 
       setIsLoadingMessages(true);
@@ -297,19 +261,7 @@ export default function RoomDetailsScreen() {
         const { messages } = await messageService.getHistory(roomId, { limit: 3 });
         setRecentMessages(messages);
       } catch (error: any) {
-        log.error('Failed to load recent messages', error);
-
-        // If error is "not in room", it might be because user just left
-        // Silently clear messages instead of showing error
-        const errorMessage = error?.message || '';
-        if (errorMessage.includes('must be in the room') ||
-          errorMessage.includes('not in room') ||
-          error?.code === 'FORBIDDEN') {
-          log.debug('User not in room (may have just left), clearing messages');
-          setRecentMessages([]);
-        } else {
-          setRecentMessages([]);
-        }
+        setRecentMessages([]);
       } finally {
         setIsLoadingMessages(false);
       }
@@ -318,16 +270,8 @@ export default function RoomDetailsScreen() {
     loadRecentMessages();
   }, [roomId, hasJoined]);
 
-  /**
-   * Handle leave room
-   */
   const handleLeave = () => {
-    // Prevent if already leaving
-    if (isLeavingAction(roomId)) {
-      log.warn('Leave already in progress');
-      return;
-    }
-
+    if (isLeavingAction(roomId)) return;
     Alert.alert(
       'Leave Room',
       'Are you sure you want to leave this room?',
@@ -341,7 +285,6 @@ export default function RoomDetailsScreen() {
             if (result.success) {
               navigation.popToTop();
             } else {
-              log.error('Leave error', result.error);
               Alert.alert('Error', 'Failed to leave room');
             }
           },
@@ -350,9 +293,6 @@ export default function RoomDetailsScreen() {
     );
   };
 
-  /**
-   * Handle close room (creator only)
-   */
   const handleCloseRoom = () => {
     Alert.alert(
       'Close Room',
@@ -366,9 +306,8 @@ export default function RoomDetailsScreen() {
             const result = await closeRoom(roomId);
             if (result.success) {
               Alert.alert('Success', 'Room has been closed');
-              navigation.goBack();
+              handleClose();
             } else {
-              log.error('Close room error', result.error);
               Alert.alert('Error', 'Failed to close room');
             }
           },
@@ -377,9 +316,6 @@ export default function RoomDetailsScreen() {
     );
   };
 
-  /**
-   * Handle report room
-   */
   const handleReport = () => {
     setReportConfig({
       isOpen: true,
@@ -394,39 +330,16 @@ export default function RoomDetailsScreen() {
     blockUser: boolean;
   }) => {
     try {
-      if (reportConfig.targetType === 'room') {
-        try {
-          await roomService.reportRoom(roomId, data.reason, data.details);
-        } catch (reportError: any) {
-          // Handle "already reported" as success (idempotent)
-          if (reportError?.message?.includes('already reported') ||
-            reportError?.code === 'ALREADY_REPORTED' ||
-            reportError?.status === 409) {
-            log.debug('Room already reported - treating as success');
-          } else {
-            // Re-throw other errors
-            throw reportError;
-          }
-        }
-
-        // Auto-leave after reporting room (UX improvement)
-        const result = await leaveRoom(roomId);
-        if (!result.success) {
-          log.error('Failed to leave room after report', result.error);
-        }
-        navigation.popToTop();
-      }
+      await roomService.reportRoom(roomId, data.reason, data.details);
+      await leaveRoom(roomId);
+      navigation.popToTop();
     } catch (error) {
       log.error('Report submission failed', error);
       throw error;
     }
   };
 
-  /**
-   * Handle join room - uses new useRoomActions hook
-   */
   const handleJoin = async () => {
-    // If already joined, replace this modal with chat screen
     if (hasJoined) {
       navigation.replace('ChatRoom', { roomId, initialRoom: room });
       return;
@@ -440,16 +353,13 @@ export default function RoomDetailsScreen() {
       Alert.alert(
         'Access Denied',
         'You are banned from this room.',
-        [{ text: 'OK', onPress: () => navigation.goBack() }]
+        [{ text: 'OK', onPress: handleClose }]
       );
     } else {
       Alert.alert('Error', 'Failed to join room. Please try again.');
     }
   };
 
-  /**
-   * Handle share room
-   */
   const handleShare = async () => {
     try {
       await Share.share({
@@ -461,19 +371,22 @@ export default function RoomDetailsScreen() {
     }
   };
 
+  // ---------------------------------------------------------------------------
+  // RENDER
+  // ---------------------------------------------------------------------------
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
-      {/* Header with Close Button */}
-      <View style={styles.header}>
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}>
         <TouchableOpacity
           style={styles.closeButton}
-          onPress={() => navigation.goBack()}
+          onPress={handleClose}
           hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
-          <X size={24} color="#6b7280" />
+          <X size={24} color="#1f2937" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Room Details</Text>
-        <View style={styles.headerSpacer} />
+        <View style={styles.headerRightPlaceholder} />
       </View>
 
       <ScrollView
@@ -481,21 +394,14 @@ export default function RoomDetailsScreen() {
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
-        {/* Room Info Card */}
-        <View style={styles.roomCard}>
+        {/* Room Info */}
+        <View style={styles.roomHeaderSection}>
           <View style={styles.roomEmoji}>
             <Text style={styles.emojiText}>{room.emoji}</Text>
           </View>
           <Text style={styles.roomTitle}>{room.title}</Text>
           {room.description && (
             <Text style={styles.roomDescription}>{room.description}</Text>
-          )}
-
-          {room.isHighActivity && (
-            <View style={styles.highActivityBadge}>
-              <View style={styles.pulseDot} />
-              <Text style={styles.highActivityText}>High Activity</Text>
-            </View>
           )}
 
           <View style={styles.roomStats}>
@@ -509,177 +415,79 @@ export default function RoomDetailsScreen() {
               <Clock size={16} color="#6b7280" />
               <Text style={styles.statText}>{room.timeRemaining}</Text>
             </View>
-            {room.distanceDisplay && (
-              <View style={styles.statItem}>
-                <MapPin size={16} color="#6b7280" />
-                <Text style={styles.statText}>{room.distanceDisplay}</Text>
-              </View>
-            )}
           </View>
         </View>
 
-        {/* Recent Messages Section - Only show when user has joined */}
-        {hasJoined && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>Recent Messages</Text>
-            </View>
-            {isLoadingMessages ? (
-              <ActivityIndicator size="small" color="#f97316" style={styles.loader} />
-            ) : recentMessages.length > 0 ? (
-              <View style={styles.recentMessagesList}>
-                {recentMessages.map((msg) => (
-                  <View key={msg.id} style={styles.recentMessageItem}>
-                    <View style={styles.recentMessageHeader}>
-                      <Text style={styles.recentMessageUser}>{msg.userName}</Text>
-                      <Text style={styles.recentMessageTime}>
-                        {msg.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </Text>
-                    </View>
-                    <Text style={styles.recentMessageText} numberOfLines={2}>
-                      {msg.content}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            ) : (
-              <View style={styles.emptyRecentMessages}>
-                <Text style={styles.emptyRecentMessagesText}>No messages yet. Be the first!</Text>
-              </View>
-            )}
-          </View>
-        )}
-
-        {/* Actions Section */}
-        <View style={styles.section}>
+        {/* Actions */}
+        <View style={styles.actionSection}>
           <Text style={styles.sectionTitle}>Actions</Text>
 
-          {/* Creator Actions */}
-          {isCreator && (
-            <>
-              {room.status !== 'closed' && (
-                <TouchableOpacity
-                  style={styles.actionButton}
-                  onPress={handleCloseRoom}
-                  disabled={isClosingAction(roomId)}
-                >
-                  <View style={[styles.actionIcon, styles.actionIconWarning]}>
-                    <Lock size={20} color="#f59e0b" />
-                  </View>
-                  <View style={styles.actionContent}>
-                    <Text style={styles.actionText}>Close Room</Text>
-                    <Text style={styles.actionSubtext}>Make room read-only</Text>
-                  </View>
-                  {isClosingAction(roomId) && <ActivityIndicator size="small" color="#f59e0b" />}
-                </TouchableOpacity>
-              )}
-
-              <TouchableOpacity
-                style={styles.actionButton}
-                onPress={() => setShowBannedUsersModal(true)}
-              >
-                <View style={[styles.actionIcon, { backgroundColor: '#fee2e2' }]}>
-                  <Ban size={20} color="#ef4444" />
-                </View>
-                <View style={styles.actionContent}>
-                  <Text style={styles.actionText}>Manage Bans</Text>
-                  <Text style={styles.actionSubtext}>View and unban users</Text>
-                </View>
-              </TouchableOpacity>
-            </>
-          )}
-
-          {/* Share Room */}
-          <TouchableOpacity style={styles.actionButton} onPress={handleShare}>
+          <TouchableOpacity style={styles.actionRow} onPress={handleShare}>
             <View style={[styles.actionIcon, { backgroundColor: '#eff6ff' }]}>
               <Share2 size={20} color="#3b82f6" />
             </View>
-            <View style={styles.actionContent}>
-              <Text style={styles.actionText}>Share Room</Text>
-              <Text style={styles.actionSubtext}>Invite friends to this chat</Text>
+            <View style={styles.actionInfo}>
+              <Text style={styles.actionLabel}>Share Room</Text>
+              <Text style={styles.actionSub}>Invite friends to this chat</Text>
             </View>
           </TouchableOpacity>
 
-          {/* Report Room */}
-          <TouchableOpacity style={styles.actionButton} onPress={handleReport}>
-            <View style={styles.actionIcon}>
+          <TouchableOpacity style={styles.actionRow} onPress={handleReport}>
+            <View style={[styles.actionIcon, { backgroundColor: '#f3f4f6' }]}>
               <Flag size={20} color="#6b7280" />
             </View>
-            <View style={styles.actionContent}>
-              <Text style={styles.actionText}>Report Room</Text>
-              <Text style={styles.actionSubtext}>Flag inappropriate content</Text>
+            <View style={styles.actionInfo}>
+              <Text style={styles.actionLabel}>Report Room</Text>
+              <Text style={styles.actionSub}>Flag inappropriate content</Text>
             </View>
           </TouchableOpacity>
+
+          {isCreator && (
+            <TouchableOpacity style={styles.actionRow} onPress={handleCloseRoom}>
+              <View style={[styles.actionIcon, { backgroundColor: '#fff7ed' }]}>
+                <Lock size={20} color="#f97316" />
+              </View>
+              <View style={styles.actionInfo}>
+                <Text style={styles.actionLabel}>Close Room</Text>
+                <Text style={styles.actionSub}>Make room read-only</Text>
+              </View>
+            </TouchableOpacity>
+          )}
         </View>
 
-        {/* Participants Section - moved to end */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>
-              Participants ({participants.length})
-            </Text>
-          </View>
-
-          {isLoading ? (
-            <ActivityIndicator size="small" color="#f97316" style={styles.loader} />
-          ) : (
-            <View style={styles.participantList}>
-              {participants.map((participant) => (
-                <ParticipantItem
-                  key={participant.userId}
-                  participant={participant}
-                  isCreator={participant.role === 'creator'}
-                  isCurrentUser={participant.userId === userId}
-                />
-              ))}
-            </View>
-          )}
+        {/* Participants */}
+        <View style={styles.participantsSection}>
+          <Text style={styles.sectionTitle}>Participants ({participants.length})</Text>
+          {participants.map((p) => (
+            <ParticipantItem
+              key={p.userId}
+              participant={p}
+              isCreator={p.role === 'creator'}
+              isCurrentUser={p.userId === userId}
+            />
+          ))}
         </View>
       </ScrollView>
 
-      {/* Unified Bottom Button (Join/Enter) - STICKY - Moved outside ScrollView */}
-      <View style={styles.stickyFooter}>
+      {/* Footer Button - Fixed at bottom safe area */}
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
         <TouchableOpacity
           style={[
-            hasJoined ? styles.enterButton : styles.joinButton,
+            styles.mainButton,
             isJoiningOptimistic && { opacity: 0.8 },
+            hasJoined && styles.enterButton
           ]}
           onPress={handleJoin}
           disabled={isJoiningOptimistic}
-          activeOpacity={0.8}
         >
           {isJoiningOptimistic ? (
-            <View style={styles.buttonContent}>
-              <ActivityIndicator size="small" color="#ffffff" />
-              <Text style={styles.joinButtonText}>Joining...</Text>
-            </View>
-          ) : hasJoined ? (
-            <View style={styles.enterButtonContent}>
-              <MessageCircle size={20} color="#ffffff" />
-              <Text style={styles.enterButtonText}>Enter Room</Text>
-            </View>
+            <ActivityIndicator color="white" />
           ) : (
-            <Text style={styles.joinButtonText}>Join Room</Text>
+            <Text style={styles.mainButtonText}>
+              {hasJoined ? 'Enter Room' : 'Join Room'}
+            </Text>
           )}
         </TouchableOpacity>
-
-        {/* Small Leave link below main button - only for joined members */}
-        {hasJoined && !isCreator && (
-          <TouchableOpacity
-            style={styles.leaveLinkContainer}
-            onPress={handleLeave}
-            disabled={isLeavingAction(roomId)}
-            activeOpacity={0.7}
-          >
-            {isLeavingAction(roomId) ? (
-              <ActivityIndicator size="small" color="#64748b" />
-            ) : (
-              <Text style={styles.leaveLink}>
-                Leave Room • You can rejoin anytime
-              </Text>
-            )}
-          </TouchableOpacity>
-        )}
       </View>
 
       <BannedUsersModal
@@ -695,11 +503,9 @@ export default function RoomDetailsScreen() {
         targetType={reportConfig.targetType}
         targetName={room.title}
       />
-    </SafeAreaView>
+    </View>
   );
 }
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 const styles = StyleSheet.create({
   container: {
@@ -708,12 +514,21 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'center',
     justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingBottom: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#f3f4f6',
+    backgroundColor: '#ffffff',
+  },
+  headerTitle: {
+    fontSize: 17,
+    fontWeight: '600',
+    color: '#1f2937',
+  },
+  headerRightPlaceholder: {
+    width: 40,
   },
   closeButton: {
     width: 40,
@@ -723,60 +538,46 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerTitle: {
-    fontSize: 17,
-    fontWeight: '600',
-    color: '#1f2937',
-  },
-  headerSpacer: {
-    width: 40,
-  },
   content: {
     flex: 1,
   },
   contentContainer: {
-    padding: 16,
-  },
-  roomCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 16,
     padding: 20,
+  },
+  roomHeaderSection: {
     alignItems: 'center',
-    marginBottom: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 2,
+    marginBottom: 32,
+    marginTop: 10,
   },
   roomEmoji: {
-    width: 64,
-    height: 64,
-    borderRadius: 16,
+    width: 80,
+    height: 80,
+    borderRadius: 24,
     backgroundColor: '#fff7ed',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: 16,
   },
   emojiText: {
-    fontSize: 32,
+    fontSize: 40,
   },
   roomTitle: {
-    fontSize: 20,
+    fontSize: 24,
     fontWeight: '700',
     color: '#1f2937',
     textAlign: 'center',
-    marginBottom: 6,
+    marginBottom: 8,
+    paddingHorizontal: 16,
   },
   roomDescription: {
-    fontSize: 14,
+    fontSize: 16,
     color: '#6b7280',
     textAlign: 'center',
     marginBottom: 16,
+    lineHeight: 22,
   },
   roomStats: {
     flexDirection: 'row',
-    justifyContent: 'center',
     gap: 20,
   },
   statItem: {
@@ -785,56 +586,59 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   statText: {
-    fontSize: 14,
     color: '#6b7280',
-  },
-  section: {
-    marginBottom: 20,
-  },
-  sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: 12,
+    fontSize: 14,
+    fontWeight: '500',
   },
   sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1f2937',
+    marginBottom: 16,
+  },
+  actionSection: {
+    marginBottom: 32,
+  },
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
+    backgroundColor: '#f9fafb',
+    padding: 12,
+    borderRadius: 16,
+  },
+  actionIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 16,
+  },
+  actionInfo: {
+    flex: 1,
+  },
+  actionLabel: {
     fontSize: 16,
     fontWeight: '600',
     color: '#1f2937',
-    marginBottom: 12,
+    marginBottom: 2,
   },
-  loader: {
-    paddingVertical: 20,
+  actionSub: {
+    fontSize: 13,
+    color: '#6b7280',
   },
-  participantList: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    overflow: 'hidden',
+  participantsSection: {
+    marginBottom: 40,
   },
   participantItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-  },
-  participantAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#e5e7eb',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  participantAvatarText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#6b7280',
+    marginBottom: 16,
+    paddingHorizontal: 4,
   },
   participantInfo: {
-    flex: 1,
+    marginLeft: 12,
   },
   participantNameRow: {
     flexDirection: 'row',
@@ -842,243 +646,61 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   participantName: {
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '500',
-    color: '#1f2937',
-  },
-  participantRole: {
-    fontSize: 12,
-    color: '#9ca3af',
-    marginTop: 2,
-  },
-  participantActions: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  kickButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    backgroundColor: '#fff7ed',
-    borderRadius: 8,
-    gap: 4,
-  },
-  banButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    backgroundColor: '#fef2f2',
-    borderRadius: 8,
-    gap: 4,
-  },
-  actionButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#475569',
-  },
-  actionButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    borderRadius: 12,
-    marginBottom: 8,
-  },
-  actionIcon: {
-    width: 40,
-    height: 40,
-    borderRadius: 10,
-    backgroundColor: '#f3f4f6',
-    justifyContent: 'center',
-    alignItems: 'center',
-    marginRight: 12,
-  },
-  actionIconWarning: {
-    backgroundColor: '#fef3c7',
-  },
-  actionIconDanger: {
-    backgroundColor: '#fef2f2',
-  },
-  actionContent: {
-    flex: 1,
-  },
-  actionText: {
-    fontSize: 15,
-    fontWeight: '500',
-    color: '#1f2937',
-  },
-  actionTextDanger: {
-    color: '#ef4444',
-  },
-  actionSubtext: {
-    fontSize: 12,
-    color: '#9ca3af',
-    marginTop: 2,
-  },
-  recentMessagesList: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 12,
-  },
-  recentMessageItem: {
-    marginBottom: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: '#f3f4f6',
-    paddingBottom: 8,
-  },
-  recentMessageHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 4,
-  },
-  recentMessageUser: {
-    fontSize: 13,
-    fontWeight: '600',
     color: '#374151',
   },
-  recentMessageTime: {
-    fontSize: 11,
+  participantRole: {
+    fontSize: 13,
     color: '#9ca3af',
   },
-  recentMessageText: {
-    fontSize: 14,
-    color: '#4b5563',
-    lineHeight: 18,
-  },
-  emptyRecentMessages: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 20,
-    alignItems: 'center',
-  },
-  emptyRecentMessagesText: {
-    fontSize: 14,
-    color: '#9ca3af',
-  },
-  footerAction: {
-    marginTop: 8,
-    marginBottom: 24,
-  },
-  stickyFooter: {
-    backgroundColor: '#ffffff',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    paddingBottom: 16,
+  footer: {
+    padding: 16,
     borderTopWidth: 1,
     borderTopColor: '#f3f4f6',
+    backgroundColor: '#ffffff',
   },
-  leaveLinkContainer: {
-    paddingVertical: 12,
-    alignItems: 'center',
-  },
-  leaveLink: {
-    fontSize: 14,
-    color: '#64748b',
-    textAlign: 'center',
-  },
-  buttonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  joinButton: {
+  mainButton: {
     backgroundColor: '#f97316',
-    paddingVertical: 16,
     borderRadius: 16,
+    paddingVertical: 18,
     alignItems: 'center',
     shadowColor: '#f97316',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
+    shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
-  },
-  joinButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
-    color: '#ffffff',
   },
   enterButton: {
     backgroundColor: '#22c55e',
-    paddingVertical: 16,
-    borderRadius: 16,
-    alignItems: 'center',
     shadowColor: '#22c55e',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 8,
-    elevation: 4,
   },
-  enterButtonContent: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  enterButtonText: {
-    fontSize: 16,
-    fontWeight: '700',
+  mainButtonText: {
     color: '#ffffff',
+    fontSize: 18,
+    fontWeight: '700',
   },
-  highActivityBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#f0fdf4',
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    marginBottom: 16,
-    borderWidth: 1,
-    borderColor: '#dcfce7',
-  },
-  pulseDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: '#22c55e',
-    marginRight: 6,
-  },
-  highActivityText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: '#166534',
-  },
-  // Error and Loading states
-  errorCard: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 24,
-  },
+  // Error Styles
   errorContent: {
+    padding: 24,
     alignItems: 'center',
-    gap: 8,
   },
   errorTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#1f2937',
-    textAlign: 'center',
+    color: '#ef4444',
   },
   errorText: {
-    fontSize: 14,
+    marginTop: 8,
     color: '#6b7280',
     textAlign: 'center',
   },
-  loadingCard: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    paddingVertical: 60,
-    paddingHorizontal: 24,
-  },
   loadingContent: {
+    padding: 40,
     alignItems: 'center',
-    gap: 12,
+    gap: 16,
   },
   loadingText: {
-    fontSize: 14,
     color: '#6b7280',
-  },
+  }
 });
-

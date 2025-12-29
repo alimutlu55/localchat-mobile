@@ -127,7 +127,7 @@ export function RootNavigator() {
                     <Stack.Screen
                         name="CreateRoom"
                         component={CreateRoomScreen}
-                        options={{ presentation: 'modal' }}
+                        options={{ presentation: 'fullScreenModal' }}
                     />
                     <Stack.Screen name="Settings" component={SettingsScreen} />
                     <Stack.Screen name="EditProfile" component={EditProfileScreen} />

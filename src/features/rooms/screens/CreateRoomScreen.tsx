@@ -2,6 +2,7 @@
  * Create Room Screen
  *
  * Form to create a new chat room, matching the web app design.
+ * Refactored to Full Screen Page Layout.
  */
 
 import React, { useState, useEffect, useMemo } from 'react';
@@ -18,7 +19,7 @@ import {
   Alert,
   Dimensions,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Location from 'expo-location';
@@ -33,12 +34,11 @@ import {
   Locate,
   ChevronDown,
   ChevronUp,
-  AlertCircle,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../../../navigation/types';
 import { roomService } from '../../../services';
-import { RoomCategory, RoomDuration } from '../../../types';
-import { CATEGORIES } from '../../../constants';
+import { RoomCategory } from '../../../types';
+// import { CATEGORIES } from '../../../constants'; // Unused
 import { useRoomStore } from '../store';
 import { useMyRooms } from '../hooks';
 
@@ -71,9 +71,6 @@ const DURATION_OPTIONS: Array<{ label: string; value: number; id: '1h' | '3h' | 
 
 /**
  * Allowed radius values in meters (matching backend validation)
- * These predefined values ensure consistent UX and backend validation
- * 0 = global (visible everywhere)
- * Others = nearby visibility with specific range
  */
 const ALLOWED_RADII_METERS = [50, 500, 1000, 5000, 10000, 50000, 100000];
 
@@ -92,11 +89,12 @@ const MAX_DESCRIPTION_LENGTH = 200;
 
 export default function CreateRoomScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const insets = useSafeAreaInsets();
 
   // Use hooks instead of context
   const { addRoom: addCreatedRoom } = useMyRooms();
-  const addJoinedRoom = useRoomStore((s) => s.addJoinedRoom);
-  const setRoom = useRoomStore((s) => s.setRoom);
+  // const addJoinedRoom = useRoomStore((s) => s.addJoinedRoom); // Unused directly
+  // const setRoom = useRoomStore((s) => s.setRoom); // Unused directly
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -109,7 +107,7 @@ export default function CreateRoomScreen() {
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(true);
-  const [roomsCreatedToday] = useState(2);
+  const [roomsCreatedToday] = useState(2); // Mock value for now
 
   /**
    * Get current location on mount
@@ -212,32 +210,35 @@ export default function CreateRoomScreen() {
 
   if (isGettingLocation) {
     return (
-      <SafeAreaView style={styles.loadingContainer}>
+      <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#f97316" />
         <Text style={styles.loadingText}>Getting your location...</Text>
-      </SafeAreaView>
+      </View>
     );
   }
 
+  // ---------------------------------------------------------------------------
+  // RENDER
+  // ---------------------------------------------------------------------------
   return (
-    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+    <View style={styles.container}>
+      {/* Header */}
+      <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}>
+        <TouchableOpacity
+          style={styles.cancelButton}
+          onPress={() => navigation.goBack()}
+        >
+          <X size={24} color="#64748b" />
+        </TouchableOpacity>
+        <Text style={styles.headerTitle}>Create Room</Text>
+        <View style={{ width: 24 }} />
+      </View>
+
       <KeyboardAvoidingView
         style={styles.keyboardView}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 0}
       >
-        {/* Header */}
-        <View style={styles.header}>
-          <TouchableOpacity
-            style={styles.cancelButton}
-            onPress={() => navigation.goBack()}
-          >
-            <X size={20} color="#64748b" />
-            <Text style={styles.cancelText}>Cancel</Text>
-          </TouchableOpacity>
-          <Text style={styles.headerTitle}>Create Room</Text>
-          <View style={{ width: 80 }} />
-        </View>
-
         <ScrollView
           style={styles.content}
           contentContainerStyle={styles.contentContainer}
@@ -474,7 +475,6 @@ export default function CreateRoomScreen() {
                   <Text style={styles.advancedLabel}>Max Participants</Text>
                   <Text style={styles.advancedValue}>{maxParticipants}</Text>
                 </View>
-                {/* Simplified slider for participants since standard RN slider needs extra lib */}
                 <View style={styles.participantOptions}>
                   {[50, 100, 200, 500].map(val => (
                     <TouchableOpacity
@@ -495,37 +495,37 @@ export default function CreateRoomScreen() {
               </View>
             )}
           </View>
-
-          {/* Create Button */}
-          <View style={styles.footer}>
-            <TouchableOpacity
-              onPress={handleCreate}
-              disabled={isLoading || !title.trim() || !categoryLabel}
-              activeOpacity={0.8}
-            >
-              <LinearGradient
-                colors={['#f97316', '#ff4d4d']} // Refined for more vibrance
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 0 }}
-                style={[
-                  styles.createRoomButton,
-                  (isLoading || !title.trim() || !categoryLabel) && { opacity: 0.5 }
-                ]}
-              >
-                {isLoading ? (
-                  <ActivityIndicator color="#fff" />
-                ) : (
-                  <Text style={styles.createRoomButtonText}>Create Room</Text>
-                )}
-              </LinearGradient>
-            </TouchableOpacity>
-            <Text style={styles.dailyLimitText}>
-              Daily limit: {roomsCreatedToday}/3 rooms
-            </Text>
-          </View>
         </ScrollView>
       </KeyboardAvoidingView>
-    </SafeAreaView>
+
+      {/* Footer - Fixed at bottom safe area */}
+      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+        <TouchableOpacity
+          onPress={handleCreate}
+          disabled={isLoading || !title.trim() || !categoryLabel}
+          activeOpacity={0.8}
+        >
+          <LinearGradient
+            colors={['#f97316', '#ff4d4d']}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            style={[
+              styles.createRoomButton,
+              (isLoading || !title.trim() || !categoryLabel) && { opacity: 0.5 }
+            ]}
+          >
+            {isLoading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <Text style={styles.createRoomButtonText}>Create Room</Text>
+            )}
+          </LinearGradient>
+        </TouchableOpacity>
+        <Text style={styles.dailyLimitText}>
+          Daily limit: {roomsCreatedToday}/3 rooms
+        </Text>
+      </View>
+    </View>
   );
 }
 
@@ -553,19 +553,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingVertical: 16,
+    paddingBottom: 16,
     borderBottomWidth: 1,
     borderBottomColor: '#f1f5f9',
+    backgroundColor: '#fff',
+    zIndex: 10,
   },
   cancelButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  cancelText: {
-    fontSize: 15,
-    color: '#64748b',
-    fontWeight: '500',
+    padding: 4,
   },
   headerTitle: {
     fontSize: 18,
@@ -803,17 +798,19 @@ const styles = StyleSheet.create({
     padding: 16,
     backgroundColor: '#f8fafc',
     borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
   },
   advancedRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
     marginBottom: 12,
   },
   advancedLabel: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '500',
     color: '#475569',
-    marginLeft: 8,
     flex: 1,
   },
   advancedValue: {
@@ -826,49 +823,50 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   participantChip: {
-    flex: 1,
-    paddingVertical: 8,
-    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 16,
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    alignItems: 'center',
   },
   participantChipActive: {
-    backgroundColor: '#f97316',
+    backgroundColor: '#fff7ed',
     borderColor: '#f97316',
   },
   participantChipText: {
     fontSize: 13,
-    fontWeight: '500',
     color: '#64748b',
   },
   participantChipTextActive: {
-    color: '#fff',
+    color: '#f97316',
+    fontWeight: '500',
   },
   footer: {
-    gap: 12,
+    padding: 16,
+    backgroundColor: '#fff',
+    borderTopWidth: 1,
+    borderTopColor: '#f1f5f9',
   },
   createRoomButton: {
-    height: 56,
+    paddingVertical: 16,
     borderRadius: 16,
-    justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#f43f5e',
+    shadowColor: '#f97316',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.3,
-    shadowRadius: 10,
-    elevation: 6,
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   createRoomButtonText: {
-    fontSize: 17,
-    fontWeight: '700',
     color: '#fff',
+    fontSize: 16,
+    fontWeight: '700',
   },
   dailyLimitText: {
+    marginTop: 12,
     textAlign: 'center',
-    fontSize: 13,
+    fontSize: 12,
     color: '#94a3b8',
   },
 });
-
