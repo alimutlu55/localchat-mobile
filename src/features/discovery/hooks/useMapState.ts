@@ -101,6 +101,7 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
   const [hasBoundsInitialized, setHasBoundsInitialized] = useState(false);
   const [isMapMoving, setIsMapMoving] = useState(false);
   const [zoom, setZoom] = useState(defaultZoom);
+  const hasPerformedInitialJump = useRef(false);
 
   // Helper to calculate bounds from a coordinate
   const calculateInitialBounds = (coord: MapCoordinate): [number, number, number, number] => {
@@ -133,13 +134,15 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
   // Update state when defaultCenter changes (initialization only)
   // This allows the map to jump to the user's location as soon as it's fetched
   useEffect(() => {
-    if (defaultCenter && !hasBoundsInitialized && !isMapMoving) {
-      log.debug('Updating map state from new defaultCenter', defaultCenter);
+    if (defaultCenter && !hasBoundsInitialized && !isMapMoving && !hasPerformedInitialJump.current) {
+      log.debug('Updating map state from new defaultCenter (initialization)', defaultCenter);
       setCenterCoord([defaultCenter.longitude, defaultCenter.latitude]);
       setBounds(calculateInitialBounds(defaultCenter));
 
       // If camera is already available, sync it immediately
       if (cameraRef.current) {
+        log.debug('Performing initial camera jump to user location');
+        hasPerformedInitialJump.current = true;
         cameraRef.current.setCamera({
           centerCoordinate: [defaultCenter.longitude, defaultCenter.latitude],
           zoomLevel: defaultZoom,

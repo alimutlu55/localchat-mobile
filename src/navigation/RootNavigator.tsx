@@ -89,8 +89,8 @@ export function RootNavigator() {
             ) : (
                 // App Flow - only when status === 'authenticated'
                 <>
-                    <Stack.Screen 
-                        name="Discovery" 
+                    <Stack.Screen
+                        name="Discovery"
                         component={DiscoveryScreen}
                         options={{
                             animation: 'fade',
@@ -110,7 +110,10 @@ export function RootNavigator() {
                     <Stack.Screen
                         name="RoomDetails"
                         component={RoomDetailsScreen}
-                        options={{ presentation: 'modal' }}
+                        options={{
+                            presentation: 'transparentModal',
+                            animation: 'slide_from_bottom'
+                        }}
                     />
                     <Stack.Screen
                         name="RoomInfo"

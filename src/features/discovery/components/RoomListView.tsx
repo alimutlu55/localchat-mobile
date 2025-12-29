@@ -54,6 +54,9 @@ type SortOption = 'nearest' | 'most-active' | 'expiring-soon' | 'newest';
 interface RoomListViewProps {
     rooms: Room[];
     isLoading?: boolean;
+    isLoadingMore?: boolean;
+    hasMore?: boolean;
+    onLoadMore?: () => void;
     onJoinRoom?: (room: Room) => Promise<boolean>;
     onEnterRoom?: (room: Room) => void;
     onCreateRoom?: () => void;
@@ -342,6 +345,9 @@ const EmptyState = memo(function EmptyState({
 export function RoomListView({
     rooms,
     isLoading = false,
+    isLoadingMore: isLoadingMoreProp,
+    hasMore: hasMoreProp,
+    onLoadMore,
     onJoinRoom,
     onEnterRoom,
     onCreateRoom,
@@ -360,12 +366,17 @@ export function RoomListView({
     // Subscribe to myRooms to force re-render when join/leave state changes
     const { rooms: myRooms } = useMyRooms();
 
-    // Get pagination state from discovery hook (if needed)
-    const { isLoadingMore, hasMore: hasMoreRooms, loadMore: loadMoreRooms } = useRoomDiscovery({
+    // Use pagination from props or fallback to internal hook
+    const { isLoadingMore: isLoadingMoreInternal, hasMore: hasMoreInternal, loadMore: loadMoreInternal } = useRoomDiscovery({
         latitude: userLocationProp?.latitude || 0,
         longitude: userLocationProp?.longitude || 0,
         autoFetch: false,
     });
+
+    // Use prop values if provided, otherwise use internal
+    const isLoadingMore = isLoadingMoreProp ?? isLoadingMoreInternal;
+    const hasMoreRooms = hasMoreProp ?? hasMoreInternal;
+    const loadMoreRooms = onLoadMore ?? loadMoreInternal;
 
     // Use passed user location or null
     const userLocation = userLocationProp;

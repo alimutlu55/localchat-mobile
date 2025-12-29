@@ -39,7 +39,7 @@ import { Room, ClusterFeature } from '../../../types';
 import { useUIActions } from '../../../context';
 
 // Features
-import { useJoinRoom, useMyRooms } from '../../rooms/hooks';
+import { useJoinRoom, useMyRooms, useRoomDiscovery } from '../../rooms/hooks';
 
 // Components
 import { RoomListView, ServerRoomMarker, ServerClusterMarker } from '../components';
@@ -199,6 +199,30 @@ export default function DiscoveryScreen() {
     const { join: joinRoomHook } = useJoinRoom();
     const { activeRooms: myActiveRooms } = useMyRooms();
 
+    // ==========================================================================
+    // List View: Proximity-based room discovery with pagination
+    // ==========================================================================
+    const {
+        rooms: discoveredRooms,
+        isLoading: isDiscoveryLoading,
+        isLoadingMore: isDiscoveryLoadingMore,
+        hasMore: hasMoreRooms,
+        loadMore: loadMoreRooms,
+        refresh: refreshDiscovery,
+    } = useRoomDiscovery({
+        latitude: userLocation?.latitude || 0,
+        longitude: userLocation?.longitude || 0,
+        autoFetch: viewMode === 'list' && !!userLocation,
+    });
+
+    // Refresh discovery when switching to list view
+    useEffect(() => {
+        if (viewMode === 'list' && userLocation) {
+            refreshDiscovery();
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [viewMode, userLocation?.latitude, userLocation?.longitude]);
+
     // Local state for selected room
     const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
     const [selectedFeature, setSelectedFeature] = useState<ClusterFeature | null>(null);
@@ -244,49 +268,24 @@ export default function DiscoveryScreen() {
         (feature: ClusterFeature) => {
             const roomId = feature.properties.roomId;
             if (!roomId) return;
-            
+
             log.debug('Server room pressed', { roomId });
 
             const [lng, lat] = feature.geometry.coordinates;
 
-            if (isMapReady && cameraRef.current && lng != null && lat != null) {
-                const targetZoom = Math.min(Math.max(zoom + 2, 14), 16);
-                const zoomDiff = Math.abs(targetZoom - zoom);
+            // Create minimal room for navigation
+            const room: Partial<Room> = {
+                id: roomId,
+                title: feature.properties.title,
+                latitude: lat,
+                longitude: lng,
+                category: feature.properties.category as Room['category'],
+            };
 
-                // Create minimal room for navigation
-                const room: Partial<Room> = {
-                    id: roomId,
-                    title: feature.properties.title,
-                    latitude: lat,
-                    longitude: lng,
-                    category: feature.properties.category as Room['category'],
-                };
-
-                // If already zoomed in enough, navigate directly
-                if (zoomDiff <= 1.5) {
-                    setSelectedFeature(feature);
-                    navigation.navigate('RoomDetails', { roomId, initialRoom: room as Room });
-                    return;
-                }
-
-                // Fly to room then navigate
-                const duration = calculateFlyDuration(targetZoom);
-                cameraRef.current.setCamera({
-                    centerCoordinate: [lng, lat],
-                    zoomLevel: targetZoom,
-                    animationDuration: duration,
-                    animationMode: 'flyTo',
-                });
-
-                setTimeout(() => {
-                    setSelectedFeature(feature);
-                    navigation.navigate('RoomDetails', { roomId, initialRoom: room as Room });
-                }, duration + 150);
-            } else {
-                navigation.navigate('RoomDetails', { roomId });
-            }
+            setSelectedFeature(feature);
+            navigation.navigate('RoomDetails', { roomId, initialRoom: room as Room });
         },
-        [navigation, isMapReady, zoom, calculateFlyDuration, cameraRef]
+        [navigation]
     );
 
     // Handle cluster feature press (from server clustering)
@@ -294,14 +293,14 @@ export default function DiscoveryScreen() {
         (feature: ClusterFeature) => {
             const pointCount = feature.properties.pointCount || 0;
             const expansionBounds = feature.properties.expansionBounds;
-            
-            log.debug('Server cluster pressed', { 
+
+            log.debug('Server cluster pressed', {
                 clusterId: feature.properties.clusterId,
                 pointCount,
                 currentZoom: zoom,
                 hasExpansionBounds: !!expansionBounds
             });
-            
+
             if (!isMapReady || !cameraRef.current) return;
 
             const [lng, lat] = feature.geometry.coordinates;
@@ -324,9 +323,9 @@ export default function DiscoveryScreen() {
              */
             const calcOptimalZoom = (boundsSpan: number, currentZoom: number): number => {
                 if (boundsSpan <= 0) return Math.min(currentZoom + 3, 18);
-                
+
                 const targetEps = boundsSpan / 3;
-                
+
                 for (let z = currentZoom + 1; z <= 18; z++) {
                     const eps = EPS_BY_ZOOM[z] ?? 0.00001;
                     if (eps <= targetEps) {
@@ -341,18 +340,18 @@ export default function DiscoveryScreen() {
                 const lngSpan = maxLng - minLng;
                 const latSpan = maxLat - minLat;
                 const boundsSpan = Math.max(lngSpan, latSpan);
-                
+
                 // Calculate optimal zoom that will cause meaningful splitting
                 const optimalZoom = calcOptimalZoom(boundsSpan, zoom);
-                
+
                 // Always progress at least 2 zoom levels for user feedback
                 const targetZoom = Math.max(zoom + 2, optimalZoom);
-                
+
                 // Calculate center of expansion bounds
                 const centerLng = (minLng + maxLng) / 2;
                 const centerLat = (minLat + maxLat) / 2;
-                
-                log.debug('Cluster expansion calculated', { 
+
+                log.debug('Cluster expansion calculated', {
                     boundsSpan: boundsSpan.toFixed(2),
                     optimalZoom,
                     currentZoom: zoom,
@@ -369,7 +368,7 @@ export default function DiscoveryScreen() {
                     animationDuration: 600,
                     animationMode: 'flyTo',
                 });
-                
+
                 // Force refetch after animation
                 setTimeout(() => {
                     log.debug('Forcing refetch after cluster expansion');
@@ -379,9 +378,9 @@ export default function DiscoveryScreen() {
                 // No expansion bounds - zoom in by fixed amount
                 const zoomIncrement = pointCount > 100 ? 3 : pointCount > 20 ? 4 : 5;
                 const targetZoom = Math.min(zoom + zoomIncrement, 18);
-                
-                log.debug('No expansion bounds, zooming by increment', { 
-                    from: zoom, 
+
+                log.debug('No expansion bounds, zooming by increment', {
+                    from: zoom,
                     to: targetZoom,
                     pointCount,
                     zoomIncrement
@@ -393,7 +392,7 @@ export default function DiscoveryScreen() {
                     animationDuration: 600,
                     animationMode: 'flyTo',
                 });
-                
+
                 setTimeout(() => {
                     refetchClusters();
                 }, 700);
@@ -405,37 +404,10 @@ export default function DiscoveryScreen() {
     const handleRoomPress = useCallback(
         (room: Room) => {
             log.debug('Room pressed', { roomId: room.id });
-
-            if (isMapReady && cameraRef.current && room.latitude != null && room.longitude != null) {
-                const targetZoom = Math.min(Math.max(zoom + 2, 14), 16);
-                const zoomDiff = Math.abs(targetZoom - zoom);
-
-                // If already zoomed in enough, navigate directly
-                if (zoomDiff <= 1.5) {
-                    setSelectedRoom(room);
-                    navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: room });
-                    return;
-                }
-
-                // Fly to room then navigate
-                const duration = calculateFlyDuration(targetZoom);
-                cameraRef.current.setCamera({
-                    centerCoordinate: [room.longitude, room.latitude],
-                    zoomLevel: targetZoom,
-                    animationDuration: duration,
-                    animationMode: 'flyTo',
-                });
-
-                setTimeout(() => {
-                    setSelectedRoom(room);
-                    navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: room });
-                }, duration + 150);
-            } else {
-                setSelectedRoom(room);
-                navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: room });
-            }
+            setSelectedRoom(room);
+            navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: room });
         },
-        [navigation, setSelectedRoom, isMapReady, zoom, calculateFlyDuration, cameraRef]
+        [navigation]
     );
 
     const handleCreateRoom = useCallback(() => {
@@ -571,7 +543,7 @@ export default function DiscoveryScreen() {
                 </Animated.View>
 
                 {/* Map Controls - Only show when map is stable */}
-                <Animated.View 
+                <Animated.View
                     style={[
                         styles.mapControls,
                         { opacity: markersOpacity }
@@ -628,8 +600,11 @@ export default function DiscoveryScreen() {
                 pointerEvents={viewMode === 'map' ? 'none' : 'auto'}
             >
                 <RoomListView
-                    rooms={activeRooms}
-                    isLoading={isLoadingClusters}
+                    rooms={discoveredRooms}
+                    isLoading={isDiscoveryLoading}
+                    isLoadingMore={isDiscoveryLoadingMore}
+                    hasMore={hasMoreRooms}
+                    onLoadMore={loadMoreRooms}
                     onJoinRoom={handleJoinRoom}
                     onEnterRoom={handleEnterRoom}
                     onCreateRoom={handleCreateRoom}
