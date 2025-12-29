@@ -47,7 +47,7 @@ import { useJoinRoom, useMyRooms, useRoomDiscovery } from '../../rooms/hooks';
 import { RoomListView, ServerRoomMarker, ServerClusterMarker } from '../components';
 
 // Hooks
-import { useMapState, useUserLocation, useServerClustering } from '../hooks';
+import { useMapState, useUserLocation, useServerClustering, useDiscoveryEvents } from '../hooks';
 
 // Styles
 import { HUDDLE_MAP_STYLE } from '../../../styles/mapStyle';
@@ -78,7 +78,7 @@ export default function DiscoveryScreen() {
     // Auth Status & Logout Protection
     // ==========================================================================
 
-    const { status: authStatus } = useAuth();
+    const { status: authStatus, user: currentUser } = useAuth();
 
     // Track logout state synchronously to hide markers before unmounting
     // Prevents Fabric view recycling crash during navigation transitions
@@ -214,10 +214,9 @@ export default function DiscoveryScreen() {
         }
     }, [isMapReady, mapOverlayOpacity, markersOpacity]);
 
-    // Server-side clustering - fetches pre-clustered data from backend
-    // Only enable when both map is ready AND bounds have been initialized from actual viewport
     const {
         features: serverFeatures,
+        setFeatures: setServerFeatures,
         isLoading: isLoadingClusters,
         metadata: clusterMetadata,
         refetch: refetchClusters,
@@ -226,6 +225,14 @@ export default function DiscoveryScreen() {
         zoom,
         enabled: isMapReady && hasBoundsInitialized,
         isMapReady: isMapReady && hasBoundsInitialized,
+    });
+
+    // Subscribe to room lifecycle events for real-time map updates
+    useDiscoveryEvents({
+        features: serverFeatures,
+        setFeatures: setServerFeatures,
+        refetch: refetchClusters,
+        currentUserId: currentUser?.id,
     });
 
     // Track when we have initial data to prevent marker rendering during first fetch
@@ -295,6 +302,8 @@ export default function DiscoveryScreen() {
                 maxParticipants: 500,
                 distance: 0,
                 timeRemaining: '',
+                isCreator: f.properties.isCreator,
+                hasJoined: f.properties.hasJoined,
             } as Room));
     }, [serverFeatures]);
 
@@ -324,6 +333,8 @@ export default function DiscoveryScreen() {
                 latitude: lat,
                 longitude: lng,
                 category: feature.properties.category as Room['category'],
+                isCreator: feature.properties.isCreator,
+                hasJoined: feature.properties.hasJoined,
             };
 
             setSelectedFeature(feature);

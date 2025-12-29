@@ -15,6 +15,8 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { roomService } from '../../../services';
 import { ClusterResponse, ClusterFeature, ClusterMetadata } from '../../../types';
 import { createLogger } from '../../../shared/utils/logger';
+import { filterExcludedRooms, mergePendingRooms } from './useDiscoveryEvents';
+import { useRoomStore } from '../../rooms/store';
 
 const log = createLogger('ServerClustering');
 
@@ -42,6 +44,9 @@ export interface UseServerClusteringOptions {
 export interface UseServerClusteringReturn {
   /** GeoJSON features from server (clusters + individual rooms) */
   features: ClusterFeature[];
+
+  /** Setter for optimistic updates */
+  setFeatures: React.Dispatch<React.SetStateAction<ClusterFeature[]>>;
 
   /** Whether fetch is in progress */
   isLoading: boolean;
@@ -145,7 +150,30 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
 
         if (!mountedRef.current) return;
 
-        setFeatures(response.features);
+        // Hydrate features with local user state (isCreator, hasJoined) from RoomStore
+        const { joinedRoomIds, rooms: storeRooms } = useRoomStore.getState();
+        const hydratedFeatures = response.features.map(f => {
+          if (f.properties.cluster || !f.properties.roomId) return f;
+
+          const roomId = f.properties.roomId;
+          const storeRoom = storeRooms.get(roomId);
+
+          return {
+            ...f,
+            properties: {
+              ...f.properties,
+              hasJoined: joinedRoomIds.has(roomId),
+              isCreator: storeRoom?.isCreator || false,
+            }
+          };
+        });
+
+        // Merge in pending rooms that haven't reached the server yet
+        const mergedFeatures = mergePendingRooms(hydratedFeatures);
+
+        // Filter out excluded rooms (banned/closed) before setting state
+        const filteredFeatures = filterExcludedRooms(mergedFeatures);
+        setFeatures(filteredFeatures);
         setMetadata(response.metadata);
         lastFetchBoundsRef.current = fetchBounds;
         lastFetchZoomRef.current = fetchZoom;
@@ -200,13 +228,13 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
     // Calculate if we need to fetch
     const lastZoom = lastFetchZoomRef.current;
     const lastBounds = lastFetchBoundsRef.current;
-    
+
     // Always fetch on first load
     const isFirstLoad = lastBounds === null;
-    
+
     // Fetch on zoom change - very sensitive
     const zoomChanged = lastZoom === null || Math.abs(zoom - lastZoom) >= 0.3;
-    
+
     // Fetch on pan - check center moved (use larger threshold to reduce fetches)
     let panChanged = false;
     if (lastBounds) {
@@ -228,14 +256,14 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
 
     const shouldFetchNow = isFirstLoad || zoomChanged || panChanged || forceRefetch;
 
-    log.debug('Fetch check', { 
-      isFirstLoad, 
-      zoomChanged, 
+    log.debug('Fetch check', {
+      isFirstLoad,
+      zoomChanged,
       panChanged,
       forceRefetch,
       currentZoom: zoom,
       lastZoom,
-      shouldFetch: shouldFetchNow 
+      shouldFetch: shouldFetchNow
     });
 
     if (!shouldFetchNow) {
@@ -259,6 +287,7 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
 
   return {
     features,
+    setFeatures,
     isLoading,
     error,
     metadata,

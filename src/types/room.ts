@@ -175,6 +175,8 @@ export interface ClusterProperties {
   isNew?: boolean;
   isHighActivity?: boolean;
   isExpiringSoon?: boolean;
+  hasJoined?: boolean;
+  isCreator?: boolean;
 }
 
 
