@@ -89,6 +89,7 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isFetchingRef = useRef(false);
   const mountedRef = useRef(true);
+  const forceNextFetchRef = useRef(false);
 
   // Track mount state
   useEffect(() => {
@@ -162,8 +163,12 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
    * Manual refresh
    */
   const refetch = useCallback(async () => {
+    log.debug('Manual refetch triggered');
+    // Clear cached state to force next useEffect to fetch
     lastFetchBoundsRef.current = null;
     lastFetchZoomRef.current = null;
+    forceNextFetchRef.current = true;
+    // Immediately fetch with current bounds/zoom
     await fetchClusters(bounds, zoom);
   }, [bounds, zoom, fetchClusters]);
 
@@ -202,12 +207,19 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
       panChanged = centerLatDiff > threshold || centerLngDiff > threshold;
     }
 
-    const shouldFetchNow = isFirstLoad || zoomChanged || panChanged;
+    // Check for forced fetch (e.g., from cluster click)
+    const forceRefetch = forceNextFetchRef.current;
+    if (forceRefetch) {
+      forceNextFetchRef.current = false;
+    }
+
+    const shouldFetchNow = isFirstLoad || zoomChanged || panChanged || forceRefetch;
 
     log.debug('Fetch check', { 
       isFirstLoad, 
       zoomChanged, 
-      panChanged, 
+      panChanged,
+      forceRefetch,
       currentZoom: zoom,
       lastZoom,
       shouldFetch: shouldFetchNow 

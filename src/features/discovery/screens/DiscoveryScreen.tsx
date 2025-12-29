@@ -304,48 +304,100 @@ export default function DiscoveryScreen() {
 
             const [lng, lat] = feature.geometry.coordinates;
 
-            // If we have expansion bounds, use fitBounds to show all children
+            /**
+             * Server eps values by zoom (must match backend R2dbcRoomClusteringRepository):
+             * This determines at what zoom level clusters will split.
+             */
+            const EPS_BY_ZOOM: Record<number, number> = {
+                0: 15.0, 1: 8.0, 2: 4.0, 3: 2.0, 4: 1.0, 5: 0.5,
+                6: 0.25, 7: 0.1, 8: 0.05, 9: 0.02, 10: 0.01,
+                11: 0.005, 12: 0.002, 13: 0.001, 14: 0.0005,
+                15: 0.0002, 16: 0.0001, 17: 0.00005, 18: 0.00002
+            };
+
+            /**
+             * Calculate the optimal zoom level to split a cluster.
+             * Find the lowest zoom where eps is smaller than the cluster's internal spread.
+             * We want eps to be about 1/3 of bounds span to get meaningful splits.
+             */
+            const calcOptimalZoom = (boundsSpan: number, currentZoom: number): number => {
+                if (boundsSpan <= 0) return Math.min(currentZoom + 3, 18);
+                
+                const targetEps = boundsSpan / 3;
+                
+                for (let z = currentZoom + 1; z <= 18; z++) {
+                    const eps = EPS_BY_ZOOM[z] ?? 0.00001;
+                    if (eps <= targetEps) {
+                        return z;
+                    }
+                }
+                return Math.min(currentZoom + 3, 18);
+            };
+
             if (expansionBounds && expansionBounds.length === 4) {
                 const [minLng, minLat, maxLng, maxLat] = expansionBounds;
+                const lngSpan = maxLng - minLng;
+                const latSpan = maxLat - minLat;
+                const boundsSpan = Math.max(lngSpan, latSpan);
                 
-                // Add padding to the bounds (10% on each side)
-                const lngPadding = (maxLng - minLng) * 0.15;
-                const latPadding = (maxLat - minLat) * 0.15;
+                // Calculate optimal zoom that will cause meaningful splitting
+                const optimalZoom = calcOptimalZoom(boundsSpan, zoom);
                 
-                const paddedBounds = {
-                    ne: [maxLng + lngPadding, maxLat + latPadding] as [number, number],
-                    sw: [minLng - lngPadding, minLat - latPadding] as [number, number],
-                };
+                // Always progress at least 2 zoom levels for user feedback
+                const targetZoom = Math.max(zoom + 2, optimalZoom);
                 
-                log.debug('Fitting to expansion bounds', { 
-                    original: expansionBounds,
-                    padded: paddedBounds
+                // Calculate center of expansion bounds
+                const centerLng = (minLng + maxLng) / 2;
+                const centerLat = (minLat + maxLat) / 2;
+                
+                log.debug('Cluster expansion calculated', { 
+                    boundsSpan: boundsSpan.toFixed(2),
+                    optimalZoom,
+                    currentZoom: zoom,
+                    targetZoom,
+                    pointCount,
+                    center: [centerLng.toFixed(4), centerLat.toFixed(4)]
                 });
 
-                cameraRef.current.fitBounds(
-                    paddedBounds.ne,
-                    paddedBounds.sw,
-                    [50, 50, 50, 50], // padding in pixels
-                    600 // animation duration
-                );
-            } else {
-                // Fallback: zoom in by fixed amount centered on cluster
-                const targetZoom = Math.min(zoom + 3, 18);
+                // Always use setCamera with calculated targetZoom
+                // This ensures the zoom matches our eps table for consistent splitting
+                cameraRef.current.setCamera({
+                    centerCoordinate: [centerLng, centerLat],
+                    zoomLevel: Math.min(targetZoom, 18),
+                    animationDuration: 600,
+                    animationMode: 'flyTo',
+                });
                 
-                log.debug('No expansion bounds, using fixed zoom', { 
+                // Force refetch after animation
+                setTimeout(() => {
+                    log.debug('Forcing refetch after cluster expansion');
+                    refetchClusters();
+                }, 700);
+            } else {
+                // No expansion bounds - zoom in by fixed amount
+                const zoomIncrement = pointCount > 100 ? 3 : pointCount > 20 ? 4 : 5;
+                const targetZoom = Math.min(zoom + zoomIncrement, 18);
+                
+                log.debug('No expansion bounds, zooming by increment', { 
                     from: zoom, 
-                    to: targetZoom 
+                    to: targetZoom,
+                    pointCount,
+                    zoomIncrement
                 });
 
                 cameraRef.current.setCamera({
                     centerCoordinate: [lng, lat],
                     zoomLevel: targetZoom,
                     animationDuration: 600,
-                    animationMode: 'easeTo',
+                    animationMode: 'flyTo',
                 });
+                
+                setTimeout(() => {
+                    refetchClusters();
+                }, 700);
             }
         },
-        [isMapReady, zoom, cameraRef]
+        [isMapReady, zoom, cameraRef, refetchClusters]
     );
 
     const handleRoomPress = useCallback(
