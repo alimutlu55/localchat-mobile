@@ -11,7 +11,8 @@
  * - Screen unmounting while effects are still running
  *
  * State Machine → Navigation:
- * - unknown, loading, loggingOut → LoadingScreen (stable, prevents unmounting)
+ * - unknown, loading → LoadingScreen (stable, prevents unmounting)
+ * - loggingOut → Keep app screens mounted, show LoadingScreen overlay (prevents map marker crashes)
  * - guest, authenticating → AuthNavigator
  * - authenticated → App screens
  *
@@ -21,6 +22,7 @@
  */
 
 import React from 'react';
+import { View, StyleSheet } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../features/auth';
 import { RootStackParamList } from './types';
@@ -49,16 +51,9 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
 export function RootNavigator() {
     const { status, isTransitioning } = useAuth();
 
-    // CRITICAL: Show loading during ALL transition states
-    // This prevents screens from unmounting while cleanup is in progress
-    // States: 'unknown' | 'loading' | 'loggingOut'
-    //
-    // Note: We explicitly check for 'loggingOut' to keep screens mounted
-    // until cleanup is complete. This prevents crashes from:
-    // - EventBus handlers running with null userId
-    // - useEffect cleanups accessing cleared stores
-    // - Navigation happening during async operations
-    if (status === 'unknown' || status === 'loading' || status === 'loggingOut') {
+    // CRITICAL: Show loading during initial transition states ONLY
+    // For 'loggingOut', we keep screens mounted to prevent map marker crashes
+    if (status === 'unknown' || status === 'loading') {
         return <LoadingScreen />;
     }
 
@@ -67,75 +62,98 @@ export function RootNavigator() {
     // 'authenticating' = login/register in progress (keep auth screens visible)
     const showAuthScreens = status === 'guest' || status === 'authenticating';
 
+    // CRITICAL: During loggingOut, keep app screens mounted but show loading overlay
+    // This prevents map markers from unmounting while Fabric is recycling views
+    const showLoadingOverlay = status === 'loggingOut';
+
     return (
-        <Stack.Navigator
-            screenOptions={{
-                headerShown: false,
-                // Use fade for smoother transitions between stacks
-                animation: 'fade',
-                animationDuration: 200,
-                contentStyle: { backgroundColor: '#ffffff' },
-            }}
-        >
-            {showAuthScreens ? (
-                // Auth Flow
-                <Stack.Screen
-                    name="Auth"
-                    component={AuthNavigator}
-                    options={{
-                        animation: 'fade',
-                    }}
-                />
-            ) : (
-                // App Flow - only when status === 'authenticated'
-                <>
+        <View style={styles.container}>
+            <Stack.Navigator
+                screenOptions={{
+                    headerShown: false,
+                    // Use fade for smoother transitions between stacks
+                    animation: 'fade',
+                    animationDuration: 200,
+                    contentStyle: { backgroundColor: '#ffffff' },
+                }}
+            >
+                {showAuthScreens ? (
+                    // Auth Flow
                     <Stack.Screen
-                        name="Discovery"
-                        component={DiscoveryScreen}
+                        name="Auth"
+                        component={AuthNavigator}
                         options={{
                             animation: 'fade',
                         }}
                     />
+                ) : (
+                    // App Flow - only when status === 'authenticated' or 'loggingOut'
+                    <>
+                        <Stack.Screen
+                            name="Discovery"
+                            component={DiscoveryScreen}
+                            options={{
+                                animation: 'fade',
+                            }}
+                        />
 
-                    {/* Standalone Screens - use slide animation within app */}
-                    <Stack.Screen
-                        name="ChatRoom"
-                        component={ChatRoomScreen}
-                        options={{
-                            headerShown: false,
-                            gestureEnabled: true,
-                            animation: 'slide_from_right',
-                        }}
-                    />
-                    <Stack.Screen
-                        name="RoomDetails"
-                        component={RoomDetailsScreen}
-                        options={{
-                            presentation: 'transparentModal',
-                            animation: 'slide_from_bottom',
-                            contentStyle: { backgroundColor: 'transparent' },
-                        }}
-                    />
-                    <Stack.Screen
-                        name="RoomInfo"
-                        component={RoomInfoScreen}
-                        options={{
-                            headerShown: false,
-                            animation: 'slide_from_right',
-                        }}
-                    />
-                    <Stack.Screen
-                        name="CreateRoom"
-                        component={CreateRoomScreen}
-                        options={{ presentation: 'fullScreenModal' }}
-                    />
-                    <Stack.Screen name="Settings" component={SettingsScreen} />
-                    <Stack.Screen name="EditProfile" component={EditProfileScreen} />
-                    <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-                </>
+                        {/* Standalone Screens - use slide animation within app */}
+                        <Stack.Screen
+                            name="ChatRoom"
+                            component={ChatRoomScreen}
+                            options={{
+                                headerShown: false,
+                                gestureEnabled: true,
+                                animation: 'slide_from_right',
+                            }}
+                        />
+                        <Stack.Screen
+                            name="RoomDetails"
+                            component={RoomDetailsScreen}
+                            options={{
+                                presentation: 'transparentModal',
+                                animation: 'slide_from_bottom',
+                                contentStyle: { backgroundColor: 'transparent' },
+                            }}
+                        />
+                        <Stack.Screen
+                            name="RoomInfo"
+                            component={RoomInfoScreen}
+                            options={{
+                                headerShown: false,
+                                animation: 'slide_from_right',
+                            }}
+                        />
+                        <Stack.Screen
+                            name="CreateRoom"
+                            component={CreateRoomScreen}
+                            options={{ presentation: 'fullScreenModal' }}
+                        />
+                        <Stack.Screen name="Settings" component={SettingsScreen} />
+                        <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+                        <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+                    </>
+                )}
+            </Stack.Navigator>
+
+            {/* Loading overlay during logout - keeps screens mounted */}
+            {showLoadingOverlay && (
+                <View style={styles.loadingOverlay}>
+                    <LoadingScreen />
+                </View>
             )}
-        </Stack.Navigator>
+        </View>
     );
 }
+
+const styles = StyleSheet.create({
+    container: {
+        flex: 1,
+    },
+    loadingOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        zIndex: 9999,
+    },
+});
 
 export default RootNavigator;

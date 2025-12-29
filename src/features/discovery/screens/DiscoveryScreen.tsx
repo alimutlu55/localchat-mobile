@@ -26,7 +26,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
     MapView,
     Camera,
-    MarkerView,
+    PointAnnotation,
 } from '@maplibre/maplibre-react-native';
 import { Plus, Minus, Navigation, Menu, Map as MapIcon, List, Globe } from 'lucide-react-native';
 
@@ -40,6 +40,7 @@ import { Room, ClusterFeature } from '../../../types';
 import { useUIActions } from '../../../context';
 
 // Features
+import { useAuth } from '../../auth/hooks/useAuth';
 import { useJoinRoom, useMyRooms, useRoomDiscovery } from '../../rooms/hooks';
 
 // Components
@@ -74,6 +75,30 @@ export default function DiscoveryScreen() {
     const [viewMode, setViewMode] = useState<ViewMode>('map');
 
     // ==========================================================================
+    // Auth Status - MUST be first to prevent scoping issues
+    // ==========================================================================
+
+    // Auth Status - Check for logout to prevent map recycling crash
+    const { status: authStatus } = useAuth();
+
+    // Use ref to track logout state synchronously (no re-render delay)
+    const isLoggingOutRef = useRef(false);
+
+    // CRITICAL: Update ref synchronously during render when logout detected
+    // This happens BEFORE navigation unmounts the screen
+    if (authStatus === 'loggingOut' && !isLoggingOutRef.current) {
+        log.debug('[LOGOUT DEBUG] Logout detected! Hiding markers synchronously');
+        isLoggingOutRef.current = true;
+    } else if (authStatus !== 'loggingOut' && isLoggingOutRef.current) {
+        isLoggingOutRef.current = false;
+    }
+
+    // Log auth status changes for debugging
+    useEffect(() => {
+        log.debug('[LOGOUT DEBUG] Auth status changed', { authStatus, isLoggingOut: isLoggingOutRef.current });
+    }, [authStatus]);
+
+    // ==========================================================================
     // Map Initialization & Smooth Transitions
     // ==========================================================================
 
@@ -84,8 +109,23 @@ export default function DiscoveryScreen() {
     // Track if initial data has loaded - prevent marker rendering during first fetch
     const [hasInitialData, setHasInitialData] = useState(false);
 
-    // Combined flag: only render markers when BOTH map is stable AND we have data
-    const canRenderMarkers = isMapStable && hasInitialData;
+    // Combined flag: only render markers when BOTH map is stable AND we have data AND not logging out
+    // CRITICAL: Prevents "Attempt to recycle a mounted view" crash during logout
+    //  Using ref for synchronous logout detection without waiting for re-render
+    const canRenderMarkers = isMapStable && hasInitialData && authStatus !== 'loggingOut' && !isLoggingOutRef.current;
+
+    // Log canRenderMarkers changes for debugging
+    useEffect(() => {
+        log.debug('[LOGOUT DEBUG] canRenderMarkers changed', {
+            canRenderMarkers,
+            isMapStable,
+            hasInitialData,
+            authStatus,
+            reason: !canRenderMarkers
+                ? `Markers hidden: ${!isMapStable ? 'map not stable' : !hasInitialData ? 'no data' : authStatus === 'loggingOut' ? 'LOGGING OUT' : 'unknown'}`
+                : 'Markers visible'
+        });
+    }, [canRenderMarkers, isMapStable, hasInitialData, authStatus]);
 
     // Map overlay opacity - fades out to reveal map smoothly
     const mapOverlayOpacity = useRef(new Animated.Value(1)).current;
@@ -223,6 +263,24 @@ export default function DiscoveryScreen() {
             return () => clearTimeout(timer);
         }
     }, [serverFeatures.length, isLoadingClusters, hasInitialData]);
+
+    // Log screen lifecycle for debugging logout crash
+    useEffect(() => {
+        log.debug('[LOGOUT DEBUG] DiscoveryScreen MOUNTED');
+        return () => {
+            log.debug('[LOGOUT DEBUG] DiscoveryScreen UNMOUNTING');
+        };
+    }, []);
+
+    // Log marker rendering count
+    useEffect(() => {
+        const markerCount = canRenderMarkers ? serverFeatures.length : 0;
+        log.debug('[LOGOUT DEBUG] Rendering markers', {
+            canRenderMarkers,
+            markerCount,
+            userLocationVisible: canRenderMarkers && !!userLocation
+        });
+    }, [canRenderMarkers, serverFeatures.length, userLocation]);
 
     const { join: joinRoomHook } = useJoinRoom();
     const { activeRooms: myActiveRooms } = useMyRooms();
@@ -485,13 +543,17 @@ export default function DiscoveryScreen() {
 
     return (
         <View style={styles.container}>
-            {/* Map View */}
+            {/* Map View - Hide visually during logout but keep mounted to prevent Fabric crashes */}
             <Animated.View
                 style={[
                     styles.mapContainer,
-                    { opacity: listOpacity.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) },
+                    {
+                        opacity: listOpacity.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
+                        // Hide map during logout without unmounting
+                        ...(authStatus === 'loggingOut' && { opacity: 0 })
+                    },
                 ]}
-                pointerEvents={viewMode === 'list' ? 'none' : 'auto'}
+                pointerEvents={viewMode === 'list' || authStatus === 'loggingOut' ? 'none' : 'auto'}
             >
                 <MapView
                     ref={mapRef}
@@ -516,13 +578,17 @@ export default function DiscoveryScreen() {
 
 
                     {/* User Location Marker - Animated pulse to show user's position */}
-                    {canRenderMarkers && userLocation && (
-                        <MarkerView
+                    {userLocation && (
+                        <PointAnnotation
                             id="user-location"
                             coordinate={[userLocation.longitude, userLocation.latitude]}
                             anchor={{ x: 0.5, y: 0.5 }}
                         >
-                            <View style={styles.userLocationMarkerContainer}>
+                            <View style={[
+                                styles.userLocationMarkerContainer,
+                                // Hide marker visually if not ready, without unmounting
+                                !canRenderMarkers && { opacity: 0 }
+                            ]}>
                                 <Animated.View
                                     style={[
                                         styles.userLocationPulse,
@@ -531,39 +597,46 @@ export default function DiscoveryScreen() {
                                 />
                                 <View style={styles.userLocationDot} />
                             </View>
-                        </MarkerView>
+                        </PointAnnotation>
                     )}
 
-                    {/* Server-Side Clustered Markers - Privacy protection handled by backend (zoom > 12 returns empty) */}
-                    {canRenderMarkers &&
-                        serverFeatures.map((feature) => {
-                            if (feature.properties.cluster) {
-                                // Cluster marker
-                                if (feature.properties.clusterId == null) {
-                                    return null;
-                                }
-                                return (
-                                    <ServerClusterMarker
-                                        key={`server-cluster-${feature.properties.clusterId}`}
-                                        feature={feature}
-                                        onPress={handleServerClusterPress}
-                                    />
-                                );
-                            }
-
-                            // Individual room marker
-                            if (!feature.properties.roomId) {
+                    {/* Server-Side Clustered Markers - Always rendered but hidden with opacity when not ready */}
+                    {serverFeatures.map((feature) => {
+                        if (feature.properties.cluster) {
+                            // Cluster marker
+                            if (feature.properties.clusterId == null) {
                                 return null;
                             }
                             return (
+                                <View
+                                    key={`server-cluster-${feature.properties.clusterId}`}
+                                    style={!canRenderMarkers && { opacity: 0 }}
+                                >
+                                    <ServerClusterMarker
+                                        feature={feature}
+                                        onPress={handleServerClusterPress}
+                                    />
+                                </View>
+                            );
+                        }
+
+                        // Individual room marker
+                        if (!feature.properties.roomId) {
+                            return null;
+                        }
+                        return (
+                            <View
+                                key={`server-room-${feature.properties.roomId}`}
+                                style={!canRenderMarkers && { opacity: 0 }}
+                            >
                                 <ServerRoomMarker
-                                    key={`server-room-${feature.properties.roomId}`}
                                     feature={feature}
                                     isSelected={selectedFeature?.properties.roomId === feature.properties.roomId}
                                     onPress={handleServerRoomPress}
                                 />
-                            );
-                        })}
+                            </View>
+                        );
+                    })}
                 </MapView>
 
                 {/* Map Loading Overlay - Fades out when map is ready */}

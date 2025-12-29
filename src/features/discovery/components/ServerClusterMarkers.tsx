@@ -7,7 +7,7 @@
 
 import React, { memo } from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
-import { MarkerView } from '@maplibre/maplibre-react-native';
+import { PointAnnotation } from '@maplibre/maplibre-react-native';
 import { RoomPin } from './RoomPin';
 import { MapCluster } from './MapCluster';
 import { Room, ClusterFeature } from '../../../types';
@@ -28,6 +28,14 @@ export const ServerRoomMarker = memo(function ServerRoomMarker({
   onPress
 }: ServerRoomMarkerProps) {
   const { properties, geometry } = feature;
+
+  // Log mount/unmount for debugging
+  React.useEffect(() => {
+    console.log('[LOGOUT DEBUG] ServerRoomMarker MOUNTED', { roomId: properties.roomId });
+    return () => {
+      console.log('[LOGOUT DEBUG] ServerRoomMarker UNMOUNTING', { roomId: properties.roomId });
+    };
+  }, [properties.roomId]);
 
   // Skip if not a room or missing coordinates
   if (properties.cluster || !properties.roomId || !geometry?.coordinates) {
@@ -65,22 +73,17 @@ export const ServerRoomMarker = memo(function ServerRoomMarker({
   ]);
 
   return (
-    <MarkerView
+    <PointAnnotation
       key={`server-room-${properties.roomId}`}
       id={`server-room-${properties.roomId}`}
       coordinate={[lng, lat]}
       anchor={{ x: 0.5, y: 0.5 }}
+      onSelected={() => onPress(feature)}
     >
-      <TouchableOpacity
-        onPress={() => onPress(feature)}
-        activeOpacity={0.8}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-      >
-        <View style={styles.markerContainer}>
-          <RoomPin room={roomForPin as Room} isSelected={isSelected} />
-        </View>
-      </TouchableOpacity>
-    </MarkerView>
+      <View style={styles.markerContainer}>
+        <RoomPin room={roomForPin as Room} isSelected={isSelected} />
+      </View>
+    </PointAnnotation>
   );
 }, (prevProps, nextProps) => {
   // Enhanced comparison to prevent re-renders
@@ -122,20 +125,15 @@ export const ServerClusterMarker = memo(function ServerClusterMarker({
   }
 
   return (
-    <MarkerView
+    <PointAnnotation
       key={`server-cluster-${properties.clusterId}`}
       id={`server-cluster-${properties.clusterId}`}
       coordinate={[lng, lat]}
       anchor={{ x: 0.5, y: 0.5 }}
+      onSelected={() => onPress(feature)}
     >
-      <TouchableOpacity
-        onPress={() => onPress(feature)}
-        activeOpacity={0.8}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-      >
-        <MapCluster count={properties.pointCount || 0} />
-      </TouchableOpacity>
-    </MarkerView>
+      <MapCluster count={properties.pointCount || 0} />
+    </PointAnnotation>
   );
 }, (prevProps, nextProps) => {
   return (
