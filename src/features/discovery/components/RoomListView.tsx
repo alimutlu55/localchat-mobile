@@ -367,8 +367,8 @@ export function RoomListView({
         autoFetch: false,
     });
 
-    // Use passed user location or default (use both formats for compatibility)
-    const userLocation = userLocationProp || { latitude: 41.0082, longitude: 28.9784, lat: 41.0082, lng: 28.9784 };
+    // Use passed user location or null
+    const userLocation = userLocationProp;
 
     // Helper to get room distance (calculate if not provided)
     const getRoomDistance = useCallback((room: Room): number => {

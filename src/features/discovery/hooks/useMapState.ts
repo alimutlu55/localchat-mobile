@@ -21,7 +21,7 @@
  * ```
  */
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback, useRef, useEffect } from 'react';
 import { MapViewRef, CameraRef } from '@maplibre/maplibre-react-native';
 import { createLogger } from '../../../shared/utils/logger';
 
@@ -56,6 +56,8 @@ export interface UseMapStateReturn {
   centerCoord: [number, number];
   /** Whether map has finished loading */
   isMapReady: boolean;
+  /** Whether bounds have been initialized from actual map viewport */
+  hasBoundsInitialized: boolean;
   /** Whether map is currently moving */
   isMapMoving: boolean;
   /** Call when map finishes loading */
@@ -84,7 +86,7 @@ export interface UseMapStateReturn {
 
 export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn {
   const {
-    defaultCenter = { latitude: 41.0082, longitude: 28.9784 }, // Istanbul
+    defaultCenter,
     defaultZoom = 13,
     minZoom = 1,
     maxZoom = 18,
@@ -96,13 +98,56 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
 
   // State
   const [isMapReady, setIsMapReady] = useState(false);
+  const [hasBoundsInitialized, setHasBoundsInitialized] = useState(false);
   const [isMapMoving, setIsMapMoving] = useState(false);
   const [zoom, setZoom] = useState(defaultZoom);
-  const [bounds, setBounds] = useState<[number, number, number, number]>([-180, -85, 180, 85]);
-  const [centerCoord, setCenterCoord] = useState<[number, number]>([
-    defaultCenter.longitude,
-    defaultCenter.latitude,
-  ]);
+
+  // Helper to calculate bounds from a coordinate
+  const calculateInitialBounds = (coord: MapCoordinate): [number, number, number, number] => {
+    // Calculate ~50km viewport around center for zoom 13
+    const latOffset = 0.03; // ~3km
+    const lngOffset = 0.04; // ~4km
+    return [
+      coord.longitude - lngOffset,
+      coord.latitude - latOffset,
+      coord.longitude + lngOffset,
+      coord.latitude + latOffset,
+    ];
+  };
+
+  // Start with world view or provided default
+  const [bounds, setBounds] = useState<[number, number, number, number]>(() => {
+    if (defaultCenter) {
+      return calculateInitialBounds(defaultCenter);
+    }
+    return [-180, -85, 180, 85];
+  });
+
+  const [centerCoord, setCenterCoord] = useState<[number, number]>(() => {
+    if (defaultCenter) {
+      return [defaultCenter.longitude, defaultCenter.latitude];
+    }
+    return [0, 0];
+  });
+
+  // Update state when defaultCenter changes (initialization only)
+  // This allows the map to jump to the user's location as soon as it's fetched
+  useEffect(() => {
+    if (defaultCenter && !hasBoundsInitialized && !isMapMoving) {
+      log.debug('Updating map state from new defaultCenter', defaultCenter);
+      setCenterCoord([defaultCenter.longitude, defaultCenter.latitude]);
+      setBounds(calculateInitialBounds(defaultCenter));
+
+      // If camera is already available, sync it immediately
+      if (cameraRef.current) {
+        cameraRef.current.setCamera({
+          centerCoordinate: [defaultCenter.longitude, defaultCenter.latitude],
+          zoomLevel: defaultZoom,
+          animationDuration: 0,
+        });
+      }
+    }
+  }, [defaultCenter, hasBoundsInitialized, isMapMoving, defaultZoom]);
 
   // ==========================================================================
   // Event Handlers
@@ -130,6 +175,11 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
       if (visibleBounds && visibleBounds.length === 2) {
         const [ne, sw] = visibleBounds;
         setBounds([sw[0], sw[1], ne[0], ne[1]]);
+        // Mark bounds as initialized after first real update from map
+        if (!hasBoundsInitialized) {
+          setHasBoundsInitialized(true);
+          log.debug('Bounds initialized from map', { bounds: [sw[0], sw[1], ne[0], ne[1]] });
+        }
       }
 
       if (center) {
@@ -144,7 +194,7 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
       log.error('Error getting map state', error);
       setIsMapMoving(false);
     }
-  }, []);
+  }, [hasBoundsInitialized]);
 
   // ==========================================================================
   // Animation Helpers
@@ -240,6 +290,7 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
     bounds,
     centerCoord,
     isMapReady,
+    hasBoundsInitialized,
     isMapMoving,
     handleMapReady,
     handleRegionWillChange,

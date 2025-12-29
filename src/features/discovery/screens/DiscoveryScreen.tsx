@@ -118,6 +118,7 @@ export default function DiscoveryScreen() {
         bounds,
         centerCoord,
         isMapReady,
+        hasBoundsInitialized,
         handleMapReady,
         handleRegionWillChange,
         handleRegionDidChange,
@@ -170,6 +171,7 @@ export default function DiscoveryScreen() {
     }, [isMapReady, mapOverlayOpacity, markersOpacity]);
 
     // Server-side clustering - fetches pre-clustered data from backend
+    // Only enable when both map is ready AND bounds have been initialized from actual viewport
     const {
         features: serverFeatures,
         isLoading: isLoadingClusters,
@@ -178,8 +180,8 @@ export default function DiscoveryScreen() {
     } = useServerClustering({
         bounds,
         zoom,
-        enabled: isMapReady,
-        isMapReady,
+        enabled: isMapReady && hasBoundsInitialized,
+        isMapReady: isMapReady && hasBoundsInitialized,
     });
 
     // Track when we have initial data to prevent marker rendering during first fetch
