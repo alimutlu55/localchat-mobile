@@ -566,7 +566,7 @@ export default function DiscoveryScreen() {
                         <Navigation size={20} color={userLocation ? '#2563eb' : '#6b7280'} />
                     </TouchableOpacity>
 
-                    {zoom > 3 && (
+                    {zoom > 1 && (
                         <TouchableOpacity style={styles.controlButton} onPress={resetToWorldView} activeOpacity={0.7}>
                             <Globe size={20} color="#f97316" />
                         </TouchableOpacity>
