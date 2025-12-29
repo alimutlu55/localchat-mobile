@@ -112,7 +112,8 @@ export function RootNavigator() {
                         component={RoomDetailsScreen}
                         options={{
                             presentation: 'transparentModal',
-                            animation: 'slide_from_bottom'
+                            animation: 'slide_from_bottom',
+                            contentStyle: { backgroundColor: 'transparent' },
                         }}
                     />
                     <Stack.Screen

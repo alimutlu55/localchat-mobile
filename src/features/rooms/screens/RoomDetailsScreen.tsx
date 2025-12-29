@@ -21,6 +21,7 @@ import {
   ActivityIndicator,
   Alert,
   Share,
+  Dimensions,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -117,16 +118,20 @@ export default function RoomDetailsScreen() {
   // Guard: roomId is required
   if (!roomId) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.closeButton}
             onPress={() => navigation.goBack()}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
             <X size={24} color="#6b7280" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Room Not Found</Text>
+          <Text style={styles.headerTitle}>Room Details</Text>
           <View style={styles.headerSpacer} />
+        </View>
+        <View style={styles.errorContent}>
+          <Text style={styles.errorTitle}>Room Not Found</Text>
         </View>
       </SafeAreaView>
     );
@@ -150,19 +155,21 @@ export default function RoomDetailsScreen() {
   // Handle case where room data is not available
   if (!room && !isRoomLoading) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.closeButton}
             onPress={() => navigation.goBack()}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
             <X size={24} color="#6b7280" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Room Not Found</Text>
+          <Text style={styles.headerTitle}>Room Details</Text>
           <View style={styles.headerSpacer} />
         </View>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
-          <Text style={{ color: '#6b7280', fontSize: 16 }}>This room is no longer available.</Text>
+        <View style={styles.errorContent}>
+          <Text style={styles.errorTitle}>Room Not Found</Text>
+          <Text style={styles.errorText}>This room is no longer available.</Text>
         </View>
       </SafeAreaView>
     );
@@ -171,19 +178,21 @@ export default function RoomDetailsScreen() {
   // Show loading while we don't have room data
   if (!room) {
     return (
-      <SafeAreaView style={styles.container} edges={['top']}>
+      <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
         <View style={styles.header}>
           <TouchableOpacity
             style={styles.closeButton}
             onPress={() => navigation.goBack()}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
           >
             <X size={24} color="#6b7280" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Loading...</Text>
+          <Text style={styles.headerTitle}>Room Details</Text>
           <View style={styles.headerSpacer} />
         </View>
-        <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
+        <View style={styles.loadingContent}>
           <ActivityIndicator size="large" color="#f97316" />
+          <Text style={styles.loadingText}>Loading room...</Text>
         </View>
       </SafeAreaView>
     );
@@ -453,16 +462,17 @@ export default function RoomDetailsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container} edges={['top']}>
-      {/* Header */}
+    <SafeAreaView style={styles.container} edges={['top', 'bottom']}>
+      {/* Header with Close Button */}
       <View style={styles.header}>
         <TouchableOpacity
           style={styles.closeButton}
           onPress={() => navigation.goBack()}
+          hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
         >
           <X size={24} color="#6b7280" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Room Info</Text>
+        <Text style={styles.headerTitle}>Room Details</Text>
         <View style={styles.headerSpacer} />
       </View>
 
@@ -689,10 +699,12 @@ export default function RoomDetailsScreen() {
   );
 }
 
+const { height: SCREEN_HEIGHT } = Dimensions.get('window');
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f9fafb',
+    backgroundColor: '#ffffff',
   },
   header: {
     flexDirection: 'row',
@@ -700,18 +712,19 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    backgroundColor: '#ffffff',
     borderBottomWidth: 1,
-    borderBottomColor: '#e5e7eb',
+    borderBottomColor: '#f3f4f6',
   },
   closeButton: {
     width: 40,
     height: 40,
+    borderRadius: 20,
+    backgroundColor: '#f3f4f6',
     justifyContent: 'center',
     alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '600',
     color: '#1f2937',
   },
@@ -953,14 +966,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     paddingHorizontal: 16,
     paddingVertical: 12,
-    paddingBottom: 20,
+    paddingBottom: 16,
     borderTopWidth: 1,
-    borderTopColor: '#e5e7eb',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: -2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 8,
+    borderTopColor: '#f3f4f6',
   },
   leaveLinkContainer: {
     paddingVertical: 12,
@@ -1035,6 +1043,42 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: '#166534',
+  },
+  // Error and Loading states
+  errorCard: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 24,
+  },
+  errorContent: {
+    alignItems: 'center',
+    gap: 8,
+  },
+  errorTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#1f2937',
+    textAlign: 'center',
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#6b7280',
+    textAlign: 'center',
+  },
+  loadingCard: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 60,
+    paddingHorizontal: 24,
+  },
+  loadingContent: {
+    alignItems: 'center',
+    gap: 12,
+  },
+  loadingText: {
+    fontSize: 14,
+    color: '#6b7280',
   },
 });
 
