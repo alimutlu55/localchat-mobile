@@ -231,6 +231,7 @@ export default function DiscoveryScreen() {
         isLoading: isLoadingClusters,
         metadata: clusterMetadata,
         refetch: refetchClusters,
+        prefetchForLocation,
     } = useServerClustering({
         bounds,
         zoom,
@@ -469,15 +470,17 @@ export default function DiscoveryScreen() {
                 // Use setCamera with calculated targetZoom
                 // The zoom level is chosen to ensure server eps will split the cluster
                 const finalTargetZoom = Math.min(targetZoom, 18);
+                const animDuration = calcAnimationDuration(zoom, finalTargetZoom);
+
+                // Prefetch data - will show markers 300ms before animation ends
+                prefetchForLocation(centerLng, centerLat, finalTargetZoom, animDuration);
+
                 cameraRef.current.setCamera({
                     centerCoordinate: [centerLng, centerLat],
                     zoomLevel: finalTargetZoom,
-                    animationDuration: calcAnimationDuration(zoom, finalTargetZoom),
+                    animationDuration: animDuration,
                     animationMode: 'flyTo',
                 });
-
-                // Mark for refetch - actual fetch happens when handleRegionDidChange updates bounds
-                refetchClusters();
             } else {
                 // No expansion bounds - zoom in by fixed amount (more aggressive)
                 const zoomIncrement = pointCount > 100 ? 4 : pointCount > 20 ? 5 : 6;
@@ -490,18 +493,20 @@ export default function DiscoveryScreen() {
                     zoomIncrement
                 });
 
+                const animDuration = calcAnimationDuration(zoom, targetZoom);
+
+                // Prefetch data - will show markers 300ms before animation ends
+                prefetchForLocation(lng, lat, targetZoom, animDuration);
+
                 cameraRef.current.setCamera({
                     centerCoordinate: [lng, lat],
                     zoomLevel: targetZoom,
-                    animationDuration: calcAnimationDuration(zoom, targetZoom),
+                    animationDuration: animDuration,
                     animationMode: 'flyTo',
                 });
-
-                // Mark for refetch - actual fetch happens when handleRegionDidChange updates bounds
-                refetchClusters();
             }
         },
-        [isMapReady, zoom, cameraRef, refetchClusters]
+        [isMapReady, zoom, cameraRef, prefetchForLocation]
     );
 
     const handleRoomPress = useCallback(

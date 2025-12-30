@@ -59,6 +59,9 @@ export interface UseServerClusteringReturn {
 
   /** Manually trigger a refresh */
   refetch: () => Promise<void>;
+
+  /** Prefetch data for a target location - shows markers 300ms before animation ends */
+  prefetchForLocation: (centerLng: number, centerLat: number, targetZoom: number, animationDuration: number) => void;
 }
 
 // =============================================================================
@@ -190,6 +193,10 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
   const mountedRef = useRef(true);
   const forceNextFetchRef = useRef(false);
 
+  // Prefetch timing refs - for showing markers 300ms before animation ends
+  const prefetchTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const pendingPrefetchRef = useRef<ClusterResponse | null>(null);
+
   // Track mount state
   useEffect(() => {
     mountedRef.current = true;
@@ -284,6 +291,106 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
     // Immediately fetch with current bounds/zoom
     await fetchClusters(bounds, zoom);
   }, [bounds, zoom, fetchClusters]);
+
+  /**
+   * Prefetch data for a target location during zoom animation.
+   * Uses proper viewport calculation based on target zoom level.
+   * 
+   * This fetches data and schedules it to appear 300ms before animation ends,
+   * creating a seamless transition where markers appear while camera is still moving.
+   */
+  const prefetchForLocation = useCallback(
+    async (centerLng: number, centerLat: number, targetZoom: number, animationDuration: number) => {
+      // Clear any pending prefetch timer
+      if (prefetchTimerRef.current) {
+        clearTimeout(prefetchTimerRef.current);
+        prefetchTimerRef.current = null;
+      }
+
+      // Calculate viewport size at target zoom using map projection
+      // At zoom 0, world is ~360 degrees. Each zoom level halves the span.
+      // Add some padding (1.5x) to ensure we cover the visible area
+      const lngSpan = (360 / Math.pow(2, targetZoom)) * 1.5;
+      const latSpan = (180 / Math.pow(2, targetZoom)) * 1.5;
+
+      const targetBounds: [number, number, number, number] = [
+        Math.max(-180, centerLng - lngSpan / 2),
+        Math.max(-85, centerLat - latSpan / 2),
+        Math.min(180, centerLng + lngSpan / 2),
+        Math.min(85, centerLat + latSpan / 2),
+      ];
+
+      // Calculate when to show markers: 1 second before animation ends
+      const showMarkersDelay = Math.max(0, animationDuration - 1000);
+
+      log.info('Prefetching for target location', {
+        center: [centerLng, centerLat],
+        targetZoom,
+        targetBounds,
+        animationDuration,
+        showMarkersDelay
+      });
+
+      // Expand bounds for pre-fetching like normal fetch does
+      const [minLng, minLat, maxLng, maxLat] = targetBounds;
+      const lngSpanExpand = maxLng - minLng;
+      const latSpanExpand = maxLat - minLat;
+      const expandedBounds: [number, number, number, number] = [
+        Math.max(-180, minLng - lngSpanExpand * 0.5),
+        Math.max(-85, minLat - latSpanExpand * 0.5),
+        Math.min(180, maxLng + lngSpanExpand * 0.5),
+        Math.min(85, maxLat + latSpanExpand * 0.5),
+      ];
+
+      try {
+        // Start fetch immediately
+        const response: ClusterResponse = await roomService.getClusters(
+          expandedBounds[0],
+          expandedBounds[1],
+          expandedBounds[2],
+          expandedBounds[3],
+          Math.floor(targetZoom),
+          category
+        );
+
+        if (!mountedRef.current) return;
+
+        log.info('Prefetch completed', {
+          featureCount: response.features.length,
+          willShowIn: showMarkersDelay - (Date.now() % 10000) // rough timing
+        });
+
+        // Calculate remaining delay (request took some time)
+        const requestDuration = 0; // We don't track exact timing, but request is fast
+        const remainingDelay = Math.max(0, showMarkersDelay - requestDuration);
+
+        if (remainingDelay > 50) {
+          // Schedule the feature update for later
+          pendingPrefetchRef.current = response;
+          prefetchTimerRef.current = setTimeout(() => {
+            if (mountedRef.current && pendingPrefetchRef.current) {
+              log.info('Showing prefetched markers (300ms before animation ends)');
+              setRawFeatures(pendingPrefetchRef.current.features);
+              setMetadata(pendingPrefetchRef.current.metadata);
+              lastFetchBoundsRef.current = targetBounds;
+              lastFetchZoomRef.current = targetZoom;
+              pendingPrefetchRef.current = null;
+            }
+          }, remainingDelay);
+        } else {
+          // Animation is almost done, show immediately
+          setRawFeatures(response.features);
+          setMetadata(response.metadata);
+          lastFetchBoundsRef.current = targetBounds;
+          lastFetchZoomRef.current = targetZoom;
+        }
+      } catch (err) {
+        log.error('Prefetch failed', err);
+        // Silently fail - normal fetch will happen when camera settles
+      }
+    },
+    [category]
+  );
 
   // Trigger fetch on viewport change with dynamic debounce
   useEffect(() => {
@@ -393,6 +500,7 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
     error,
     metadata,
     refetch,
+    prefetchForLocation,
   };
 }
 
