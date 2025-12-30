@@ -88,6 +88,7 @@ type ChatRoomRouteProp = RouteProp<RootStackParamList, 'ChatRoom'>;
 
 function useBlockedUsers() {
   const [blockedUserIds, setBlockedUserIds] = useState<Set<string>>(new Set());
+  const [isLoaded, setIsLoaded] = useState(false);
 
   useEffect(() => {
     const loadBlockedUsers = async () => {
@@ -96,6 +97,8 @@ function useBlockedUsers() {
         setBlockedUserIds(new Set(blockedUsers.map((u) => u.blockedId)));
       } catch (err) {
         log.error('Failed to load blocked users', err);
+      } finally {
+        setIsLoaded(true);
       }
     };
     loadBlockedUsers();
@@ -122,7 +125,7 @@ function useBlockedUsers() {
     [blockedUserIds]
   );
 
-  return { blockedUserIds, blockUser, isBlocked };
+  return { blockedUserIds, blockUser, isBlocked, isLoaded };
 }
 
 // =============================================================================
@@ -196,7 +199,7 @@ export default function ChatRoomScreen() {
   }, [navigation]);
 
   // Blocked Users Hook
-  const { blockedUserIds, blockUser, isBlocked } = useBlockedUsers();
+  const { blockedUserIds, blockUser, isBlocked, isLoaded: blockedUsersLoaded } = useBlockedUsers();
 
   // Chat Messages Hook
   const {
@@ -314,6 +317,9 @@ export default function ChatRoomScreen() {
 
   useEffect(() => {
     const checkForBlockedUsers = async () => {
+      // Wait for blocked users to be loaded before checking
+      if (!blockedUsersLoaded) return;
+
       // Only check if we have blocked users
       if (blockedUserIds.size === 0) return;
 
@@ -325,7 +331,12 @@ export default function ChatRoomScreen() {
 
         if (hasBlockedParticipant) {
           log.info('Blocked user detected in room', { roomId });
-          setShowBlockedWarning(true);
+          // Delay showing modal to ensure screen transition animation is complete
+          // This fixes the issue where modal was rendered but not visible when
+          // entering via navigation.replace() from RoomDetails
+          setTimeout(() => {
+            setShowBlockedWarning(true);
+          }, 400);
         }
       } catch (err) {
         log.error('Failed to check participants for blocked users', err);
@@ -333,7 +344,7 @@ export default function ChatRoomScreen() {
     };
 
     checkForBlockedUsers();
-  }, [roomId, blockedUserIds]);
+  }, [roomId, blockedUserIds, blockedUsersLoaded]);
 
   // ==========================================================================
   // Scroll Handling (for INVERTED list)
