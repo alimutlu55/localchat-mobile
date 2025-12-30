@@ -180,6 +180,17 @@ export function isConflictError(error: unknown): boolean {
 }
 
 /**
+ * Check if error indicates resource has already been reported
+ */
+export function isAlreadyReported(error: unknown): boolean {
+  const { message, code } = extractErrorDetails(error);
+  return (
+    code === ErrorCode.ALREADY_REPORTED ||
+    message.includes('already reported')
+  );
+}
+
+/**
  * Check if error is a network/connectivity error
  */
 export function isNetworkError(error: unknown): boolean {

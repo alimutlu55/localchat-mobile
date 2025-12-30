@@ -16,7 +16,13 @@ export const GlobalDrawers = React.memo(function GlobalDrawers() {
     const { logout } = useAuth();
 
     const handleRoomSelect = useCallback((room: any) => {
-        navigation.navigate('ChatRoom', { roomId: room.id, initialRoom: room });
+        // Serialize room for safe navigation (Dates to strings)
+        const serializedRoom = {
+            ...room,
+            expiresAt: room.expiresAt instanceof Date ? room.expiresAt.toISOString() : room.expiresAt,
+            createdAt: room.createdAt instanceof Date ? room.createdAt.toISOString() : room.createdAt,
+        };
+        navigation.navigate('ChatRoom', { roomId: room.id, initialRoom: serializedRoom });
         closeSidebar();
     }, [navigation, closeSidebar]);
 

@@ -57,6 +57,17 @@ import { createLogger } from '../../../shared/utils/logger';
 
 const log = createLogger('Discovery');
 
+/**
+ * Serializes a room object for safe navigation (replaces Dates with strings)
+ */
+const serializeRoom = (room: Room): any => {
+    return {
+        ...room,
+        expiresAt: room.expiresAt instanceof Date ? room.expiresAt.toISOString() : room.expiresAt,
+        createdAt: room.createdAt instanceof Date ? room.createdAt.toISOString() : room.createdAt,
+    };
+};
+
 // =============================================================================
 // Types
 // =============================================================================
@@ -492,10 +503,11 @@ export default function DiscoveryScreen() {
 
     const handleEnterRoom = useCallback(
         (room: Room) => {
+            const serializedRoom = serializeRoom(room);
             if (!room.hasJoined && !room.isCreator) {
-                navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: room });
+                navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: serializedRoom });
             } else {
-                navigation.navigate('ChatRoom', { roomId: room.id, initialRoom: room });
+                navigation.navigate('ChatRoom', { roomId: room.id, initialRoom: serializedRoom });
             }
         },
         [navigation]

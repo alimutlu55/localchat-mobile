@@ -40,9 +40,21 @@ import { BannedUsersModal } from '../components';
 import { ReportModal, ReportReason } from '../../../components/chat/ReportModal';
 import { AvatarDisplay } from '../../../components/profile';
 import { createLogger } from '../../../shared/utils/logger';
-import { isUserBanned } from '../../../shared/utils/errors';
+import { isUserBanned, isAlreadyReported } from '../../../shared/utils/errors';
 
 const log = createLogger('RoomDetails');
+
+/**
+ * Serializes a room object for safe navigation (replaces Dates with strings)
+ */
+const serializeRoom = (room: any): any => {
+  if (!room) return room;
+  return {
+    ...room,
+    expiresAt: room.expiresAt instanceof Date ? room.expiresAt.toISOString() : room.expiresAt,
+    createdAt: room.createdAt instanceof Date ? room.createdAt.toISOString() : room.createdAt,
+  };
+};
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'RoomDetails'>;
 type RoomDetailsRouteProp = RouteProp<RootStackParamList, 'RoomDetails'>;
@@ -192,8 +204,8 @@ export default function RoomDetailsScreen() {
 
   const [participants, setParticipants] = useState<ParticipantDTO[]>([]);
   const [recentMessages, setRecentMessages] = useState<ChatMessage[]>([]);
-  const [setIsLoading] = useState(true);
-  const [setIsLoadingMessages] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [showBannedUsersModal, setShowBannedUsersModal] = useState(false);
 
   // Report state
@@ -331,24 +343,27 @@ export default function RoomDetailsScreen() {
   }) => {
     try {
       await roomService.reportRoom(roomId, data.reason, data.details);
-      await leaveRoom(roomId);
-      navigation.popToTop();
     } catch (error) {
+      if (isAlreadyReported(error)) {
+        log.info('Room already reported, treating as success', { roomId });
+        return;
+      }
       log.error('Report submission failed', error);
       throw error;
     }
   };
 
   const handleJoin = async () => {
+    const serializedRoom = serializeRoom(room);
     if (hasJoined) {
-      navigation.replace('ChatRoom', { roomId, initialRoom: room });
+      navigation.replace('ChatRoom', { roomId, initialRoom: serializedRoom });
       return;
     }
 
     const result = await joinRoom(room);
 
     if (result.success) {
-      navigation.replace('ChatRoom', { roomId, initialRoom: room });
+      navigation.replace('ChatRoom', { roomId, initialRoom: serializedRoom });
     } else if (isUserBanned(result.error)) {
       Alert.alert(
         'Access Denied',

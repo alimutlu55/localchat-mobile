@@ -225,14 +225,7 @@ export function ReportModal({
                 </View>
               )}
 
-              {/* Info message for room reports */}
-              {targetType === 'room' && (
-                <View style={styles.infoBox}>
-                  <Text style={styles.infoText}>
-                    You'll be removed from this room after reporting. You can rejoin anytime.
-                  </Text>
-                </View>
-              )}
+
 
               {/* Submit Button */}
               <TouchableOpacity
@@ -471,21 +464,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     lineHeight: 24,
   },
-  infoBox: {
-    marginHorizontal: 20,
-    marginVertical: 12,
-    padding: 16,
-    backgroundColor: theme.tokens.status.info.bg,
-    borderRadius: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: theme.tokens.status.info.main,
-  },
-  infoText: {
-    fontSize: 14,
-    color: theme.tokens.status.info.main,
-    lineHeight: 20,
-  },
 });
 
 export default ReportModal;
-

@@ -477,8 +477,7 @@ export default function ChatRoomScreen() {
         }
       } else if (reportConfig.targetType === 'room') {
         await roomService.reportRoom(roomId, data.reason, data.details);
-        const result = await leaveRoom(roomId);
-        navigation.popToTop();
+        Alert.alert('Report Submitted', 'Thank you for your report or feedback.');
       }
     } catch (error) {
       log.error('Report submission failed', error);
@@ -699,9 +698,14 @@ export default function ChatRoomScreen() {
             </TouchableOpacity>
             <TouchableOpacity
               style={styles.leaveButton}
-              onPress={() => {
+              onPress={async () => {
                 setShowBlockedWarning(false);
-                navigation.goBack();
+                const result = await leaveRoom(roomId);
+                if (result.success) {
+                  navigation.popToTop();
+                } else {
+                  Alert.alert('Error', 'Failed to leave room');
+                }
               }}
             >
               <Text style={styles.leaveButtonText}>Leave Chat</Text>

@@ -38,6 +38,7 @@ import { eventBus } from '../../../core/events';
 import { AvatarDisplay } from '../../../components/profile';
 import { BannedUsersModal } from '../components';
 import { useRoom } from '../hooks';
+import { useRoomStore } from '../store/RoomStore';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'RoomInfo'>;
 type RoomInfoRouteProp = RouteProp<RootStackParamList, 'RoomInfo'>;
@@ -96,10 +97,16 @@ export default function RoomInfoScreen() {
      * Fetch participants for inline display and subscribe to membership events
      */
     const fetchParticipants = async () => {
+        if (!roomId) return;
         setIsLoadingParticipants(true);
         try {
             const data = await roomService.getParticipants(roomId);
             setParticipants(data);
+
+            // Sync with store to ensure other screens have accurate count
+            // We use getState() inside the async function to avoid hook usage issues
+            const state = useRoomStore.getState();
+            state.updateRoom(roomId, { participantCount: data.length });
         } catch (err) {
             console.error('Failed to fetch participants:', err);
         } finally {
@@ -266,7 +273,9 @@ export default function RoomInfoScreen() {
                                 <Users size={18} color="#6b7280" />
                                 <Text style={styles.gridLabel}>Participants</Text>
                             </View>
-                            <Text style={styles.gridValue}>{room.participantCount}/{room.maxParticipants}</Text>
+                            <Text style={styles.gridValue}>
+                                {Math.max(room.participantCount || 0, participants.length)}/{room.maxParticipants}
+                            </Text>
                         </View>
 
                         <View style={styles.gridItem}>

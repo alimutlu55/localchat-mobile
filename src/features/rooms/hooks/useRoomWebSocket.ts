@@ -25,7 +25,7 @@
 import { useEffect, useRef } from 'react';
 import { eventBus } from '../../../core/events';
 import { wsService, roomService } from '../../../services';
-import { useRoomStore } from '../store/RoomStore';
+import { useRoomStore } from '../store'; // Changed from '../store/RoomStore' to '../store'
 import { Room } from '../../../types';
 import { createLogger } from '../../../shared/utils/logger';
 
@@ -122,19 +122,19 @@ export function useRoomWebSocket(userId?: string): void {
 
     const handleRoomClosed = (payload: { roomId: string; closedBy: string }) => {
       log.info('Room closed', { roomId: payload.roomId, closedBy: payload.closedBy });
-      
+
       // Remove from joined rooms first
       removeJoinedRoom(payload.roomId);
-      
+
       // Then remove from store
       removeRoom(payload.roomId);
     };
 
     const handleRoomExpiring = (payload: { roomId: string; expiresAt: string; minutesRemaining: number }) => {
       log.info('Room expiring', { roomId: payload.roomId, minutesRemaining: payload.minutesRemaining });
-      
+
       // Update room status to 'expiring'
-      updateRoom(payload.roomId, { 
+      updateRoom(payload.roomId, {
         status: 'expiring',
         expiresAt: new Date(payload.expiresAt),
       } as Partial<Room>);
@@ -160,6 +160,12 @@ export function useRoomWebSocket(userId?: string): void {
       // Update participant count
       if (payload.participantCount !== undefined) {
         updateRoom(payload.roomId, { participantCount: payload.participantCount });
+      } else {
+        // Fallback: Optimistic increment if payload doesn't have count
+        const currentRoom = useRoomStore.getState().rooms.get(payload.roomId);
+        if (currentRoom) {
+          updateRoom(payload.roomId, { participantCount: (currentRoom.participantCount || 0) + 1 });
+        }
       }
 
       // If current user joined (from another device)
@@ -181,6 +187,12 @@ export function useRoomWebSocket(userId?: string): void {
       // Update participant count
       if (payload.participantCount !== undefined) {
         updateRoom(payload.roomId, { participantCount: payload.participantCount });
+      } else {
+        // Fallback: Optimistic decrement
+        const currentRoom = useRoomStore.getState().rooms.get(payload.roomId);
+        if (currentRoom && currentRoom.participantCount && currentRoom.participantCount > 0) {
+          updateRoom(payload.roomId, { participantCount: currentRoom.participantCount - 1 });
+        }
       }
 
       // If current user left
@@ -207,11 +219,11 @@ export function useRoomWebSocket(userId?: string): void {
       setTimeout(() => processedKickEvents.delete(eventKey), EVENT_DEDUP_TTL);
 
       const currentUserId = userIdRef.current;
-      log.info('User kicked event received', { 
-        kickedUserId: payload.kickedUserId, 
-        currentUserId, 
+      log.info('User kicked event received', {
+        kickedUserId: payload.kickedUserId,
+        currentUserId,
         roomId: payload.roomId,
-        isCurrentUser: payload.kickedUserId === currentUserId 
+        isCurrentUser: payload.kickedUserId === currentUserId
       });
 
       // If current user was kicked
@@ -247,9 +259,9 @@ export function useRoomWebSocket(userId?: string): void {
       processedBanEvents.add(eventKey);
       setTimeout(() => processedBanEvents.delete(eventKey), EVENT_DEDUP_TTL);
 
-      log.info('User banned event received', { 
-        bannedUserId: payload.bannedUserId, 
-        roomId: payload.roomId 
+      log.info('User banned event received', {
+        bannedUserId: payload.bannedUserId,
+        roomId: payload.roomId
       });
 
       const currentUserId = userIdRef.current;
