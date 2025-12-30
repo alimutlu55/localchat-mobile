@@ -45,7 +45,7 @@ type RoomInfoRouteProp = RouteProp<RootStackParamList, 'RoomInfo'>;
 export default function RoomInfoScreen() {
     const navigation = useNavigation<NavigationProp>();
     const route = useRoute<RoomInfoRouteProp>();
-    
+
     // Support both new (roomId) and legacy (room) navigation params
     const params = route.params;
     const roomId = params.roomId || params.room?.id;
@@ -111,7 +111,21 @@ export default function RoomInfoScreen() {
         // Initial load
         fetchParticipants();
 
-        // Subscribe to kicks and bans via EventBus so the participants list reflects removals
+        // Subscribe to membership events so the participants list stays in sync
+        const unsubJoined = eventBus.on('room.userJoined', (payload) => {
+            if (payload.roomId === roomId) {
+                // Refresh participants to include the new user
+                fetchParticipants();
+            }
+        });
+
+        const unsubLeft = eventBus.on('room.userLeft', (payload) => {
+            if (payload.roomId === roomId) {
+                // Refresh participants to remove the user
+                fetchParticipants();
+            }
+        });
+
         const unsubKicked = eventBus.on('room.userKicked', (payload) => {
             if (payload.roomId === roomId) {
                 // Refresh participants to reflect the removal
@@ -127,6 +141,8 @@ export default function RoomInfoScreen() {
         });
 
         return () => {
+            unsubJoined();
+            unsubLeft();
             unsubKicked();
             unsubBanned();
         };
