@@ -21,7 +21,7 @@ import React, { useEffect, useRef } from 'react';
 import { useCurrentUser } from '../../user/store';
 import { useAuthStore } from '../../auth/store/AuthStore';
 import { useRoomStore } from './RoomStore';
-import { useRoomWebSocket } from '../hooks/useRoomWebSocket';
+import { useRoomEvents } from '../hooks/useRoomEvents';
 import { roomService, notificationService, wsService } from '../../../services';
 import { createLogger } from '../../../shared/utils/logger';
 
@@ -42,11 +42,12 @@ function RoomStoreInitializer() {
   // Subscribe to WebSocket events via EventBus
   // Pass null userId if logging out to prevent event handling
   const effectiveUserId = authStatus === 'loggingOut' ? undefined : user?.id;
-  useRoomWebSocket(effectiveUserId);
+  useRoomEvents(effectiveUserId);
 
   // Get store actions
   const setRooms = useRoomStore((s) => s.setRooms);
   const setJoinedRoomIds = useRoomStore((s) => s.setJoinedRoomIds);
+  const setCreatedRoomIds = useRoomStore((s) => s.setCreatedRoomIds);
   const loadMutedRooms = useRoomStore((s) => s.loadMutedRooms);
   const reset = useRoomStore((s) => s.reset);
   const getRoom = useRoomStore((s) => s.getRoom);
@@ -123,8 +124,16 @@ function RoomStoreInitializer() {
 
         // Update store
         setRooms(activeRooms);
+
+        // Set joined room IDs (rooms user is actively in)
         const joinedIds = new Set(activeRooms.map((r) => r.id));
         setJoinedRoomIds(joinedIds);
+
+        // Set created room IDs (rooms user created, may or may not be joined)
+        const createdIds = new Set(
+          activeRooms.filter((r) => r.isCreator).map((r) => r.id)
+        );
+        setCreatedRoomIds(createdIds);
 
         // Subscribe to WebSocket for all joined rooms (for notifications)
         // Unsubscribe from rooms we're no longer in
@@ -166,7 +175,7 @@ function RoomStoreInitializer() {
       });
       subscribedRoomsRef.current.clear();
     };
-  }, [user, authStatus, setRooms, setJoinedRoomIds, reset]);
+  }, [user, authStatus, setRooms, setJoinedRoomIds, setCreatedRoomIds, reset]);
 
   return null;
 }

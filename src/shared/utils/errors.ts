@@ -58,6 +58,13 @@ export const ErrorCode = {
 
 export type ErrorCodeType = (typeof ErrorCode)[keyof typeof ErrorCode];
 
+/**
+ * Standardized result for async operations
+ */
+export type Result<T = void, E = AppError> =
+  | { success: true; data: T }
+  | { success: false; error: E };
+
 // =============================================================================
 // Error Type Guards
 // =============================================================================

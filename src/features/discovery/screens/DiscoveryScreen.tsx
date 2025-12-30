@@ -41,13 +41,13 @@ import { useUIActions } from '../../../context';
 
 // Features
 import { useAuth } from '../../auth/hooks/useAuth';
-import { useJoinRoom, useMyRooms, useRoomDiscovery } from '../../rooms/hooks';
+import { useRoomOperations, useMyRooms, useRoomDiscovery } from '../../rooms/hooks';
 
 // Components
 import { RoomListView, ServerRoomMarker, ServerClusterMarker } from '../components';
 
 // Hooks
-import { useMapState, useUserLocation, useServerClustering, useDiscoveryEvents } from '../hooks';
+import { useMapState, useUserLocation, useServerClustering } from '../hooks';
 
 // Styles
 import { HUDDLE_MAP_STYLE } from '../../../styles/mapStyle';
@@ -238,14 +238,6 @@ export default function DiscoveryScreen() {
         isMapReady: isMapReady && hasBoundsInitialized,
     });
 
-    // Subscribe to room lifecycle events for real-time map updates
-    useDiscoveryEvents({
-        features: serverFeatures,
-        setFeatures: setServerFeatures,
-        refetch: refetchClusters,
-        currentUserId: currentUser?.id,
-    });
-
     // Track when we have initial data to prevent marker rendering during first fetch
     useEffect(() => {
         if (!hasInitialData && serverFeatures.length > 0 && !isLoadingClusters) {
@@ -258,7 +250,7 @@ export default function DiscoveryScreen() {
         }
     }, [serverFeatures.length, isLoadingClusters, hasInitialData]);
 
-    const { join: joinRoomHook } = useJoinRoom();
+    const { join } = useRoomOperations();
     const { activeRooms: myActiveRooms } = useMyRooms();
 
     // ==========================================================================
@@ -296,7 +288,7 @@ export default function DiscoveryScreen() {
 
     // Wrapper for joinRoom to match expected signature
     const joinRoom = async (room: Room): Promise<boolean> => {
-        const result = await joinRoomHook(room);
+        const result = await join(room);
         return result.success;
     };
 

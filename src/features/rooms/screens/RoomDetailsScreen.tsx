@@ -34,7 +34,7 @@ import { roomService, ParticipantDTO, messageService } from '../../../services';
 import { eventBus } from '../../../core/events';
 import { ChatMessage } from '../../../types';
 import { useUserId } from '../../user/store';
-import { useRoom, useRoomActions, useMyRooms } from '../hooks';
+import { useRoom, useRoomOperations, useRoomMembership } from '../hooks';
 import { useRoomStore } from '../store';
 import { BannedUsersModal } from '../components';
 import { ReportModal, ReportReason } from '../../../components/chat/ReportModal';
@@ -137,12 +137,10 @@ export default function RoomDetailsScreen() {
   }
 
   const userId = useUserId();
-  const { isJoined: isRoomJoined } = useMyRooms();
 
   // Use RoomStore for updates
   const storeUpdateRoom = useRoomStore((s) => s.updateRoom);
   const storeGetRoom = useRoomStore((s) => s.getRoom);
-
 
   // Use useRoom hook for room data with caching
   const { room: fetchedRoom, isLoading: isRoomLoading } = useRoom(roomId, {
@@ -151,6 +149,24 @@ export default function RoomDetailsScreen() {
 
   // Priority: fetched room > initial room from params
   const room = fetchedRoom || initialRoom;
+
+  // Use new hooks for membership and operations
+  const {
+    isJoined,
+    isCreator,
+    roleLabel,
+  } = useRoomMembership(roomId);
+
+  const {
+    join,
+    leave,
+    close,
+    isJoining,
+    isLeaving,
+    isClosing,
+  } = useRoomOperations();
+
+  const isJoiningOptimistic = isJoining(roomId);
 
   // Handle case where room data is not available
   if (!room && !isRoomLoading) {
@@ -190,20 +206,6 @@ export default function RoomDetailsScreen() {
     );
   }
 
-  // Use new useRoomActions hook for join/leave/close operations
-  const {
-    joinRoom,
-    leaveRoom,
-    closeRoom,
-    isLeaving: isLeavingAction,
-    isClosing: isClosingAction,
-    isJoining: isJoiningRoom,
-  } = useRoomActions();
-
-  // Use centralized hooks for joined status
-  const hasJoined = isRoomJoined(roomId);
-  const isJoiningOptimistic = isJoiningRoom(roomId);
-
   const [participants, setParticipants] = useState<ParticipantDTO[]>([]);
   const [recentMessages, setRecentMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -219,8 +221,6 @@ export default function RoomDetailsScreen() {
     isOpen: false,
     targetType: 'room',
   });
-
-  const isCreator = room.isCreator || false;
 
   /**
    * Load participants
@@ -263,7 +263,7 @@ export default function RoomDetailsScreen() {
    */
   useEffect(() => {
     const loadRecentMessages = async () => {
-      if (!hasJoined) {
+      if (!isJoined) {
         setRecentMessages([]);
         return;
       }
@@ -282,10 +282,10 @@ export default function RoomDetailsScreen() {
     };
 
     loadRecentMessages();
-  }, [roomId, hasJoined]);
+  }, [roomId, isJoined]);
 
   const handleLeave = () => {
-    if (isLeavingAction(roomId)) return;
+    if (isLeaving(roomId)) return;
     Alert.alert(
       'Leave Room',
       'Are you sure you want to leave this room?',
@@ -295,11 +295,11 @@ export default function RoomDetailsScreen() {
           text: 'Leave',
           style: 'destructive',
           onPress: async () => {
-            const result = await leaveRoom(roomId);
+            const result = await leave(roomId);
             if (result.success) {
               navigation.popToTop();
             } else {
-              Alert.alert('Error', 'Failed to leave room');
+              Alert.alert('Error', result.error?.message || 'Failed to leave room');
             }
           },
         },
@@ -308,6 +308,7 @@ export default function RoomDetailsScreen() {
   };
 
   const handleCloseRoom = () => {
+    if (isClosing(roomId)) return;
     Alert.alert(
       'Close Room',
       'This will prevent any new messages. The room will become read-only.',
@@ -317,12 +318,12 @@ export default function RoomDetailsScreen() {
           text: 'Close Room',
           style: 'destructive',
           onPress: async () => {
-            const result = await closeRoom(roomId);
+            const result = await close(roomId);
             if (result.success) {
               Alert.alert('Success', 'Room has been closed');
               handleClose();
             } else {
-              Alert.alert('Error', 'Failed to close room');
+              Alert.alert('Error', result.error?.message || 'Failed to close room');
             }
           },
         },
@@ -357,26 +358,26 @@ export default function RoomDetailsScreen() {
 
   const handleJoin = async () => {
     const serializedRoom = serializeRoom(room);
-    if (hasJoined) {
+    if (isJoined) {
       navigation.replace('ChatRoom', { roomId, initialRoom: serializedRoom });
       return;
     }
 
-    const result = await joinRoom(room);
+    const result = await join(room);
 
     if (result.success) {
-      // Get fresh room data from store (updated by joinRoom with correct participantCount)
+      // Get fresh room data from store
       const freshRoom = storeGetRoom(roomId);
       const freshSerializedRoom = freshRoom ? serializeRoom(freshRoom) : serializedRoom;
       navigation.replace('ChatRoom', { roomId, initialRoom: freshSerializedRoom });
-    } else if (isUserBanned(result.error)) {
+    } else if (result.error && isUserBanned(result.error)) {
       Alert.alert(
         'Access Denied',
         'You are banned from this room.',
         [{ text: 'OK', onPress: handleClose }]
       );
     } else {
-      Alert.alert('Error', 'Failed to join room. Please try again.');
+      Alert.alert('Error', result.error?.message || 'Failed to join room. Please try again.');
     }
   };
 
@@ -496,7 +497,7 @@ export default function RoomDetailsScreen() {
           style={[
             styles.mainButton,
             isJoiningOptimistic && { opacity: 0.8 },
-            hasJoined && styles.enterButton
+            isJoined && styles.enterButton
           ]}
           onPress={handleJoin}
           disabled={isJoiningOptimistic}
@@ -505,7 +506,7 @@ export default function RoomDetailsScreen() {
             <ActivityIndicator color="white" />
           ) : (
             <Text style={styles.mainButtonText}>
-              {hasJoined ? 'Enter Room' : 'Join Room'}
+              {isJoined ? 'Enter Room' : 'Join Room'}
             </Text>
           )}
         </TouchableOpacity>

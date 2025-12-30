@@ -22,7 +22,7 @@ import { RootStackParamList } from '../../navigation/types';
 import { Room } from '../../types';
 import { ROOM_CONFIG } from '../../constants';
 import { useAuth } from '../../features/auth';
-import { useRoomDiscovery, useJoinRoom, useMyRooms } from '../../features/rooms/hooks';
+import { useRoomDiscovery, useRoomOperations, useMyRooms } from '../../features/rooms/hooks';
 import { RoomListView } from '../../features/discovery/components';
 import { Sidebar } from '../../components/Sidebar';
 import { ProfileDrawer } from '../../components/ProfileDrawer';
@@ -45,12 +45,12 @@ export default function ListScreen() {
         autoFetch: false,
     });
 
-    const { join: joinRoomHook } = useJoinRoom();
+    const { join } = useRoomOperations();
     const { rooms: myRooms, activeRooms: myActiveRooms, expiredRooms: myExpiredRooms } = useMyRooms();
 
     // Wrapper for joinRoom
     const joinRoom = async (room: Room): Promise<boolean> => {
-        const result = await joinRoomHook(room);
+        const result = await join(room);
         return result.success;
     };
 

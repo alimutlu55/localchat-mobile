@@ -93,7 +93,13 @@ class ApiClient {
    */
   async initialize(): Promise<void> {
     if (this.initialized) return;
-    this.accessToken = await secureStorage.get(STORAGE_KEYS.AUTH_TOKEN);
+    console.log('[API] Initializing client (loading tokens)...');
+    try {
+      this.accessToken = await secureStorage.get(STORAGE_KEYS.AUTH_TOKEN);
+      console.log('[API] Initialization complete', { hasToken: !!this.accessToken });
+    } catch (error) {
+      console.error('[API] Initialization failed', error);
+    }
     this.initialized = true;
   }
 
@@ -147,6 +153,9 @@ class ApiClient {
     // Ensure initialized
     await this.initialize();
 
+    const url = `${this.baseUrl}${endpoint}`;
+    console.log(`[API] ${method} ${url} - Start`);
+
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
       'Accept': 'application/json',
@@ -157,10 +166,12 @@ class ApiClient {
       headers['Authorization'] = `Bearer ${this.accessToken}`;
     }
 
-    const url = `${this.baseUrl}${endpoint}`;
     const controller = new AbortController();
     const timeoutId = setTimeout(
-      () => controller.abort(),
+      () => {
+        console.warn(`[API] ${method} ${url} - TIMEOUT triggered (${options?.timeout ?? this.timeout}ms)`);
+        controller.abort();
+      },
       options?.timeout ?? this.timeout
     );
 
@@ -172,12 +183,15 @@ class ApiClient {
         signal: controller.signal,
       });
 
+      console.log(`[API] ${method} ${url} - Response received (${response.status})`);
       clearTimeout(timeoutId);
 
       // Handle 401 Unauthorized - attempt token refresh
       if (response.status === 401 && !options?.skipAuth) {
+        console.log(`[API] ${method} ${url} - 401 Detected, refreshing token...`);
         const refreshed = await this.handleTokenRefresh();
         if (refreshed) {
+          console.log(`[API] ${method} ${url} - Token refreshed, retrying...`);
           // Retry the original request with new token
           headers['Authorization'] = `Bearer ${this.accessToken}`;
           const retryResponse = await fetch(url, {
@@ -187,6 +201,7 @@ class ApiClient {
           });
           return this.handleResponse<T>(retryResponse);
         }
+        console.error(`[API] ${method} ${url} - Token refresh failed`);
         // Refresh failed - clear tokens and notify
         await this.clearToken();
         this.onAuthError?.();

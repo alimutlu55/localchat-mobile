@@ -93,8 +93,11 @@ export function useMyRooms(options: UseMyRoomsOptions = {}): UseMyRoomsReturn {
   const storeRooms = useRoomStore((s) => s.rooms); // Subscribe to rooms Map for reactivity
   const updateRoom = useRoomStore((s) => s.updateRoom);
   const storeJoinedIds = useRoomStore((s) => s.joinedRoomIds);
+  const storeCreatedIds = useRoomStore((s) => s.createdRoomIds);
   const setJoinedRoomIds = useRoomStore((s) => s.setJoinedRoomIds);
+  const setCreatedRoomIds = useRoomStore((s) => s.setCreatedRoomIds);
   const addJoinedRoom = useRoomStore((s) => s.addJoinedRoom);
+  const addCreatedRoom = useRoomStore((s) => s.addCreatedRoom);
   const removeJoinedRoom = useRoomStore((s) => s.removeJoinedRoom);
 
   const userId = useUserId();
@@ -124,7 +127,7 @@ export function useMyRooms(options: UseMyRoomsOptions = {}): UseMyRoomsReturn {
    * 
    * Includes:
    * - All rooms in joinedIds (user is actively in room) → hasJoined: true
-   * - All rooms where isCreator=true but not in joinedIds (owner left) → hasJoined: false
+   * - All rooms in createdRoomIds but not in joinedIds (owner left) → hasJoined: false
    */
   const computeRooms = useCallback(() => {
     const roomList: Room[] = [];
@@ -138,19 +141,24 @@ export function useMyRooms(options: UseMyRoomsOptions = {}): UseMyRoomsReturn {
         if (!includeClosed && room.status === 'closed') {
           return;
         }
-        roomList.push({ ...room, hasJoined: true });
+        // Include isCreator from createdRoomIds for consistency
+        const isCreator = storeCreatedIds.has(id);
+        roomList.push({ ...room, hasJoined: true, isCreator });
         addedIds.add(id);
       }
     });
 
     // Then add any created rooms not already added (owner left but room still exists)
-    storeRooms.forEach((room, id) => {
-      if (!addedIds.has(id) && room.isCreator) {
-        // Filter closed if needed
-        if (!includeClosed && room.status === 'closed') {
-          return;
+    storeCreatedIds.forEach((id) => {
+      if (!addedIds.has(id)) {
+        const room = storeRooms.get(id);
+        if (room) {
+          // Filter closed if needed
+          if (!includeClosed && room.status === 'closed') {
+            return;
+          }
+          roomList.push({ ...room, hasJoined: false, isCreator: true });
         }
-        roomList.push({ ...room, hasJoined: false });
       }
     });
 
@@ -162,7 +170,7 @@ export function useMyRooms(options: UseMyRoomsOptions = {}): UseMyRoomsReturn {
     });
 
     return roomList;
-  }, [joinedIds, storeRooms, includeClosed]);
+  }, [joinedIds, storeCreatedIds, storeRooms, includeClosed]);
 
 
   // Compute rooms from store
@@ -189,14 +197,20 @@ export function useMyRooms(options: UseMyRoomsOptions = {}): UseMyRoomsReturn {
       setRooms(fetchedRooms);
 
       // Update joined IDs
-      const newIds = new Set<string>();
+      const newJoinedIds = new Set<string>();
+      const newCreatedIds = new Set<string>();
+
       fetchedRooms.forEach((room) => {
         if (room.status !== 'closed' || includeClosed) {
-          newIds.add(room.id);
+          newJoinedIds.add(room.id);
+        }
+        if (room.isCreator) {
+          newCreatedIds.add(room.id);
         }
       });
 
-      setJoinedRoomIds(newIds);
+      setJoinedRoomIds(newJoinedIds);
+      setCreatedRoomIds(newCreatedIds);
       hasFetchedRef.current = true;
     } catch (err) {
       log.error('Failed to fetch my rooms', err);
@@ -204,20 +218,24 @@ export function useMyRooms(options: UseMyRoomsOptions = {}): UseMyRoomsReturn {
     } finally {
       setIsLoading(false);
     }
-  }, [isAuthenticated, setRooms, setJoinedRoomIds, includeClosed]);
+  }, [isAuthenticated, setRooms, setJoinedRoomIds, setCreatedRoomIds, includeClosed]);
 
   /**
    * Add a room to user's list (optimistic update)
    */
   const addRoom = useCallback(
     (room: Room) => {
-      log.debug('Adding room to my rooms', { roomId: room.id });
+      log.debug('Adding room to my rooms', { roomId: room.id, isCreator: room.isCreator });
       // Update store
       updateRoom(room.id, room);
       // Add to joined IDs
       addJoinedRoom(room.id);
+      // Add to created IDs if user is creator
+      if (room.isCreator) {
+        addCreatedRoom(room.id);
+      }
     },
-    [updateRoom, addJoinedRoom]
+    [updateRoom, addJoinedRoom, addCreatedRoom]
   );
 
   /**

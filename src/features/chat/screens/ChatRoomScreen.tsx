@@ -54,7 +54,7 @@ import { blockService, roomService, messageService, notificationService } from '
 
 // Hooks
 import { useChatMessages, useChatInput } from '../hooks';
-import { useRoom, useRoomActions } from '../../rooms/hooks';
+import { useRoom, useRoomOperations, useRoomMembership } from '../../rooms/hooks';
 import { useRoomStore, useIsRoomMutedStore } from '../../rooms/store';
 
 // Components
@@ -153,7 +153,10 @@ export default function ChatRoomScreen() {
   const userId = useUserId();
   const updateRoom = useRoomStore((s) => s.updateRoom);
   const toggleMuteRoom = useRoomStore((s) => s.toggleMuteRoom);
-  const { leaveRoom, isLeaving } = useRoomActions();
+
+  const { isJoined, isCreator } = useRoomMembership(roomId);
+  const { leave, close, isLeaving, isClosing } = useRoomOperations();
+
   const insets = useSafeAreaInsets();
 
   // Mute state from RoomStore
@@ -166,7 +169,6 @@ export default function ChatRoomScreen() {
 
   // Prefer cached room (has WebSocket updates), fallback to initial
   const room = cachedRoom || initialRoom;
-  const isCreator = room?.isCreator || false;
 
   // UI State
   const [showMenu, setShowMenu] = useState(false);
@@ -383,45 +385,47 @@ export default function ChatRoomScreen() {
   }, [roomId, room, isCreator, userId, navigation]);
 
   const handleLeaveRoom = useCallback(() => {
+    if (isLeaving(roomId)) return;
     Alert.alert('Leave Room', 'Are you sure you want to leave this room?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Leave',
         style: 'destructive',
         onPress: async () => {
-          const result = await leaveRoom(roomId);
+          const result = await leave(roomId);
           if (result.success) {
             navigation.popToTop();
           } else {
-            Alert.alert('Error', 'Failed to leave room');
+            Alert.alert('Error', result.error?.message || 'Failed to leave room');
           }
         },
       },
     ]);
-  }, [roomId, leaveRoom, navigation]);
+  }, [roomId, leave, navigation, isLeaving]);
 
   const handleCloseRoom = useCallback(() => {
+    if (isClosing(roomId)) return;
     Alert.alert('Close Room', 'This will prevent any new messages.', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Close Room',
         style: 'destructive',
         onPress: async () => {
-          try {
-            // Set flag to prevent showing "Room Closed" alert from WebSocket event
-            isClosingRoomRef.current = true;
-            await roomService.closeRoom(roomId);
+          // Set flag to prevent showing "Room Closed" alert from WebSocket event
+          isClosingRoomRef.current = true;
+          const result = await close(roomId);
+          if (result.success) {
             Alert.alert('Success', 'Room has been closed', [
               { text: 'OK', onPress: () => navigation.popToTop() },
             ]);
-          } catch (error) {
+          } else {
             isClosingRoomRef.current = false;
-            Alert.alert('Error', 'Failed to close room');
+            Alert.alert('Error', result.error?.message || 'Failed to close room');
           }
         },
       },
     ]);
-  }, [roomId, navigation]);
+  }, [roomId, close, navigation, isClosing]);
 
   const handleReportMessage = useCallback((message: ChatMessage) => {
     setTimeout(() => {
@@ -700,11 +704,11 @@ export default function ChatRoomScreen() {
               style={styles.leaveButton}
               onPress={async () => {
                 setShowBlockedWarning(false);
-                const result = await leaveRoom(roomId);
+                const result = await leave(roomId);
                 if (result.success) {
                   navigation.popToTop();
                 } else {
-                  Alert.alert('Error', 'Failed to leave room');
+                  Alert.alert('Error', result.error?.message || 'Failed to leave room');
                 }
               }}
             >

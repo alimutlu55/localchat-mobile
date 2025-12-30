@@ -20,6 +20,9 @@
 import { api } from './api';
 import { Room, RoomParticipant, CreateRoomRequest, RoomCategory, RoomSortBy, ClusterResponse } from '../types';
 import { randomizeForRoomCreation, randomizeForRoomJoin, randomizeForDiscovery } from '../utils/locationPrivacy';
+import { createLogger } from '../shared/utils/logger';
+
+const log = createLogger('RoomService');
 
 /**
  * Room DTO from backend
@@ -241,11 +244,14 @@ class RoomService {
    * Backend returns: { data: RoomParticipantDTO }
    */
   async joinRoom(roomId: string, latitude: number, longitude: number, roomRadius: number = 500): Promise<void> {
+    log.info('joinRoom start', { roomId, latitude, longitude, roomRadius });
     const randomized = randomizeForRoomJoin(latitude, longitude, roomRadius);
+    log.debug('joinRoom randomized', { roomId, ...randomized });
     await api.post(`/rooms/${roomId}/join`, {
       latitude: randomized.lat,
       longitude: randomized.lng
     });
+    log.info('joinRoom finished', { roomId });
   }
 
   /**
@@ -259,7 +265,9 @@ class RoomService {
    * Close a room (creator only)
    */
   async closeRoom(roomId: string): Promise<void> {
+    log.info('closeRoom start', { roomId });
     await api.post(`/rooms/${roomId}/close`, {});
+    log.info('closeRoom finished', { roomId });
   }
 
   /**

@@ -11,11 +11,11 @@
  * - Backend handles eps calculation based on zoom level
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { roomService } from '../../../services';
 import { ClusterResponse, ClusterFeature, ClusterMetadata } from '../../../types';
 import { createLogger } from '../../../shared/utils/logger';
-import { filterExcludedRooms, mergePendingRooms } from './useDiscoveryEvents';
+import { eventBus } from '../../../core/events';
 import { useRoomStore } from '../../rooms/store';
 
 const log = createLogger('ServerClustering');
@@ -75,6 +75,63 @@ function getDebounceDelay(zoom: number): number {
   return 100;                 // Reduced from 150
 }
 
+/**
+ * Filter out rooms that should be hidden (e.g. banned)
+ */
+function filterExcludedRooms(features: ClusterFeature[]): ClusterFeature[] {
+  const state = useRoomStore.getState();
+  const hiddenRoomIds = state.hiddenRoomIds;
+  if (hiddenRoomIds.size === 0) return features;
+
+  return features.filter(f => {
+    if (f.properties.cluster) return true;
+    return !hiddenRoomIds.has(f.properties.roomId!);
+  });
+}
+
+/**
+ * Merge in pending (optimistic) rooms that aren't in the server response yet
+ */
+function mergePendingRooms(features: ClusterFeature[]): ClusterFeature[] {
+  const state = useRoomStore.getState();
+  const { pendingRoomIds, rooms } = state;
+  if (pendingRoomIds.size === 0) return features;
+
+  const existingRoomIds = new Set(
+    features.filter(f => !f.properties.cluster).map(f => f.properties.roomId)
+  );
+
+  const pendingFeatures: ClusterFeature[] = [];
+
+  pendingRoomIds.forEach(roomId => {
+    if (existingRoomIds.has(roomId)) return;
+
+    const room = rooms.get(roomId);
+    if (!room) return;
+
+    pendingFeatures.push({
+      type: 'Feature',
+      geometry: {
+        type: 'Point',
+        coordinates: [room.longitude ?? 0, room.latitude ?? 0],
+      },
+      properties: {
+        cluster: false,
+        roomId: room.id,
+        title: room.title,
+        category: room.category,
+        participantCount: room.participantCount,
+        status: room.status,
+        isCreator: room.isCreator,
+        hasJoined: room.hasJoined,
+        expiresAt: room.expiresAt.toISOString(),
+      },
+    });
+  });
+
+  return [...features, ...pendingFeatures];
+}
+
 // =============================================================================
 // Hook Implementation
 // =============================================================================
@@ -83,10 +140,47 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
   const { bounds, zoom, enabled, isMapReady, category } = options;
 
   // State
-  const [features, setFeatures] = useState<ClusterFeature[]>([]);
+  const [rawFeatures, setRawFeatures] = useState<ClusterFeature[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [metadata, setMetadata] = useState<ClusterMetadata | null>(null);
+
+  // Reactive store state
+  const joinedRoomIds = useRoomStore((state) => state.joinedRoomIds);
+  const createdRoomIds = useRoomStore((state) => state.createdRoomIds);
+  const hiddenRoomIds = useRoomStore((state) => state.hiddenRoomIds);
+  const pendingRoomIds = useRoomStore((state) => state.pendingRoomIds);
+  const storeRooms = useRoomStore((state) => state.rooms);
+
+  /**
+   * Reactively compute display features based on raw server data and global store state.
+   * This ensures the map is always in sync with joining/leaving/creating/hiding actions.
+   */
+  const features = useMemo(() => {
+    // 1. Hydrate raw features with latest local state
+    const hydrated = rawFeatures.map(f => {
+      if (f.properties.cluster || !f.properties.roomId) return f;
+      const roomId = f.properties.roomId;
+      const storeRoom = storeRooms.get(roomId);
+
+      return {
+        ...f,
+        properties: {
+          ...f.properties,
+          hasJoined: joinedRoomIds.has(roomId),
+          isCreator: createdRoomIds.has(roomId) || storeRoom?.isCreator || false,
+          participantCount: storeRoom?.participantCount ?? f.properties.participantCount ?? 0,
+          status: storeRoom?.status ?? f.properties.status,
+        }
+      };
+    });
+
+    // 2. Merge in pending (optimistic) rooms
+    const merged = mergePendingRooms(hydrated);
+
+    // 3. Filter out hidden/banned rooms
+    return filterExcludedRooms(merged);
+  }, [rawFeatures, joinedRoomIds, createdRoomIds, hiddenRoomIds, pendingRoomIds, storeRooms]);
 
   // Refs for debouncing and tracking
   const lastFetchBoundsRef = useRef<[number, number, number, number] | null>(null);
@@ -150,30 +244,9 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
 
         if (!mountedRef.current) return;
 
-        // Hydrate features with local user state (isCreator, hasJoined) from RoomStore
-        const { joinedRoomIds, rooms: storeRooms } = useRoomStore.getState();
-        const hydratedFeatures = response.features.map(f => {
-          if (f.properties.cluster || !f.properties.roomId) return f;
+        if (!mountedRef.current) return;
 
-          const roomId = f.properties.roomId;
-          const storeRoom = storeRooms.get(roomId);
-
-          return {
-            ...f,
-            properties: {
-              ...f.properties,
-              hasJoined: joinedRoomIds.has(roomId),
-              isCreator: storeRoom?.isCreator || false,
-            }
-          };
-        });
-
-        // Merge in pending rooms that haven't reached the server yet
-        const mergedFeatures = mergePendingRooms(hydratedFeatures);
-
-        // Filter out excluded rooms (banned/closed) before setting state
-        const filteredFeatures = filterExcludedRooms(mergedFeatures);
-        setFeatures(filteredFeatures);
+        setRawFeatures(response.features);
         setMetadata(response.metadata);
         lastFetchBoundsRef.current = fetchBounds;
         lastFetchZoomRef.current = fetchZoom;
@@ -285,9 +358,29 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
     };
   }, [bounds, zoom, enabled, isMapReady, fetchClusters]);
 
+  // Handle background refetches on significant events
+  useEffect(() => {
+    if (!enabled || !isMapReady) return;
+
+    log.debug('Subscribing to discovery refetch events');
+    const unsubCreated = eventBus.on('room.created', () => {
+      // Small delay to allow store update to propagate first
+      setTimeout(() => refetch(), 500);
+    });
+
+    const unsubClosed = eventBus.on('room.closed', () => {
+      setTimeout(() => refetch(), 500);
+    });
+
+    return () => {
+      unsubCreated();
+      unsubClosed();
+    };
+  }, [enabled, isMapReady, refetch]);
+
   return {
     features,
-    setFeatures,
+    setFeatures: setRawFeatures,
     isLoading,
     error,
     metadata,

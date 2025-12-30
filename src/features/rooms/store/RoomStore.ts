@@ -57,6 +57,13 @@ export interface RoomStoreState {
   discoveredRoomIds: Set<string>;
 
   /**
+   * Set of room IDs created by the current user
+   * Separating this from room data allows efficient creator checks
+   * even after user leaves a room they created
+   */
+  createdRoomIds: Set<string>;
+
+  /**
    * Set of room IDs that have notifications muted
    * Persisted to AsyncStorage for persistence across sessions
    */
@@ -78,6 +85,25 @@ export interface RoomStoreState {
    * Currently selected room (for UI state)
    */
   selectedRoomId: string | null;
+
+  /**
+   * Tracking in-flight operations for UI feedback
+   */
+  joiningRoomIds: Set<string>;
+  leavingRoomIds: Set<string>;
+  closingRoomIds: Set<string>;
+
+  /**
+   * Set of room IDs to hide from discovery/map (e.g., banned, closed)
+   * Replacing module-level state in useDiscoveryEvents
+   */
+  hiddenRoomIds: Set<string>;
+
+  /**
+   * Set of room IDs that are pending (optimistically added)
+   * Replacing module-level state in useDiscoveryEvents
+   */
+  pendingRoomIds: Set<string>;
 }
 
 export interface RoomStoreActions {
@@ -133,6 +159,39 @@ export interface RoomStoreActions {
    * Replace all joined room IDs (for sync from server)
    */
   setJoinedRoomIds: (ids: Set<string>) => void;
+
+  // =========================================================================
+  // Creator Operations
+  // =========================================================================
+
+  /**
+   * Add a room ID to created set
+   */
+  addCreatedRoom: (roomId: string) => void;
+
+  /**
+   * Check if user created a room
+   */
+  isCreator: (roomId: string) => boolean;
+
+  /**
+   * Replace all created room IDs (for sync from server)
+   */
+  setCreatedRoomIds: (ids: Set<string>) => void;
+
+  // =========================================================================
+  // Operation Status
+  // =========================================================================
+
+  /**
+   * Start tracking an operation on a room
+   */
+  startOperation: (type: 'join' | 'leave' | 'close', roomId: string) => void;
+
+  /**
+   * Stop tracking an operation on a room
+   */
+  stopOperation: (type: 'join' | 'leave' | 'close', roomId: string) => void;
 
   // =========================================================================
   // Discovery Operations
@@ -209,6 +268,40 @@ export interface RoomStoreActions {
    * Reset store to initial state (e.g., on logout)
    */
   reset: () => void;
+
+  // =========================================================================
+  // Discovery Transient State Operations
+  // =========================================================================
+
+  /**
+   * Hide a room from discovery
+   */
+  hideRoom: (roomId: string, ttlMs?: number) => void;
+
+  /**
+   * Unhide a room from discovery
+   */
+  showRoom: (roomId: string) => void;
+
+  /**
+   * Check if a room is hidden
+   */
+  isHidden: (roomId: string) => boolean;
+
+  /**
+   * Add a room to pending set
+   */
+  addPendingRoom: (roomId: string, ttlMs?: number) => void;
+
+  /**
+   * Remove a room from pending set
+   */
+  removePendingRoom: (roomId: string) => void;
+
+  /**
+   * Check if a room is pending
+   */
+  isPending: (roomId: string) => boolean;
 }
 
 export type RoomStore = RoomStoreState & RoomStoreActions;
@@ -220,6 +313,7 @@ export type RoomStore = RoomStoreState & RoomStoreActions;
 const initialState: RoomStoreState = {
   rooms: new Map(),
   joinedRoomIds: new Set(),
+  createdRoomIds: new Set(),
   discoveredRoomIds: new Set(),
   mutedRoomIds: new Set(),
   isLoading: false,
@@ -227,6 +321,11 @@ const initialState: RoomStoreState = {
   currentPage: 0,
   hasMoreRooms: true,
   selectedRoomId: null,
+  joiningRoomIds: new Set(),
+  leavingRoomIds: new Set(),
+  closingRoomIds: new Set(),
+  hiddenRoomIds: new Set(),
+  pendingRoomIds: new Set(),
 };
 
 // =============================================================================
@@ -240,14 +339,14 @@ const initialState: RoomStoreState = {
  */
 function mergeRoomPreservingDefined(existing: Room, incoming: Room): Room {
   const result: Room = { ...existing };
-  
+
   // Only overwrite with incoming values that are not undefined
   for (const key of Object.keys(incoming) as (keyof Room)[]) {
     if (incoming[key] !== undefined) {
       (result as any)[key] = incoming[key];
     }
   }
-  
+
   return result;
 }
 
@@ -370,6 +469,59 @@ export const useRoomStore = create<RoomStore>()(
     },
 
     // =========================================================================
+    // Creator Operations
+    // =========================================================================
+
+    addCreatedRoom: (roomId: string) => {
+      set((state) => {
+        if (state.createdRoomIds.has(roomId)) return state;
+        const newCreated = new Set(state.createdRoomIds);
+        newCreated.add(roomId);
+        log.debug('Created room added', { roomId });
+        return { createdRoomIds: newCreated };
+      });
+    },
+
+    isCreator: (roomId: string) => {
+      return get().createdRoomIds.has(roomId);
+    },
+
+    setCreatedRoomIds: (ids: Set<string>) => {
+      set({ createdRoomIds: ids });
+      log.debug('Created room IDs set', { count: ids.size });
+    },
+
+    // =========================================================================
+    // Operation Status
+    // =========================================================================
+
+    startOperation: (type, roomId) => {
+      set((state) => {
+        const prefix = type === 'join' ? 'joining' : type === 'leave' ? 'leaving' : 'closing';
+        const key = `${prefix}RoomIds` as keyof RoomStoreState;
+        const currentSet = state[key] as Set<string>;
+        if (currentSet.has(roomId)) return state;
+
+        const nextSet = new Set(currentSet);
+        nextSet.add(roomId);
+        return { [key]: nextSet };
+      });
+    },
+
+    stopOperation: (type, roomId) => {
+      set((state) => {
+        const prefix = type === 'join' ? 'joining' : type === 'leave' ? 'leaving' : 'closing';
+        const key = `${prefix}RoomIds` as keyof RoomStoreState;
+        const currentSet = state[key] as Set<string>;
+        if (!currentSet.has(roomId)) return state;
+
+        const nextSet = new Set(currentSet);
+        nextSet.delete(roomId);
+        return { [key]: nextSet };
+      });
+    },
+
+    // =========================================================================
     // Discovery Operations
     // =========================================================================
 
@@ -465,6 +617,66 @@ export const useRoomStore = create<RoomStore>()(
     reset: () => {
       set(initialState);
       log.debug('Store reset');
+    },
+
+    // =========================================================================
+    // Discovery Transient State Operations
+    // =========================================================================
+
+    hideRoom: (roomId, ttlMs = 300000) => { // Default 5 mins
+      set((state) => {
+        if (state.hiddenRoomIds.has(roomId)) return state;
+        const next = new Set(state.hiddenRoomIds);
+        next.add(roomId);
+
+        // Auto-cleanup after TTL
+        setTimeout(() => {
+          get().showRoom(roomId);
+        }, ttlMs);
+
+        return { hiddenRoomIds: next };
+      });
+    },
+
+    showRoom: (roomId) => {
+      set((state) => {
+        if (!state.hiddenRoomIds.has(roomId)) return state;
+        const next = new Set(state.hiddenRoomIds);
+        next.delete(roomId);
+        return { hiddenRoomIds: next };
+      });
+    },
+
+    isHidden: (roomId) => {
+      return get().hiddenRoomIds.has(roomId);
+    },
+
+    addPendingRoom: (roomId, ttlMs = 30000) => { // Default 30s
+      set((state) => {
+        if (state.pendingRoomIds.has(roomId)) return state;
+        const next = new Set(state.pendingRoomIds);
+        next.add(roomId);
+
+        // Auto-cleanup after TTL
+        setTimeout(() => {
+          get().removePendingRoom(roomId);
+        }, ttlMs);
+
+        return { pendingRoomIds: next };
+      });
+    },
+
+    removePendingRoom: (roomId) => {
+      set((state) => {
+        if (!state.pendingRoomIds.has(roomId)) return state;
+        const next = new Set(state.pendingRoomIds);
+        next.delete(roomId);
+        return { pendingRoomIds: next };
+      });
+    },
+
+    isPending: (roomId) => {
+      return get().pendingRoomIds.has(roomId);
     },
   }))
 );

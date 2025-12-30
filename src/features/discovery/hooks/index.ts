@@ -33,6 +33,3 @@ export type { UseMapControlsOptions, UseMapControlsReturn, MapViewportState } fr
 
 export { useViewportRoomDiscovery } from './useViewportRoomDiscovery';
 export type { UseViewportRoomDiscoveryOptions, UseViewportRoomDiscoveryReturn } from './useViewportRoomDiscovery';
-
-export { useDiscoveryEvents } from './useDiscoveryEvents';
-export type { UseDiscoveryEventsOptions } from './useDiscoveryEvents';

@@ -19,16 +19,23 @@ export type { UseRoomOptions, UseRoomReturn } from './useRoom';
 export { useRoomState } from './useRoomState';
 export type { UseRoomStateReturn } from './useRoomState';
 
-export { useRoomActions } from './useRoomActions';
+export { useRoomOperations } from './useRoomOperations';
+export type { UseRoomOperationsReturn } from './useRoomOperations';
 
-export { useJoinRoom } from './useJoinRoom';
-export type { JoinError, JoinResult, UseJoinRoomReturn } from './useJoinRoom';
+export { useRoomMembership } from './useRoomMembership';
+export type {
+    UseRoomMembershipReturn,
+    UserRoomRole,
+} from './useRoomMembership';
 
 export { useRoomDiscovery } from './useRoomDiscovery';
-export type { UseRoomDiscoveryOptions, UseRoomDiscoveryReturn } from './useRoomDiscovery';
+export type {
+    UseRoomDiscoveryOptions,
+    UseRoomDiscoveryReturn,
+} from './useRoomDiscovery';
 
 export { useMyRooms } from './useMyRooms';
 export type { UseMyRoomsOptions, UseMyRoomsReturn } from './useMyRooms';
 
 // EventBus event handlers
-export { useRoomWebSocket } from './useRoomWebSocket';
+export { useRoomEvents } from './useRoomEvents';

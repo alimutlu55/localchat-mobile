@@ -33,8 +33,11 @@ import { useCallback, useMemo } from 'react';
 import { Room } from '../../../types';
 import { useRoomStore } from '../store';
 import { useMyRooms } from './useMyRooms';
-import { useJoinRoom, JoinResult } from './useJoinRoom';
-import { roomService, wsService } from '../../../services';
+import { useRoomOperations } from './useRoomOperations';
+import {
+  Result,
+  AppError,
+} from '../../../shared/utils/errors';
 import { createLogger } from '../../../shared/utils/logger';
 
 const log = createLogger('RoomState');
@@ -87,13 +90,13 @@ export interface UseRoomStateReturn {
   // -------------------------------------------------------------------------
 
   /** Join a room */
-  join: (room: Room) => Promise<JoinResult>;
+  join: (room: Room) => Promise<Result<Room>>;
 
   /** Leave a room */
-  leave: (roomId: string) => Promise<JoinResult>;
+  leave: (roomId: string) => Promise<Result>;
 
   /** Close a room (creator only) */
-  close: (roomId: string) => Promise<{ success: boolean; error?: string }>;
+  close: (roomId: string) => Promise<Result>;
 
   // -------------------------------------------------------------------------
   // Loading States
@@ -125,16 +128,15 @@ export function useRoomState(): UseRoomStateReturn {
     isJoined,
     isLoading: isLoadingMyRooms,
     refresh: refreshMyRooms,
-    addRoom: addToMyRooms,
-    removeRoom: removeFromMyRooms,
   } = useMyRooms();
 
   const {
-    join: joinInternal,
-    leave: leaveInternal,
+    join,
+    leave,
+    close,
     isJoining,
     isLeaving,
-  } = useJoinRoom();
+  } = useRoomOperations();
 
   // -------------------------------------------------------------------------
   // Room Data Operations
@@ -164,64 +166,6 @@ export function useRoomState(): UseRoomStateReturn {
   // -------------------------------------------------------------------------
   // Room Operations
   // -------------------------------------------------------------------------
-
-  /**
-   * Join a room with membership tracking
-   */
-  const join = useCallback(
-    async (room: Room): Promise<JoinResult> => {
-      const result = await joinInternal(room);
-
-      if (result.success) {
-        // Add to my rooms list
-        addToMyRooms(room);
-      }
-
-      return result;
-    },
-    [joinInternal, addToMyRooms]
-  );
-
-  /**
-   * Leave a room with membership tracking
-   */
-  const leave = useCallback(
-    async (roomId: string): Promise<JoinResult> => {
-      const result = await leaveInternal(roomId);
-
-      if (result.success) {
-        // Remove from my rooms list
-        removeFromMyRooms(roomId);
-      }
-
-      return result;
-    },
-    [leaveInternal, removeFromMyRooms]
-  );
-
-  /**
-   * Close a room (creator only)
-   */
-  const close = useCallback(
-    async (roomId: string): Promise<{ success: boolean; error?: string }> => {
-      try {
-        await roomService.closeRoom(roomId);
-        
-        // Update room status in cache
-        updateRoom(roomId, { status: 'closed' });
-        
-        log.info('Room closed', { roomId });
-        return { success: true };
-      } catch (error: any) {
-        log.error('Failed to close room', { roomId, error });
-        return {
-          success: false,
-          error: error?.message || 'Failed to close room',
-        };
-      }
-    },
-    [updateRoom]
-  );
 
   return {
     // Room data
