@@ -278,6 +278,11 @@ export default function DiscoveryScreen() {
     const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
     const [selectedFeature, setSelectedFeature] = useState<ClusterFeature | null>(null);
 
+    // Handle marker deselection (user tapped elsewhere on map)
+    const handleMarkerDeselect = useCallback(() => {
+        setSelectedFeature(null);
+    }, []);
+
     // Wrapper for joinRoom to match expected signature
     const joinRoom = async (room: Room): Promise<boolean> => {
         const result = await joinRoomHook(room);
@@ -337,8 +342,19 @@ export default function DiscoveryScreen() {
                 hasJoined: feature.properties.hasJoined,
             };
 
+            // IMPORTANT: Set selection first so MapLibre receives selected=true
             setSelectedFeature(feature);
+
+            // Navigate to room details
             navigation.navigate('RoomDetails', { roomId, initialRoom: room as Room });
+
+            // Clear selection after a short delay while screen is transitioning away
+            // This resets MapLibre's internal PointAnnotation state (selected=false)
+            // so the marker can be clicked again when returning.
+            // 100ms delay ensures MapLibre has processed the selected=true first.
+            setTimeout(() => {
+                setSelectedFeature(null);
+            }, 100);
         },
         [navigation]
     );
@@ -583,6 +599,7 @@ export default function DiscoveryScreen() {
                                     <ServerClusterMarker
                                         feature={feature}
                                         onPress={handleServerClusterPress}
+                                        onDeselect={handleMarkerDeselect}
                                     />
                                 </View>
                             );
@@ -601,6 +618,7 @@ export default function DiscoveryScreen() {
                                     feature={feature}
                                     isSelected={selectedFeature?.properties.roomId === feature.properties.roomId}
                                     onPress={handleServerRoomPress}
+                                    onDeselect={handleMarkerDeselect}
                                 />
                             </View>
                         );

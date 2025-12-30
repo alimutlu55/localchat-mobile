@@ -10,16 +10,34 @@ interface RoomPinProps {
 }
 
 export const RoomPin = memo(({ room, isSelected }: RoomPinProps) => {
-    const scaleAnim = useRef(new Animated.Value(isSelected ? 1.1 : 1)).current;
+    const scaleAnim = useRef(new Animated.Value(1)).current;
 
-    // Only animate on selection changes
+    // Animate on selection changes with a press bounce effect
     useEffect(() => {
-        Animated.spring(scaleAnim, {
-            toValue: isSelected ? 1.1 : 1,
-            useNativeDriver: true,
-            friction: 8,
-            tension: 100,
-        }).start();
+        if (isSelected) {
+            // Press effect: quick scale down, then bounce up
+            Animated.sequence([
+                Animated.timing(scaleAnim, {
+                    toValue: 0.85,
+                    duration: 80,
+                    useNativeDriver: true,
+                }),
+                Animated.spring(scaleAnim, {
+                    toValue: 1.15,
+                    useNativeDriver: true,
+                    friction: 4,
+                    tension: 200,
+                }),
+            ]).start();
+        } else {
+            // Return to normal size
+            Animated.spring(scaleAnim, {
+                toValue: 1,
+                useNativeDriver: true,
+                friction: 8,
+                tension: 100,
+            }).start();
+        }
     }, [isSelected, scaleAnim]);
 
     const getPinSize = () => {

@@ -20,12 +20,14 @@ interface ServerRoomMarkerProps {
   feature: ClusterFeature;
   isSelected: boolean;
   onPress: (feature: ClusterFeature) => void;
+  onDeselect?: () => void;
 }
 
 export const ServerRoomMarker = memo(function ServerRoomMarker({
   feature,
   isSelected,
-  onPress
+  onPress,
+  onDeselect
 }: ServerRoomMarkerProps) {
   const { properties, geometry } = feature;
 
@@ -70,7 +72,9 @@ export const ServerRoomMarker = memo(function ServerRoomMarker({
       id={`server-room-${properties.roomId}`}
       coordinate={[lng, lat]}
       anchor={{ x: 0.5, y: 0.5 }}
+      selected={isSelected}
       onSelected={() => onPress(feature)}
+      onDeselected={onDeselect}
     >
       <View style={styles.markerContainer}>
         <RoomPin room={roomForPin as Room} isSelected={isSelected} />
@@ -96,12 +100,16 @@ export const ServerRoomMarker = memo(function ServerRoomMarker({
  */
 interface ServerClusterMarkerProps {
   feature: ClusterFeature;
+  isSelected?: boolean;
   onPress: (feature: ClusterFeature) => void;
+  onDeselect?: () => void;
 }
 
 export const ServerClusterMarker = memo(function ServerClusterMarker({
   feature,
-  onPress
+  isSelected = false,
+  onPress,
+  onDeselect
 }: ServerClusterMarkerProps) {
   const { properties, geometry } = feature;
 
@@ -123,6 +131,7 @@ export const ServerClusterMarker = memo(function ServerClusterMarker({
       coordinate={[lng, lat]}
       anchor={{ x: 0.5, y: 0.5 }}
       onSelected={() => onPress(feature)}
+      onDeselected={onDeselect}
     >
       <MapCluster count={properties.pointCount || 0} />
     </PointAnnotation>
