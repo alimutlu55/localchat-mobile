@@ -584,11 +584,13 @@ export default function DiscoveryScreen() {
                             coordinate={[userLocation.longitude, userLocation.latitude]}
                             anchor={{ x: 0.5, y: 0.5 }}
                         >
-                            <View style={[
-                                styles.userLocationMarkerContainer,
-                                // Hide marker visually if not ready, without unmounting
-                                !canRenderMarkers && { opacity: 0 }
-                            ]}>
+                            <View
+                                pointerEvents="none"
+                                style={[
+                                    styles.userLocationMarkerContainer,
+                                    // Hide marker visually if not ready, without unmounting
+                                    !canRenderMarkers && { opacity: 0 }
+                                ]}>
                                 <Animated.View
                                     style={[
                                         styles.userLocationPulse,
