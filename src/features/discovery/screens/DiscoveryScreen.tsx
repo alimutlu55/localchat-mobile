@@ -277,6 +277,18 @@ export default function DiscoveryScreen() {
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [viewMode, userLocation?.latitude, userLocation?.longitude]);
 
+    // Check if user's location is currently within map bounds
+    const isUserInView = useMemo(() => {
+        if (!userLocation || !bounds || bounds.length !== 4) return false;
+        const [minLng, minLat, maxLng, maxLat] = bounds;
+        return (
+            userLocation.longitude >= minLng &&
+            userLocation.longitude <= maxLng &&
+            userLocation.latitude >= minLat &&
+            userLocation.latitude <= maxLat
+        );
+    }, [userLocation, bounds]);
+
     // Local state for selected room
     const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
     const [selectedFeature, setSelectedFeature] = useState<ClusterFeature | null>(null);
@@ -683,8 +695,8 @@ export default function DiscoveryScreen() {
                     </Text>
                 </Animated.View>
 
-                {/* Empty State */}
-                {serverFeatures.length === 0 && !isLoadingClusters && isMapStable && (
+                {/* Empty State - Only show if looking at user's area and it's empty */}
+                {serverFeatures.length === 0 && !isLoadingClusters && isMapStable && isUserInView && (
                     <Animated.View style={[styles.emptyState, { opacity: markersOpacity }]}>
                         <Text style={styles.emptyTitle}>No rooms nearby</Text>
                         <Text style={styles.emptyText}>Be the first to start a conversation!</Text>
