@@ -73,7 +73,6 @@ export const ServerRoomMarker = memo(function ServerRoomMarker({
       coordinate={[lng, lat]}
       anchor={{ x: 0.5, y: 0.5 }}
       selected={isSelected}
-      onSelected={() => onPress(feature)}
       onDeselected={onDeselect}
     >
       <TouchableOpacity
@@ -137,7 +136,6 @@ export const ServerClusterMarker = memo(function ServerClusterMarker({
       id={`server-cluster-${properties.clusterId}`}
       coordinate={[lng, lat]}
       anchor={{ x: 0.5, y: 0.5 }}
-      onSelected={() => onPress(feature)}
       onDeselected={onDeselect}
     >
       <TouchableOpacity
