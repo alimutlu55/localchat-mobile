@@ -344,6 +344,14 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
     }
 
     const debounceDelay = getDebounceDelay(zoom);
+
+    // For forced fetches (e.g., cluster clicks), skip debounce for instant response
+    if (forceRefetch) {
+      log.info('Immediate fetch (forced)', { zoom, bounds });
+      fetchClusters(bounds, zoom);
+      return;
+    }
+
     log.debug('Scheduling fetch', { zoom, debounceDelay });
 
     debounceTimerRef.current = setTimeout(() => {

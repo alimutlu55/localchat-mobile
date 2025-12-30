@@ -6,7 +6,7 @@
  */
 
 import React, { memo } from 'react';
-import { View, TouchableOpacity, StyleSheet } from 'react-native';
+import { TouchableOpacity, StyleSheet } from 'react-native';
 import { PointAnnotation } from '@maplibre/maplibre-react-native';
 import { RoomPin } from './RoomPin';
 import { MapCluster } from './MapCluster';
@@ -76,9 +76,14 @@ export const ServerRoomMarker = memo(function ServerRoomMarker({
       onSelected={() => onPress(feature)}
       onDeselected={onDeselect}
     >
-      <View style={styles.markerContainer}>
+      <TouchableOpacity
+        style={styles.markerContainer}
+        activeOpacity={0.9}
+        onPress={() => onPress(feature)}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
         <RoomPin room={roomForPin as Room} isSelected={isSelected} />
-      </View>
+      </TouchableOpacity>
     </PointAnnotation>
   );
 }, (prevProps, nextProps) => {
@@ -135,7 +140,13 @@ export const ServerClusterMarker = memo(function ServerClusterMarker({
       onSelected={() => onPress(feature)}
       onDeselected={onDeselect}
     >
-      <MapCluster count={properties.pointCount || 0} />
+      <TouchableOpacity
+        activeOpacity={0.9}
+        onPress={() => onPress(feature)}
+        hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
+      >
+        <MapCluster count={properties.pointCount || 0} />
+      </TouchableOpacity>
     </PointAnnotation>
   );
 }, (prevProps, nextProps) => {

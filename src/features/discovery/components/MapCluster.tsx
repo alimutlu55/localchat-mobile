@@ -119,7 +119,7 @@ export const MapCluster = memo(({ count }: MapClusterProps) => {
     const size = getSizeStyle();
 
     return (
-        <View pointerEvents="none" style={styles.container}>
+        <View style={styles.container}>
             <Animated.View
                 style={[
                     styles.inner,

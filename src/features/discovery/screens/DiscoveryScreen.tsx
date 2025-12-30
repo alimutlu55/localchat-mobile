@@ -241,11 +241,11 @@ export default function DiscoveryScreen() {
     // Track when we have initial data to prevent marker rendering during first fetch
     useEffect(() => {
         if (!hasInitialData && serverFeatures.length > 0 && !isLoadingClusters) {
-            // Small delay to let MapLibre stabilize after data arrives
+            // Minimal delay to let React batch updates - reduced from 200ms
             const timer = setTimeout(() => {
                 setHasInitialData(true);
                 log.debug('Initial data loaded, markers can now render', { featureCount: serverFeatures.length });
-            }, 200);
+            }, 50);
             return () => clearTimeout(timer);
         }
     }, [serverFeatures.length, isLoadingClusters, hasInitialData]);
@@ -421,6 +421,24 @@ export default function DiscoveryScreen() {
                 return Math.min(currentZoom + 3, 18);
             };
 
+            /**
+             * Calculate smooth animation duration based on zoom delta.
+             * Larger zoom changes get longer durations for a smooth "fly in" effect.
+             * - Small changes (1-3 levels): 600-900ms
+             * - Medium changes (4-6 levels): 1000-1400ms  
+             * - Large changes (7+ levels): 1600-2200ms
+             */
+            const calcAnimationDuration = (fromZoom: number, toZoom: number): number => {
+                const zoomDelta = Math.abs(toZoom - fromZoom);
+                // Base duration + extra time per zoom level
+                // Minimum 600ms, scales up to ~2200ms for large transitions
+                const baseDuration = 500;
+                const perLevelDuration = 200;
+                const duration = baseDuration + (zoomDelta * perLevelDuration);
+                // Cap at a reasonable maximum
+                return Math.min(Math.max(duration, 600), 2200);
+            };
+
             if (expansionBounds && expansionBounds.length === 4) {
                 const [minLng, minLat, maxLng, maxLat] = expansionBounds;
                 const lngSpan = maxLng - minLng;
@@ -450,10 +468,11 @@ export default function DiscoveryScreen() {
 
                 // Use setCamera with calculated targetZoom
                 // The zoom level is chosen to ensure server eps will split the cluster
+                const finalTargetZoom = Math.min(targetZoom, 18);
                 cameraRef.current.setCamera({
                     centerCoordinate: [centerLng, centerLat],
-                    zoomLevel: Math.min(targetZoom, 18),
-                    animationDuration: 600,
+                    zoomLevel: finalTargetZoom,
+                    animationDuration: calcAnimationDuration(zoom, finalTargetZoom),
                     animationMode: 'flyTo',
                 });
 
@@ -474,7 +493,7 @@ export default function DiscoveryScreen() {
                 cameraRef.current.setCamera({
                     centerCoordinate: [lng, lat],
                     zoomLevel: targetZoom,
-                    animationDuration: 600,
+                    animationDuration: calcAnimationDuration(zoom, targetZoom),
                     animationMode: 'flyTo',
                 });
 
