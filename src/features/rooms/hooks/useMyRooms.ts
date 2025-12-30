@@ -119,11 +119,18 @@ export function useMyRooms(options: UseMyRoomsOptions = {}): UseMyRoomsReturn {
   );
 
   /**
-   * Compute rooms list from joined IDs
+   * Compute rooms list from joined IDs and created rooms
    * Note: We subscribe to storeRooms (the Map) so this recomputes when rooms are added/removed
+   * 
+   * Includes:
+   * - All rooms in joinedIds (user is actively in room) → hasJoined: true
+   * - All rooms where isCreator=true but not in joinedIds (owner left) → hasJoined: false
    */
   const computeRooms = useCallback(() => {
     const roomList: Room[] = [];
+    const addedIds = new Set<string>();
+
+    // First add rooms from joinedIds (user is actively in room)
     joinedIds.forEach((id) => {
       const room = storeRooms.get(id);
       if (room) {
@@ -132,6 +139,18 @@ export function useMyRooms(options: UseMyRoomsOptions = {}): UseMyRoomsReturn {
           return;
         }
         roomList.push({ ...room, hasJoined: true });
+        addedIds.add(id);
+      }
+    });
+
+    // Then add any created rooms not already added (owner left but room still exists)
+    storeRooms.forEach((room, id) => {
+      if (!addedIds.has(id) && room.isCreator) {
+        // Filter closed if needed
+        if (!includeClosed && room.status === 'closed') {
+          return;
+        }
+        roomList.push({ ...room, hasJoined: false });
       }
     });
 
@@ -144,6 +163,7 @@ export function useMyRooms(options: UseMyRoomsOptions = {}): UseMyRoomsReturn {
 
     return roomList;
   }, [joinedIds, storeRooms, includeClosed]);
+
 
   // Compute rooms from store
   const rooms = computeRooms();

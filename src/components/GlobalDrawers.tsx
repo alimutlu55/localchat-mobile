@@ -22,9 +22,16 @@ export const GlobalDrawers = React.memo(function GlobalDrawers() {
             expiresAt: room.expiresAt instanceof Date ? room.expiresAt.toISOString() : room.expiresAt,
             createdAt: room.createdAt instanceof Date ? room.createdAt.toISOString() : room.createdAt,
         };
-        navigation.navigate('ChatRoom', { roomId: room.id, initialRoom: serializedRoom });
+
+        // If user hasn't joined (e.g., creator left the room), show RoomDetails to allow rejoining
+        if (!room.hasJoined) {
+            navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: serializedRoom });
+        } else {
+            navigation.navigate('ChatRoom', { roomId: room.id, initialRoom: serializedRoom });
+        }
         closeSidebar();
     }, [navigation, closeSidebar]);
+
 
     const handleProfilePress = useCallback(() => {
         closeSidebar();

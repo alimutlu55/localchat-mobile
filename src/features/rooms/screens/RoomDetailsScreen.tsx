@@ -141,6 +141,8 @@ export default function RoomDetailsScreen() {
 
   // Use RoomStore for updates
   const storeUpdateRoom = useRoomStore((s) => s.updateRoom);
+  const storeGetRoom = useRoomStore((s) => s.getRoom);
+
 
   // Use useRoom hook for room data with caching
   const { room: fetchedRoom, isLoading: isRoomLoading } = useRoom(roomId, {
@@ -363,7 +365,10 @@ export default function RoomDetailsScreen() {
     const result = await joinRoom(room);
 
     if (result.success) {
-      navigation.replace('ChatRoom', { roomId, initialRoom: serializedRoom });
+      // Get fresh room data from store (updated by joinRoom with correct participantCount)
+      const freshRoom = storeGetRoom(roomId);
+      const freshSerializedRoom = freshRoom ? serializeRoom(freshRoom) : serializedRoom;
+      navigation.replace('ChatRoom', { roomId, initialRoom: freshSerializedRoom });
     } else if (isUserBanned(result.error)) {
       Alert.alert(
         'Access Denied',
@@ -374,6 +379,7 @@ export default function RoomDetailsScreen() {
       Alert.alert('Error', 'Failed to join room. Please try again.');
     }
   };
+
 
   const handleShare = async () => {
     try {
