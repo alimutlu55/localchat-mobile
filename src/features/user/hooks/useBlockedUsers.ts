@@ -146,9 +146,9 @@ export function useBlockedUsers(): UseBlockedUsersReturn {
   const blockUser = useCallback(
     async (userId: string, displayName?: string, reason?: string): Promise<boolean> => {
       try {
-        const blockedUser = await blockService.blockUser(userId, reason);
+        const blockedUser = await blockService.blockUser(userId, reason, displayName);
         setBlockedUsers((prev) => [...prev, blockedUser]);
-        log.info('User blocked', { userId });
+        log.info('User blocked', { userId, displayName });
         return true;
       } catch (err) {
         log.error('Failed to block user', { userId, error: err });

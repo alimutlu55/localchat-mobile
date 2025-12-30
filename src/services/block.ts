@@ -45,10 +45,11 @@ class BlockService {
   /**
    * Block a user
    */
-  async blockUser(blockedId: string, reason?: string): Promise<BlockedUser> {
+  async blockUser(blockedId: string, reason?: string, displayName?: string): Promise<BlockedUser> {
     const response = await api.post<{ data: BlockedUserDTO }>('/blocked-users', {
       blockedId,
       reason,
+      displayName,
     });
     return transformBlockedUser(response.data);
   }

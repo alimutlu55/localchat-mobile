@@ -104,9 +104,9 @@ function useBlockedUsers() {
     loadBlockedUsers();
   }, []);
 
-  const blockUser = useCallback(async (userId: string): Promise<boolean> => {
+  const blockUser = useCallback(async (userId: string, displayName?: string): Promise<boolean> => {
     try {
-      await blockService.blockUser(userId);
+      await blockService.blockUser(userId, undefined, displayName);
       setBlockedUserIds((prev) => new Set(prev).add(userId));
       return true;
     } catch (error: any) {
@@ -451,7 +451,7 @@ export default function ChatRoomScreen() {
           {
             text: 'Block',
             style: 'destructive',
-            onPress: () => blockUser(message.userId),
+            onPress: () => blockUser(message.userId, message.userName),
           },
         ]
       );
@@ -473,7 +473,7 @@ export default function ChatRoomScreen() {
           data.details
         );
         if (data.blockUser && !isBlocked(reportConfig.targetData.userId)) {
-          await blockUser(reportConfig.targetData.userId);
+          await blockUser(reportConfig.targetData.userId, reportConfig.targetData.userName);
         }
       } else if (reportConfig.targetType === 'room') {
         await roomService.reportRoom(roomId, data.reason, data.details);
