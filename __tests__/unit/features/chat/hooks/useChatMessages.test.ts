@@ -407,18 +407,23 @@ describe('useChatMessages', () => {
   // ===========================================================================
 
   describe('Room Events', () => {
-    it('shows system message on user join', async () => {
+    it('shows system message on user join via message.new', async () => {
       const { result } = renderHook(() => useChatMessages(roomId));
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
 
+      // System messages now come from backend via message.new event
       act(() => {
-        eventBus.emit('room.userJoined', {
+        eventBus.emit('message.new', {
           roomId,
-          userId: 'other-user',
-          userName: 'New User',
+          messageId: 'system-msg-1',
+          content: 'New User joined the room',
+          type: 'SYSTEM',
+          systemMessageType: 'USER_JOINED',
+          sender: { id: 'system', displayName: 'System' },
+          createdAt: new Date().toISOString(),
         });
       });
 
@@ -428,18 +433,23 @@ describe('useChatMessages', () => {
       expect(systemMsg).toBeDefined();
     });
 
-    it('shows system message on user leave', async () => {
+    it('shows system message on user leave via message.new', async () => {
       const { result } = renderHook(() => useChatMessages(roomId));
 
       await waitFor(() => {
         expect(result.current.isLoading).toBe(false);
       });
 
+      // System messages now come from backend via message.new event
       act(() => {
-        eventBus.emit('room.userLeft', {
+        eventBus.emit('message.new', {
           roomId,
-          userId: 'other-user',
-          userName: 'Leaving User',
+          messageId: 'system-msg-2',
+          content: 'Leaving User left the room',
+          type: 'SYSTEM',
+          systemMessageType: 'USER_LEFT',
+          sender: { id: 'system', displayName: 'System' },
+          createdAt: new Date().toISOString(),
         });
       });
 

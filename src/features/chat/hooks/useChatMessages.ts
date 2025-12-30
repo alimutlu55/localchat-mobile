@@ -108,10 +108,10 @@ export interface UseChatMessagesReturn {
 // System Message Helpers
 // =============================================================================
 
-type SystemMessageType = 
-  | 'user_joined' 
-  | 'user_left' 
-  | 'user_kicked' 
+type SystemMessageType =
+  | 'user_joined'
+  | 'user_left'
+  | 'user_kicked'
   | 'user_banned'
   | 'room_expiring_soon'
   | 'room_closed';
@@ -192,8 +192,8 @@ export function useChatMessages(
       addReaction: () => {
         log.warn('addReaction called without userId - likely during logout');
       },
-      refresh: async () => {},
-      markMessagesAsRead: () => {},
+      refresh: async () => { },
+      markMessagesAsRead: () => { },
     };
   }
 
@@ -238,7 +238,7 @@ export function useChatMessages(
     // This is a safety net in case RoomStoreProvider hasn't subscribed yet
     wsService.subscribe(roomId);
     log.debug('Ensured WebSocket subscription for chat room', { roomId });
-    
+
     // Load initial messages
     loadMessages();
 
@@ -314,18 +314,29 @@ export function useChatMessages(
           }
         }
 
-        // New message from another user
-        const newMessage: ChatMessage = {
-          id: payload.messageId,
-          type: 'user',
-          content: payload.content,
-          timestamp: new Date(payload.createdAt),
-          userId: payload.sender.id,
-          userName: payload.sender.displayName || 'Anonymous User',
-          userProfilePhoto: payload.sender.profilePhotoUrl,
-          status: 'delivered',
-          clientMessageId: payload.clientMessageId,
-        };
+        // New message from backend
+        const isSystemMessage = payload.type === 'SYSTEM';
+        const newMessage: ChatMessage = isSystemMessage
+          ? {
+            id: payload.messageId,
+            type: 'system',
+            content: payload.content,
+            timestamp: new Date(payload.createdAt),
+            userId: payload.sender.id,
+            userName: 'System',
+            status: 'delivered',
+          }
+          : {
+            id: payload.messageId,
+            type: 'user',
+            content: payload.content,
+            timestamp: new Date(payload.createdAt),
+            userId: payload.sender.id,
+            userName: payload.sender.displayName || 'Anonymous User',
+            userProfilePhoto: payload.sender.profilePhotoUrl,
+            status: 'delivered',
+            clientMessageId: payload.clientMessageId,
+          };
 
         return [...prev, newMessage];
       });
@@ -449,13 +460,13 @@ export function useChatMessages(
 
       if (payload.roomId === roomId) {
         log.info('Room closed', { roomId, closedBy: payload.closedBy });
-        
+
         // Show system message
         setMessages((prev) => [
           ...prev,
           makeSystemMessage('room_closed'),
         ]);
-        
+
         // Notify callback to navigate away
         optionsRef.current.onRoomClosed?.();
       }
@@ -477,39 +488,30 @@ export function useChatMessages(
       ]);
     });
 
-    // Handle user joined (show system message) via EventBus
+    // Handle user joined via EventBus
+    // Note: System message now comes from backend via message.new event
     const unsubUserJoined = eventBus.on('room.userJoined', (payload) => {
       // GUARD: Skip if not authenticated (during logout)
       if (!isStillAuthenticated()) return;
 
       if (payload.roomId !== roomId) return;
 
-      const joinedDisplayName = payload.userName || 'Someone';
-
-      // Show system message for others joining
-      if (payload.userId !== userId) {
-        setMessages((prev) => [
-          ...prev,
-          makeSystemMessage('user_joined', joinedDisplayName),
-        ]);
-      }
+      // System message is now sent by backend and received via message.new
+      // This handler can be used for participant count updates if needed
+      log.debug('User joined', { userId: payload.userId, userName: payload.userName });
     });
 
-    // Handle user left (show system message) via EventBus
+    // Handle user left via EventBus
+    // Note: System message now comes from backend via message.new event
     const unsubUserLeft = eventBus.on('room.userLeft', (payload) => {
       // GUARD: Skip if not authenticated (during logout)
       if (!isStillAuthenticated()) return;
 
       if (payload.roomId !== roomId) return;
 
-      // Show system message for others leaving
-      if (payload.userId !== userId) {
-        const displayName = payload.userName || 'Someone';
-        setMessages((prev) => [
-          ...prev,
-          makeSystemMessage('user_left', displayName),
-        ]);
-      }
+      // System message is now sent by backend and received via message.new
+      // This handler can be used for participant count updates if needed
+      log.debug('User left', { userId: payload.userId, userName: payload.userName });
     });
 
     // Handle user kicked via EventBus
@@ -541,13 +543,8 @@ export function useChatMessages(
         return;
       }
 
-      // Show system message for others
-      setMessages((prev) => [
-        ...prev,
-        makeSystemMessage('user_kicked', payload.userName || 'A user'),
-      ]);
-
-      // Fetch fresh room to get updated participant count
+      // System message is now sent by backend via message.new event
+      // Just refresh room to get updated participant count
       try {
         const fresh = await roomService.getRoom(roomId);
         setRoom(fresh);
@@ -584,12 +581,8 @@ export function useChatMessages(
         return;
       }
 
-      // Show system message for others
-      setMessages((prev) => [
-        ...prev,
-        makeSystemMessage('user_banned', payload.userName || 'A user'),
-      ]);
-
+      // System message is now sent by backend via message.new event
+      // Just refresh room to get updated participant count
       try {
         const fresh = await roomService.getRoom(roomId);
         setRoom(fresh);

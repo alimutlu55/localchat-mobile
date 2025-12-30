@@ -110,6 +110,8 @@ export interface MessageEvents {
     roomName?: string;
     messageId: string;
     content: string;
+    type?: 'USER' | 'SYSTEM';
+    systemMessageType?: string;
     sender: {
       id: string;
       displayName: string;
@@ -184,7 +186,7 @@ export interface UserEvents {
 /**
  * All events combined
  */
-export interface AllEvents extends RoomEvents, MessageEvents, TypingEvents, ConnectionEvents, UserEvents {}
+export interface AllEvents extends RoomEvents, MessageEvents, TypingEvents, ConnectionEvents, UserEvents { }
 
 /**
  * Event names as a union type
@@ -236,7 +238,7 @@ class EventBus {
     const eventHandlers = this.handlers.get(event);
     if (eventHandlers) {
       eventHandlers.delete(handler);
-      
+
       if (this.debugMode) {
         log.debug('Unsubscribed from event', { event, remainingHandlers: eventHandlers.size });
       }

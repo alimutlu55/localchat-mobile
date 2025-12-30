@@ -489,6 +489,8 @@ class WebSocketService {
           roomName: payload.roomName, // Include room name for notifications
           messageId: payload.id || payload.messageId, // Backend sends 'id', not 'messageId'
           content: payload.content,
+          type: payload.type, // 'USER' or 'SYSTEM'
+          systemMessageType: payload.systemMessageType,
           sender: payload.sender || {
             id: payload.senderId,
             displayName: payload.senderDisplayName,
