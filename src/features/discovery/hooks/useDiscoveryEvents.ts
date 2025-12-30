@@ -1,7 +1,7 @@
 /**
  * useDiscoveryEvents Hook
  *
- * Subscribes to room lifecycle events (created, closed, userBanned) and
+ * Subscribes to room lifecycle events (created, closed, userBanned, userUnbanned) and
  * triggers map data refresh for real-time discovery updates.
  *
  * Strategy:
@@ -307,17 +307,63 @@ export function useDiscoveryEvents(options: UseDiscoveryEventsOptions): void {
         };
 
         // =========================================================================
+        // Event: User Unbanned
+        // =========================================================================
+        const handleUserUnbanned = (payload: {
+            roomId: string;
+            unbannedUserId: string;
+            unbannedBy: string;
+        }) => {
+            console.log('[DiscoveryEvents] User unbanned event received', {
+                roomId: payload.roomId,
+                unbannedUserId: payload.unbannedUserId,
+                currentUserId: optionsRef.current.currentUserId,
+                isCurrentUser: payload.unbannedUserId === optionsRef.current.currentUserId,
+            });
+
+            log.info('User unbanned event received', {
+                roomId: payload.roomId,
+                unbannedUserId: payload.unbannedUserId,
+            });
+
+            // Only react if the current user was unbanned
+            if (payload.unbannedUserId !== optionsRef.current.currentUserId) {
+                log.debug('Unbanned user is not current user, ignoring');
+                return;
+            }
+
+            log.info('Current user was unbanned, restoring room to discovery');
+            console.log('[DiscoveryEvents] Current user was unbanned, restoring room. Exclusion list before:', Array.from(excludedRoomIds));
+
+            // Remove from exclusion list FIRST so it can appear again
+            excludedRoomIds.delete(payload.roomId);
+            console.log('[DiscoveryEvents] Exclusion list after delete:', Array.from(excludedRoomIds));
+
+            // Immediately refetch to get the room back on the map
+            // Use the same timing pattern as room.created for instant visibility
+            console.log('[DiscoveryEvents] Triggering refetch...');
+            optionsRef.current.refetch().then(() => {
+                console.log('[DiscoveryEvents] Refetch completed successfully');
+            }).catch((err) => {
+                console.error('[DiscoveryEvents] Refetch failed', err);
+                log.error('Refetch after room.userUnbanned failed', err);
+            });
+        };
+
+        // =========================================================================
         // Subscribe to EventBus
         // =========================================================================
         const unsubCreated = eventBus.on('room.created', handleRoomCreated);
         const unsubClosed = eventBus.on('room.closed', handleRoomClosed);
         const unsubBanned = eventBus.on('room.userBanned', handleUserBanned);
+        const unsubUnbanned = eventBus.on('room.userUnbanned', handleUserUnbanned);
 
         return () => {
             log.debug('Unsubscribing from discovery events');
             unsubCreated();
             unsubClosed();
             unsubBanned();
+            unsubUnbanned();
         };
     }, []); // Empty deps - handlers access values via ref
 }
