@@ -142,6 +142,9 @@ interface EventActions {
     /** Remove a room from the map (optimistic) */
     removeRoom: (roomId: string) => void;
 
+    /** Update a room's properties on the map */
+    updateRoom: (roomId: string, updates: Partial<ClusterFeature['properties']>) => void;
+
     /** Add room to exclusion list (persists across refetches) */
     excludeRoom: (roomId: string) => void;
 
@@ -314,6 +317,49 @@ const EVENT_HANDLERS = {
         actions.refetch(true); // Immediate refetch
     }) as DiscoveryEventHandler<AllEvents['room.userUnbanned']>,
 
+    /**
+     * User Joined - Update participant count on map
+     */
+    'room.userJoined': ((payload, actions) => {
+        log.debug('User joined, updating participant count', {
+            roomId: payload.roomId,
+            newCount: payload.participantCount,
+        });
+
+        if (payload.participantCount !== undefined) {
+            actions.updateRoom(payload.roomId, {
+                participantCount: payload.participantCount,
+            });
+        }
+    }) as DiscoveryEventHandler<AllEvents['room.userJoined']>,
+
+    /**
+     * User Left - Update participant count on map
+     */
+    'room.userLeft': ((payload, actions) => {
+        log.debug('User left, updating participant count', {
+            roomId: payload.roomId,
+            newCount: payload.participantCount,
+        });
+
+        if (payload.participantCount !== undefined) {
+            actions.updateRoom(payload.roomId, {
+                participantCount: payload.participantCount,
+            });
+        }
+    }) as DiscoveryEventHandler<AllEvents['room.userLeft']>,
+
+    /**
+     * Participant Count Updated - Update count on map
+     */
+    'room.participantCountUpdated': ((payload, actions) => {
+        log.debug('Participant count updated on map', payload);
+
+        actions.updateRoom(payload.roomId, {
+            participantCount: payload.participantCount,
+        });
+    }) as DiscoveryEventHandler<AllEvents['room.participantCountUpdated']>,
+
     // =========================================================================
     // ADD NEW EVENT HANDLERS HERE
     // =========================================================================
@@ -367,6 +413,22 @@ export function useDiscoveryEvents(options: UseDiscoveryEventsOptions): void {
             removeRoom: (roomId: string) => {
                 optionsRef.current.setFeatures((prev) =>
                     prev.filter((f) => f.properties.roomId !== roomId)
+                );
+            },
+
+            updateRoom: (roomId: string, updates: Partial<ClusterFeature['properties']>) => {
+                optionsRef.current.setFeatures((prev) =>
+                    prev.map((f) =>
+                        f.properties.roomId === roomId
+                            ? {
+                                ...f,
+                                properties: {
+                                    ...f.properties,
+                                    ...updates,
+                                },
+                            }
+                            : f
+                    )
                 );
             },
 
