@@ -90,7 +90,9 @@ export const ServerRoomMarker = memo(function ServerRoomMarker({
     prevProps.feature.properties.isExpiringSoon === nextProps.feature.properties.isExpiringSoon &&
     prevProps.feature.properties.isHighActivity === nextProps.feature.properties.isHighActivity &&
     prevProps.feature.properties.isNew === nextProps.feature.properties.isNew &&
-    prevProps.isSelected === nextProps.isSelected
+    prevProps.isSelected === nextProps.isSelected &&
+    prevProps.feature.geometry.coordinates[0] === nextProps.feature.geometry.coordinates[0] &&
+    prevProps.feature.geometry.coordinates[1] === nextProps.feature.geometry.coordinates[1]
   );
 });
 
@@ -139,7 +141,9 @@ export const ServerClusterMarker = memo(function ServerClusterMarker({
 }, (prevProps, nextProps) => {
   return (
     prevProps.feature.properties.clusterId === nextProps.feature.properties.clusterId &&
-    prevProps.feature.properties.pointCount === nextProps.feature.properties.pointCount
+    prevProps.feature.properties.pointCount === nextProps.feature.properties.pointCount &&
+    prevProps.feature.geometry.coordinates[0] === nextProps.feature.geometry.coordinates[0] &&
+    prevProps.feature.geometry.coordinates[1] === nextProps.feature.geometry.coordinates[1]
   );
 });
 

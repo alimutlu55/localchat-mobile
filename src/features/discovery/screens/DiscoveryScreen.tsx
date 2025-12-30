@@ -600,24 +600,20 @@ export default function DiscoveryScreen() {
                         </PointAnnotation>
                     )}
 
-                    {/* Server-Side Room & Cluster Markers */}
-                    {serverFeatures.map((feature) => {
+                    {/* Server-Side Room & Cluster Markers - Gated for stability */}
+                    {canRenderMarkers && serverFeatures.map((feature) => {
                         if (feature.properties.cluster) {
                             // Cluster marker
                             if (feature.properties.clusterId == null) {
                                 return null;
                             }
                             return (
-                                <View
+                                <ServerClusterMarker
                                     key={`server-cluster-${feature.properties.clusterId}`}
-                                    style={!canRenderMarkers && { opacity: 0 }}
-                                >
-                                    <ServerClusterMarker
-                                        feature={feature}
-                                        onPress={handleServerClusterPress}
-                                        onDeselect={handleMarkerDeselect}
-                                    />
-                                </View>
+                                    feature={feature}
+                                    onPress={handleServerClusterPress}
+                                    onDeselect={handleMarkerDeselect}
+                                />
                             );
                         }
 
@@ -626,17 +622,13 @@ export default function DiscoveryScreen() {
                             return null;
                         }
                         return (
-                            <View
+                            <ServerRoomMarker
                                 key={`server-room-${feature.properties.roomId}`}
-                                style={!canRenderMarkers && { opacity: 0 }}
-                            >
-                                <ServerRoomMarker
-                                    feature={feature}
-                                    isSelected={selectedFeature?.properties.roomId === feature.properties.roomId}
-                                    onPress={handleServerRoomPress}
-                                    onDeselect={handleMarkerDeselect}
-                                />
-                            </View>
+                                feature={feature}
+                                isSelected={selectedFeature?.properties.roomId === feature.properties.roomId}
+                                onPress={handleServerRoomPress}
+                                onDeselect={handleMarkerDeselect}
+                            />
                         );
                     })}
                 </MapView>
