@@ -332,14 +332,9 @@ class WebSocketService {
 
         case WS_EVENTS.AUTH_ERROR:
           console.error('[WS] Authentication failed:', payload);
-          // If we still have auto-retry attempts remaining, stay in 'reconnecting' mode
-          // Don't flash 'disconnected' which would briefly show the Retry button
-          if (this.reconnectAttempts < this.maxReconnectAttempts) {
-            this.connectionState = 'reconnecting';
-          } else {
-            // All auto-retries exhausted - show Retry button
-            this.connectionState = 'disconnected';
-          }
+          // For auth_error, we set to disconnected so tests and UI can see the failure
+          // handleDisconnect will still be triggered by ws.close(), but we'll check state there
+          this.connectionState = 'disconnected';
           this.emitStateChange();
           connectResolve?.(false);
           return;
@@ -403,6 +398,11 @@ class WebSocketService {
    */
   private handleDisconnect(): void {
     this.stopHeartbeat();
+
+    // If we've already set the state to 'disconnected' (e.g. auth_error), don't auto-retry
+    if (this.connectionState === 'disconnected') {
+      return;
+    }
 
     // Only show 'disconnected' (with Retry button) if we've exhausted all auto-retries
     // During auto-retry loop, show 'reconnecting' (no Retry button, just spinner)

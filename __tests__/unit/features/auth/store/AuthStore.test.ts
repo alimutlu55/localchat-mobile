@@ -490,7 +490,7 @@ describe('AuthStore State Machine', () => {
         })
       ).rejects.toThrow();
 
-      expect(useAuthStore.getState().error).toBe('Network error');
+      expect(useAuthStore.getState().error).toBe('Unable to connect. Please check your internet connection.');
     });
 
     it('clearError clears the error', async () => {

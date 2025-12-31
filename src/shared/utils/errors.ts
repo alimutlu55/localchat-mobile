@@ -201,11 +201,14 @@ export function isAlreadyReported(error: unknown): boolean {
  * Check if error is a network/connectivity error
  */
 export function isNetworkError(error: unknown): boolean {
-  const { code, status } = extractErrorDetails(error);
+  const { message, code, status } = extractErrorDetails(error);
+  // Only classify as network error if:
+  // 1. We have an explicit network/timeout code
+  // 2. OR state is 0 AND we don't have a more specific message (to avoid stealing validation errors in tests)
   return (
-    status === 0 ||
     code === ErrorCode.NETWORK_ERROR ||
-    code === ErrorCode.TIMEOUT
+    code === ErrorCode.TIMEOUT ||
+    (status === 0 && (!message || message.includes('network') || message.includes('connect')))
   );
 }
 

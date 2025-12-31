@@ -28,6 +28,7 @@ jest.mock('../../../../../src/features/user/store', () => ({
 const mockStoreState = {
   rooms: new Map(),
   joinedRoomIds: new Set<string>(),
+  createdRoomIds: new Set<string>(),
   setRooms: jest.fn(),
   updateRoom: jest.fn(),
   setJoinedRoomIds: jest.fn(),

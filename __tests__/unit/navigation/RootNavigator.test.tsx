@@ -273,7 +273,9 @@ describe('RootNavigator', () => {
       const { getByTestId, queryByTestId } = renderNavigator();
 
       expect(getByTestId('loading-screen')).toBeTruthy();
-      expect(queryByTestId('discovery-screen')).toBeNull();
+      // App screens are KEPT MOUNTED during logout to prevent map crashes,
+      // but they are covered by the loading overlay.
+      expect(queryByTestId('discovery-screen')).not.toBeNull();
       expect(queryByTestId('auth-navigator')).toBeNull();
     });
   });

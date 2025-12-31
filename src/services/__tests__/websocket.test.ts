@@ -153,6 +153,7 @@ describe('WebSocket Service', () => {
         it('should stay in reconnecting state during auto-retry loop', async () => {
             const service = wsService as any;
             service.reconnectAttempts = 3; // Mid-loop
+            service.connectionState = 'connected';
 
             // Simulate disconnect
             service.handleDisconnect();
@@ -163,6 +164,7 @@ describe('WebSocket Service', () => {
         it('should transition to disconnected after max attempts exhausted', async () => {
             const service = wsService as any;
             service.reconnectAttempts = 10; // At max
+            service.connectionState = 'connected';
 
             // Simulate disconnect
             service.handleDisconnect();
@@ -174,6 +176,7 @@ describe('WebSocket Service', () => {
             const consoleSpy = jest.spyOn(console, 'log');
             const service = wsService as any;
             service.reconnectAttempts = 10;
+            service.connectionState = 'connected';
 
             service.handleDisconnect();
 
@@ -259,6 +262,7 @@ describe('WebSocket Retry Flow Integration', () => {
         service.reconnectAttempts = 5;
         const spy = jest.spyOn(service, 'scheduleReconnect');
 
+        service.connectionState = 'connected';
         service.handleDisconnect();
 
         expect(wsService.getConnectionState()).toBe('reconnecting');
@@ -280,6 +284,7 @@ describe('WebSocket Retry Flow Integration', () => {
         const consoleSpy = jest.spyOn(console, 'log');
         service.reconnectAttempts = 10;
 
+        service.connectionState = 'connected';
         service.handleDisconnect();
 
         expect(wsService.getConnectionState()).toBe('disconnected');

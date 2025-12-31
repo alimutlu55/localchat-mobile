@@ -87,6 +87,21 @@ jest.mock('@react-native-async-storage/async-storage', () =>
     require('@react-native-async-storage/async-storage/jest/async-storage-mock')
 );
 
+// Mock @react-native-community/netinfo
+jest.mock('@react-native-community/netinfo', () => ({
+    addEventListener: jest.fn(),
+    fetch: jest.fn().mockResolvedValue({
+        isConnected: true,
+        isInternetReachable: true,
+        type: 'wifi',
+    }),
+    useNetInfo: jest.fn().mockReturnValue({
+        isConnected: true,
+        isInternetReachable: true,
+        type: 'wifi',
+    }),
+}));
+
 // Mock react-native-reanimated
 jest.mock('react-native-reanimated', () => {
     const Reanimated = require('react-native-reanimated/mock');
