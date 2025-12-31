@@ -59,6 +59,9 @@ const MESSAGE_DEDUP_TTL = 10000; // 10 seconds
 const processedKickBanEvents = new Set<string>();
 const KICK_BAN_DEDUP_TTL = 5000; // 5 seconds
 
+// Message send timeout: Mark as failed if no ack received
+const MESSAGE_SEND_TIMEOUT = 10000; // 10 seconds
+
 /**
  * Helper to check if still authenticated
  * Used in event handlers to prevent processing during logout
@@ -96,6 +99,8 @@ export interface UseChatMessagesReturn {
   connectionState: ConnectionState;
   /** Send a new message */
   sendMessage: (content: string) => void;
+  /** Retry sending a failed message */
+  retryMessage: (message: ChatMessage) => void;
   /** Add/toggle a reaction on a message */
   addReaction: (messageId: string, emoji: string) => void;
   /** Manually refresh messages */
@@ -178,6 +183,17 @@ export function useChatMessages(
   const optionsRef = useRef(options);
   optionsRef.current = options;
 
+  // Track message send timeouts by clientMessageId
+  const messageTimeoutsRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+
+  // Cleanup timeouts on unmount
+  useEffect(() => {
+    return () => {
+      messageTimeoutsRef.current.forEach((timeout) => clearTimeout(timeout));
+      messageTimeoutsRef.current.clear();
+    };
+  }, []);
+
   // GUARD: If no userId, we're likely in a logout transition
   // Return early with empty state to prevent crashes
   if (!userId) {
@@ -188,6 +204,9 @@ export function useChatMessages(
       connectionState: 'disconnected',
       sendMessage: () => {
         log.warn('sendMessage called without userId - likely during logout');
+      },
+      retryMessage: () => {
+        log.warn('retryMessage called without userId - likely during logout');
       },
       addReaction: () => {
         log.warn('addReaction called without userId - likely during logout');
@@ -349,6 +368,13 @@ export function useChatMessages(
 
       const { clientMessageId, messageId, status } = payload;
 
+      // Clear any pending timeout for this message
+      const timeout = messageTimeoutsRef.current.get(clientMessageId);
+      if (timeout) {
+        clearTimeout(timeout);
+        messageTimeoutsRef.current.delete(clientMessageId);
+      }
+
       // Normalize status
       const statusLower = status?.toLowerCase();
       let normalizedStatus: MessageStatus = 'delivered';
@@ -432,6 +458,30 @@ export function useChatMessages(
     const unsubConnection = eventBus.on('connection.stateChanged', (payload) => {
       if (payload.state === 'connected') {
         setConnectionState('connected');
+        // Force re-subscribe after reconnection (server may have lost subscriptions)
+        wsService.forceSubscribe(roomId);
+        log.debug('Connection restored, forced resubscribe', { roomId });
+
+        // Auto-resend any messages still in 'sending' status
+        // This handles the case where server restarted and messages weren't delivered
+        setMessages((prev) => {
+          const pendingMessages = prev.filter(
+            (m) => m.status === 'sending' && m.clientMessageId
+          );
+
+          if (pendingMessages.length > 0) {
+            log.info('Resending pending messages after reconnection', {
+              count: pendingMessages.length,
+            });
+
+            // Resend each pending message
+            pendingMessages.forEach((msg) => {
+              wsService.sendMessage(roomId, msg.content, msg.clientMessageId!);
+            });
+          }
+
+          return prev; // No state change, just resending
+        });
       } else if (payload.state === 'reconnecting') {
         setConnectionState('reconnecting');
       } else {
@@ -631,6 +681,11 @@ export function useChatMessages(
       // Send via WebSocket
       wsService.sendMessage(roomId, trimmed, clientMessageId);
 
+      // Note: We no longer set a timeout to mark messages as failed.
+      // Instead, messages stay in 'sending' status and are auto-resent
+      // when the connection is restored (see connection.stateChanged handler).
+      // This provides a better UX as messages "just work" after reconnection.
+
       log.debug('Message sent', { roomId, clientMessageId });
     },
     [roomId, userId, displayName, avatarUrl]
@@ -706,12 +761,58 @@ export function useChatMessages(
     [roomId]
   );
 
+  /**
+   * Retry sending a failed message
+   * Resets status to 'sending' and resends via WebSocket
+   */
+  const retryMessage = useCallback(
+    (failedMessage: ChatMessage) => {
+      if (failedMessage.status !== 'failed' || !failedMessage.clientMessageId) {
+        log.warn('Cannot retry: message not failed or missing clientMessageId');
+        return;
+      }
+
+      const clientMessageId = failedMessage.clientMessageId;
+
+      // Update status back to sending
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.clientMessageId === clientMessageId
+            ? { ...m, status: 'sending' as const }
+            : m
+        )
+      );
+
+      // Resend via WebSocket
+      wsService.sendMessage(roomId, failedMessage.content, clientMessageId);
+
+      // Set new timeout
+      const timeoutId = setTimeout(() => {
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.clientMessageId === clientMessageId && m.status === 'sending'
+              ? { ...m, status: 'failed' as const }
+              : m
+          )
+        );
+        messageTimeoutsRef.current.delete(clientMessageId);
+        log.warn('Message retry timeout', { roomId, clientMessageId });
+      }, MESSAGE_SEND_TIMEOUT);
+
+      messageTimeoutsRef.current.set(clientMessageId, timeoutId);
+
+      log.debug('Message retry initiated', { roomId, clientMessageId });
+    },
+    [roomId]
+  );
+
   return {
     messages,
     isLoading,
     error,
     connectionState,
     sendMessage,
+    retryMessage,
     addReaction,
     refresh,
     markMessagesAsRead,

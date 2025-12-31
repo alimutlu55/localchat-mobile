@@ -7,10 +7,11 @@
  * Provider hierarchy:
  * 1. GestureHandler - Required for gesture handling
  * 2. SafeAreaProvider - Safe area insets
- * 3. NavigationContainer - Navigation state
- * 4. UserStoreProvider - User state (Zustand store + WebSocket handlers)
- * 5. UIProvider - UI state (sidebar, drawers)
- * 6. RoomStoreProvider - Zustand store + WebSocket handlers
+ * 3. ToastProvider - Global toast notifications
+ * 4. NavigationContainer - Navigation state
+ * 5. UserStoreProvider - User state (Zustand store + WebSocket handlers)
+ * 6. UIProvider - UI state (sidebar, drawers)
+ * 7. RoomStoreProvider - Zustand store + WebSocket handlers
  *
  * Architecture:
  * - AuthStore (Zustand) handles authentication flows
@@ -33,6 +34,7 @@ import { initializeAuthStore } from './src/features/auth';
 import { RootNavigator } from './src/navigation';
 import { GlobalDrawers } from './src/components/GlobalDrawers';
 import { LoadingScreen } from './src/screens';
+import { ToastProvider } from './src/components/ui';
 import { api } from './src/services';
 import { wsService } from './src/services';
 import { notificationService } from './src/services';
@@ -73,7 +75,7 @@ export default function App() {
 
     // Initialize notification service
     const cleanupNotifications = notificationService.initialize();
-    
+
     // Request notification permissions
     notificationService.requestPermissions().then((granted) => {
       console.log('[App] Notification permissions:', granted ? 'granted' : 'denied');
@@ -109,19 +111,21 @@ export default function App() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <SafeAreaProvider>
-        <NavigationContainer ref={navigationRef}>
-          {/* UserStoreProvider handles WebSocket subscriptions for user data */}
-          <UserStoreProvider>
-            <UIProvider>
-              {/* RoomStoreProvider initializes Zustand store and WebSocket handlers */}
-              <RoomStoreProvider>
-                <StatusBar style="dark" />
-                <RootNavigator />
-                <GlobalDrawers />
-              </RoomStoreProvider>
-            </UIProvider>
-          </UserStoreProvider>
-        </NavigationContainer>
+        <ToastProvider>
+          <NavigationContainer ref={navigationRef}>
+            {/* UserStoreProvider handles WebSocket subscriptions for user data */}
+            <UserStoreProvider>
+              <UIProvider>
+                {/* RoomStoreProvider initializes Zustand store and WebSocket handlers */}
+                <RoomStoreProvider>
+                  <StatusBar style="dark" />
+                  <RootNavigator />
+                  <GlobalDrawers />
+                </RoomStoreProvider>
+              </UIProvider>
+            </UserStoreProvider>
+          </NavigationContainer>
+        </ToastProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );

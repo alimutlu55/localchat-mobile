@@ -79,7 +79,7 @@ export interface UseRoomDiscoveryReturn {
   totalCount: number;
 
   /** Refresh rooms (resets pagination) */
-  refresh: () => Promise<void>;
+  refresh: (throwOnError?: boolean) => Promise<void>;
 
   /** Load next page of rooms */
   loadMore: () => Promise<void>;
@@ -144,7 +144,7 @@ export function useRoomDiscovery(
   /**
    * Fetch rooms (initial or refresh)
    */
-  const fetchRooms = useCallback(async () => {
+  const fetchRooms = useCallback(async (throwOnError = false) => {
     log.debug('Fetching rooms', { latitude, longitude, radius, page: 0 });
     setIsLoading(true);
     setError(null);
@@ -174,6 +174,9 @@ export function useRoomDiscovery(
     } catch (err) {
       log.error('Failed to fetch rooms', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch rooms');
+      if (throwOnError) {
+        throw err;
+      }
     } finally {
       setIsLoading(false);
     }
@@ -222,10 +225,10 @@ export function useRoomDiscovery(
   /**
    * Refresh rooms (reset pagination)
    */
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (throwOnError = false) => {
     setCurrentPage(0);
     setHasMore(true);
-    await fetchRooms();
+    await fetchRooms(throwOnError);
   }, [fetchRooms]);
 
   // Get store updateRoom for updateDiscoveredRoom

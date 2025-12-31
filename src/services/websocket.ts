@@ -31,8 +31,10 @@
 
 import { AppState, AppStateStatus } from 'react-native';
 import { eventBus } from '../core/events';
+import { useNetworkStore } from '../core/network';
 import { API_CONFIG, WS_EVENTS, STORAGE_KEYS } from '../constants';
 import { secureStorage } from './storage';
+import { api } from './api';
 
 /**
  * WebSocket connection state
@@ -133,8 +135,8 @@ class WebSocketService {
   private ws: WebSocket | null = null;
   private connectionState: ConnectionState = 'disconnected';
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 10;
-  private reconnectDelay = 1000;
+  private maxReconnectAttempts = 10;  // 10 attempts
+  private reconnectDelay = 3000;      // 3 seconds fixed delay (30 sec total)
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
   private subscribedRooms = new Set<string>();
   private eventHandlers = new Map<string, Set<EventHandler>>();
@@ -202,12 +204,24 @@ class WebSocketService {
     this.emitStateChange();
 
     try {
-      const token = await secureStorage.get(STORAGE_KEYS.AUTH_TOKEN);
+      let token = await secureStorage.get(STORAGE_KEYS.AUTH_TOKEN);
       if (!token) {
         console.warn('[WS] No auth token available');
         this.connectionState = 'disconnected';
         this.emitStateChange();
         return false;
+      }
+
+      // Try to refresh the token before connecting to ensure it's valid
+      // This prevents auth failures due to expired tokens
+      console.log('[WS] Refreshing token before connection...');
+      const refreshed = await api.refreshAccessToken();
+      if (refreshed) {
+        // Get the newly refreshed token
+        token = await secureStorage.get(STORAGE_KEYS.AUTH_TOKEN);
+        console.log('[WS] Token refreshed successfully');
+      } else {
+        console.log('[WS] Token refresh failed or not needed, using existing token');
       }
 
       // Store token for auth handshake
@@ -248,7 +262,12 @@ class WebSocketService {
       });
     } catch (error) {
       console.error('[WS] Connection error:', error);
-      this.connectionState = 'disconnected';
+      // Respect auto-retry state
+      if (this.reconnectAttempts < this.maxReconnectAttempts) {
+        this.connectionState = 'reconnecting';
+      } else {
+        this.connectionState = 'disconnected';
+      }
       this.emitStateChange();
       return false;
     }
@@ -268,6 +287,18 @@ class WebSocketService {
 
     this.connectionState = 'disconnected';
     this.emitStateChange();
+  }
+
+  /**
+   * Manual reconnect triggered by user (e.g., clicking Retry button)
+   * Resets retry counter and starts fresh connection attempt
+   */
+  manualReconnect(): void {
+    console.log('[WS] Manual reconnect triggered');
+    this.reconnectAttempts = 0; // Reset counter for fresh 10 attempts
+    this.connectionState = 'reconnecting';
+    this.emitStateChange();
+    this.connect();
   }
 
   /**
@@ -301,7 +332,14 @@ class WebSocketService {
 
         case WS_EVENTS.AUTH_ERROR:
           console.error('[WS] Authentication failed:', payload);
-          this.connectionState = 'disconnected';
+          // If we still have auto-retry attempts remaining, stay in 'reconnecting' mode
+          // Don't flash 'disconnected' which would briefly show the Retry button
+          if (this.reconnectAttempts < this.maxReconnectAttempts) {
+            this.connectionState = 'reconnecting';
+          } else {
+            // All auto-retries exhausted - show Retry button
+            this.connectionState = 'disconnected';
+          }
           this.emitStateChange();
           connectResolve?.(false);
           return;
@@ -365,12 +403,18 @@ class WebSocketService {
    */
   private handleDisconnect(): void {
     this.stopHeartbeat();
-    this.connectionState = 'disconnected';
-    this.emitStateChange();
 
-    // Attempt reconnection
+    // Only show 'disconnected' (with Retry button) if we've exhausted all auto-retries
+    // During auto-retry loop, show 'reconnecting' (no Retry button, just spinner)
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
+      this.connectionState = 'reconnecting';
+      this.emitStateChange();
       this.scheduleReconnect();
+    } else {
+      // All auto-retries exhausted - show 'disconnected' so user can manually retry
+      this.connectionState = 'disconnected';
+      this.emitStateChange();
+      console.log('[WS] All auto-reconnect attempts exhausted');
     }
   }
 
@@ -378,17 +422,14 @@ class WebSocketService {
    * Schedule reconnection attempt
    */
   private scheduleReconnect(): void {
-    const delay = Math.min(
-      this.reconnectDelay * Math.pow(2, this.reconnectAttempts),
-      30000
-    );
+    // Fixed 3-second delay between attempts (not exponential)
+    const delay = this.reconnectDelay;
 
-    this.connectionState = 'reconnecting';
-    this.emitStateChange();
+    // State is already 'reconnecting' from handleDisconnect
 
     setTimeout(() => {
       this.reconnectAttempts++;
-      console.log(`[WS] Reconnecting (attempt ${this.reconnectAttempts})...`);
+      console.log(`[WS] Reconnecting (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
       this.connect();
     }, delay);
   }
@@ -448,10 +489,21 @@ class WebSocketService {
 
   /**
    * Resubscribe to rooms after reconnection
+   * Note: This is called on AUTH_SUCCESS to restore room subscriptions
    */
   private resubscribeRooms(): void {
-    this.subscribedRooms.forEach((roomId) => {
+    const rooms = Array.from(this.subscribedRooms);
+    if (rooms.length === 0) {
+      console.log('[WS] No rooms to resubscribe to');
+      return;
+    }
+
+    console.log(`[WS] Resubscribing to ${rooms.length} room(s):`, rooms);
+
+    // Send subscribe for each room - server's subscription is lost after restart
+    rooms.forEach((roomId) => {
       this.send(WS_EVENTS.SUBSCRIBE, { roomId });
+      console.log(`[WS] Sent subscribe for room: ${roomId}`);
     });
   }
 
@@ -459,6 +511,9 @@ class WebSocketService {
    * Emit connection state change
    */
   private emitStateChange(): void {
+    // Sync with NetworkStore for unified state management
+    useNetworkStore.getState().setWsState(this.connectionState);
+
     // Legacy handlers (DEPRECATED)
     const handlers = this.eventHandlers.get('connectionStateChange');
     if (handlers) {
@@ -662,6 +717,16 @@ class WebSocketService {
       return;
     }
 
+    this.subscribedRooms.add(roomId);
+    this.send(WS_EVENTS.SUBSCRIBE, { roomId });
+  }
+
+  /**
+   * Force subscribe to a room (always sends, used after reconnection)
+   * Unlike subscribe(), this always sends the message even if we think we're subscribed
+   */
+  forceSubscribe(roomId: string): void {
+    console.log(`[WS] Force subscribe to room: ${roomId}`);
     this.subscribedRooms.add(roomId);
     this.send(WS_EVENTS.SUBSCRIBE, { roomId });
   }

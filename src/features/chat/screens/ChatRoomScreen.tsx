@@ -56,6 +56,7 @@ import { blockService, roomService, messageService, notificationService } from '
 import { useChatMessages, useChatInput } from '../hooks';
 import { useRoom, useRoomOperations, useRoomMembership } from '../../rooms/hooks';
 import { useRoomStore, useIsRoomMutedStore } from '../../rooms/store';
+import { useNetworkState } from '../../../hooks';
 
 // Components
 import {
@@ -162,6 +163,8 @@ export default function ChatRoomScreen() {
   // Mute state from RoomStore
   const isMuted = useIsRoomMutedStore(roomId);
 
+  // ConnectionBanner is now self-contained - no manual network state needed
+
   // Use new useRoom hook for room data with caching and WebSocket updates
   const { room: cachedRoom } = useRoom(roomId, {
     skipFetchIfCached: true, // Use cached data, don't re-fetch on every render
@@ -209,6 +212,7 @@ export default function ChatRoomScreen() {
     isLoading,
     connectionState,
     sendMessage,
+    retryMessage,
     addReaction,
     markMessagesAsRead,
   } = useChatMessages(roomId, {
@@ -520,6 +524,7 @@ export default function ChatRoomScreen() {
             onReport={handleReportMessage}
             onBlock={handleBlockUser}
             onReact={addReaction}
+            onRetry={retryMessage}
             hasBlocked={isBlocked(item.userId)}
           />
           {/* Date separator appears BELOW the message in inverted list = above visually */}
@@ -527,7 +532,7 @@ export default function ChatRoomScreen() {
         </>
       );
     },
-    [reversedMessages, userId, handleReportMessage, handleBlockUser, addReaction, isBlocked]
+    [reversedMessages, userId, handleReportMessage, handleBlockUser, addReaction, retryMessage, isBlocked]
   );
 
   // ==========================================================================
@@ -556,7 +561,8 @@ export default function ChatRoomScreen() {
       {/* Header - Always visible immediately */}
       <View style={styles.headerContainer}>
         <View style={{ height: insets.top }} />
-        <ConnectionBanner state={connectionState} />
+        {/* Self-contained banner - reads from NetworkStore, handles retries internally */}
+        <ConnectionBanner />
         <View style={styles.header}>
           <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
             <ArrowLeft size={24} color={theme.tokens.text.primary} />

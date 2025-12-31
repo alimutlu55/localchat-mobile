@@ -20,8 +20,8 @@ type NavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Welcome'>;
 
 export default function WelcomeScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { loginAnonymous, isLoading: authLoading, clearError } = useAuth();
-  
+  const { loginAnonymous, isLoading: authLoading, error, clearError } = useAuth();
+
   // Start as false to avoid showing loading state when arriving from logout
   // The loading state was causing a flicker during the logout → welcome transition
   const [isCheckingDevice, setIsCheckingDevice] = useState(false);
@@ -53,6 +53,12 @@ export default function WelcomeScreen() {
     // Clear any stale errors before attempting login
     clearError();
     setIsDirectLoginLoading(true);
+
+    // Track start time to ensure minimum loading duration
+    // This gives users confidence that we genuinely tried to connect
+    const startTime = Date.now();
+    const MIN_LOADING_DURATION = 1500; // 1.5 seconds minimum
+
     try {
       // Generate a random name for new anonymous users
       // If user already has an anonymous account, backend ignores this
@@ -63,9 +69,18 @@ export default function WelcomeScreen() {
       // Navigation will be handled by RootNavigator based on auth state
     } catch (error) {
       console.error('[WelcomeScreen] Direct anonymous login failed:', error);
-      // Fall back to showing welcome screen
+
+      // Ensure minimum loading time so user feels we genuinely tried
+      const elapsed = Date.now() - startTime;
+      if (elapsed < MIN_LOADING_DURATION) {
+        await new Promise((resolve) => setTimeout(resolve, MIN_LOADING_DURATION - elapsed));
+      }
+
+      // Fall back to showing welcome screen with error
       setIsDirectLoginLoading(false);
       setIsCheckingDevice(false);
+      // Error message is now set in AuthStore via useAuth.error
+      // It will be displayed in the UI below
     }
   };
 
@@ -160,6 +175,13 @@ export default function WelcomeScreen() {
               <Text style={styles.signupLink}>Sign up</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Error Display */}
+          {error && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
         </View>
       </View>
 
@@ -289,5 +311,18 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     textAlign: 'center',
     lineHeight: 18,
+  },
+  errorContainer: {
+    marginTop: 16,
+    padding: 12,
+    backgroundColor: '#fef2f2',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#fecaca',
+  },
+  errorText: {
+    fontSize: 14,
+    color: '#dc2626',
+    textAlign: 'center',
   },
 });

@@ -25,6 +25,7 @@ import { useUserStore } from '../../user/store/UserStore';
 import { useRoomStore } from '../../rooms/store/RoomStore';
 import { eventBus } from '../../../core/events';
 import { createLogger } from '../../../shared/utils/logger';
+import { getErrorMessage } from '../../../shared/utils/errors';
 import { User } from '../../../types';
 
 const log = createLogger('AuthStore');
@@ -236,7 +237,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             });
             log.debug('Login successful', { userId: user.id });
         } catch (err) {
-            const message = err instanceof Error ? err.message : 'Login failed';
+            const message = getErrorMessage(err, 'Login failed');
             log.warn('Login unsuccessful', { reason: message });
             set({
                 status: 'guest',
@@ -281,7 +282,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             });
             log.debug('Registration successful', { userId: user.id });
         } catch (err) {
-            const message = err instanceof Error ? err.message : 'Registration failed';
+            const message = getErrorMessage(err, 'Registration failed');
             log.warn('Registration unsuccessful', { reason: message });
             set({
                 status: 'guest',
@@ -326,7 +327,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             });
             log.debug('Anonymous login successful', { userId: user.id });
         } catch (err) {
-            const message = err instanceof Error ? err.message : 'Anonymous login failed';
+            const message = getErrorMessage(err, 'Anonymous login failed');
             log.warn('Anonymous login unsuccessful', { reason: message });
             set({
                 status: 'guest',

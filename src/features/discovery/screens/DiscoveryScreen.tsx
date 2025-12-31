@@ -45,9 +45,12 @@ import { useRoomOperations, useMyRooms, useRoomDiscovery } from '../../rooms/hoo
 
 // Components
 import { RoomListView, ServerRoomMarker, ServerClusterMarker } from '../components';
+import { ConnectionBanner } from '../../../components/chat/ConnectionBanner';
 
 // Hooks
 import { useMapState, useUserLocation, useServerClustering } from '../hooks';
+
+// Network - ConnectionBanner is self-contained, no imports needed here
 
 // Styles
 import { HUDDLE_MAP_STYLE } from '../../../styles/mapStyle';
@@ -235,6 +238,7 @@ export default function DiscoveryScreen() {
         features: serverFeatures,
         setFeatures: setServerFeatures,
         isLoading: isLoadingClusters,
+        error: clusterError,
         metadata: clusterMetadata,
         refetch: refetchClusters,
         prefetchForLocation,
@@ -245,6 +249,7 @@ export default function DiscoveryScreen() {
         enabled: isMapReady && hasBoundsInitialized,
         isMapReady: isMapReady && hasBoundsInitialized,
     });
+    // ConnectionBanner is now self-contained - no manual state needed here
 
     // Track when we have initial data to prevent marker rendering during first fetch
     useEffect(() => {
@@ -271,6 +276,7 @@ export default function DiscoveryScreen() {
         hasMore: hasMoreRooms,
         loadMore: loadMoreRooms,
         refresh: refreshDiscovery,
+        error: discoveryError,
     } = useRoomDiscovery({
         latitude: userLocation?.latitude || 0,
         longitude: userLocation?.longitude || 0,
@@ -762,8 +768,10 @@ export default function DiscoveryScreen() {
                 />
             </Animated.View>
 
-            {/* Header */}
+            {/* Header with Connection Banner on top */}
             <SafeAreaView style={styles.header} edges={['top']}>
+                {/* Self-contained banner - reads from NetworkStore, handles retries internally */}
+                <ConnectionBanner />
                 <View style={styles.headerContent}>
                     <TouchableOpacity
                         style={styles.hamburgerButton}

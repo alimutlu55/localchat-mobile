@@ -58,7 +58,7 @@ export interface UseServerClusteringReturn {
   metadata: ClusterMetadata | null;
 
   /** Manually trigger a refresh */
-  refetch: () => Promise<void>;
+  refetch: (throwOnError?: boolean) => Promise<void>;
 
   /** Prefetch data for a target location - shows markers 300ms before animation ends */
   prefetchForLocation: (centerLng: number, centerLat: number, targetZoom: number, animationDuration: number) => void;
@@ -213,9 +213,16 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
    * Expands bounds by 50% to pre-fetch data outside visible area
    */
   const fetchClusters = useCallback(
-    async (fetchBounds: [number, number, number, number], fetchZoom: number) => {
+    async (fetchBounds: [number, number, number, number] | null, fetchZoom: number, showLoading = false, throwOnError = false) => {
       if (isFetchingRef.current) {
-        log.debug('Fetch already in progress, skipping');
+        log.info('Fetch already in progress, skipping');
+        console.log('[useServerClustering] Fetch already in progress, skipping');
+        return;
+      }
+
+      if (!fetchBounds) {
+        log.warn('Fetch called with null bounds, skipping');
+        console.log('[useServerClustering] Fetch called with null bounds, skipping');
         return;
       }
 
@@ -236,10 +243,14 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
         expandedBounds,
         zoom: fetchZoom,
         category,
+        showLoading,
       });
 
+      console.log(`[useServerClustering] fetchClusters start: showLoading=${showLoading}, bounds=${JSON.stringify(fetchBounds)}`);
       isFetchingRef.current = true;
-      // Don't set isLoading to true - keep old features visible during fetch
+      if (showLoading) {
+        setIsLoading(true);
+      }
       setError(null);
 
       try {
@@ -272,7 +283,11 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
         if (mountedRef.current) {
           setError(err instanceof Error ? err.message : 'Failed to fetch clusters');
         }
+        if (throwOnError) {
+          throw err;
+        }
       } finally {
+        console.log('[useServerClustering] fetchClusters finally block');
         if (mountedRef.current) {
           setIsLoading(false);
         }
@@ -285,14 +300,14 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
   /**
    * Manual refresh
    */
-  const refetch = useCallback(async () => {
+  const refetch = useCallback(async (throwOnError = false) => {
     log.debug('Manual refetch triggered');
     // Clear cached state to force next useEffect to fetch
     lastFetchBoundsRef.current = null;
     lastFetchZoomRef.current = null;
     forceNextFetchRef.current = true;
-    // Immediately fetch with current bounds/zoom
-    await fetchClusters(bounds, zoom);
+    // Immediately fetch with current bounds/zoom, showing loading state for user feedback
+    await fetchClusters(bounds, zoom, true, throwOnError);
   }, [bounds, zoom, fetchClusters]);
 
   /**

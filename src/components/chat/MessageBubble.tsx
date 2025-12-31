@@ -49,6 +49,7 @@ interface MessageBubbleProps {
   onReport?: (message: ChatMessage) => void;
   onBlock?: (message: ChatMessage) => void;
   onReact?: (messageId: string, emoji: string) => void;
+  onRetry?: (message: ChatMessage) => void;
   hasBlocked?: boolean;
 }
 
@@ -72,6 +73,7 @@ export function MessageBubble({
   onReport,
   onBlock,
   onReact,
+  onRetry,
   hasBlocked
 }: MessageBubbleProps) {
   const [showContextMenu, setShowContextMenu] = useState(false);
@@ -152,9 +154,18 @@ export function MessageBubble({
       case 'read':
         return <CheckCheck size={12} color={theme.tokens.text.onPrimary} />;
       case 'failed':
-        return <AlertCircle size={14} color={theme.tokens.text.error} />;
+        return null; // We'll handle failed state separately with tap-to-retry
       default:
         return null;
+    }
+  };
+
+  /**
+   * Handle retry for failed messages
+   */
+  const handleRetry = () => {
+    if (message.status === 'failed' && onRetry) {
+      onRetry(message);
     }
   };
 
@@ -224,29 +235,58 @@ export function MessageBubble({
           )}
 
           {isOwn ? (
-            <TouchableOpacity
-              onPress={handlePress}
-              onLongPress={handleLongPress}
-              activeOpacity={0.85}
-            >
-              <LinearGradient
-                colors={[theme.tokens.brand.primary, theme.tokens.brand.secondary]}
-                start={{ x: 0, y: 0 }}
-                end={{ x: 1, y: 1 }}
-                style={[styles.bubble, styles.bubbleOwn]}
+            <View>
+              <TouchableOpacity
+                onPress={message.status === 'failed' ? handleRetry : handlePress}
+                onLongPress={message.status === 'failed' ? undefined : handleLongPress}
+                activeOpacity={0.85}
               >
-                <View style={styles.bubbleContentRow}>
-                  <Text style={[styles.messageText, styles.messageTextOwn]}>
-                    {message.content}
-                  </Text>
-                  <View style={styles.ownMessageMeta}>
-                    <Text style={styles.messageTimeOwn}>
-                      {formatTime(message.timestamp)}
+                <LinearGradient
+                  colors={
+                    message.status === 'failed'
+                      ? [theme.tokens.status.error.main, theme.tokens.status.error.main]
+                      : [theme.tokens.brand.primary, theme.tokens.brand.secondary]
+                  }
+                  start={{ x: 0, y: 0 }}
+                  end={{ x: 1, y: 1 }}
+                  style={[
+                    styles.bubble,
+                    styles.bubbleOwn,
+                    message.status === 'failed' && styles.bubbleFailed,
+                  ]}
+                >
+                  <View style={styles.bubbleContentRow}>
+                    <Text style={[styles.messageText, styles.messageTextOwn]}>
+                      {message.content}
                     </Text>
-                    {getStatusIcon()}
+                    <View style={styles.ownMessageMeta}>
+                      {message.status === 'failed' ? (
+                        <>
+                          <AlertCircle size={14} color={theme.tokens.text.onPrimary} />
+                        </>
+                      ) : (
+                        <>
+                          <Text style={styles.messageTimeOwn}>
+                            {formatTime(message.timestamp)}
+                          </Text>
+                          {getStatusIcon()}
+                        </>
+                      )}
+                    </View>
                   </View>
-                </View>
-              </LinearGradient>
+                </LinearGradient>
+              </TouchableOpacity>
+              {/* Failed message retry hint */}
+              {message.status === 'failed' && (
+                <TouchableOpacity
+                  style={styles.retryHint}
+                  onPress={handleRetry}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                >
+                  <AlertCircle size={12} color={theme.tokens.text.error} />
+                  <Text style={styles.retryHintText}>Tap to retry</Text>
+                </TouchableOpacity>
+              )}
               {message.reactions && message.reactions.length > 0 && (
                 <View style={styles.reactionsContainer}>
                   {message.reactions.map((reaction, idx) => (
@@ -271,7 +311,7 @@ export function MessageBubble({
                   ))}
                 </View>
               )}
-            </TouchableOpacity>
+            </View>
           ) : (
             <View style={styles.incomingContainer}>
               <TouchableOpacity
@@ -537,6 +577,22 @@ const styles = StyleSheet.create({
     backgroundColor: theme.tokens.action.primary.default,
     borderWidth: 0,
     borderColor: 'transparent',
+  },
+  bubbleFailed: {
+    opacity: 0.8,
+  },
+  retryHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 4,
+    marginTop: 4,
+    paddingRight: 4,
+  },
+  retryHintText: {
+    fontSize: 12,
+    color: theme.tokens.text.error,
+    fontWeight: '500',
   },
   messageText: {
     fontSize: 16,
