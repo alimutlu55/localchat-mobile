@@ -220,6 +220,7 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
     if (!isMapReady || !cameraRef.current) return;
 
     const newZoom = Math.min(zoom + 1, maxZoom);
+    setZoom(newZoom);
     cameraRef.current.setCamera({
       zoomLevel: newZoom,
       animationDuration: 200,
@@ -231,6 +232,7 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
     if (!isMapReady || !cameraRef.current) return;
 
     const newZoom = Math.max(zoom - 1, minZoom);
+    setZoom(newZoom);
     cameraRef.current.setCamera({
       zoomLevel: newZoom,
       animationDuration: 200,
@@ -245,6 +247,7 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
       const finalZoom = targetZoom ?? zoom;
       const duration = calculateFlyDuration(finalZoom);
 
+      setZoom(finalZoom);
       cameraRef.current.setCamera({
         centerCoordinate: [coordinate.longitude, coordinate.latitude],
         zoomLevel: finalZoom,
@@ -262,6 +265,7 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
       const finalZoom = targetZoom ?? 14;
       const duration = calculateFlyDuration(finalZoom);
 
+      setZoom(finalZoom);
       cameraRef.current.setCamera({
         centerCoordinate: [coordinate.longitude, coordinate.latitude],
         zoomLevel: finalZoom,
@@ -278,6 +282,7 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
     const targetZoom = 1;
     const duration = calculateFlyDuration(targetZoom);
 
+    setZoom(targetZoom);
     cameraRef.current.setCamera({
       centerCoordinate: [0, 20],
       zoomLevel: targetZoom,

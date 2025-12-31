@@ -163,6 +163,12 @@ export default function DiscoveryScreen() {
     // User location pulse animation - after userLocation is declared
     const userLocationPulseAnim = useRef(new Animated.Value(1)).current;
 
+    // Zoom ref to avoid stale closures in press handlers
+    const zoomRef = useRef(zoom);
+    useEffect(() => {
+        zoomRef.current = zoom;
+    }, [zoom]);
+
     useEffect(() => {
         if (userLocation) {
             const pulseAnimation = Animated.loop(
@@ -232,6 +238,7 @@ export default function DiscoveryScreen() {
         metadata: clusterMetadata,
         refetch: refetchClusters,
         prefetchForLocation,
+        prefetchForWorldView,
     } = useServerClustering({
         bounds,
         zoom,
@@ -446,13 +453,16 @@ export default function DiscoveryScreen() {
                 const latSpan = maxLat - minLat;
                 const boundsSpan = Math.max(lngSpan, latSpan);
 
+                // Use the latest zoom from ref to avoid stale closure issues
+                const currentActualZoom = zoomRef.current;
+
                 // Calculate optimal zoom that will cause meaningful splitting
-                const optimalZoom = calcOptimalZoom(boundsSpan, zoom);
+                const optimalZoom = calcOptimalZoom(boundsSpan, currentActualZoom);
 
                 // ALWAYS progress enough to split the cluster
                 // Use at least optimalZoom + 1 to guarantee eps is small enough
                 // And always at least 2 zoom levels for visual feedback
-                const targetZoom = Math.max(zoom + 2, optimalZoom + 1);
+                const targetZoom = Math.max(currentActualZoom + 2, optimalZoom + 1);
 
                 // Calculate center of expansion bounds
                 const centerLng = (minLng + maxLng) / 2;
@@ -462,7 +472,7 @@ export default function DiscoveryScreen() {
                     boundsSpan: boundsSpan.toFixed(4),
                     expansionBounds: [minLng.toFixed(4), minLat.toFixed(4), maxLng.toFixed(4), maxLat.toFixed(4)],
                     optimalZoom,
-                    currentZoom: zoom,
+                    currentZoom: currentActualZoom,
                     targetZoom,
                     pointCount,
                 });
@@ -470,7 +480,7 @@ export default function DiscoveryScreen() {
                 // Use setCamera with calculated targetZoom
                 // The zoom level is chosen to ensure server eps will split the cluster
                 const finalTargetZoom = Math.min(targetZoom, 18);
-                const animDuration = calcAnimationDuration(zoom, finalTargetZoom);
+                const animDuration = calcAnimationDuration(currentActualZoom, finalTargetZoom);
 
                 // Prefetch data - will show markers 300ms before animation ends
                 prefetchForLocation(centerLng, centerLat, finalTargetZoom, animDuration);
@@ -483,17 +493,18 @@ export default function DiscoveryScreen() {
                 });
             } else {
                 // No expansion bounds - zoom in by fixed amount (more aggressive)
+                const currentActualZoom = zoomRef.current;
                 const zoomIncrement = pointCount > 100 ? 4 : pointCount > 20 ? 5 : 6;
-                const targetZoom = Math.min(zoom + zoomIncrement, 18);
+                const targetZoom = Math.min(currentActualZoom + zoomIncrement, 18);
 
                 log.debug('No expansion bounds, zooming by increment', {
-                    from: zoom,
+                    from: currentActualZoom,
                     to: targetZoom,
                     pointCount,
                     zoomIncrement
                 });
 
-                const animDuration = calcAnimationDuration(zoom, targetZoom);
+                const animDuration = calcAnimationDuration(currentActualZoom, targetZoom);
 
                 // Prefetch data - will show markers 300ms before animation ends
                 prefetchForLocation(lng, lat, targetZoom, animDuration);
@@ -506,7 +517,7 @@ export default function DiscoveryScreen() {
                 });
             }
         },
-        [isMapReady, zoom, cameraRef, prefetchForLocation]
+        [isMapReady, cameraRef, prefetchForLocation]
     );
 
     const handleRoomPress = useCallback(
@@ -700,7 +711,15 @@ export default function DiscoveryScreen() {
                     </TouchableOpacity>
 
                     {zoom > 1 && (
-                        <TouchableOpacity style={styles.controlButton} onPress={resetToWorldView} activeOpacity={0.7}>
+                        <TouchableOpacity
+                            style={styles.controlButton}
+                            onPress={() => {
+                                const animDuration = calculateFlyDuration(1);
+                                prefetchForWorldView(animDuration);
+                                resetToWorldView();
+                            }}
+                            activeOpacity={0.7}
+                        >
                             <Globe size={20} color="#f97316" />
                         </TouchableOpacity>
                     )}

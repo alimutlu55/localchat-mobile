@@ -62,6 +62,9 @@ export interface UseServerClusteringReturn {
 
   /** Prefetch data for a target location - shows markers 300ms before animation ends */
   prefetchForLocation: (centerLng: number, centerLat: number, targetZoom: number, animationDuration: number) => void;
+
+  /** Prefetch world-level data for zoom-out to world view */
+  prefetchForWorldView: (animationDuration: number) => void;
 }
 
 // =============================================================================
@@ -360,6 +363,10 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
           willShowIn: showMarkersDelay - (Date.now() % 10000) // rough timing
         });
 
+        // Optimistically set last fetch info to avoid redundant fetches from proactive zoom updates
+        lastFetchBoundsRef.current = targetBounds;
+        lastFetchZoomRef.current = targetZoom;
+
         // Calculate remaining delay (request took some time)
         const requestDuration = 0; // We don't track exact timing, but request is fast
         const remainingDelay = Math.max(0, showMarkersDelay - requestDuration);
@@ -387,6 +394,63 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
       } catch (err) {
         log.error('Prefetch failed', err);
         // Silently fail - normal fetch will happen when camera settles
+      }
+    },
+    [category]
+  );
+
+  /**
+   * Prefetch world-level data for zoom-out to world view.
+   * Always targets zoom 1 at center (0, 20).
+   */
+  const prefetchForWorldView = useCallback(
+    async (animationDuration: number) => {
+      const targetZoom = 1;
+      const targetBounds: [number, number, number, number] = [-180, -85, 180, 85];
+      const showMarkersDelay = Math.max(0, animationDuration - 1000);
+
+      // Clear any pending prefetch timer
+      if (prefetchTimerRef.current) {
+        clearTimeout(prefetchTimerRef.current);
+        prefetchTimerRef.current = null;
+      }
+
+      log.info('Prefetching for world view', { animationDuration, showMarkersDelay });
+
+      try {
+        const response: ClusterResponse = await roomService.getClusters(
+          targetBounds[0], targetBounds[1], targetBounds[2], targetBounds[3],
+          targetZoom, category
+        );
+
+        if (!mountedRef.current) return;
+
+        log.info('World view prefetch completed', { featureCount: response.features.length });
+
+        // Optimistically set last fetch info to avoid redundant fetches from proactive zoom updates
+        lastFetchBoundsRef.current = targetBounds;
+        lastFetchZoomRef.current = targetZoom;
+
+        if (showMarkersDelay > 50) {
+          pendingPrefetchRef.current = response;
+          prefetchTimerRef.current = setTimeout(() => {
+            if (mountedRef.current && pendingPrefetchRef.current) {
+              log.info('Showing prefetched world markers');
+              setRawFeatures(pendingPrefetchRef.current.features);
+              setMetadata(pendingPrefetchRef.current.metadata);
+              lastFetchBoundsRef.current = targetBounds;
+              lastFetchZoomRef.current = targetZoom;
+              pendingPrefetchRef.current = null;
+            }
+          }, showMarkersDelay);
+        } else {
+          setRawFeatures(response.features);
+          setMetadata(response.metadata);
+          lastFetchBoundsRef.current = targetBounds;
+          lastFetchZoomRef.current = targetZoom;
+        }
+      } catch (err) {
+        log.error('World view prefetch failed', err);
       }
     },
     [category]
@@ -493,7 +557,7 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
     };
   }, [enabled, isMapReady, refetch]);
 
-  return {
+  return useMemo(() => ({
     features,
     setFeatures: setRawFeatures,
     isLoading,
@@ -501,7 +565,16 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
     metadata,
     refetch,
     prefetchForLocation,
-  };
+    prefetchForWorldView,
+  }), [
+    features,
+    isLoading,
+    error,
+    metadata,
+    refetch,
+    prefetchForLocation,
+    prefetchForWorldView,
+  ]);
 }
 
 export default useServerClustering;
