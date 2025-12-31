@@ -97,14 +97,13 @@ jest.mock('react-native-reanimated', () => {
 // Global test utilities
 global.setImmediate = global.setImmediate || ((fn, ...args) => setTimeout(fn, 0, ...args));
 
-// Mock requestAnimationFrame for React Native Animated - make it synchronous for tests
+// Mock requestAnimationFrame for React Native Animated - make it asynchronous to avoid recursion issues
 global.requestAnimationFrame = (callback) => {
-    // Return a mock frame ID immediately, call callback synchronously for simpler testing
-    callback(Date.now());
-    return 1;
+    // Use setTimeout to make it asynchronous, preventing synchronous stack overflows
+    return setTimeout(() => callback(Date.now()), 0);
 };
 global.cancelAnimationFrame = (id) => {
-    // no-op
+    clearTimeout(id);
 };
 
 // Suppress React Native warning about act() for async updates
