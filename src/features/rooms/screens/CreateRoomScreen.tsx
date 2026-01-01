@@ -154,8 +154,16 @@ export default function CreateRoomScreen() {
    * Handle room creation
    */
   const handleCreate = async () => {
-    if (!title.trim()) {
+    const trimmedTitle = title.trim();
+
+    if (!trimmedTitle) {
       Alert.alert('Title Required', 'Please enter a room title.');
+      return;
+    }
+
+    // Validate minimum title length (matches backend validation)
+    if (trimmedTitle.length < 3) {
+      Alert.alert('Title Too Short', 'Room title must be at least 3 characters.');
       return;
     }
 
@@ -202,7 +210,16 @@ export default function CreateRoomScreen() {
       navigation.replace('ChatRoom', { roomId: roomWithCreatorFlag.id, initialRoom: roomWithCreatorFlag });
     } catch (error) {
       console.error('Failed to create room:', error);
-      Alert.alert('Error', 'Failed to create room. Please try again.');
+
+      // Extract user-friendly error message from API response
+      let errorMessage = 'Failed to create room. Please try again.';
+      if (error instanceof Error) {
+        // ApiError has a message property with the specific validation error
+        // e.g., "Title must be 3-60 characters"
+        errorMessage = error.message || errorMessage;
+      }
+
+      Alert.alert('Error', errorMessage);
     } finally {
       setIsLoading(false);
     }
