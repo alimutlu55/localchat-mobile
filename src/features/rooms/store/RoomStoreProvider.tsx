@@ -19,7 +19,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { useCurrentUser } from '../../user/store';
-import { useAuthStore } from '../../auth/store/AuthStore';
+import { useAppStore, selectAuthStatus } from '../../../shared/stores';
 import { useRoomStore } from './RoomStore';
 import { useRoomEvents } from '../hooks/useRoomEvents';
 import { roomService, notificationService, wsService } from '../../../services';
@@ -37,7 +37,7 @@ interface RoomStoreProviderProps {
  */
 function RoomStoreInitializer() {
   const user = useCurrentUser();
-  const authStatus = useAuthStore((s) => s.status);
+  const authStatus = useAppStore(selectAuthStatus);
 
   // Subscribe to WebSocket events via EventBus
   // Pass null userId if logging out to prevent event handling
@@ -158,7 +158,7 @@ function RoomStoreInitializer() {
       } catch (error) {
         // Check if we're still authenticated before logging error
         // (could have logged out during the fetch)
-        if (useAuthStore.getState().status === 'authenticated') {
+        if (useAppStore.getState().authStatus === 'authenticated') {
           log.error('Failed to fetch my rooms', error);
         } else {
           log.debug('Room fetch failed, but user is no longer authenticated');

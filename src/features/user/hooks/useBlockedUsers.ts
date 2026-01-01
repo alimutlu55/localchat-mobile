@@ -5,7 +5,7 @@
  * Encapsulates all blocked users logic away from components.
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { Alert } from 'react-native';
 import { blockService, BlockedUser } from '../../../services/block';
 import { createLogger } from '../../../shared/utils/logger';
@@ -17,17 +17,26 @@ interface UseBlockedUsersReturn {
   /** List of blocked users */
   blockedUsers: BlockedUser[];
 
+  /** Set of blocked user IDs for O(1) lookup */
+  blockedUserIds: Set<string>;
+
   /** Number of blocked users */
   count: number;
 
   /** Loading state for initial fetch */
   isLoading: boolean;
 
+  /** Whether blocked users have been loaded (for guarding dependent logic) */
+  isLoaded: boolean;
+
   /** ID of user currently being unblocked (for loading indicator) */
   unblockingId: string | null;
 
   /** Error message if fetch failed */
   error: string | null;
+
+  /** Check if a specific user is blocked */
+  isBlocked: (userId: string) => boolean;
 
   /** Refresh blocked users list from API */
   refresh: () => Promise<void>;
@@ -158,12 +167,43 @@ export function useBlockedUsers(): UseBlockedUsersReturn {
     []
   );
 
+  // ==========================================================================
+  // Derived State and Helpers
+  // ==========================================================================
+
+  /**
+   * Set of blocked user IDs for O(1) lookup
+   * Memoized to prevent unnecessary re-renders
+   */
+  const blockedUserIds = useMemo(
+    () => new Set(blockedUsers.map((u) => u.blockedId)),
+    [blockedUsers]
+  );
+
+  /**
+   * Check if a specific user is blocked
+   * Uses the memoized Set for O(1) lookup
+   */
+  const isBlocked = useCallback(
+    (userId: string): boolean => blockedUserIds.has(userId),
+    [blockedUserIds]
+  );
+
+  /**
+   * Whether the initial fetch has completed (success or failure)
+   * Used to guard dependent logic that needs to wait for blocked users data
+   */
+  const isLoaded = hasFetched.current || (!isAuthenticated);
+
   return {
     blockedUsers,
+    blockedUserIds,
     count: blockedUsers.length,
     isLoading,
+    isLoaded,
     unblockingId,
     error,
+    isBlocked,
     refresh,
     unblockUser,
     unblockUserDirect,

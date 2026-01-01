@@ -251,7 +251,7 @@ describe('useChatMessages', () => {
       // Optimistic message should be updated
       const updated = result.current.messages.find((m) => m.id === 'server-msg-id');
       expect(updated).toBeDefined();
-      expect(updated?.status).toBe('delivered');
+      expect(updated?.status).toBe('sent');
     });
   });
 

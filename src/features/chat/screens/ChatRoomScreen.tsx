@@ -34,14 +34,14 @@ import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navig
 import { theme } from '../../../core/theme';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
-  ArrowLeft,
-  Send,
-  MoreVertical,
   AlertCircle,
 } from 'lucide-react-native';
 
 // Navigation
 import { RootStackParamList } from '../../../navigation/types';
+
+// Feature Components
+import { ChatHeader, MessageInput } from '../components';
 
 // Types
 import { ChatMessage, Room } from '../../../types';
@@ -49,14 +49,15 @@ import { ChatMessage, Room } from '../../../types';
 // UserStore
 import { useUserId } from '../../user/store';
 
-// Services
-import { blockService, roomService, messageService, notificationService } from '../../../services';
+// Services (via feature gateway)
+import { chatServices } from '../services';
 
 // Hooks
 import { useChatMessages, useChatInput } from '../hooks';
 import { useRoom, useRoomOperations, useRoomMembership } from '../../rooms/hooks';
 import { useRoomStore, useIsRoomMutedStore } from '../../rooms/store';
 import { useNetworkState } from '../../../hooks';
+import { useBlockedUsers } from '../../user/hooks';
 
 // Components
 import {
@@ -64,7 +65,6 @@ import {
   DateSeparator,
   shouldShowDateSeparator,
   TypingIndicator,
-  ConnectionBanner,
   ScrollToBottomButton,
   ChatRoomMenu,
   ReportModal,
@@ -82,52 +82,6 @@ const log = createLogger('ChatRoom');
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'ChatRoom'>;
 type ChatRoomRouteProp = RouteProp<RootStackParamList, 'ChatRoom'>;
-
-// =============================================================================
-// Custom Hook: Blocked Users
-// =============================================================================
-
-function useBlockedUsers() {
-  const [blockedUserIds, setBlockedUserIds] = useState<Set<string>>(new Set());
-  const [isLoaded, setIsLoaded] = useState(false);
-
-  useEffect(() => {
-    const loadBlockedUsers = async () => {
-      try {
-        const blockedUsers = await blockService.getBlockedUsers();
-        setBlockedUserIds(new Set(blockedUsers.map((u) => u.blockedId)));
-      } catch (err) {
-        log.error('Failed to load blocked users', err);
-      } finally {
-        setIsLoaded(true);
-      }
-    };
-    loadBlockedUsers();
-  }, []);
-
-  const blockUser = useCallback(async (userId: string, displayName?: string): Promise<boolean> => {
-    try {
-      await blockService.blockUser(userId, undefined, displayName);
-      setBlockedUserIds((prev) => new Set(prev).add(userId));
-      return true;
-    } catch (error: any) {
-      // Handle "already blocked" gracefully
-      if (error?.status === 409 || error?.message?.includes('already blocked')) {
-        setBlockedUserIds((prev) => new Set(prev).add(userId));
-        return true;
-      }
-      log.error('Failed to block user', error);
-      return false;
-    }
-  }, []);
-
-  const isBlocked = useCallback(
-    (userId: string) => blockedUserIds.has(userId),
-    [blockedUserIds]
-  );
-
-  return { blockedUserIds, blockUser, isBlocked, isLoaded };
-}
 
 // =============================================================================
 // Main Component
@@ -255,11 +209,11 @@ export default function ChatRoomScreen() {
   useFocusEffect(
     useCallback(() => {
       // When screen is focused, set this room as active
-      notificationService.setActiveRoom(roomId);
+      chatServices.setActiveRoom(roomId);
 
       return () => {
         // When screen loses focus, clear active room
-        notificationService.setActiveRoom(null);
+        chatServices.setActiveRoom(null);
       };
     }, [roomId])
   );
@@ -303,7 +257,7 @@ export default function ChatRoomScreen() {
     useCallback(() => {
       const refreshRoom = async () => {
         try {
-          const freshRoom = await roomService.getRoom(roomId);
+          const freshRoom = await chatServices.getRoom(roomId);
           updateRoom(roomId, { participantCount: freshRoom.participantCount });
         } catch (e) {
           log.warn('Could not refresh room data on focus');
@@ -326,7 +280,7 @@ export default function ChatRoomScreen() {
       if (blockedUserIds.size === 0) return;
 
       try {
-        const participants = await roomService.getParticipants(roomId);
+        const participants = await chatServices.getParticipants(roomId);
         const hasBlockedParticipant = participants.some(
           (p) => blockedUserIds.has(p.userId)
         );
@@ -450,7 +404,7 @@ export default function ChatRoomScreen() {
   }) => {
     try {
       if (reportConfig.targetType === 'message' && reportConfig.targetData) {
-        await messageService.reportMessage(
+        await chatServices.reportMessage(
           roomId,
           reportConfig.targetData.id,
           data.reason,
@@ -460,7 +414,7 @@ export default function ChatRoomScreen() {
           await blockUser(reportConfig.targetData.userId, reportConfig.targetData.userName);
         }
       } else if (reportConfig.targetType === 'room') {
-        await roomService.reportRoom(roomId, data.reason, data.details);
+        await chatServices.reportRoom(roomId, data.reason, data.details);
         Alert.alert('Report Submitted', 'Thank you for your report or feedback.');
       }
     } catch (error) {
@@ -534,30 +488,13 @@ export default function ChatRoomScreen() {
 
   return (
     <View style={styles.container}>
-      {/* Header - Always visible immediately */}
-      <View style={styles.headerContainer}>
-        <View style={{ height: insets.top }} />
-        {/* Self-contained banner - reads from NetworkStore, handles retries internally */}
-        <ConnectionBanner />
-        <View style={styles.header}>
-          <TouchableOpacity style={styles.backButton} onPress={() => navigation.goBack()}>
-            <ArrowLeft size={24} color={theme.tokens.text.primary} />
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.headerContent} onPress={handleRoomInfo}>
-            <Text style={styles.headerTitle} numberOfLines={1}>
-              {displayRoom.title}
-            </Text>
-            <Text style={styles.headerSubtitle}>
-              {displayRoom.participantCount} people • {displayRoom.distanceDisplay || 'Nearby'}
-            </Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity style={styles.menuButton} onPress={() => setShowMenu(true)}>
-            <MoreVertical size={22} color={theme.tokens.text.tertiary} />
-          </TouchableOpacity>
-        </View>
-      </View>
+      {/* Header - Extracted to ChatHeader component */}
+      <ChatHeader
+        room={displayRoom}
+        onBack={() => navigation.goBack()}
+        onRoomInfo={handleRoomInfo}
+        onMenuOpen={() => setShowMenu(true)}
+      />
 
       {/* Messages */}
       <KeyboardAvoidingView
@@ -603,28 +540,14 @@ export default function ChatRoomScreen() {
           onPress={scrollToBottom}
         />
 
-        {/* Input */}
-        <View style={[styles.inputContainer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-          <View style={styles.inputWrapper}>
-            <TextInput
-              ref={inputRef}
-              style={styles.input}
-              placeholder="Type a message..."
-              placeholderTextColor={theme.tokens.text.tertiary}
-              value={inputText}
-              onChangeText={setInputText}
-              multiline
-              maxLength={1000}
-            />
-          </View>
-          <TouchableOpacity
-            style={styles.sendButton}
-            onPress={handleSubmit}
-            disabled={!canSend}
-          >
-            <Send size={22} color={canSend ? theme.tokens.brand.primary : theme.tokens.text.tertiary} />
-          </TouchableOpacity>
-        </View>
+        {/* Input - Extracted to MessageInput component */}
+        <MessageInput
+          inputRef={inputRef}
+          value={inputText}
+          onChangeText={setInputText}
+          onSubmit={handleSubmit}
+          canSend={canSend}
+        />
       </KeyboardAvoidingView>
 
       {/* Menu */}
@@ -722,44 +645,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
-  headerContainer: {
-    backgroundColor: theme.tokens.bg.surface,
-    borderBottomWidth: 1,
-    borderBottomColor: theme.tokens.border.subtle,
-    zIndex: 10,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-  },
-  backButton: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  headerContent: {
-    flex: 1,
-    alignItems: 'center',
-  },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: theme.tokens.text.primary,
-  },
-  headerSubtitle: {
-    fontSize: 12,
-    color: theme.tokens.text.tertiary,
-    marginTop: 1,
-  },
-  menuButton: {
-    width: 44,
-    height: 44,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
   content: {
     flex: 1,
   },
@@ -801,38 +686,6 @@ const styles = StyleSheet.create({
   emptySubtitle: {
     fontSize: 15,
     color: theme.tokens.text.secondary,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
-    paddingVertical: 12,
-    backgroundColor: theme.tokens.bg.surface,
-    borderTopWidth: 1,
-    borderTopColor: theme.tokens.border.subtle,
-    gap: 12,
-  },
-  inputWrapper: {
-    flex: 1,
-    backgroundColor: theme.tokens.bg.subtle,
-    borderRadius: 12,
-    minHeight: 40,
-    justifyContent: 'center',
-  },
-  input: {
-    flex: 1,
-    fontSize: 15,
-    color: theme.tokens.text.primary,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  sendButton: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: theme.tokens.bg.subtle,
-    justifyContent: 'center',
-    alignItems: 'center',
   },
   modalOverlay: {
     flex: 1,

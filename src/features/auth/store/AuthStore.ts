@@ -23,6 +23,7 @@ import { authService } from '../../../services/auth';
 import { wsService } from '../../../services';
 import { useUserStore } from '../../user/store/UserStore';
 import { useRoomStore } from '../../rooms/store/RoomStore';
+import { useAppStore } from '../../../shared/stores';
 import { eventBus } from '../../../core/events';
 import { createLogger } from '../../../shared/utils/logger';
 import { getErrorMessage } from '../../../shared/utils/errors';
@@ -220,6 +221,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
         }
 
         set({ status: 'authenticating', isLoading: true, error: null });
+        useAppStore.getState().setAuthState('authenticating', null);
 
         try {
             log.debug('Login attempt', { email });
@@ -239,6 +241,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
                 isLoading: false,
                 isInitializing: false,
             });
+            useAppStore.getState().setAuthState('authenticated', user.id);
             log.debug('Login successful', { userId: user.id });
         } catch (err) {
             const message = getErrorMessage(err, 'Login failed');
@@ -263,6 +266,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
         }
 
         set({ status: 'authenticating', isLoading: true, error: null });
+        useAppStore.getState().setAuthState('authenticating', null);
 
         try {
             log.debug('Register attempt', { email, displayName });
@@ -282,6 +286,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
                 isLoading: false,
                 isInitializing: false,
             });
+            useAppStore.getState().setAuthState('authenticated', user.id);
             log.debug('Registration successful', { userId: user.id });
         } catch (err) {
             const message = getErrorMessage(err, 'Registration failed');
@@ -292,6 +297,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
                 isLoading: false,
                 isAuthenticated: false,
             });
+            useAppStore.getState().setAuthState('guest', null);
             throw err;
         }
     },
@@ -306,6 +312,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
         }
 
         set({ status: 'authenticating', isLoading: true, error: null });
+        useAppStore.getState().setAuthState('authenticating', null);
 
         try {
             log.debug('Anonymous login attempt', { displayName });
@@ -325,6 +332,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
                 isLoading: false,
                 isInitializing: false,
             });
+            useAppStore.getState().setAuthState('authenticated', user.id);
             log.debug('Anonymous login successful', { userId: user.id });
         } catch (err) {
             const message = getErrorMessage(err, 'Anonymous login failed');
@@ -335,6 +343,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
                 isLoading: false,
                 isAuthenticated: false,
             });
+            useAppStore.getState().setAuthState('guest', null);
             throw err;
         }
     },
@@ -351,6 +360,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
         // CRITICAL: Set loggingOut FIRST - this keeps navigation stable
         // Navigation will show loading screen during loggingOut state
         set({ status: 'loggingOut', isLoading: true });
+        useAppStore.getState().setAuthState('loggingOut', null);
         log.debug('Logout initiated - entering loggingOut state');
 
         // Track start time to ensure minimum logout duration
@@ -375,6 +385,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
                 isInitializing: false,
                 error: null,
             });
+            useAppStore.getState().setAuthState('guest', null);
             log.debug('Logout successful - transitioned to guest state');
         } catch (err) {
             log.error('Logout cleanup failed', { err });
@@ -390,6 +401,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
                 isLoading: false,
                 isInitializing: false,
             });
+            useAppStore.getState().setAuthState('guest', null);
         }
     },
 
@@ -403,6 +415,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
         }
 
         set({ status: 'loggingOut', isLoading: true, error: null });
+        useAppStore.getState().setAuthState('loggingOut', null);
         log.debug('Delete account initiated');
 
         const startTime = Date.now();
@@ -434,6 +447,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
                 isInitializing: false,
                 error: null,
             });
+            useAppStore.getState().setAuthState('guest', null);
             log.info('Account deleted successfully');
         } catch (err) {
             const message = getErrorMessage(err, 'Failed to delete account');
@@ -521,6 +535,7 @@ export const selectIsTransitioning = (state: AuthStore) => {
 export async function initializeAuthStore(): Promise<void> {
     // Transition from unknown to loading
     useAuthStore.setState({ status: 'loading' });
+    useAppStore.getState().setAuthState('loading', null);
     log.debug('Initializing auth store - status: loading');
 
     try {
@@ -541,6 +556,7 @@ export async function initializeAuthStore(): Promise<void> {
                 isInitializing: false,
                 isLoading: false,
             });
+            useAppStore.getState().setAuthState('authenticated', user.id);
             log.debug('Auth initialized with user', { userId: user.id, status: 'authenticated' });
         } else {
             // No user, transition to guest
@@ -550,6 +566,7 @@ export async function initializeAuthStore(): Promise<void> {
                 isInitializing: false,
                 isLoading: false,
             });
+            useAppStore.getState().setAuthState('guest', null);
             log.debug('Auth initialized - no user', { status: 'guest' });
         }
     } catch (err) {
@@ -561,6 +578,7 @@ export async function initializeAuthStore(): Promise<void> {
             isInitializing: false,
             isLoading: false,
         });
+        useAppStore.getState().setAuthState('guest', null);
     }
 }
 

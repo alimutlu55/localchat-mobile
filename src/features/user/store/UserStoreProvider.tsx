@@ -17,7 +17,7 @@
 
 import React, { useEffect, useRef } from 'react';
 import { useUserStore, useCurrentUser } from './UserStore';
-import { useAuthStore } from '../../auth/store/AuthStore';
+import { useAppStore, selectAuthStatus } from '../../../shared/stores';
 import { eventBus } from '../../../core/events';
 import { createLogger } from '../../../shared/utils/logger';
 import { notificationService } from '../../../services';
@@ -37,7 +37,7 @@ interface UserStoreProviderProps {
 function UserStoreInitializer() {
   const cleanupIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const currentUser = useCurrentUser();
-  const authStatus = useAuthStore((s) => s.status);
+  const authStatus = useAppStore(selectAuthStatus);
 
   // Get store actions
   const updateUser = useUserStore((s) => s.updateUser);
@@ -68,7 +68,7 @@ function UserStoreInitializer() {
 
     const handleProfileUpdated = (payload: { userId: string; displayName?: string; profilePhotoUrl?: string }) => {
       // GUARD: Check auth status before processing
-      const currentStatus = useAuthStore.getState().status;
+      const currentStatus = useAppStore.getState().authStatus;
       if (currentStatus !== 'authenticated') {
         log.debug('Skipping profile update - not authenticated', { currentStatus });
         return;

@@ -109,6 +109,15 @@ jest.mock('react-native-reanimated', () => {
     return Reanimated;
 });
 
+// Mock React Native Image.prefetch for avatar caching tests
+// Using direct modification since jest-expo has complex react-native mocking
+const RNImage = require('react-native').Image;
+if (RNImage) {
+    RNImage.prefetch = jest.fn(() => Promise.resolve(true));
+    RNImage.getSize = jest.fn((_, success) => success?.(100, 100));
+    RNImage.queryCache = jest.fn(() => Promise.resolve({}));
+}
+
 // Global test utilities
 global.setImmediate = global.setImmediate || ((fn, ...args) => setTimeout(fn, 0, ...args));
 

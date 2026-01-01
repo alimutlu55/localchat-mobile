@@ -13,3 +13,6 @@ export type {
 
 export { useChatInput } from './useChatInput';
 export type { UseChatInputReturn } from './useChatInput';
+
+export { useChatRoom } from './useChatRoom';
+export type { UseChatRoomOptions, UseChatRoomReturn } from './useChatRoom';
