@@ -539,6 +539,18 @@ export function RoomListView({
         }
     }, [isLoadingMore, hasMoreRooms, searchQuery, loadMoreRooms]);
 
+    // Memoize flattened list data for FlatList
+    const flattenedData = useMemo(() => {
+        const flattened: ({ type: 'header'; title: string } | { type: 'room'; room: Room })[] = [];
+        groupedRooms.forEach(group => {
+            flattened.push({ type: 'header', title: group.title });
+            group.rooms.forEach(room => {
+                flattened.push({ type: 'room', room });
+            });
+        });
+        return flattened;
+    }, [groupedRooms]);
+
     if (isLoading) {
         return (
             <View style={styles.loadingContainer}>
@@ -644,23 +656,22 @@ export function RoomListView({
                 />
             ) : (
                 <FlatList
-                    data={groupedRooms}
-                    keyExtractor={(item) => item.title}
+                    data={flattenedData}
+                    keyExtractor={(item, index) => item.type === 'header' ? `header-${item.title}` : `room-${item.room.id}`}
                     extraData={myRooms}
-                    renderItem={({ item: group }) => (
-                        <View style={styles.group}>
-                            <Text style={styles.groupTitle}>{group.title}</Text>
-                            {group.rooms.map((room) => (
-                                <RoomListItemWrapper
-                                    key={room.id}
-                                    room={room}
-                                    onJoin={handleRoomPress}
-                                    onEnterRoom={onEnterRoom}
-                                    userLocation={userLocation}
-                                />
-                            ))}
-                        </View>
-                    )}
+                    renderItem={({ item }) => {
+                        if (item.type === 'header') {
+                            return <Text style={styles.groupTitle}>{item.title}</Text>;
+                        }
+                        return (
+                            <RoomListItemWrapper
+                                room={item.room}
+                                onJoin={handleRoomPress}
+                                onEnterRoom={onEnterRoom}
+                                userLocation={userLocation}
+                            />
+                        );
+                    }}
                     ListFooterComponent={() => (
                         <>
                             {/* Loading more indicator */}
@@ -691,10 +702,10 @@ export function RoomListView({
                     contentContainerStyle={styles.roomListContent}
                     showsVerticalScrollIndicator={false}
                     removeClippedSubviews={true}
-                    maxToRenderPerBatch={5}
+                    maxToRenderPerBatch={10}
                     updateCellsBatchingPeriod={50}
-                    windowSize={10}
-                    initialNumToRender={5}
+                    windowSize={21}
+                    initialNumToRender={10}
                 />
             )}
 

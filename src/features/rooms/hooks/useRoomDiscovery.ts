@@ -29,6 +29,7 @@
  */
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import { eventBus } from '../../../core/events';
 import { Room, RoomCategory } from '../../../types';
 import { roomService } from '../../../services';
 import { useRoomStore } from '../store';
@@ -250,6 +251,39 @@ export function useRoomDiscovery(
       fetchRooms();
     }
   }, [autoFetch, latitude, longitude, fetchRooms]);
+
+  // Real-time updates for discovery list
+  useEffect(() => {
+    // Handle new rooms created anywhere
+    const unsubCreated = eventBus.on('room.created', (payload) => {
+      if (payload.room) {
+        log.debug('Real-time: Adding newly created room to discovery', { roomId: payload.roomId });
+        const room = {
+          ...payload.room,
+          expiresAt: payload.room.expiresAt ? new Date(payload.room.expiresAt) : new Date(),
+          createdAt: payload.room.createdAt ? new Date(payload.room.createdAt) : new Date(),
+        };
+        storeSetRooms([room]);
+        // 2. Add to discovery list (will be sorted by useMemo)
+        addDiscoveredRoomIds([payload.roomId]);
+      }
+    });
+
+    // Handle rooms closed/removed
+    const unsubClosed = eventBus.on('room.closed', (payload) => {
+      log.debug('Real-time: Removing closed room from discovery', { roomId: payload.roomId });
+      const currentIds = new Set(useRoomStore.getState().discoveredRoomIds);
+      if (currentIds.has(payload.roomId)) {
+        currentIds.delete(payload.roomId);
+        setDiscoveredRoomIds(currentIds);
+      }
+    });
+
+    return () => {
+      unsubCreated();
+      unsubClosed();
+    };
+  }, [storeSetRooms, addDiscoveredRoomIds, setDiscoveredRoomIds]);
 
   return {
     rooms,

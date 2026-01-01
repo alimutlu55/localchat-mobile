@@ -130,7 +130,7 @@ function mergePendingRooms(features: ClusterFeature[]): ClusterFeature[] {
         status: room.status,
         isCreator: room.isCreator,
         hasJoined: room.hasJoined,
-        expiresAt: room.expiresAt.toISOString(),
+        expiresAt: room.expiresAt instanceof Date ? room.expiresAt.toISOString() : room.expiresAt,
       },
     });
   });

@@ -12,6 +12,7 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { eventBus } from '../../../core/events';
 import {
     View,
     Text,
@@ -129,12 +130,25 @@ export default function DiscoveryScreen() {
     // Animation for view switching
     const listOpacity = useRef(new Animated.Value(0)).current;
 
+    // Map unmounting for performance - completely stops MapView resource usage when in List mode
+    const [shouldRenderMap, setShouldRenderMap] = useState(viewMode === 'map');
+
     useEffect(() => {
         Animated.timing(listOpacity, {
             toValue: viewMode === 'list' ? 1 : 0,
             duration: 150,
             useNativeDriver: true,
         }).start();
+
+        if (viewMode === 'map') {
+            setShouldRenderMap(true);
+        } else {
+            // Keep map for transition duration, then unmount to save resources
+            const timer = setTimeout(() => {
+                setShouldRenderMap(false);
+            }, 300);
+            return () => clearTimeout(timer);
+        }
     }, [viewMode, listOpacity]);
 
     // ==========================================================================
@@ -304,6 +318,7 @@ export default function DiscoveryScreen() {
         }
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [viewMode, userLocation?.latitude, userLocation?.longitude]);
+
 
     // Check if user's location is currently within map bounds
     const isUserInView = useMemo(() => {
@@ -610,100 +625,102 @@ export default function DiscoveryScreen() {
                 ]}
                 pointerEvents={viewMode === 'list' || authStatus === 'loggingOut' ? 'none' : 'auto'}
             >
-                <MapView
-                    ref={mapRef}
-                    style={styles.map}
-                    mapStyle={HUDDLE_MAP_STYLE}
-                    logoEnabled={false}
-                    attributionEnabled={true}
-                    attributionPosition={{ bottom: 8, right: 8 }}
-                    onDidFinishLoadingMap={handleMapReady}
-                    onRegionWillChange={handleRegionWillChange}
-                    onRegionDidChange={handleRegionDidChange}
-                >
-                    <Camera
-                        ref={cameraRef}
-                        defaultSettings={{
-                            centerCoordinate: centerCoord,
-                            zoomLevel: zoom,
-                        }}
-                        minZoomLevel={1}
-                        maxZoomLevel={12}
-                    />
-
-
-                    {/* User Location Indicator - Using Layer for zero-interaction and perfect layering */}
-                    {userLocation && (
-                        <ShapeSource
-                            id="user-location-source"
-                            shape={{
-                                type: 'Feature',
-                                geometry: {
-                                    type: 'Point',
-                                    coordinates: [userLocation.longitude, userLocation.latitude]
-                                },
-                                properties: {}
+                {shouldRenderMap && (
+                    <MapView
+                        ref={mapRef}
+                        style={styles.map}
+                        mapStyle={HUDDLE_MAP_STYLE}
+                        logoEnabled={false}
+                        attributionEnabled={true}
+                        attributionPosition={{ bottom: 8, right: 8 }}
+                        onDidFinishLoadingMap={handleMapReady}
+                        onRegionWillChange={handleRegionWillChange}
+                        onRegionDidChange={handleRegionDidChange}
+                    >
+                        <Camera
+                            ref={cameraRef}
+                            defaultSettings={{
+                                centerCoordinate: centerCoord,
+                                zoomLevel: zoom,
                             }}
-                        >
-                            {/* Pulse - Animated via native transitions to stay behind and non-blocking */}
-                            <CircleLayer
-                                id="user-location-pulse"
-                                style={{
-                                    circleColor: 'rgba(59, 130, 246, 0.1)',
-                                    circleRadius: isPulsing ? 40 : 30,
-                                    circleRadiusTransition: { duration: 2000, delay: 0 },
-                                    circleStrokeColor: 'rgba(59, 130, 246, 0.3)',
-                                    circleStrokeWidth: 2,
-                                    circleOpacity: canRenderMarkers ? 1 : 0,
-                                    circleOpacityTransition: { duration: 2000, delay: 0 },
-                                }}
-                            />
-                            {/* The Dot */}
-                            <CircleLayer
-                                id="user-location-dot"
-                                style={{
-                                    circleColor: '#2563eb',
-                                    circleRadius: 5,
-                                    circleStrokeColor: '#ffffff',
-                                    circleStrokeWidth: 4,
-                                    circleOpacity: canRenderMarkers ? 1 : 0
-                                }}
-                            />
-                        </ShapeSource>
-                    )}
+                            minZoomLevel={1}
+                            maxZoomLevel={12}
+                        />
 
-                    {/* Server-Side Room & Cluster Markers - Gated for stability */}
-                    {canRenderMarkers && serverFeatures.map((feature) => {
-                        if (feature.properties.cluster) {
-                            // Cluster marker
-                            if (feature.properties.clusterId == null) {
+
+                        {/* User Location Indicator - Using Layer for zero-interaction and perfect layering */}
+                        {userLocation && (
+                            <ShapeSource
+                                id="user-location-source"
+                                shape={{
+                                    type: 'Feature',
+                                    geometry: {
+                                        type: 'Point',
+                                        coordinates: [userLocation.longitude, userLocation.latitude]
+                                    },
+                                    properties: {}
+                                }}
+                            >
+                                {/* Pulse - Animated via native transitions to stay behind and non-blocking */}
+                                <CircleLayer
+                                    id="user-location-pulse"
+                                    style={{
+                                        circleColor: 'rgba(59, 130, 246, 0.1)',
+                                        circleRadius: isPulsing ? 40 : 30,
+                                        circleRadiusTransition: { duration: 2000, delay: 0 },
+                                        circleStrokeColor: 'rgba(59, 130, 246, 0.3)',
+                                        circleStrokeWidth: 2,
+                                        circleOpacity: canRenderMarkers ? 1 : 0,
+                                        circleOpacityTransition: { duration: 2000, delay: 0 },
+                                    }}
+                                />
+                                {/* The Dot */}
+                                <CircleLayer
+                                    id="user-location-dot"
+                                    style={{
+                                        circleColor: '#2563eb',
+                                        circleRadius: 5,
+                                        circleStrokeColor: '#ffffff',
+                                        circleStrokeWidth: 4,
+                                        circleOpacity: canRenderMarkers ? 1 : 0
+                                    }}
+                                />
+                            </ShapeSource>
+                        )}
+
+                        {/* Server-Side Room & Cluster Markers - Gated for stability */}
+                        {canRenderMarkers && serverFeatures.map((feature) => {
+                            if (feature.properties.cluster) {
+                                // Cluster marker
+                                if (feature.properties.clusterId == null) {
+                                    return null;
+                                }
+                                return (
+                                    <ServerClusterMarker
+                                        key={`server-cluster-${feature.properties.clusterId}`}
+                                        feature={feature}
+                                        onPress={handleServerClusterPress}
+                                        onDeselect={handleMarkerDeselect}
+                                    />
+                                );
+                            }
+
+                            // Individual room marker
+                            if (!feature.properties.roomId) {
                                 return null;
                             }
                             return (
-                                <ServerClusterMarker
-                                    key={`server-cluster-${feature.properties.clusterId}`}
+                                <ServerRoomMarker
+                                    key={`server-room-${feature.properties.roomId}`}
                                     feature={feature}
-                                    onPress={handleServerClusterPress}
+                                    isSelected={selectedFeature?.properties.roomId === feature.properties.roomId}
+                                    onPress={handleServerRoomPress}
                                     onDeselect={handleMarkerDeselect}
                                 />
                             );
-                        }
-
-                        // Individual room marker
-                        if (!feature.properties.roomId) {
-                            return null;
-                        }
-                        return (
-                            <ServerRoomMarker
-                                key={`server-room-${feature.properties.roomId}`}
-                                feature={feature}
-                                isSelected={selectedFeature?.properties.roomId === feature.properties.roomId}
-                                onPress={handleServerRoomPress}
-                                onDeselect={handleMarkerDeselect}
-                            />
-                        );
-                    })}
-                </MapView>
+                        })}
+                    </MapView>
+                )}
 
                 {/* Map Loading Overlay - Fades out when map is ready */}
                 <Animated.View
