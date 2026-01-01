@@ -30,7 +30,7 @@ import { useCurrentUser } from '../features/user/store';
 import { AvatarDisplay } from './profile';
 import { theme } from '../core/theme';
 
-const SIDEBAR_WIDTH = Dimensions.get('window').width * 0.85;
+const SIDEBAR_WIDTH = Dimensions.get('window').width * 0.80;
 
 interface SidebarProps {
     isOpen: boolean;
@@ -241,14 +241,7 @@ export function Sidebar({
                 ]}
                 {...panResponder.panHandlers}
             >
-                {/* Close button */}
-                <TouchableOpacity
-                    style={styles.closeButton}
-                    onPress={onClose}
-                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                >
-                    <X size={20} color={theme.tokens.text.secondary} />
-                </TouchableOpacity>
+
 
                 {/* Search */}
                 <View style={styles.searchContainer}>
@@ -379,7 +372,7 @@ const styles = StyleSheet.create({
         alignItems: 'center',
         backgroundColor: theme.tokens.bg.subtle,
         marginHorizontal: 16,
-        marginTop: 40,
+        marginTop: 24,
         marginBottom: 16,
         borderRadius: 12,
         paddingHorizontal: 12,

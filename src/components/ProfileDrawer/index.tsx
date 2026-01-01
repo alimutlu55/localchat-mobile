@@ -17,6 +17,7 @@ import {
     StyleSheet,
     TouchableOpacity,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
     LogOut,
     ChevronRight,
@@ -75,6 +76,7 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
         openPrivacyPolicy,
         openHelpCenter,
     } = useProfileDrawer();
+    const insets = useSafeAreaInsets();
 
     // =========================================================================
     // Local State - UI only
@@ -288,8 +290,12 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
             handleIndicatorStyle={styles.handleIndicator}
         >
             <View style={styles.headerContainer}>
-                <TouchableOpacity style={styles.headerCloseButton} onPress={onClose}>
-                    <X size={20} color="#6b7280" />
+                <TouchableOpacity
+                    style={styles.headerCloseButton}
+                    onPress={onClose}
+                    hitSlop={{ top: 24, bottom: 24, left: 24, right: 24 }}
+                >
+                    <X size={18} color="#6b7280" />
                 </TouchableOpacity>
             </View>
             <BottomSheetScrollView contentContainerStyle={styles.contentContainer}>
@@ -316,15 +322,14 @@ const styles = StyleSheet.create({
     },
     headerContainer: {
         position: 'absolute',
-        top: 0,
-        right: 0,
+        top: 28, // aligned with avatar top (paddingTop 8 + header paddingVertical 20)
+        right: 16,
         zIndex: 10,
-        padding: 12,
     },
     headerCloseButton: {
-        width: 32,
-        height: 32,
-        borderRadius: 16,
+        width: 36,
+        height: 36,
+        borderRadius: 18,
         backgroundColor: '#f3f4f6',
         justifyContent: 'center',
         alignItems: 'center',
