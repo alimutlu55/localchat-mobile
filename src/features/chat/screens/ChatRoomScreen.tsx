@@ -799,7 +799,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   emptySubtitle: {
-    fontSize: 16,
+    fontSize: 15,
     color: theme.tokens.text.secondary,
   },
   inputContainer: {
@@ -821,7 +821,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    fontSize: 16,
+    fontSize: 15,
     color: theme.tokens.text.primary,
     paddingHorizontal: 16,
     paddingVertical: 8,
