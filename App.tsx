@@ -86,6 +86,12 @@ export default function App() {
       (response) => {
         const data = response.notification.request.content.data;
         if (data?.type === 'message' && data?.roomId) {
+          // Import eventBus dynamically to emit close event
+          import('./src/core/events').then(({ eventBus }) => {
+            // Close all drawers before navigating
+            eventBus.emit('ui.closeAllDrawers', {});
+          });
+
           // Navigate to chat room when notification is tapped
           navigationRef.current?.navigate('ChatRoom', {
             roomId: data.roomId as string,

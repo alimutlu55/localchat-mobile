@@ -184,9 +184,16 @@ export interface UserEvents {
 }
 
 /**
+ * UI Events - Related to UI state changes
+ */
+export interface UIEvents {
+  'ui.closeAllDrawers': Record<string, never>;
+}
+
+/**
  * All events combined
  */
-export interface AllEvents extends RoomEvents, MessageEvents, TypingEvents, ConnectionEvents, UserEvents { }
+export interface AllEvents extends RoomEvents, MessageEvents, TypingEvents, ConnectionEvents, UserEvents, UIEvents { }
 
 /**
  * Event names as a union type

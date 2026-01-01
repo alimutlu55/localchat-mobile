@@ -1,4 +1,5 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode, useMemo } from 'react';
+import React, { createContext, useContext, useState, useCallback, ReactNode, useMemo, useEffect } from 'react';
+import { eventBus } from '../core/events';
 
 interface UIState {
     isSidebarOpen: boolean;
@@ -27,6 +28,15 @@ export function UIProvider({ children }: { children: ReactNode }) {
     const openProfileDrawer = useCallback(() => setIsProfileDrawerOpen(true), []);
     const closeProfileDrawer = useCallback(() => setIsProfileDrawerOpen(false), []);
     const toggleSidebar = useCallback(() => setIsSidebarOpen(prev => !prev), []);
+
+    // Subscribe to ui.closeAllDrawers event (e.g., from notification tap)
+    useEffect(() => {
+        const unsubscribe = eventBus.on('ui.closeAllDrawers', () => {
+            setIsSidebarOpen(false);
+            setIsProfileDrawerOpen(false);
+        });
+        return unsubscribe;
+    }, []);
 
     const state = useMemo(() => ({
         isSidebarOpen,
