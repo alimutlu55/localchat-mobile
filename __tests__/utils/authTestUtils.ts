@@ -6,7 +6,7 @@
  */
 
 import { act, waitFor } from '@testing-library/react-native';
-import { useAuthStore, AuthStatus, initialState } from '../../src/features/auth/store/AuthStore';
+import { useAuthStore, AuthStatus } from '../../src/features/auth/store/AuthStore';
 import { useUserStore } from '../../src/features/user/store/UserStore';
 import { useRoomStore } from '../../src/features/rooms/store/RoomStore';
 import { eventBus } from '../../src/core/events';
@@ -22,13 +22,11 @@ import { User } from '../../src/types';
  */
 export const initialAuthState = {
   status: 'unknown' as AuthStatus,
-  user: null,
   isInitializing: true,
   isLoading: false,
   error: null,
   isAuthenticated: false,
 };
-
 /**
  * Reset AuthStore to initial state
  */
@@ -40,7 +38,12 @@ export function resetAuthStore() {
  * Reset UserStore to initial state
  */
 export function resetUserStore() {
-  useUserStore.getState().clearUser?.() ?? useUserStore.setState({ user: null });
+  const store = useUserStore.getState();
+  if (typeof store.clearUser === 'function') {
+    store.clearUser();
+  } else {
+    useUserStore.setState({ currentUser: null } as any);
+  }
 }
 
 /**
@@ -70,27 +73,31 @@ export function resetAllStores() {
 export function setupAuthenticatedState(user: User = mockUser) {
   useAuthStore.setState({
     status: 'authenticated',
-    user,
     isAuthenticated: true,
     isInitializing: false,
     isLoading: false,
     error: null,
   });
-  useUserStore.getState().setUser?.(user);
-}
 
+  const userStore = useUserStore.getState();
+  if (typeof userStore.setUser === 'function') {
+    userStore.setUser(user);
+  } else {
+    useUserStore.setState({ currentUser: user } as any);
+  }
+}
 /**
  * Set up guest state (not authenticated)
  */
 export function setupGuestState() {
   useAuthStore.setState({
     status: 'guest',
-    user: null,
     isAuthenticated: false,
     isInitializing: false,
     isLoading: false,
     error: null,
   });
+  resetUserStore();
 }
 
 /**
@@ -99,12 +106,12 @@ export function setupGuestState() {
 export function setupLoadingState() {
   useAuthStore.setState({
     status: 'loading',
-    user: null,
     isAuthenticated: false,
     isInitializing: true,
     isLoading: true,
     error: null,
   });
+  resetUserStore();
 }
 
 /**
@@ -113,12 +120,12 @@ export function setupLoadingState() {
 export function setupAuthenticatingState() {
   useAuthStore.setState({
     status: 'authenticating',
-    user: null,
     isAuthenticated: false,
     isInitializing: false,
     isLoading: true,
     error: null,
   });
+  resetUserStore();
 }
 
 /**
@@ -127,12 +134,18 @@ export function setupAuthenticatingState() {
 export function setupLoggingOutState(user: User = mockUser) {
   useAuthStore.setState({
     status: 'loggingOut',
-    user,
     isAuthenticated: true,
     isInitializing: false,
     isLoading: true,
     error: null,
   });
+
+  const userStore = useUserStore.getState();
+  if (typeof userStore.setUser === 'function') {
+    userStore.setUser(user);
+  } else {
+    useUserStore.setState({ currentUser: user } as any);
+  }
 }
 
 // =============================================================================
@@ -265,17 +278,17 @@ export function recordStateTransitions(): {
 export function assertAuthInvariants() {
   const state = useAuthStore.getState();
 
-  // Invariant 1: authenticated status requires non-null user
+  // Invariant 1: authenticated status requires non-null user in getUser()
   if (state.status === 'authenticated') {
-    expect(state.user).not.toBeNull();
-    expect(state.user?.id).toBeDefined();
+    const user = state.getUser();
+    expect(user).not.toBeNull();
+    expect(user?.id).toBeDefined();
   }
 
-  // Invariant 2: guest status requires null user
+  // Invariant 2: guest status requires null in getUser()
   if (state.status === 'guest') {
-    expect(state.user).toBeNull();
+    expect(state.getUser()).toBeNull();
   }
-
   // Invariant 3: isAuthenticated matches status
   expect(state.isAuthenticated).toBe(state.status === 'authenticated');
 
@@ -334,11 +347,12 @@ export function assertCleanupComplete() {
 
   // Auth store should be in guest state
   expect(authState.status).toBe('guest');
-  expect(authState.user).toBeNull();
+  expect(authState.getUser()).toBeNull();
   expect(authState.isAuthenticated).toBe(false);
 
   // User store should be cleared
-  expect(userState.user).toBeNull();
+  const currentUser = userState.currentUser || (userState as any).user;
+  expect(currentUser).toBeFalsy();
 
   // Room store should be reset (check if function exists)
   const roomState = useRoomStore.getState();
@@ -346,7 +360,6 @@ export function assertCleanupComplete() {
     expect(roomState.activeRoomId).toBeNull();
   }
 }
-
 // =============================================================================
 // Time Control Helpers
 // =============================================================================

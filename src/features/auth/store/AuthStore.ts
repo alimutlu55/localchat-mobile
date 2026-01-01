@@ -59,9 +59,9 @@ export interface AuthStoreState {
 
     /**
      * Current authenticated user (single source of truth)
-     * Only non-null when status === 'authenticated'
+     * @deprecated Use UserStore.currentUser instead
      */
-    user: User | null;
+    user?: User | null;
 
     /**
      * Whether auth is still initializing (app startup)
@@ -157,7 +157,6 @@ export type AuthStore = AuthStoreState & AuthStoreActions;
 
 const initialState: AuthStoreState = {
     status: 'unknown',
-    user: null,
     isInitializing: true, // Deprecated - kept for backward compatibility
     isLoading: false, // Deprecated - kept for backward compatibility
     error: null,
@@ -236,7 +235,6 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
 
             set({
                 status: 'authenticated',
-                user,
                 isAuthenticated: true,
                 isLoading: false,
                 isInitializing: false,
@@ -247,7 +245,6 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             log.warn('Login unsuccessful', { reason: message });
             set({
                 status: 'guest',
-                user: null,
                 error: message,
                 isLoading: false,
                 isAuthenticated: false,
@@ -281,7 +278,6 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
 
             set({
                 status: 'authenticated',
-                user,
                 isAuthenticated: true,
                 isLoading: false,
                 isInitializing: false,
@@ -292,7 +288,6 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             log.warn('Registration unsuccessful', { reason: message });
             set({
                 status: 'guest',
-                user: null,
                 error: message,
                 isLoading: false,
                 isAuthenticated: false,
@@ -326,7 +321,6 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
 
             set({
                 status: 'authenticated',
-                user,
                 isAuthenticated: true,
                 isLoading: false,
                 isInitializing: false,
@@ -337,7 +331,6 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             log.warn('Anonymous login unsuccessful', { reason: message });
             set({
                 status: 'guest',
-                user: null,
                 error: message,
                 isLoading: false,
                 isAuthenticated: false,
@@ -377,7 +370,6 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             // ONLY NOW transition to guest - navigation can safely switch
             set({
                 status: 'guest',
-                user: null,
                 isAuthenticated: false,
                 isLoading: false,
                 isInitializing: false,
@@ -385,12 +377,15 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             });
             log.debug('Logout successful - transitioned to guest state');
         } catch (err) {
-            log.error('Logout error during cleanup', { error: err });
+            log.error('Logout cleanup failed', { err });
+
+            // Ensure UserStore is cleared even if other cleanup fails
+            useUserStore.getState().clearUser();
+
             // Even if cleanup fails, we must transition to guest
             // Otherwise user is stuck in loggingOut state
             set({
                 status: 'guest',
-                user: null,
                 isAuthenticated: false,
                 isLoading: false,
                 isInitializing: false,
@@ -434,7 +429,6 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
 
             set({
                 status: 'guest',
-                user: null,
                 isAuthenticated: false,
                 isLoading: false,
                 isInitializing: false,
@@ -477,7 +471,13 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
     },
 
     getUser: () => {
-        return get().user;
+        // Safe guard: only return user data if we are in a state that should have it
+        // and it exists in the UserStore
+        const status = get().status;
+        if (status !== 'authenticated' && status !== 'loggingOut') {
+            return null;
+        }
+        return useUserStore.getState().currentUser;
     },
 
     isTransitioning: () => {
@@ -494,7 +494,12 @@ export const selectIsAuthenticated = (state: AuthStore) => state.isAuthenticated
 export const selectIsLoading = (state: AuthStore) => state.isLoading;
 export const selectError = (state: AuthStore) => state.error;
 export const selectStatus = (state: AuthStore) => state.status;
-export const selectUser = (state: AuthStore) => state.user;
+export const selectUser = (state: AuthStore) => {
+    // Note: This returns from UserStore. 
+    // It will NOT trigger a re-render when UserStore changes if used via useAuthStore.
+    // Use useCurrentUser() instead.
+    return useUserStore.getState().currentUser;
+};
 
 /**
  * Selector to check if navigation should show loading screen
@@ -532,7 +537,6 @@ export async function initializeAuthStore(): Promise<void> {
             // Transition to authenticated with user data
             useAuthStore.setState({
                 status: 'authenticated',
-                user,
                 isAuthenticated: true,
                 isInitializing: false,
                 isLoading: false,
@@ -542,7 +546,6 @@ export async function initializeAuthStore(): Promise<void> {
             // No user, transition to guest
             useAuthStore.setState({
                 status: 'guest',
-                user: null,
                 isAuthenticated: false,
                 isInitializing: false,
                 isLoading: false,
@@ -554,7 +557,6 @@ export async function initializeAuthStore(): Promise<void> {
         // On error, transition to guest (safe default)
         useAuthStore.setState({
             status: 'guest',
-            user: null,
             isAuthenticated: false,
             isInitializing: false,
             isLoading: false,

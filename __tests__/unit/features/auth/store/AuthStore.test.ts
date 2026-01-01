@@ -49,14 +49,30 @@ jest.mock('../../../../../src/services/websocket', () => ({
   wsService: require('../../../../mocks/authMocks').mockWsService,
 }));
 
-jest.mock('../../../../../src/features/user/store/UserStore', () => ({
-  useUserStore: {
-    getState: () => ({
-      setUser: jest.fn(),
-      clearUser: jest.fn(),
-    }),
-  },
-}));
+jest.mock('../../../../../src/features/user/store/UserStore', () => {
+  let mockCurrentUser: any = null;
+  const mockState = {
+    setUser: jest.fn((user) => { mockCurrentUser = user; }),
+    clearUser: jest.fn(() => { mockCurrentUser = null; }),
+    get currentUser() { return mockCurrentUser; },
+  };
+  const mockStore = Object.assign(
+    jest.fn(() => mockState),
+    {
+      getState: jest.fn(() => mockState),
+      setState: jest.fn(),
+      subscribe: jest.fn(),
+    }
+  );
+  return {
+    useUserStore: mockStore,
+    default: mockStore,
+    __esModule: true,
+  };
+});
+
+// To access the mock in tests
+const { useUserStore: mockedUserStore } = require('../../../../../src/features/user/store/UserStore');
 
 jest.mock('../../../../../src/features/rooms/store/RoomStore', () => ({
   useRoomStore: {
@@ -82,8 +98,8 @@ describe('AuthStore State Machine', () => {
       expect(useAuthStore.getState().status).toBe('unknown');
     });
 
-    it('starts with null user', () => {
-      expect(useAuthStore.getState().user).toBeNull();
+    it('starts with undefined or null user (not in state)', () => {
+      expect(useAuthStore.getState().user).toBeUndefined();
     });
 
     it('starts with isInitializing === true', () => {
@@ -100,10 +116,10 @@ describe('AuthStore State Machine', () => {
 
     it('satisfies all auth invariants', () => {
       // Reset to unknown state to test initial invariants
-      useAuthStore.setState({ status: 'unknown', user: null });
+      useAuthStore.setState({ status: 'unknown' });
       // Note: Can't use assertAuthInvariants for unknown state
       // since it has special rules
-      expect(useAuthStore.getState().user).toBeNull();
+      expect(useAuthStore.getState().getUser()).toBeNull();
     });
   });
 
@@ -115,6 +131,8 @@ describe('AuthStore State Machine', () => {
     beforeEach(() => {
       // Start from guest state (valid state to login from)
       useAuthStore.setState({ ...initialAuthState, status: 'guest', isInitializing: false });
+      mockedUserStore.getState().clearUser();
+      jest.clearAllMocks(); // Clear call counts after setup
     });
 
     it('transitions to authenticating immediately on login attempt', async () => {
@@ -139,7 +157,7 @@ describe('AuthStore State Machine', () => {
       });
 
       expect(useAuthStore.getState().status).toBe('authenticated');
-      expect(useAuthStore.getState().user).toEqual(mockUser);
+      expect(useAuthStore.getState().getUser()).toEqual(mockUser);
       expect(useAuthStore.getState().isAuthenticated).toBe(true);
       expect(useAuthStore.getState().isLoading).toBe(false);
     });
@@ -154,7 +172,7 @@ describe('AuthStore State Machine', () => {
       ).rejects.toThrow('Invalid credentials');
 
       expect(useAuthStore.getState().status).toBe('guest');
-      expect(useAuthStore.getState().user).toBeNull();
+      expect(useAuthStore.getState().getUser()).toBeNull();
       expect(useAuthStore.getState().error).toBe('Invalid credentials');
       expect(useAuthStore.getState().isAuthenticated).toBe(false);
     });
@@ -215,7 +233,6 @@ describe('AuthStore State Machine', () => {
     it('blocks login when already authenticated', async () => {
       useAuthStore.setState({
         status: 'authenticated',
-        user: mockUser,
         isAuthenticated: true,
       });
 
@@ -279,7 +296,7 @@ describe('AuthStore State Machine', () => {
       });
 
       expect(useAuthStore.getState().status).toBe('authenticated');
-      expect(useAuthStore.getState().user).toEqual(mockUser);
+      expect(useAuthStore.getState().getUser()).toEqual(mockUser);
     });
 
     it('transitions to guest on register failure', async () => {
@@ -313,16 +330,16 @@ describe('AuthStore State Machine', () => {
       });
 
       expect(useAuthStore.getState().status).toBe('authenticated');
-      expect(useAuthStore.getState().user).toEqual(mockAnonymousUser);
-      expect(useAuthStore.getState().user?.isAnonymous).toBe(true);
+      expect(useAuthStore.getState().getUser()).toEqual(mockAnonymousUser);
+      expect(useAuthStore.getState().getUser()?.isAnonymous).toBe(true);
     });
 
     it('blocks anonymous login when already authenticated', async () => {
       useAuthStore.setState({
         status: 'authenticated',
-        user: mockUser,
         isAuthenticated: true,
       });
+      mockedUserStore.getState().setUser(mockUser);
 
       await act(async () => {
         await useAuthStore.getState().loginAnonymous();
@@ -340,11 +357,11 @@ describe('AuthStore State Machine', () => {
     beforeEach(() => {
       useAuthStore.setState({
         status: 'authenticated',
-        user: mockUser,
         isAuthenticated: true,
         isInitializing: false,
         isLoading: false,
       });
+      mockedUserStore.getState().setUser(mockUser);
     });
 
     it('transitions authenticated → loggingOut → guest', async () => {
@@ -374,13 +391,13 @@ describe('AuthStore State Machine', () => {
     });
 
     it('clears user on logout completion', async () => {
-      expect(useAuthStore.getState().user).not.toBeNull();
+      expect(useAuthStore.getState().getUser()).not.toBeNull();
 
       await act(async () => {
         await useAuthStore.getState().logout();
       });
 
-      expect(useAuthStore.getState().user).toBeNull();
+      expect(useAuthStore.getState().getUser()).toBeNull();
     });
 
     it('clears isAuthenticated on logout completion', async () => {
@@ -412,7 +429,7 @@ describe('AuthStore State Machine', () => {
 
       // Must still reach guest state
       expect(useAuthStore.getState().status).toBe('guest');
-      expect(useAuthStore.getState().user).toBeNull();
+      expect(useAuthStore.getState().getUser()).toBeNull();
     });
   });
 
@@ -433,7 +450,7 @@ describe('AuthStore State Machine', () => {
     });
 
     it('prevents logout from guest state', async () => {
-      useAuthStore.setState({ status: 'guest', user: null });
+      useAuthStore.setState({ status: 'guest' });
 
       await act(async () => {
         await useAuthStore.getState().logout();
@@ -467,7 +484,7 @@ describe('AuthStore State Machine', () => {
     });
 
     test.each(stableStates)('returns false for %s', (status) => {
-      useAuthStore.setState({ status, user: status === 'authenticated' ? mockUser : null });
+      useAuthStore.setState({ status });
       expect(useAuthStore.getState().isTransitioning()).toBe(false);
     });
   });
@@ -514,14 +531,13 @@ describe('AuthStore State Machine', () => {
 
   describe('getUser', () => {
     it('returns user when authenticated', () => {
-      useAuthStore.setState({ status: 'authenticated', user: mockUser });
-
+      useAuthStore.setState({ status: 'authenticated' });
+      mockedUserStore.getState().setUser(mockUser);
       expect(useAuthStore.getState().getUser()).toEqual(mockUser);
     });
 
     it('returns null when not authenticated', () => {
-      useAuthStore.setState({ status: 'guest', user: null });
-
+      mockedUserStore.getState().clearUser();
       expect(useAuthStore.getState().getUser()).toBeNull();
     });
   });
@@ -532,9 +548,8 @@ describe('AuthStore State Machine', () => {
 
   describe('State Invariants', () => {
     it('authenticated status always has non-null user', async () => {
+      mockedUserStore.getState().clearUser();
       mockAuthService.login.mockResolvedValue(mockUser);
-
-      useAuthStore.setState({ status: 'guest' });
 
       await act(async () => {
         await useAuthStore.getState().login('test@example.com', 'password');
@@ -542,13 +557,12 @@ describe('AuthStore State Machine', () => {
 
       const state = useAuthStore.getState();
       if (state.status === 'authenticated') {
-        expect(state.user).not.toBeNull();
-        expect(state.user?.id).toBeDefined();
+        expect(useAuthStore.getState().getUser()).not.toBeNull();
       }
     });
 
     it('guest status always has null user', async () => {
-      useAuthStore.setState({ status: 'authenticated', user: mockUser });
+      mockedUserStore.getState().setUser(mockUser);
 
       await act(async () => {
         await useAuthStore.getState().logout();
@@ -556,7 +570,7 @@ describe('AuthStore State Machine', () => {
 
       const state = useAuthStore.getState();
       if (state.status === 'guest') {
-        expect(state.user).toBeNull();
+        expect(useAuthStore.getState().getUser()).toBeNull();
       }
     });
   });
