@@ -1,26 +1,28 @@
 /**
  * useAuth Hook
  *
- * Unified hook combining AuthStore + UserStore for backwards compatibility.
- * Provides the same API as the old AuthContext.
+ * Provides authentication state and actions.
  *
- * NEW: Now also exposes the auth status state machine for proper transition handling.
+ * IMPORTANT: This hook does NOT return user data.
+ * For user data (avatar, displayName, etc.), use `useCurrentUser()` from '@/features/user/store'.
  *
  * @example
  * ```typescript
- * const { user, login, logout, isAuthenticated, status } = useAuth();
+ * import { useAuth } from '@/features/auth';
+ * import { useCurrentUser } from '@/features/user/store';
+ *
+ * // Auth state and actions
+ * const { login, logout, status, isAuthenticated } = useAuth();
+ *
+ * // User data (separate concern)
+ * const user = useCurrentUser();
  *
  * // Login
  * await login('email@example.com', 'password');
  *
- * // Check auth state (legacy)
- * if (isAuthenticated) {
- *   console.log('Welcome', user.displayName);
- * }
- *
- * // Check auth state (new - preferred)
+ * // Check auth state
  * if (status === 'authenticated') {
- *   console.log('Welcome', user.displayName);
+ *   console.log('Welcome', user?.displayName);
  * }
  *
  * // Check if in transition (should show loading)
@@ -30,18 +32,16 @@
  * ```
  */
 
-import { useAuthStore, AuthStatus } from '../store/AuthStore';
-import { useCurrentUser } from '../../user/store';
+import { useAuthStore } from '../store/AuthStore';
 import { useUpdateProfile } from './useUpdateProfile';
 
 /**
- * Combined auth hook
- * Provides authentication state and actions
+ * Auth hook - provides authentication state and actions only.
+ * Does NOT return user data. Use useCurrentUser() for that.
  */
 export function useAuth() {
-    // Auth state from AuthStore - new state machine approach
+    // Auth state from AuthStore - state machine approach
     const status = useAuthStore((state) => state.status);
-    const authUser = useAuthStore((state) => state.user);
 
     // Auth actions from AuthStore
     const login = useAuthStore((state) => state.login);
@@ -56,13 +56,6 @@ export function useAuth() {
     const isLoading = useAuthStore((state) => state.isLoading);
     const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
 
-    // User data from UserStore (kept for backward compatibility)
-    // Prefer authUser from AuthStore for new code
-    const userStoreUser = useCurrentUser();
-
-    // Use auth store user if available, fallback to user store
-    const user = authUser ?? userStoreUser;
-
     // Profile update hook
     const { updateProfile } = useUpdateProfile();
 
@@ -71,10 +64,7 @@ export function useAuth() {
     const isTransitioning = status === 'unknown' || status === 'loading' || status === 'authenticating' || status === 'loggingOut';
 
     return {
-        // User data (prefer this over accessing stores directly)
-        user,
-
-        // Auth state - NEW state machine status
+        // Auth state - state machine status
         status,
 
         // Computed helper for navigation guards

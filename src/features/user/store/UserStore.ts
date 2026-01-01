@@ -20,6 +20,7 @@
 import { create } from 'zustand';
 import { subscribeWithSelector, persist, createJSONStorage } from 'zustand/middleware';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { Image } from 'react-native';
 import { User } from '../../../types';
 import { createLogger } from '../../../shared/utils/logger';
 
@@ -370,6 +371,18 @@ export const useUserStore = create<UserStore>()(
             });
             return { avatarCache: newCache };
           });
+
+          // Actually prefetch the image into React Native's native cache
+          // This makes it instantly available when AvatarDisplay renders
+          Image.prefetch(url)
+            .then(() => {
+              log.debug('Avatar prefetched successfully', { url: url.substring(0, 50) + '...' });
+              get().setAvatarLoaded(url);
+            })
+            .catch((err: unknown) => {
+              log.warn('Avatar prefetch failed', { url: url.substring(0, 50) + '...', error: err });
+              get().setAvatarError(url);
+            });
         },
 
         pruneAvatarCache: () => {
@@ -405,8 +418,8 @@ export const useUserStore = create<UserStore>()(
         updatePreferences: async (updates) => {
           const prevPreferences = get().preferences;
 
-          log.info('Updating preferences', { 
-            updates, 
+          log.info('Updating preferences', {
+            updates,
             prevNotificationsEnabled: prevPreferences.notificationsEnabled,
             prevMessageNotificationsEnabled: prevPreferences.messageNotificationsEnabled,
           });

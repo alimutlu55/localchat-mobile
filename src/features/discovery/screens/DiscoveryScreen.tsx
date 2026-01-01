@@ -93,7 +93,7 @@ export default function DiscoveryScreen() {
     // Auth Status & Logout Protection
     // ==========================================================================
 
-    const { status: authStatus, user: currentUser } = useAuth();
+    const { status: authStatus } = useAuth();
 
     // Track logout state synchronously to hide markers before unmounting
     // Prevents Fabric view recycling crash during navigation transitions

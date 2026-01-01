@@ -285,9 +285,8 @@ function AvatarFallback({
 }
 
 export function AvatarDisplay({ avatarUrl, displayName, size = 'md', style }: AvatarDisplayProps) {
-  const [isLoading, setIsLoading] = React.useState(true);
-  const [hasError, setHasError] = React.useState(false);
   const dimensions = SIZE_STYLES[size];
+  const [hasError, setHasError] = React.useState(false);
 
   // Normalize empty strings and various "null/undefined" string variants to undefined
   const validAvatarUrl = useMemo(() => {
@@ -297,21 +296,14 @@ export function AvatarDisplay({ avatarUrl, displayName, size = 'md', style }: Av
     return avatarUrl;
   }, [avatarUrl]);
 
-  // Reset loading/error state when URL changes
+  // Reset error state when URL changes
   React.useEffect(() => {
     if (validAvatarUrl) {
-      setIsLoading(true);
       setHasError(false);
     }
   }, [validAvatarUrl]);
 
-  const handleLoad = React.useCallback(() => {
-    setIsLoading(false);
-    setHasError(false);
-  }, []);
-
   const handleError = React.useCallback(() => {
-    setIsLoading(false);
     setHasError(true);
   }, []);
 
@@ -329,6 +321,8 @@ export function AvatarDisplay({ avatarUrl, displayName, size = 'md', style }: Av
 
   const isSvg = validAvatarUrl.toLowerCase().endsWith('.svg') || validAvatarUrl.includes('dicebear');
 
+  // Avatar is preloaded on login via Image.prefetch() in UserStore
+  // Just render the image - RN's native cache handles the rest
   return (
     <View
       style={[{
@@ -341,31 +335,11 @@ export function AvatarDisplay({ avatarUrl, displayName, size = 'md', style }: Av
         alignItems: 'center',
       }, style]}
     >
-      {/* Show initials while loading */}
-      {isLoading && (
-        <View
-          style={{
-            position: 'absolute',
-            width: '100%',
-            height: '100%',
-            justifyContent: 'center',
-            alignItems: 'center',
-            zIndex: 1,
-          }}
-        >
-          <Text style={{ fontSize: dimensions.text, fontWeight: '600', color: theme.tokens.text.tertiary }}>
-            {displayName?.charAt(0).toUpperCase() || 'U'}
-          </Text>
-        </View>
-      )}
-
-      {/* Actual avatar image */}
       {isSvg ? (
         <SvgUri
           uri={validAvatarUrl}
           width="100%"
           height="100%"
-          onLoad={handleLoad}
           onError={handleError}
         />
       ) : (
@@ -373,7 +347,6 @@ export function AvatarDisplay({ avatarUrl, displayName, size = 'md', style }: Av
           source={{ uri: validAvatarUrl }}
           style={{ width: '100%', height: '100%' }}
           resizeMode="cover"
-          onLoad={handleLoad}
           onError={handleError}
         />
       )}
