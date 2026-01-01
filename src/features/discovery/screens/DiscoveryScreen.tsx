@@ -587,7 +587,7 @@ export default function DiscoveryScreen() {
     if (isLoading) {
         return (
             <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color="#f97316" />
+                <ActivityIndicator size="large" color="#FF6410" />
                 <Text style={styles.loadingText}>Finding nearby rooms...</Text>
             </View>
         );
@@ -714,7 +714,7 @@ export default function DiscoveryScreen() {
                     pointerEvents={isMapStable ? 'none' : 'auto'}
                 >
                     <View style={styles.mapLoadingContent}>
-                        <ActivityIndicator size="large" color="#f97316" />
+                        <ActivityIndicator size="large" color="#FF6410" />
                         <Text style={styles.mapLoadingText}>Loading map...</Text>
                     </View>
                 </Animated.View>
@@ -755,7 +755,7 @@ export default function DiscoveryScreen() {
                             }}
                             activeOpacity={0.7}
                         >
-                            <Globe size={20} color="#f97316" />
+                            <Globe size={20} color="#FF6410" />
                         </TouchableOpacity>
                     )}
                 </Animated.View>
@@ -932,7 +932,7 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#f97316',
+        backgroundColor: '#FF6410',
     },
     mapControls: {
         position: 'absolute',
@@ -1061,7 +1061,7 @@ const styles = StyleSheet.create({
         gap: 6,
     },
     viewToggleButtonActive: {
-        backgroundColor: '#f97316',
+        backgroundColor: '#FF6410',
     },
     viewToggleText: {
         fontSize: 14,
@@ -1099,7 +1099,7 @@ const styles = StyleSheet.create({
         marginBottom: 16,
     },
     createButton: {
-        backgroundColor: '#f97316',
+        backgroundColor: '#FF6410',
         paddingVertical: 12,
         paddingHorizontal: 24,
         borderRadius: 12,

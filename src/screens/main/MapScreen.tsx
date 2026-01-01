@@ -615,7 +615,7 @@ export default function MapScreen() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#f97316" />
+        <ActivityIndicator size="large" color="#FF6410" />
         <Text style={styles.loadingText}>Finding nearby rooms...</Text>
       </View>
     );
@@ -796,7 +796,7 @@ export default function MapScreen() {
       <View style={styles.viewToggleContainer}>
         <View style={styles.viewToggle}>
           <LinearGradient
-            colors={['#f97316', '#f43f5e']}
+            colors={['#FF6410', '#f43f5e']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={styles.viewToggleButtonActiveGradient}
@@ -916,7 +916,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#f97316',
+    backgroundColor: '#FF6410',
     // Remove extra shadow to match web's simpler style
   },
   // Map control styles moved to MapControls component
@@ -1001,7 +1001,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   viewToggleButtonActive: {
-    backgroundColor: '#f97316',
+    backgroundColor: '#FF6410',
   },
   viewToggleButtonActiveGradient: {
     flexDirection: 'row',
@@ -1053,7 +1053,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   createButton: {
-    backgroundColor: '#f97316',
+    backgroundColor: '#FF6410',
     paddingVertical: 12,
     paddingHorizontal: 24,
     borderRadius: 12,

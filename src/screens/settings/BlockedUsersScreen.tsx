@@ -133,7 +133,7 @@ export default function BlockedUsersScreen() {
 
       {isLoading ? (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#f97316" />
+          <ActivityIndicator size="large" color="#FF6410" />
         </View>
       ) : blockedUsers.length === 0 ? (
         <View style={styles.emptyContainer}>

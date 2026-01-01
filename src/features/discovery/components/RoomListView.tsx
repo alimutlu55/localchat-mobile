@@ -436,8 +436,8 @@ export function RoomListView({
     // Filter and sort rooms
     const filteredRooms = useMemo(() => {
         // Use search results if searching, otherwise use provided rooms
-        let filtered = searchQuery && searchQuery.trim().length >= 2 
-            ? [...searchResults] 
+        let filtered = searchQuery && searchQuery.trim().length >= 2
+            ? [...searchResults]
             : [...rooms];
 
         // Category filter (apply to both search results and regular rooms)
@@ -579,9 +579,9 @@ export function RoomListView({
                         </TouchableOpacity>
                     )}
                     {isSearching && (
-                        <ActivityIndicator 
-                            size="small" 
-                            color={theme.tokens.brand.primary} 
+                        <ActivityIndicator
+                            size="small"
+                            color={theme.tokens.brand.primary}
                             style={styles.searchLoadingIndicator}
                         />
                     )}
@@ -853,7 +853,7 @@ const styles = StyleSheet.create({
         textTransform: 'capitalize',
     },
     sortChipTextSelected: {
-        color: '#f97316',
+        color: '#FF6410',
         fontWeight: '500',
     },
     categoriesContainer: {
@@ -874,7 +874,7 @@ const styles = StyleSheet.create({
         marginRight: 8,
     },
     categoryChipSelected: {
-        backgroundColor: '#f97316',
+        backgroundColor: '#FF6410',
     },
     categoryChipText: {
         fontSize: 14,
@@ -935,7 +935,7 @@ const styles = StyleSheet.create({
         width: 16,
         height: 16,
         borderRadius: 8,
-        backgroundColor: '#f97316',
+        backgroundColor: '#FF6410',
         borderWidth: 2,
         borderColor: '#ffffff',
         justifyContent: 'center',
@@ -1116,10 +1116,10 @@ const styles = StyleSheet.create({
         flex: 1,
         paddingVertical: 12,
         borderRadius: 14,
-        backgroundColor: '#f97316',
+        backgroundColor: '#FF6410',
         alignItems: 'center',
         justifyContent: 'center',
-        shadowColor: '#f97316',
+        shadowColor: '#FF6410',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.2,
         shadowRadius: 8,
@@ -1178,7 +1178,7 @@ const styles = StyleSheet.create({
     emptyButton: {
         paddingHorizontal: 24,
         paddingVertical: 12,
-        backgroundColor: '#f97316',
+        backgroundColor: '#FF6410',
         borderRadius: 16,
     },
     emptyButtonText: {

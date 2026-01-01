@@ -75,7 +75,7 @@ export default function LoadingScreen() {
                     >
                         <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
                             <LinearGradient
-                                colors={['#fb923c', '#e11d48']}
+                                colors={['#FF6410', '#e11d48']}
                                 style={styles.logoGradient}
                             >
                                 <MessageCircle size={48} color="#ffffff" strokeWidth={2} />
@@ -125,7 +125,7 @@ const styles = StyleSheet.create({
         borderRadius: 24,
         justifyContent: 'center',
         alignItems: 'center',
-        shadowColor: '#f97316',
+        shadowColor: '#FF6410',
         shadowOffset: { width: 0, height: 8 },
         shadowOpacity: 0.3,
         shadowRadius: 16,
@@ -138,7 +138,7 @@ const styles = StyleSheet.create({
         width: 32,
         height: 32,
         borderRadius: 16,
-        backgroundColor: '#f97316',
+        backgroundColor: '#FF6410',
         justifyContent: 'center',
         alignItems: 'center',
         borderWidth: 3,

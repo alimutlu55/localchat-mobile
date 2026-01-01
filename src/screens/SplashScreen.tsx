@@ -116,7 +116,7 @@ export default function SplashScreen() {
             ]}
           >
             <LinearGradient
-              colors={['#fb923c', '#e11d48']}
+              colors={['#FF6410', '#e11d48']}
               style={styles.logoGradient}
             >
               <MessageCircle size={48} color="#ffffff" strokeWidth={2} />
@@ -164,7 +164,7 @@ export default function SplashScreen() {
             activeOpacity={0.9}
           >
             <LinearGradient
-              colors={['#f97316', '#e11d48']}
+              colors={['#FF6410', '#e11d48']}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
               style={styles.primaryButton}
@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
   bubble: {
     position: 'absolute',
     borderRadius: 100,
-    backgroundColor: '#f97316',
+    backgroundColor: '#FF6410',
   },
   content: {
     flex: 1,
@@ -224,7 +224,7 @@ const styles = StyleSheet.create({
     borderRadius: 24,
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#f97316',
+    shadowColor: '#FF6410',
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.3,
     shadowRadius: 16,
@@ -237,7 +237,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#f97316',
+    backgroundColor: '#FF6410',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
@@ -288,7 +288,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
     borderRadius: 16,
     alignItems: 'center',
-    shadowColor: '#f97316',
+    shadowColor: '#FF6410',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 12,
@@ -308,7 +308,7 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
   signInLink: {
-    color: '#f97316',
+    color: '#FF6410',
     textDecorationLine: 'underline',
   },
   privacyContainer: {

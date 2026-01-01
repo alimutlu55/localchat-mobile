@@ -18,7 +18,7 @@ export function Loading({ message, fullScreen = true }: LoadingProps) {
 
   return (
     <Container {...containerProps}>
-      <ActivityIndicator size="large" color="#f97316" />
+      <ActivityIndicator size="large" color="#FF6410" />
       {message && <Text style={styles.message}>{message}</Text>}
     </Container>
   );

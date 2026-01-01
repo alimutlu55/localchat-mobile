@@ -113,10 +113,10 @@ export default function WelcomeScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <View style={styles.logoContainer}>
-            <MessageCircle size={48} color="#f97316" strokeWidth={2} />
+            <MessageCircle size={48} color="#FF6410" strokeWidth={2} />
           </View>
           <Text style={styles.title}>LocalChat</Text>
-          <ActivityIndicator size="large" color="#f97316" style={styles.loader} />
+          <ActivityIndicator size="large" color="#FF6410" style={styles.loader} />
           <Text style={styles.loadingText}>
             {isDirectLoginLoading ? 'Signing you in...' : 'Loading...'}
           </Text>
@@ -132,7 +132,7 @@ export default function WelcomeScreen() {
         <View style={styles.header}>
           <View style={styles.logoContainer}>
             <View style={styles.logoCircle}>
-              <MessageCircle size={32} color="#f97316" />
+              <MessageCircle size={32} color="#FF6410" />
             </View>
           </View>
           <Text style={styles.title}>Welcome to LocalChat</Text>
@@ -300,7 +300,7 @@ const styles = StyleSheet.create({
   signupLink: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#f97316',
+    color: '#FF6410',
   },
   footer: {
     paddingHorizontal: 24,

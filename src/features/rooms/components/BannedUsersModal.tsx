@@ -84,9 +84,9 @@ export function BannedUsersModal({
                 disabled={!!isUnbanning}
             >
                 {isUnbanning === item.userId ? (
-                    <ActivityIndicator size="small" color="#f97316" />
+                    <ActivityIndicator size="small" color="#FF6410" />
                 ) : (
-                    <RotateCcw size={20} color="#f97316" />
+                    <RotateCcw size={20} color="#FF6410" />
                 )}
             </TouchableOpacity>
         </View>
@@ -109,7 +109,7 @@ export function BannedUsersModal({
                     </View>
 
                     {isLoading ? (
-                        <ActivityIndicator size="large" color="#f97316" style={styles.loader} />
+                        <ActivityIndicator size="large" color="#FF6410" style={styles.loader} />
                     ) : (
                         <FlatList
                             data={bannedUsers}

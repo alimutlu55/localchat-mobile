@@ -106,9 +106,9 @@ describe('format utilities', () => {
         });
 
         it('should return orange for distances 500m-2000m', () => {
-            expect(getDistanceColor(500)).toBe('#ea580c');
-            expect(getDistanceColor(1000)).toBe('#ea580c');
-            expect(getDistanceColor(1999)).toBe('#ea580c');
+            expect(getDistanceColor(500)).toBe('#FF6410');
+            expect(getDistanceColor(1000)).toBe('#FF6410');
+            expect(getDistanceColor(1999)).toBe('#FF6410');
         });
 
         it('should return gray for distances 2000m+', () => {

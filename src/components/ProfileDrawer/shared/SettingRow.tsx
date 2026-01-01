@@ -41,7 +41,7 @@ export function SettingRow({
                     value={isEnabled}
                     onValueChange={onToggle}
                     trackColor={{ false: '#e5e7eb', true: '#fdba74' }}
-                    thumbColor={isEnabled ? '#f97316' : '#f4f4f5'}
+                    thumbColor={isEnabled ? '#FF6410' : '#f4f4f5'}
                 />
             </View>
         );

@@ -113,7 +113,7 @@ export default function EmailEntryScreen() {
                     {/* Logo */}
                     <View style={styles.logoContainer}>
                         <View style={styles.logoCircle}>
-                            <MessageCircle size={32} color="#f97316" />
+                            <MessageCircle size={32} color="#FF6410" />
                         </View>
                     </View>
 
@@ -361,6 +361,6 @@ const styles = StyleSheet.create({
     footerLink: {
         fontSize: 14,
         fontWeight: '600',
-        color: '#f97316',
+        color: '#FF6410',
     },
 });

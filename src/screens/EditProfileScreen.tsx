@@ -393,7 +393,7 @@ const styles = StyleSheet.create({
     color: '#1f2937',
   },
   saveButton: {
-    backgroundColor: '#f97316',
+    backgroundColor: '#FF6410',
     paddingHorizontal: 12,
     paddingVertical: 6,
     borderRadius: 20,
@@ -432,7 +432,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
-    borderColor: '#f97316',
+    borderColor: '#FF6410',
   },
   avatarImage: {
     width: 100,
@@ -442,7 +442,7 @@ const styles = StyleSheet.create({
   avatarText: {
     fontSize: 40,
     fontWeight: '600',
-    color: '#f97316',
+    color: '#FF6410',
   },
   avatarEditBadge: {
     position: 'absolute',
@@ -451,7 +451,7 @@ const styles = StyleSheet.create({
     width: 32,
     height: 32,
     borderRadius: 16,
-    backgroundColor: '#f97316',
+    backgroundColor: '#FF6410',
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 3,
@@ -555,7 +555,7 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
   upgradeButton: {
-    backgroundColor: '#f97316',
+    backgroundColor: '#FF6410',
     paddingVertical: 16,
     borderRadius: 12,
     alignItems: 'center',

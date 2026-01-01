@@ -21,7 +21,7 @@ export function UpgradeBanner({ isAnonymous, onUpgrade }: UpgradeBannerProps) {
     return (
         <View style={styles.upgradeBanner}>
             <View style={styles.upgradeIcon}>
-                <Sparkles size={20} color="#f97316" />
+                <Sparkles size={20} color="#FF6410" />
             </View>
             <View style={styles.upgradeInfo}>
                 <Text style={styles.upgradeTitle}>Upgrade to Account</Text>

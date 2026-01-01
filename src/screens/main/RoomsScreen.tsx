@@ -108,7 +108,7 @@ export default function RoomsScreen() {
           </Text>
           {room.isCreator && (
             <View style={styles.creatorBadge}>
-              <Crown size={12} color="#f97316" />
+              <Crown size={12} color="#FF6410" />
             </View>
           )}
         </View>
@@ -163,7 +163,7 @@ export default function RoomsScreen() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#f97316" />
+        <ActivityIndicator size="large" color="#FF6410" />
       </View>
     );
   }
@@ -211,7 +211,7 @@ export default function RoomsScreen() {
           <RefreshControl
             refreshing={isRefreshing}
             onRefresh={handleRefresh}
-            tintColor="#f97316"
+            tintColor="#FF6410"
           />
         }
         ListEmptyComponent={renderEmptyState}
@@ -276,7 +276,7 @@ const styles = StyleSheet.create({
     color: '#6b7280',
   },
   tabTextActive: {
-    color: '#f97316',
+    color: '#FF6410',
   },
   listContent: {
     padding: 16,
@@ -377,7 +377,7 @@ const styles = StyleSheet.create({
   emptyButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#f97316',
+    backgroundColor: '#FF6410',
     paddingVertical: 12,
     paddingHorizontal: 20,
     borderRadius: 12,
@@ -395,10 +395,10 @@ const styles = StyleSheet.create({
     width: 60,
     height: 60,
     borderRadius: 30,
-    backgroundColor: '#f97316',
+    backgroundColor: '#FF6410',
     justifyContent: 'center',
     alignItems: 'center',
-    shadowColor: '#f97316',
+    shadowColor: '#FF6410',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.3,
     shadowRadius: 8,

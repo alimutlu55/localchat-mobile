@@ -133,7 +133,7 @@ export function RoomListItem({
               styles.metaItem,
               isExpiringSoon && styles.expiringBadge,
             ]}>
-              <Clock size={12} color={isExpiringSoon ? '#f97316' : '#9ca3af'} />
+              <Clock size={12} color={isExpiringSoon ? '#FF6410' : '#9ca3af'} />
               <Text style={[
                 styles.metaText,
                 isExpiringSoon && styles.expiringText,
@@ -206,7 +206,7 @@ const styles = StyleSheet.create({
     borderRadius: 4,
   },
   expiringText: {
-    color: '#f97316',
+    color: '#FF6410',
     fontWeight: '500',
   },
   categoryBadge: {

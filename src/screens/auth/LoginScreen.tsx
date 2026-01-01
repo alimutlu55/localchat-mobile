@@ -119,7 +119,7 @@ export default function LoginScreen() {
           {/* Logo */}
           <View style={styles.logoContainer}>
             <View style={styles.logoCircle}>
-              <MessageCircle size={32} color="#f97316" />
+              <MessageCircle size={32} color="#FF6410" />
             </View>
           </View>
 

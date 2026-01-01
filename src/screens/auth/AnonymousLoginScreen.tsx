@@ -69,7 +69,7 @@ export default function AnonymousLoginScreen() {
         <View style={styles.content}>
           <View style={styles.logoContainer}>
             <View style={styles.logoCircle}>
-              <User size={32} color="#f97316" />
+              <User size={32} color="#FF6410" />
             </View>
           </View>
 

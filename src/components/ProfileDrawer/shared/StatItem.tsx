@@ -16,11 +16,11 @@ interface StatItemProps {
 export function StatItem({ label, value, icon: Icon }: StatItemProps) {
     // Format display value - show dash for null
     const displayValue = value === null ? '—' : value;
-    
+
     return (
         <View style={styles.statItem}>
             <View style={styles.statIconContainer}>
-                <Icon size={16} color="#f97316" />
+                <Icon size={16} color="#FF6410" />
             </View>
             <Text style={styles.statValue}>{displayValue}</Text>
             <Text style={styles.statLabel}>{label}</Text>

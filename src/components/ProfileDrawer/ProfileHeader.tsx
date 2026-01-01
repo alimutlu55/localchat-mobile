@@ -96,7 +96,7 @@ const styles = StyleSheet.create({
     },
     editProfileText: {
         fontSize: 14,
-        color: '#f97316',
+        color: '#FF6410',
         fontWeight: '500',
     },
     statsRow: {

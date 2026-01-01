@@ -267,7 +267,7 @@ const styles = StyleSheet.create({
         borderRadius: 12,
         justifyContent: 'center',
         alignItems: 'center',
-        backgroundColor: '#f97316',
+        backgroundColor: '#FF6410',
     },
     viewToggleContainer: {
         position: 'absolute',
@@ -298,7 +298,7 @@ const styles = StyleSheet.create({
         gap: 6,
     },
     viewToggleButtonActive: {
-        backgroundColor: '#f97316',
+        backgroundColor: '#FF6410',
     },
     viewToggleText: {
         fontSize: 14,

@@ -90,7 +90,7 @@ function ParticipantItem({
             {isCurrentUser && ' (You)'}
           </Text>
           {participant.role === 'creator' && (
-            <Crown size={14} color="#f97316" />
+            <Crown size={14} color="#FF6410" />
           )}
         </View>
         <Text style={styles.participantRole}>
@@ -199,7 +199,7 @@ export default function RoomDetailsScreen() {
           <View style={{ width: 40 }} />
         </View>
         <View style={styles.loadingContent}>
-          <ActivityIndicator size="large" color="#f97316" />
+          <ActivityIndicator size="large" color="#FF6410" />
           <Text style={styles.loadingText}>Loading room...</Text>
         </View>
       </View>
@@ -467,7 +467,7 @@ export default function RoomDetailsScreen() {
           {isCreator && (
             <TouchableOpacity style={styles.actionRow} onPress={handleCloseRoom}>
               <View style={[styles.actionIcon, { backgroundColor: '#fff7ed' }]}>
-                <Lock size={20} color="#f97316" />
+                <Lock size={20} color="#FF6410" />
               </View>
               <View style={styles.actionInfo}>
                 <Text style={styles.actionLabel}>Close Room</Text>
@@ -683,11 +683,11 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
   },
   mainButton: {
-    backgroundColor: '#f97316',
+    backgroundColor: '#FF6410',
     borderRadius: 16,
     paddingVertical: 18,
     alignItems: 'center',
-    shadowColor: '#f97316',
+    shadowColor: '#FF6410',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,

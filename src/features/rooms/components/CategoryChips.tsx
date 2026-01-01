@@ -98,7 +98,7 @@ const styles = StyleSheet.create({
   },
   chipSelected: {
     backgroundColor: '#fff7ed',
-    borderColor: '#f97316',
+    borderColor: '#FF6410',
   },
   chipEmoji: {
     fontSize: 14,
@@ -110,7 +110,7 @@ const styles = StyleSheet.create({
     textTransform: 'capitalize',
   },
   chipTextSelected: {
-    color: '#f97316',
+    color: '#FF6410',
   },
 });
 

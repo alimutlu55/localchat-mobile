@@ -49,7 +49,7 @@ export function formatDistance(meters: number | undefined): string {
   }
 
   const km = meters / 1000;
-  
+
   if (km < 10) {
     return `${km.toFixed(1)}km away`;
   }
@@ -73,7 +73,7 @@ export function formatDistanceShort(meters: number | undefined): string {
   }
 
   const km = meters / 1000;
-  
+
   if (km < 10) {
     return `${km.toFixed(1)}km`;
   }
@@ -91,11 +91,11 @@ export function getDistanceColor(meters: number): string {
   if (meters < 500) {
     return '#16a34a'; // Green - very close
   }
-  
+
   if (meters < 2000) {
-    return '#ea580c'; // Orange - nearby
+    return '#FF6410'; // Orange - nearby
   }
-  
+
   return '#6b7280'; // Gray - far
 }
 

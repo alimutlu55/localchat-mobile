@@ -393,7 +393,7 @@ export default function RoomInfoScreen() {
                                                 style={styles.inlineActionButton}
                                                 onPress={() => handleKickUser(participant.userId, participant.displayName)}
                                             >
-                                                <UserX size={16} color="#f97316" />
+                                                <UserX size={16} color="#FF6410" />
                                                 <Text style={styles.inlineActionText}>Kick</Text>
                                             </TouchableOpacity>
                                             <TouchableOpacity

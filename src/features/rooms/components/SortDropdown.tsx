@@ -82,7 +82,7 @@ export function SortDropdown({ value, onChange }: SortDropdownProps) {
                   <Text style={styles.optionDescription}>{option.description}</Text>
                 </View>
                 {value === option.value && (
-                  <Check size={20} color="#f97316" />
+                  <Check size={20} color="#FF6410" />
                 )}
               </TouchableOpacity>
             ))}
@@ -146,7 +146,7 @@ const styles = StyleSheet.create({
     color: '#1f2937',
   },
   optionLabelSelected: {
-    color: '#f97316',
+    color: '#FF6410',
   },
   optionDescription: {
     fontSize: 12,

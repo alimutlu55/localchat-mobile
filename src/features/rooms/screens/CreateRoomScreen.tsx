@@ -228,7 +228,7 @@ export default function CreateRoomScreen() {
   if (isGettingLocation) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#f97316" />
+        <ActivityIndicator size="large" color="#FF6410" />
         <Text style={styles.loadingText}>Getting your location...</Text>
       </View>
     );
@@ -319,7 +319,7 @@ export default function CreateRoomScreen() {
                 >
                   {categoryLabel === cat.label ? (
                     <LinearGradient
-                      colors={['#f97316', '#f43f5e']}
+                      colors={['#FF6410', '#f43f5e']}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
                       style={styles.categoryChip}
@@ -353,7 +353,7 @@ export default function CreateRoomScreen() {
                 >
                   {durationValue === dur.value ? (
                     <LinearGradient
-                      colors={['#f97316', '#f43f5e']}
+                      colors={['#FF6410', '#f43f5e']}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 0 }}
                       style={styles.durationGradient}
@@ -432,7 +432,7 @@ export default function CreateRoomScreen() {
               <View style={styles.radiusContainer}>
                 <View style={styles.radiusHeader}>
                   <View style={styles.radiusLabelRow}>
-                    <MapPin size={16} color="#f97316" />
+                    <MapPin size={16} color="#FF6410" />
                     <Text style={styles.radiusLabel}>Visibility Range</Text>
                   </View>
                 </View>
@@ -523,7 +523,7 @@ export default function CreateRoomScreen() {
           activeOpacity={0.8}
         >
           <LinearGradient
-            colors={['#f97316', '#ff4d4d']}
+            colors={['#FF6410', '#ff4d4d']}
             start={{ x: 0, y: 0 }}
             end={{ x: 1, y: 0 }}
             style={[
@@ -699,7 +699,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff',
   },
   visibilityCardActive: {
-    borderColor: '#f97316',
+    borderColor: '#FF6410',
     backgroundColor: '#fff7ed',
   },
   visibilityIconBox: {
@@ -712,7 +712,7 @@ const styles = StyleSheet.create({
     marginRight: 10,
   },
   visibilityIconBoxActive: {
-    backgroundColor: '#f97316',
+    backgroundColor: '#FF6410',
   },
   visibilityContent: {
     flex: 1,
@@ -723,7 +723,7 @@ const styles = StyleSheet.create({
     color: '#64748b',
   },
   visibilityTitleActive: {
-    color: '#f97316',
+    color: '#FF6410',
   },
   visibilityDesc: {
     fontSize: 11,
@@ -770,7 +770,7 @@ const styles = StyleSheet.create({
   },
   radiusOptionActive: {
     backgroundColor: '#fff7ed',
-    borderColor: '#f97316',
+    borderColor: '#FF6410',
   },
   radiusCheckmark: {
     position: 'absolute',
@@ -779,7 +779,7 @@ const styles = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    backgroundColor: '#f97316',
+    backgroundColor: '#FF6410',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -789,7 +789,7 @@ const styles = StyleSheet.create({
     color: '#64748b',
   },
   radiusOptionTextActive: {
-    color: '#f97316',
+    color: '#FF6410',
   },
   radiusHint: {
     fontSize: 12,
@@ -849,14 +849,14 @@ const styles = StyleSheet.create({
   },
   participantChipActive: {
     backgroundColor: '#fff7ed',
-    borderColor: '#f97316',
+    borderColor: '#FF6410',
   },
   participantChipText: {
     fontSize: 13,
     color: '#64748b',
   },
   participantChipTextActive: {
-    color: '#f97316',
+    color: '#FF6410',
     fontWeight: '500',
   },
   footer: {
@@ -869,7 +869,7 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     borderRadius: 16,
     alignItems: 'center',
-    shadowColor: '#f97316',
+    shadowColor: '#FF6410',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,

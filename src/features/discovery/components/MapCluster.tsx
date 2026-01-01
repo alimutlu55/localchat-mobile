@@ -81,9 +81,9 @@ export const MapCluster = memo(({ count }: MapClusterProps) => {
     const getColors = (): [string, string] => {
         switch (sizeCategory) {
             case 'small':
-                return ['#fb923c', '#f43f5e']; // orange-400 -> rose-500
+                return ['#FF6410', '#f43f5e']; // orange-400 -> rose-500
             case 'medium':
-                return ['#f97316', '#e11d48']; // orange-500 -> rose-600
+                return ['#FF6410', '#e11d48']; // orange-500 -> rose-600
             case 'large':
                 return ['#f43f5e', '#9333ea']; // rose-500 -> purple-600
             case 'xlarge':
