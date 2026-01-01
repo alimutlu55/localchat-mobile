@@ -10,22 +10,15 @@ import { Section, SettingRow } from './shared';
 
 interface AccountSettingsProps {
     blockedUsersCount: number;
-    onPrivacyPress: () => void;
     onBlockedUsersPress: () => void;
 }
 
 export function AccountSettings({
     blockedUsersCount,
-    onPrivacyPress,
     onBlockedUsersPress,
 }: AccountSettingsProps) {
     return (
         <Section title="ACCOUNT">
-            <SettingRow
-                icon={Lock}
-                label="Privacy"
-                onPress={onPrivacyPress}
-            />
             <SettingRow
                 icon={UserX}
                 label="Blocked Users"

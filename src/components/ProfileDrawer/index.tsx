@@ -22,8 +22,7 @@ import {
     ChevronRight,
     Trash2,
     X,
-    Eye,
-    Globe,
+    MapPin,
     ArrowLeft,
 } from 'lucide-react-native';
 import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
@@ -147,7 +146,6 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
 
             <AccountSettings
                 blockedUsersCount={blockedUsers.count}
-                onPrivacyPress={() => setCurrentPage('privacy')}
                 onBlockedUsersPress={() => setCurrentPage('blocked')}
             />
 
@@ -164,7 +162,7 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
                 locationMode={locationMode}
                 onHelpPress={openHelpCenter}
                 onLanguagePress={() => setCurrentPage('language')}
-                onLocationPress={() => setCurrentPage('privacy')}
+                onLocationPress={() => setCurrentPage('location')}
                 onTermsPress={openTermsOfService}
                 onPrivacyPolicyPress={openPrivacyPolicy}
             />
@@ -210,26 +208,22 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
 
     const renderContent = () => {
         switch (currentPage) {
-            case 'privacy':
+            case 'location':
                 return renderSubPage(
-                    'Privacy',
+                    'Location Mode',
                     <View style={styles.subPageContent}>
-                        <Section title="VISIBILITY">
+                        <Section title="CURRENT SETTING">
                             <SettingRow
-                                icon={Eye}
-                                label="Show Online Status"
-                                isToggle
-                                isEnabled={privacySettings.showOnlineStatus}
-                                onToggle={(val) => updatePrivacySettings({ showOnlineStatus: val })}
-                            />
-                            <SettingRow
-                                icon={Globe}
-                                label="Show Last Seen"
-                                isToggle
-                                isEnabled={privacySettings.showLastSeen}
-                                onToggle={(val) => updatePrivacySettings({ showLastSeen: val })}
+                                icon={MapPin}
+                                label="Approximate"
+                                value="Active"
+                                isEnabled={true}
+                                onPress={() => { }}
                             />
                         </Section>
+                        <Text style={styles.infoText}>
+                            We use an approximate location to protect your privacy, which is shared only when you create a room and never reveals your exact position.
+                        </Text>
                     </View>
                 );
             case 'language':
