@@ -5,7 +5,7 @@
  * Provides a clean API that hides the complexity of multiple data sources.
  */
 
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useState, useEffect } from 'react';
 import { Alert, Linking } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -18,6 +18,8 @@ import { useMyRooms } from '../../rooms/hooks';
 import { useAuth } from '../../auth';
 import { Room } from '../../../types';
 import { storage } from '../../../services/storage';
+import { authService } from '../../../services/auth';
+import { eventBus } from '../../../core/events/EventBus';
 import { createLogger } from '../../../shared/utils/logger';
 
 const log = createLogger('useProfileDrawer');
@@ -152,6 +154,32 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
   const { logout, isAuthenticated } = useAuth();
   const blockedUsers = useBlockedUsers();
 
+  // Fetch user stats (message count) and subscribe to updates
+  const [messagesSent, setMessagesSent] = useState<number | null>(null);
+
+  // Fetch stats from backend on mount
+  useEffect(() => {
+    if (isAuthenticated) {
+      authService.getUserStats()
+        .then((stats) => setMessagesSent(stats.messagesSent))
+        .catch((err) => log.warn('Failed to fetch user stats', err));
+    }
+  }, [isAuthenticated]);
+
+  // Subscribe to message.new events to increment count in real-time
+  useEffect(() => {
+    if (!user?.id) return;
+
+    const unsubscribe = eventBus.on('message.new', (payload) => {
+      // Only increment if the current user sent the message
+      if (payload.sender?.id === user.id) {
+        setMessagesSent((prev) => (prev ?? 0) + 1);
+      }
+    });
+
+    return () => unsubscribe();
+  }, [user?.id]);
+
   // =========================================================================
   // Derived Data
   // =========================================================================
@@ -168,10 +196,10 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
 
     return {
       roomsJoined: myRooms.length,
-      messagesSent: null, // Not available from backend yet
+      messagesSent, // From backend API
       memberSince,
     };
-  }, [user?.createdAt, myRooms.length]);
+  }, [user?.createdAt, myRooms.length, messagesSent]);
 
   const appVersion = useMemo(() => {
     return Constants.expoConfig?.version || '1.0.0';

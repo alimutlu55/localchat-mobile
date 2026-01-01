@@ -309,7 +309,7 @@ export function useChatMessages(
           updated[existingIndex] = {
             ...updated[existingIndex],
             id: payload.messageId,
-            status: 'delivered' as MessageStatus,
+            status: 'sent' as MessageStatus,
           };
           return updated;
         }
@@ -327,7 +327,7 @@ export function useChatMessages(
             updated[pendingIndex] = {
               ...updated[pendingIndex],
               id: payload.messageId,
-              status: 'delivered' as MessageStatus,
+              status: 'sent' as MessageStatus,
             };
             return updated;
           }
@@ -343,7 +343,7 @@ export function useChatMessages(
             timestamp: new Date(payload.createdAt),
             userId: payload.sender.id,
             userName: 'System',
-            status: 'delivered',
+            status: 'sent',
           }
           : {
             id: payload.messageId,
@@ -353,7 +353,7 @@ export function useChatMessages(
             userId: payload.sender.id,
             userName: payload.sender.displayName || 'Anonymous User',
             userProfilePhoto: payload.sender.profilePhotoUrl,
-            status: 'delivered',
+            status: 'sent',
             clientMessageId: payload.clientMessageId,
           };
 
@@ -419,14 +419,10 @@ export function useChatMessages(
         const lastReadIndex = prev.findIndex((m) => m.id === lastReadMessageId);
 
         if (lastReadIndex === -1) {
-          // If we can't find the message, mark all our messages as read
-          // This handles the case where messages were loaded after the read event
-          return prev.map((msg) => {
-            if (msg.userId === userId && msg.status !== 'read') {
-              return { ...msg, status: 'read' as MessageStatus };
-            }
-            return msg;
-          });
+          // If we can't find the message, don't mark anything as read
+          // This prevents false positives where we mark messages as read incorrectly
+          log.debug('message.read: lastReadMessageId not found, skipping', { lastReadMessageId });
+          return prev;
         }
 
         // Mark all our messages up to and including lastReadIndex as read

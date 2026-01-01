@@ -67,7 +67,7 @@ function transformMessage(dto: MessageDTO): ChatMessage {
   const type = dto.type?.toLowerCase() === 'system' ? 'system' : 'user';
 
   // Normalize status
-  let status: MessageStatus = 'delivered';
+  let status: MessageStatus = 'sent';
   if (dto.status) {
     const s = dto.status.toLowerCase();
     if (s === 'sent') status = 'sent';

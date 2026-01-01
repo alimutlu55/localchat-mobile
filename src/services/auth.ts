@@ -250,6 +250,14 @@ class AuthService {
   }
 
   /**
+   * Get user stats (message count, rooms joined)
+   */
+  async getUserStats(): Promise<{ messagesSent: number; roomsJoined: number }> {
+    const response = await api.get<{ data: { messagesSent: number; roomsJoined: number } }>('/users/me/stats');
+    return response.data;
+  }
+
+  /**
    * Request password reset
    */
   async requestPasswordReset(email: string): Promise<void> {
