@@ -107,13 +107,29 @@ function mergePendingRooms(features: ClusterFeature[]): ClusterFeature[] {
     features.filter(f => !f.properties.cluster).map(f => f.properties.roomId)
   );
 
+  const clusters = features.filter(f => f.properties.cluster);
+
   const pendingFeatures: ClusterFeature[] = [];
 
   pendingRoomIds.forEach(roomId => {
+    // 1. Skip if already exists as an individual room (server source of truth)
     if (existingRoomIds.has(roomId)) return;
 
     const room = rooms.get(roomId);
     if (!room) return;
+
+    // 2. Skip if inside a cluster's expansion bounds
+    // This prevents "double markers" where an individual pin shows on top of a cluster
+    const isInsideAnyCluster = clusters.some(c => {
+      const bounds = c.properties.expansionBounds;
+      if (!bounds) return false;
+      return isPointInBounds(room.latitude!, room.longitude!, bounds);
+    });
+
+    if (isInsideAnyCluster) {
+      log.debug('Pending room hidden by cluster coverage', { roomId });
+      return;
+    }
 
     pendingFeatures.push({
       type: 'Feature',
@@ -136,6 +152,14 @@ function mergePendingRooms(features: ClusterFeature[]): ClusterFeature[] {
   });
 
   return [...features, ...pendingFeatures];
+}
+
+/**
+ * Check if a point is within given bounds
+ */
+function isPointInBounds(lat: number, lng: number, bounds: [number, number, number, number]): boolean {
+  const [minLng, minLat, maxLng, maxLat] = bounds;
+  return lng >= minLng && lng <= maxLng && lat >= minLat && lat <= maxLat;
 }
 
 // =============================================================================
@@ -199,6 +223,44 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
   // Prefetch timing refs - for showing markers 300ms before animation ends
   const prefetchTimerRef = useRef<NodeJS.Timeout | null>(null);
   const pendingPrefetchRef = useRef<ClusterResponse | null>(null);
+
+  /**
+   * Reconciles optimistic (pending) rooms with a fresh server response.
+   * Removes rooms from the pending set if they are now CANONICALLY represented 
+   * by the server (either as an individual marker or part of a cluster).
+   */
+  const reconcilePendingRooms = useCallback((features: ClusterFeature[]) => {
+    const state = useRoomStore.getState();
+    if (state.pendingRoomIds.size === 0) return;
+
+    const individualRoomIds = new Set(
+      features.filter(f => !f.properties.cluster).map(f => f.properties.roomId)
+    );
+    const clusters = features.filter(f => f.properties.cluster);
+
+    state.pendingRoomIds.forEach(roomId => {
+      const room = state.rooms.get(roomId);
+      if (!room) return;
+
+      // 1. Remove if confirmed as individual room
+      if (individualRoomIds.has(roomId)) {
+        log.debug('Removing pending room confirmed as individual by server', { roomId });
+        state.removePendingRoom(roomId);
+        return;
+      }
+
+      // 2. Remove if inside a cluster (server acknowledges it's part of a cluster)
+      const isInsideAnyCluster = clusters.some(c => {
+        const b = c.properties.expansionBounds;
+        return b && isPointInBounds(room.latitude!, room.longitude!, b);
+      });
+
+      if (isInsideAnyCluster) {
+        log.debug('Removing pending room confirmed as clustered by server', { roomId });
+        state.removePendingRoom(roomId);
+      }
+    });
+  }, []);
 
   // Track mount state
   useEffect(() => {
@@ -278,6 +340,9 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
           individualCount: response.metadata.individualCount,
           processingTimeMs: response.metadata.processingTimeMs,
         });
+
+        // Clear pending rooms that are now EXPLICITLY accounted for by the server
+        reconcilePendingRooms(response.features);
       } catch (err) {
         log.error('Failed to fetch server clusters', err);
         if (mountedRef.current) {
@@ -396,6 +461,10 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
               setMetadata(pendingPrefetchRef.current.metadata);
               lastFetchBoundsRef.current = targetBounds;
               lastFetchZoomRef.current = targetZoom;
+
+              // Clear pending rooms that are now EXPLICITLY accounted for by the prefetch
+              reconcilePendingRooms(pendingPrefetchRef.current.features);
+
               pendingPrefetchRef.current = null;
             }
           }, remainingDelay);
@@ -405,6 +474,9 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
           setMetadata(response.metadata);
           lastFetchBoundsRef.current = targetBounds;
           lastFetchZoomRef.current = targetZoom;
+
+          // Clear pending rooms that are now EXPLICITLY accounted for by the prefetch
+          reconcilePendingRooms(response.features);
         }
       } catch (err) {
         log.error('Prefetch failed', err);
@@ -455,6 +527,10 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
               setMetadata(pendingPrefetchRef.current.metadata);
               lastFetchBoundsRef.current = targetBounds;
               lastFetchZoomRef.current = targetZoom;
+
+              // Clear pending rooms (world view covers everything)
+              reconcilePendingRooms(pendingPrefetchRef.current.features);
+
               pendingPrefetchRef.current = null;
             }
           }, showMarkersDelay);
@@ -463,6 +539,9 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
           setMetadata(response.metadata);
           lastFetchBoundsRef.current = targetBounds;
           lastFetchZoomRef.current = targetZoom;
+
+          // Clear pending rooms (world view covers everything)
+          reconcilePendingRooms(response.features);
         }
       } catch (err) {
         log.error('World view prefetch failed', err);

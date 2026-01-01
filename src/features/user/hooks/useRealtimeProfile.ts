@@ -23,19 +23,23 @@ export function useRealtimeProfile<T extends ProfileData>(initialData: T) {
     const currentUser = useUserStore(s => s.currentUser);
     const isCurrentUser = initialData.userId === currentUserId;
 
-    // CRITICAL FIX: Sync state when initialData changes (e.g., when parent re-fetches with avatar URLs)
-    // This fixes the issue where avatars don't show on first render but appear on second open
+    // Sync state when initialData changes (e.g., when parent re-fetches with new data)
+    // IMPORTANT: For the CURRENT USER, we ignore most profile fields from initialData 
+    // to prevent stale backend data from overwriting our local source of truth (UserStore).
     useEffect(() => {
-        // Only update if profile data actually changed
-        if (initialData.displayName !== data.displayName ||
-            initialData.profilePhotoUrl !== data.profilePhotoUrl) {
+        // Only update if profile data actually changed and it's NOT the current user
+        // (For current user, we only sync ID/non-profile fields here; profile is handled by next effect)
+        const profileChanged = initialData.displayName !== data.displayName ||
+            initialData.profilePhotoUrl !== data.profilePhotoUrl;
+
+        if (profileChanged && !isCurrentUser) {
             setData(prev => ({
                 ...prev,
                 displayName: initialData.displayName,
                 profilePhotoUrl: initialData.profilePhotoUrl,
             }));
         }
-    }, [initialData.userId, initialData.displayName, initialData.profilePhotoUrl]);
+    }, [initialData.userId, initialData.displayName, initialData.profilePhotoUrl, isCurrentUser]);
 
     useEffect(() => {
         // If it's the current user, we prefer the UserStore data as the source of truth
