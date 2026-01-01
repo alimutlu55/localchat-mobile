@@ -62,7 +62,7 @@ function configureNotificationHandler(): void {
 async function requestPermissions(): Promise<boolean> {
   try {
     const { status: existingStatus } = await Notifications.getPermissionsAsync();
-    
+
     if (existingStatus === 'granted') {
       return true;
     }
@@ -269,21 +269,27 @@ async function clearAllNotifications(): Promise<void> {
  */
 function initialize(): () => void {
   log.info('Initializing notification service');
-  
+
   // Configure handler
   configureNotificationHandler();
 
   // Subscribe to message events
   const unsubMessage = eventBus.on('message.new', (payload) => {
-    log.debug('Received message.new event', { 
-      senderId: payload.sender?.id, 
+    log.debug('Received message.new event', {
+      senderId: payload.sender?.id,
       currentUserId,
-      roomId: payload.roomId 
+      roomId: payload.roomId
     });
 
     // Don't notify for own messages
     if (payload.sender.id === currentUserId) {
       log.debug('Skipping notification for own message');
+      return;
+    }
+
+    // Don't notify for system messages
+    if (payload.type === 'SYSTEM') {
+      log.debug('Skipping notification for system message');
       return;
     }
 

@@ -190,17 +190,13 @@ export default function ChatRoomScreen() {
   const isAtBottomRef = useRef(true);
   const isClosingRoomRef = useRef(false); // Track if owner is closing the room
 
-  // Safe navigation helper - navigates to home even if no back stack
+  // Safe navigation helper - navigates to home and clears room stack
   const navigateToHome = useCallback(() => {
-    if (navigation.canGoBack()) {
-      navigation.goBack();
-    } else {
-      // Reset to Discovery screen if no back stack
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Discovery' }],
-      });
-    }
+    // Reset to Discovery screen to ensure we clear any nested room info screens
+    navigation.reset({
+      index: 0,
+      routes: [{ name: 'Discovery' }],
+    });
   }, [navigation]);
 
   // Blocked Users Hook
