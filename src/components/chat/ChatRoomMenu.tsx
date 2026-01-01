@@ -39,7 +39,6 @@ interface ChatRoomMenuProps {
   onMute: () => void;
   isMuted: boolean;
   isCreator?: boolean;
-  onCloseRoom?: () => void;
 }
 
 export function ChatRoomMenu({
@@ -51,7 +50,6 @@ export function ChatRoomMenu({
   onMute,
   isMuted,
   isCreator = false,
-  onCloseRoom,
 }: ChatRoomMenuProps) {
   const handleMute = () => {
     onMute();
@@ -111,21 +109,6 @@ export function ChatRoomMenu({
               <Text style={styles.menuItemText}>Report Room</Text>
             </TouchableOpacity>
 
-            {/* Close Room - Creator only */}
-            {isCreator && onCloseRoom && (
-              <TouchableOpacity
-                style={styles.menuItem}
-                onPress={() => {
-                  onCloseRoom();
-                  onClose();
-                }}
-              >
-                <XOctagon size={20} color={theme.tokens.text.error} />
-                <Text style={[styles.menuItemText, styles.dangerText]}>
-                  Close Room
-                </Text>
-              </TouchableOpacity>
-            )}
 
             {/* Leave Room */}
             <TouchableOpacity

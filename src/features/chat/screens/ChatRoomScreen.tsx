@@ -381,6 +381,9 @@ export default function ChatRoomScreen() {
       initialRoom: room,
       isCreator,
       currentUserId: userId ?? undefined,
+      onCloseSuccess: () => {
+        isClosingRoomRef.current = true;
+      },
     });
   }, [roomId, room, isCreator, userId, navigation]);
 
@@ -403,29 +406,6 @@ export default function ChatRoomScreen() {
     ]);
   }, [roomId, leave, navigation, isLeaving]);
 
-  const handleCloseRoom = useCallback(() => {
-    if (isClosing(roomId)) return;
-    Alert.alert('Close Room', 'This will prevent any new messages.', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Close Room',
-        style: 'destructive',
-        onPress: async () => {
-          // Set flag to prevent showing "Room Closed" alert from WebSocket event
-          isClosingRoomRef.current = true;
-          const result = await close(roomId);
-          if (result.success) {
-            Alert.alert('Success', 'Room has been closed', [
-              { text: 'OK', onPress: () => navigation.popToTop() },
-            ]);
-          } else {
-            isClosingRoomRef.current = false;
-            Alert.alert('Error', result.error?.message || 'Failed to close room');
-          }
-        },
-      },
-    ]);
-  }, [roomId, close, navigation, isClosing]);
 
   const handleReportMessage = useCallback((message: ChatMessage) => {
     setTimeout(() => {
@@ -657,7 +637,6 @@ export default function ChatRoomScreen() {
         onMute={() => toggleMuteRoom(roomId)}
         isMuted={isMuted}
         isCreator={isCreator}
-        onCloseRoom={isCreator ? handleCloseRoom : undefined}
       />
 
       {/* Report Modal */}

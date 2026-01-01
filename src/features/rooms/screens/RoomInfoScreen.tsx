@@ -52,7 +52,7 @@ export default function RoomInfoScreen() {
     const params = route.params;
     const roomId = params.roomId || params.room?.id;
     const initialRoom = params.initialRoom || params.room;
-    const { isCreator, currentUserId, onCloseRoom } = params;
+    const { isCreator, currentUserId, onCloseRoom, onCloseSuccess } = params;
 
     // Guard: roomId is required
     if (!roomId) {
@@ -226,15 +226,32 @@ export default function RoomInfoScreen() {
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            await roomService.closeRoom(roomId);
-                            Alert.alert('Success', 'Room has been closed');
-                            // If navigation param onCloseRoom was provided, call it
-                            if (onCloseRoom) {
-                                onCloseRoom();
-                            } else {
-                                // Default behavior: go back or to home
-                                navigation.goBack();
+                            // If onCloseSuccess (from ChatRoom) was provided, call it
+                            // to set the closing flag and prevent duplicate alerts
+                            if (onCloseSuccess) {
+                                onCloseSuccess();
                             }
+
+                            await roomService.closeRoom(roomId);
+
+                            Alert.alert('Success', 'Room has been closed', [
+                                {
+                                    text: 'OK',
+                                    onPress: () => {
+                                        // If navigation param onCloseRoom was provided (legacy), call it
+                                        if (onCloseRoom) {
+                                            onCloseRoom();
+                                        } else {
+                                            // Standard behavior for room closure:
+                                            // Reset to home to clear all room-related screens
+                                            navigation.reset({
+                                                index: 0,
+                                                routes: [{ name: 'Discovery' }],
+                                            });
+                                        }
+                                    }
+                                }
+                            ]);
                         } catch (error) {
                             Alert.alert('Error', 'Failed to close room');
                         }
