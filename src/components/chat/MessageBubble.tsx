@@ -42,6 +42,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { theme } from '../../core/theme';
 import { ChatMessage } from '../../types';
 import { AvatarDisplay } from '../profile';
+import { useRealtimeProfile } from '../../features/user/hooks/useRealtimeProfile';
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -76,6 +77,16 @@ export function MessageBubble({
   onRetry,
   hasBlocked
 }: MessageBubbleProps) {
+  // Use real-time profile for sender info
+  const profile = useRealtimeProfile({
+    userId: message.userId,
+    displayName: message.userName || 'Anonymous',
+    profilePhotoUrl: message.userProfilePhoto,
+  });
+
+  const userName = profile.displayName;
+  const userProfilePhoto = profile.profilePhotoUrl;
+
   const [showContextMenu, setShowContextMenu] = useState(false);
   const [showEmojiDrawer, setShowEmojiDrawer] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(0);
@@ -191,8 +202,8 @@ export function MessageBubble({
     return (
       <View style={{ marginRight: 10, marginTop: 2 }}>
         <AvatarDisplay
-          avatarUrl={message.userProfilePhoto}
-          displayName={message.userName || 'A'}
+          avatarUrl={userProfilePhoto}
+          displayName={userName}
           size="sm"
           style={{ width: 36, height: 36, borderRadius: 18 }}
         />
@@ -229,7 +240,7 @@ export function MessageBubble({
           {!isOwn && (
             <View style={styles.messageHeader}>
               <Text style={styles.messageSender}>
-                {message.userName || 'Anonymous'}
+                {userName}
               </Text>
             </View>
           )}

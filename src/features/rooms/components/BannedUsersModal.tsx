@@ -12,6 +12,52 @@ import {
 import { X, UserX, RotateCcw } from 'lucide-react-native';
 import { roomService, BannedUserDTO } from '../../../services';
 import { AvatarDisplay } from '../../../components/profile';
+import { useRealtimeProfile } from '../../user/hooks/useRealtimeProfile';
+
+interface BannedUserItemProps {
+    item: BannedUserDTO;
+    onUnban: (userId: string) => void;
+    isUnbanning: boolean;
+}
+
+function BannedUserItem({ item: initialItem, onUnban, isUnbanning }: BannedUserItemProps) {
+    const item = useRealtimeProfile({
+        userId: initialItem.userId,
+        displayName: initialItem.displayName || 'User',
+        profilePhotoUrl: initialItem.profilePhotoUrl,
+    });
+
+    return (
+        <View style={styles.userItem}>
+            <AvatarDisplay
+                avatarUrl={item.profilePhotoUrl}
+                displayName={item.displayName}
+                size="md"
+                style={styles.avatar}
+            />
+            <View style={styles.userInfo}>
+                <Text style={styles.displayName}>
+                    {item.displayName}
+                </Text>
+                <Text style={styles.bannedAt}>
+                    Banned: {new Date(initialItem.bannedAt).toLocaleDateString()}
+                </Text>
+                {initialItem.reason && <Text style={styles.reason}>Reason: {initialItem.reason}</Text>}
+            </View>
+            <TouchableOpacity
+                style={styles.unbanButton}
+                onPress={() => onUnban(initialItem.userId)}
+                disabled={isUnbanning}
+            >
+                {isUnbanning ? (
+                    <ActivityIndicator size="small" color="#FF6410" />
+                ) : (
+                    <RotateCcw size={20} color="#FF6410" />
+                )}
+            </TouchableOpacity>
+        </View>
+    );
+}
 
 interface BannedUsersModalProps {
     roomId: string;
@@ -62,34 +108,11 @@ export function BannedUsersModal({
     };
 
     const renderBannedUser = ({ item }: { item: BannedUserDTO }) => (
-        <View style={styles.userItem}>
-            <AvatarDisplay
-                avatarUrl={item.profilePhotoUrl}
-                displayName={item.displayName || 'User'}
-                size="md"
-                style={styles.avatar}
-            />
-            <View style={styles.userInfo}>
-                <Text style={styles.displayName}>
-                    {item.displayName || `User ${item.userId.substring(0, 8)}...`}
-                </Text>
-                <Text style={styles.bannedAt}>
-                    Banned: {new Date(item.bannedAt).toLocaleDateString()}
-                </Text>
-                {item.reason && <Text style={styles.reason}>Reason: {item.reason}</Text>}
-            </View>
-            <TouchableOpacity
-                style={styles.unbanButton}
-                onPress={() => handleUnban(item.userId)}
-                disabled={!!isUnbanning}
-            >
-                {isUnbanning === item.userId ? (
-                    <ActivityIndicator size="small" color="#FF6410" />
-                ) : (
-                    <RotateCcw size={20} color="#FF6410" />
-                )}
-            </TouchableOpacity>
-        </View>
+        <BannedUserItem
+            item={item}
+            onUnban={handleUnban}
+            isUnbanning={isUnbanning === item.userId}
+        />
     );
 
     return (

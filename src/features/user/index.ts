@@ -39,6 +39,7 @@ export {
   useSettings,
   useBlockedUsers,
   useProfileDrawer,
+  useRealtimeProfile,
 } from './hooks';
 
 // Type exports

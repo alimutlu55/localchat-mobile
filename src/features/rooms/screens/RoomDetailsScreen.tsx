@@ -37,6 +37,7 @@ import { useUserId } from '../../user/store';
 import { useRoom, useRoomOperations, useRoomMembership } from '../hooks';
 import { useRoomStore } from '../store';
 import { BannedUsersModal } from '../components';
+import { ParticipantItem } from '../../../components/room';
 import { ReportModal, ReportReason } from '../../../components/chat/ReportModal';
 import { AvatarDisplay } from '../../../components/profile';
 import { createLogger } from '../../../shared/utils/logger';
@@ -68,36 +69,28 @@ interface ParticipantItemProps {
   participant: ParticipantDTO;
   isCreator: boolean;
   isCurrentUser: boolean;
+  canModerate?: boolean;
+  onKick?: (userId: string, displayName: string) => void;
+  onBan?: (userId: string, displayName: string) => void;
 }
 
-function ParticipantItem({
+function RoomParticipantItem({
   participant,
   isCreator,
   isCurrentUser,
+  canModerate,
+  onKick,
+  onBan,
 }: ParticipantItemProps) {
   return (
-    <View style={styles.participantItem}>
-      <AvatarDisplay
-        avatarUrl={participant.profilePhotoUrl}
-        displayName={participant.displayName}
-        size="md"
-        style={{ width: 40, height: 40, borderRadius: 20 }}
-      />
-      <View style={styles.participantInfo}>
-        <View style={styles.participantNameRow}>
-          <Text style={styles.participantName}>
-            {participant.displayName}
-            {isCurrentUser && ' (You)'}
-          </Text>
-          {participant.role === 'creator' && (
-            <Crown size={14} color="#FF6410" />
-          )}
-        </View>
-        <Text style={styles.participantRole}>
-          {participant.role === 'creator' ? 'Room Creator' : 'Participant'}
-        </Text>
-      </View>
-    </View>
+    <ParticipantItem
+      participant={participant}
+      isCreator={isCreator}
+      isCurrentUser={isCurrentUser}
+      canModerate={canModerate}
+      onKick={onKick}
+      onBan={onBan}
+    />
   );
 }
 
@@ -481,7 +474,7 @@ export default function RoomDetailsScreen() {
         <View style={styles.participantsSection}>
           <Text style={styles.sectionTitle}>Participants ({participants.length})</Text>
           {participants.map((p) => (
-            <ParticipantItem
+            <RoomParticipantItem
               key={p.userId}
               participant={p}
               isCreator={p.role === 'creator'}

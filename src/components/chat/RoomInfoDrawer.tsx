@@ -37,7 +37,7 @@ import { Room } from '../../types';
 import { ParticipantList } from './ParticipantList';
 import { roomService, ParticipantDTO } from '../../services';
 import { AvatarDisplay } from '../profile';
-import { BannedUsersModal } from '../room/BannedUsersModal';
+import { BannedUsersModal, ParticipantItem } from '../room';
 
 interface RoomInfoDrawerProps {
     room: Room;
@@ -339,30 +339,12 @@ export function RoomInfoDrawer({
 
                         <View style={styles.participantsContainer}>
                             {participants.map((participant) => (
-                                <View key={participant.userId} style={styles.participantRow}>
-                                    <View style={styles.avatar}>
-                                        <AvatarDisplay
-                                            avatarUrl={participant.profilePhotoUrl}
-                                            displayName={participant.displayName}
-                                            size="md"
-                                            style={{ width: 44, height: 44, borderRadius: 12 }}
-                                        />
-                                    </View>
-                                    <View style={styles.participantInfoText}>
-                                        <View style={styles.nameRow}>
-                                            <Text style={styles.participantName}>{participant.displayName}</Text>
-                                            <Shield size={14} color={theme.tokens.status.info.main} />
-                                            {participant.userId === currentUserId && (
-                                                <View style={styles.youBadge}>
-                                                    <Text style={styles.youBadgeText}>You</Text>
-                                                </View>
-                                            )}
-                                        </View>
-                                        <View style={styles.modBadge}>
-                                            <Text style={styles.modBadgeText}>Mod</Text>
-                                        </View>
-                                    </View>
-                                </View>
+                                <ParticipantItem
+                                    key={participant.userId}
+                                    participant={participant}
+                                    isCreator={participant.role === 'creator'}
+                                    isCurrentUser={participant.userId === currentUserId}
+                                />
                             ))}
                         </View>
                     </View>

@@ -34,8 +34,9 @@ import {
 import { RootStackParamList } from '../../../navigation/types';
 import { Room } from '../../../types';
 import { roomService, ParticipantDTO } from '../../../services';
+import { ParticipantItem } from '../../../components/room';
+import { theme } from '../../../core/theme';
 import { eventBus } from '../../../core/events';
-import { AvatarDisplay } from '../../../components/profile';
 import { BannedUsersModal } from '../components';
 import { useRoom } from '../hooks';
 import { useRoomStore } from '../store/RoomStore';
@@ -214,6 +215,35 @@ export default function RoomInfoScreen() {
         );
     };
 
+    const handleLocalCloseRoom = () => {
+        Alert.alert(
+            'Close Room',
+            'This will prevent any new messages. The room will become read-only.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Close Room',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await roomService.closeRoom(roomId);
+                            Alert.alert('Success', 'Room has been closed');
+                            // If navigation param onCloseRoom was provided, call it
+                            if (onCloseRoom) {
+                                onCloseRoom();
+                            } else {
+                                // Default behavior: go back or to home
+                                navigation.goBack();
+                            }
+                        } catch (error) {
+                            Alert.alert('Error', 'Failed to close room');
+                        }
+                    },
+                },
+            ]
+        );
+    };
+
     return (
         <SafeAreaView style={styles.container} edges={['top']}>
             {/* Header */}
@@ -331,7 +361,7 @@ export default function RoomInfoScreen() {
 
                                     <TouchableOpacity
                                         style={styles.creatorActionButton}
-                                        onPress={() => onCloseRoom && onCloseRoom()}
+                                        onPress={handleLocalCloseRoom}
                                     >
                                         <Lock size={20} color="#64748b" />
                                         <Text style={styles.creatorActionText}>Close Room</Text>
@@ -352,60 +382,16 @@ export default function RoomInfoScreen() {
                     <View style={styles.participantsContainer}>
                         {participants.map((participant) => {
                             const isCurrentUser = participant.userId === currentUserId;
-                            const canModerate = isCreator && !isCurrentUser && participant.role !== 'creator';
-
                             return (
-                                <View key={participant.userId} style={styles.participantRow}>
-                                    <View style={styles.avatar}>
-                                        <AvatarDisplay
-                                            avatarUrl={participant.profilePhotoUrl}
-                                            displayName={participant.displayName}
-                                            size="md"
-                                            style={{ width: 44, height: 44, borderRadius: 22 }}
-                                        />
-                                    </View>
-                                    <View style={styles.participantInfoText}>
-                                        <View style={styles.nameRow}>
-                                            <Text style={styles.participantName}>{participant.displayName}</Text>
-                                            {participant.role === 'creator' && (
-                                                <View style={[styles.roleBadge, styles.creatorRoleBadge]}>
-                                                    <Crown size={10} color="#f59e0b" />
-                                                    <Text style={styles.creatorRoleText}>Creator</Text>
-                                                </View>
-                                            )}
-                                            {participant.role === 'moderator' && (
-                                                <View style={[styles.roleBadge, styles.modRoleBadge]}>
-                                                    <Shield size={10} color="#3b82f6" />
-                                                    <Text style={styles.modRoleText}>Mod</Text>
-                                                </View>
-                                            )}
-                                            {isCurrentUser && (
-                                                <View style={styles.youBadge}>
-                                                    <Text style={styles.youBadgeText}>You</Text>
-                                                </View>
-                                            )}
-                                        </View>
-                                    </View>
-
-                                    {canModerate && (
-                                        <View style={styles.inlineActions}>
-                                            <TouchableOpacity
-                                                style={styles.inlineActionButton}
-                                                onPress={() => handleKickUser(participant.userId, participant.displayName)}
-                                            >
-                                                <UserX size={16} color="#FF6410" />
-                                                <Text style={styles.inlineActionText}>Kick</Text>
-                                            </TouchableOpacity>
-                                            <TouchableOpacity
-                                                style={styles.inlineActionButton}
-                                                onPress={() => handleBanUser(participant.userId, participant.displayName)}
-                                            >
-                                                <Ban size={16} color="#ef4444" />
-                                                <Text style={styles.inlineActionText}>Ban</Text>
-                                            </TouchableOpacity>
-                                        </View>
-                                    )}
-                                </View>
+                                <ParticipantItem
+                                    key={participant.userId}
+                                    participant={participant}
+                                    isCreator={participant.role === 'creator'}
+                                    isCurrentUser={isCurrentUser}
+                                    canModerate={isCreator && !isCurrentUser}
+                                    onKick={handleKickUser}
+                                    onBan={handleBanUser}
+                                />
                             );
                         })}
                     </View>
@@ -414,7 +400,7 @@ export default function RoomInfoScreen() {
 
             {/* Banned Users Modal */}
             <BannedUsersModal
-                roomId={roomId}
+                roomId={room.id}
                 isOpen={showBannedUsers}
                 onClose={() => setShowBannedUsers(false)}
             />

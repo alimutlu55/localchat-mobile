@@ -30,6 +30,7 @@ import {
 } from 'lucide-react-native';
 import { roomService, ParticipantDTO } from '../../services';
 import { AvatarDisplay } from '../profile';
+import { ParticipantItem } from '../room';
 import { theme } from '../../core/theme';
 
 interface ParticipantListProps {
@@ -159,56 +160,16 @@ export function ParticipantList({
   };
 
   const renderParticipant = ({ item }: { item: ParticipantDTO }) => {
-    const isCurrentUser = item.userId === currentUserId;
-    const canModerate = isCreator && !isCurrentUser && item.role !== 'creator';
-    const isProcessing = actionInProgress === item.userId;
-
     return (
-      <View style={styles.participantItem}>
-        <View style={styles.avatar}>
-          <AvatarDisplay
-            avatarUrl={item.profilePhotoUrl}
-            displayName={item.displayName}
-            size="md"
-            style={{ width: 44, height: 44, borderRadius: 22 }}
-          />
-        </View>
-
-        <View style={styles.participantInfo}>
-          <View style={styles.nameRow}>
-            <Text style={styles.participantName}>
-              {item.displayName}
-              {isCurrentUser && <Text style={styles.youLabel}> (You)</Text>}
-            </Text>
-            {getRoleBadge(item.role)}
-          </View>
-        </View>
-
-        {canModerate && (
-          <View style={styles.actions}>
-            {isProcessing ? (
-              <ActivityIndicator size="small" color={theme.tokens.brand.primary} />
-            ) : (
-              <>
-                <TouchableOpacity
-                  style={styles.actionButtonWithLabel}
-                  onPress={() => handleKick(item.userId, item.displayName)}
-                >
-                  <Users size={20} color={theme.tokens.brand.primary} />
-                  <Text style={styles.actionButtonText}>Kick</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={styles.actionButtonWithLabel}
-                  onPress={() => handleBanClick(item.userId, item.displayName)}
-                >
-                  <Ban size={16} color={theme.tokens.text.error} />
-                  <Text style={styles.actionButtonText}>Ban</Text>
-                </TouchableOpacity>
-              </>
-            )}
-          </View>
-        )}
-      </View>
+      <ParticipantItem
+        participant={item}
+        isCreator={isCreator}
+        isCurrentUser={item.userId === currentUserId}
+        canModerate={isCreator && item.userId !== currentUserId && item.role !== 'creator'}
+        isProcessing={actionInProgress === item.userId}
+        onKick={handleKick}
+        onBan={handleBanClick}
+      />
     );
   };
 

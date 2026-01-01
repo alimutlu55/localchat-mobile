@@ -12,6 +12,7 @@ import {
 import { X, UserX, RotateCcw } from 'lucide-react-native';
 import { roomService, BannedUserDTO } from '../../services';
 import { AvatarDisplay } from '../profile';
+import { useRealtimeProfile } from '../../features/user/hooks/useRealtimeProfile';
 import { theme } from '../../core/theme';
 
 interface BannedUsersModalProps {
@@ -62,35 +63,47 @@ export function BannedUsersModal({
         }
     };
 
-    const renderBannedUser = ({ item }: { item: BannedUserDTO }) => (
-        <View style={styles.userItem}>
-            <AvatarDisplay
-                avatarUrl={item.profilePhotoUrl}
-                displayName={item.displayName || 'User'}
-                size="md"
-                style={styles.avatar}
-            />
-            <View style={styles.userInfo}>
-                <Text style={styles.displayName}>
-                    {item.displayName || `User ${item.userId.substring(0, 8)}...`}
-                </Text>
-                <Text style={styles.bannedAt}>
-                    Banned: {new Date(item.bannedAt).toLocaleDateString()}
-                </Text>
-                {item.reason && <Text style={styles.reason}>Reason: {item.reason}</Text>}
+    const BannedUserItem = ({ user: initialUser }: { user: BannedUserDTO }) => {
+        const user = useRealtimeProfile({
+            userId: initialUser.userId,
+            displayName: initialUser.displayName || 'User',
+            profilePhotoUrl: initialUser.profilePhotoUrl,
+        });
+
+        return (
+            <View style={styles.userItem}>
+                <AvatarDisplay
+                    avatarUrl={user.profilePhotoUrl}
+                    displayName={user.displayName}
+                    size="md"
+                    style={styles.avatar}
+                />
+                <View style={styles.userInfo}>
+                    <Text style={styles.displayName}>
+                        {user.displayName}
+                    </Text>
+                    <Text style={styles.bannedAt}>
+                        Banned: {new Date(initialUser.bannedAt).toLocaleDateString()}
+                    </Text>
+                    {initialUser.reason && <Text style={styles.reason}>Reason: {initialUser.reason}</Text>}
+                </View>
+                <TouchableOpacity
+                    style={styles.unbanButton}
+                    onPress={() => handleUnban(user.userId)}
+                    disabled={!!isUnbanning}
+                >
+                    {isUnbanning === user.userId ? (
+                        <ActivityIndicator size="small" color={theme.tokens.brand.primary} />
+                    ) : (
+                        <RotateCcw size={20} color={theme.tokens.brand.primary} />
+                    )}
+                </TouchableOpacity>
             </View>
-            <TouchableOpacity
-                style={styles.unbanButton}
-                onPress={() => handleUnban(item.userId)}
-                disabled={!!isUnbanning}
-            >
-                {isUnbanning === item.userId ? (
-                    <ActivityIndicator size="small" color={theme.tokens.brand.primary} />
-                ) : (
-                    <RotateCcw size={20} color={theme.tokens.brand.primary} />
-                )}
-            </TouchableOpacity>
-        </View>
+        );
+    };
+
+    const renderBannedUser = ({ item }: { item: BannedUserDTO }) => (
+        <BannedUserItem user={item} />
     );
 
     return (
