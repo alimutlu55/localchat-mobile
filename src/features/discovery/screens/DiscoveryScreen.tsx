@@ -27,6 +27,8 @@ import {
     MapView,
     Camera,
     PointAnnotation,
+    ShapeSource,
+    CircleLayer,
 } from '@maplibre/maplibre-react-native';
 import { MAP_CONFIG } from '../../../constants';
 import { Plus, Minus, Navigation, Menu, Map as MapIcon, List, Globe } from 'lucide-react-native';
@@ -168,6 +170,7 @@ export default function DiscoveryScreen() {
     });
 
     // User location pulse animation - after userLocation is declared
+    const [isPulsing, setIsPulsing] = useState(false);
     const userLocationPulseAnim = useRef(new Animated.Value(1)).current;
 
     // Zoom ref to avoid stale closures in press handlers
@@ -175,6 +178,13 @@ export default function DiscoveryScreen() {
     useEffect(() => {
         zoomRef.current = zoom;
     }, [zoom]);
+
+    useEffect(() => {
+        const interval = setInterval(() => {
+            setIsPulsing(p => !p);
+        }, 2000);
+        return () => clearInterval(interval);
+    }, []);
 
     useEffect(() => {
         if (userLocation) {
@@ -622,29 +632,44 @@ export default function DiscoveryScreen() {
                     />
 
 
-                    {/* User Location Marker */}
+                    {/* User Location Indicator - Using Layer for zero-interaction and perfect layering */}
                     {userLocation && (
-                        <PointAnnotation
-                            id="user-location"
-                            coordinate={[userLocation.longitude, userLocation.latitude]}
-                            anchor={{ x: 0.5, y: 0.5 }}
+                        <ShapeSource
+                            id="user-location-source"
+                            shape={{
+                                type: 'Feature',
+                                geometry: {
+                                    type: 'Point',
+                                    coordinates: [userLocation.longitude, userLocation.latitude]
+                                },
+                                properties: {}
+                            }}
                         >
-                            <View
-                                pointerEvents="none"
-                                style={[
-                                    styles.userLocationMarkerContainer,
-                                    // Hide marker visually if not ready, without unmounting
-                                    !canRenderMarkers && { opacity: 0 }
-                                ]}>
-                                <Animated.View
-                                    style={[
-                                        styles.userLocationPulse,
-                                        { transform: [{ scale: userLocationPulseAnim }] }
-                                    ]}
-                                />
-                                <View style={styles.userLocationDot} />
-                            </View>
-                        </PointAnnotation>
+                            {/* Pulse - Animated via native transitions to stay behind and non-blocking */}
+                            <CircleLayer
+                                id="user-location-pulse"
+                                style={{
+                                    circleColor: 'rgba(59, 130, 246, 0.1)',
+                                    circleRadius: isPulsing ? 40 : 30,
+                                    circleRadiusTransition: { duration: 2000, delay: 0 },
+                                    circleStrokeColor: 'rgba(59, 130, 246, 0.3)',
+                                    circleStrokeWidth: 2,
+                                    circleOpacity: canRenderMarkers ? 1 : 0,
+                                    circleOpacityTransition: { duration: 2000, delay: 0 },
+                                }}
+                            />
+                            {/* The Dot */}
+                            <CircleLayer
+                                id="user-location-dot"
+                                style={{
+                                    circleColor: '#2563eb',
+                                    circleRadius: 5,
+                                    circleStrokeColor: '#ffffff',
+                                    circleStrokeWidth: 4,
+                                    circleOpacity: canRenderMarkers ? 1 : 0
+                                }}
+                            />
+                        </ShapeSource>
                     )}
 
                     {/* Server-Side Room & Cluster Markers - Gated for stability */}
