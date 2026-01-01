@@ -145,7 +145,7 @@ export function useMapControls(options: UseMapControlsOptions): UseMapControlsRe
   const handleZoomIn = useCallback(() => {
     if (!mapReady || !cameraRef.current) return;
 
-    const newZoom = Math.min(currentZoom + 1, 18);
+    const newZoom = Math.min(currentZoom + 1, 12);
     cameraRef.current.setCamera({
       zoomLevel: newZoom,
       animationDuration: 500,
@@ -208,7 +208,7 @@ export function useMapControls(options: UseMapControlsOptions): UseMapControlsRe
     (lng: number, lat: number, zoom?: number) => {
       if (!mapReady || !cameraRef.current) return;
 
-      const targetZoom = zoom ?? Math.min(Math.max(currentZoom + 2, 14), 16);
+      const targetZoom = zoom ?? Math.min(Math.max(currentZoom + 2, 12), 12);
       const duration = calculateFlyDuration(targetZoom);
 
       cameraRef.current.setCamera({

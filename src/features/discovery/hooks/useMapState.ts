@@ -89,7 +89,7 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
     defaultCenter,
     defaultZoom = 13,
     minZoom = 1,
-    maxZoom = 18,
+    maxZoom = 12,
   } = options;
 
   // Refs

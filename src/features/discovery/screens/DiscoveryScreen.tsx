@@ -28,6 +28,7 @@ import {
     Camera,
     PointAnnotation,
 } from '@maplibre/maplibre-react-native';
+import { MAP_CONFIG } from '../../../constants';
 import { Plus, Minus, Navigation, Menu, Map as MapIcon, List, Globe } from 'lucide-react-native';
 
 // Navigation
@@ -150,6 +151,7 @@ export default function DiscoveryScreen() {
         centerCoord,
         isMapReady,
         hasBoundsInitialized,
+        isMapMoving,
         handleMapReady,
         handleRegionWillChange,
         handleRegionDidChange,
@@ -160,7 +162,9 @@ export default function DiscoveryScreen() {
         calculateFlyDuration,
     } = useMapState({
         defaultCenter: userLocation || undefined,
-        defaultZoom: 13,
+        defaultZoom: 12,
+        minZoom: 1,
+        maxZoom: 12,
     });
 
     // User location pulse animation - after userLocation is declared
@@ -426,13 +430,13 @@ export default function DiscoveryScreen() {
 
                 const targetEps = boundsSpan / 3;
 
-                for (let z = currentZoom + 1; z <= 18; z++) {
-                    const eps = EPS_BY_ZOOM[z] ?? 0.00001;
+                for (let z = currentZoom + 1; z <= 12; z++) {
+                    const eps = EPS_BY_ZOOM[z] ?? 0.001;
                     if (eps <= targetEps) {
                         return z;
                     }
                 }
-                return Math.min(currentZoom + 3, 18);
+                return Math.min(currentZoom + 3, 12);
             };
 
             /**
@@ -468,7 +472,7 @@ export default function DiscoveryScreen() {
                 // ALWAYS progress enough to split the cluster
                 // Use at least optimalZoom + 1 to guarantee eps is small enough
                 // And always at least 2 zoom levels for visual feedback
-                const targetZoom = Math.max(currentActualZoom + 2, optimalZoom + 1);
+                const targetZoom = Math.min(Math.max(currentActualZoom + 2, optimalZoom + 1), 12);
 
                 // Calculate center of expansion bounds
                 const centerLng = (minLng + maxLng) / 2;
@@ -485,7 +489,7 @@ export default function DiscoveryScreen() {
 
                 // Use setCamera with calculated targetZoom
                 // The zoom level is chosen to ensure server eps will split the cluster
-                const finalTargetZoom = Math.min(targetZoom, 18);
+                const finalTargetZoom = Math.min(targetZoom, 12);
                 const animDuration = calcAnimationDuration(currentActualZoom, finalTargetZoom);
 
                 // Prefetch data - will show markers 300ms before animation ends
@@ -501,7 +505,7 @@ export default function DiscoveryScreen() {
                 // No expansion bounds - zoom in by fixed amount (more aggressive)
                 const currentActualZoom = zoomRef.current;
                 const zoomIncrement = pointCount > 100 ? 4 : pointCount > 20 ? 5 : 6;
-                const targetZoom = Math.min(currentActualZoom + zoomIncrement, 18);
+                const targetZoom = Math.min(currentActualZoom + zoomIncrement, 12);
 
                 log.debug('No expansion bounds, zooming by increment', {
                     from: currentActualZoom,
@@ -560,7 +564,7 @@ export default function DiscoveryScreen() {
 
     const handleCenterOnUser = useCallback(() => {
         if (userLocation) {
-            centerOn(userLocation, 14);
+            centerOn(userLocation, MAP_CONFIG.DEFAULT_ZOOM);
         }
     }, [userLocation, centerOn]);
 
@@ -738,8 +742,8 @@ export default function DiscoveryScreen() {
                     </Text>
                 </Animated.View>
 
-                {/* Empty State - Only show if looking at user's area and it's empty */}
-                {serverFeatures.length === 0 && !isLoadingClusters && isMapStable && isUserInView && (
+                {/* Empty State - Only show if looking at user's area, it's empty, and map is NOT moving */}
+                {serverFeatures.length === 0 && !isLoadingClusters && isMapStable && isUserInView && !isMapMoving && (
                     <Animated.View style={[styles.emptyState, { opacity: markersOpacity }]}>
                         <Text style={styles.emptyTitle}>No rooms nearby</Text>
                         <Text style={styles.emptyText}>Be the first to start a conversation!</Text>

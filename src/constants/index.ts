@@ -115,9 +115,9 @@ export const MAP_CONFIG = {
   },
 
   // Default zoom levels
-  DEFAULT_ZOOM: 14,
+  DEFAULT_ZOOM: 12,
   MIN_ZOOM: 10,
-  MAX_ZOOM: 18,
+  MAX_ZOOM: 12,
 
   // Cluster configuration
   CLUSTER_RADIUS: 50,

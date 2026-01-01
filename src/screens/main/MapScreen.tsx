@@ -138,7 +138,7 @@ export default function MapScreen() {
     latitude: number;
     longitude: number;
   } | null>(null);
-  const [currentZoom, setCurrentZoom] = useState(13);
+  const [currentZoom, setCurrentZoom] = useState(12);
   const [bounds, setBounds] = useState<[number, number, number, number]>([-180, -85, 180, 85]);
   const [centerCoord, setCenterCoord] = useState<[number, number]>([
     MAP_CONFIG.DEFAULT_CENTER.longitude,
@@ -348,7 +348,7 @@ export default function MapScreen() {
   const centerOnUser = useCallback(() => {
     if (!mapReady || !userLocation || !cameraRef.current) return;
 
-    const targetZoom = 14;
+    const targetZoom = 12;
     const duration = calculateMapFlyDuration(targetZoom);
 
     cameraRef.current.setCamera({
@@ -365,7 +365,7 @@ export default function MapScreen() {
   const handleZoomIn = useCallback(() => {
     if (!mapReady || !cameraRef.current) return;
 
-    const newZoom = Math.min(currentZoom + 1, 18);
+    const newZoom = Math.min(currentZoom + 1, 12);
     cameraRef.current.setCamera({
       zoomLevel: newZoom,
       animationDuration: 500,
@@ -413,7 +413,7 @@ export default function MapScreen() {
     log.debug('Room pressed', { roomId: room.id });
 
     if (mapReady && cameraRef.current && room.latitude != null && room.longitude != null) {
-      const targetZoom = Math.min(Math.max(currentZoom + 2, 14), 16);
+      const targetZoom = 12;
       const zoomDiff = Math.abs(targetZoom - currentZoom);
 
       // If already at a good zoom level (within 1.5 levels), open immediately
@@ -513,7 +513,7 @@ export default function MapScreen() {
     const optimalZoom = Math.min(zoomForLng, zoomForLat);
 
     // Clamp to valid zoom range and round down to be safe
-    return Math.max(1, Math.min(Math.floor(optimalZoom), 18));
+    return Math.max(1, Math.min(Math.floor(optimalZoom), 12));
   }, []);
 
   /**
@@ -590,7 +590,7 @@ export default function MapScreen() {
     } else {
       // Fallback - fly to cluster location
       const expansionZoom = getClusterExpansionZoom(clusterIndex, cluster.properties.cluster_id);
-      const targetZoom = Math.min(Math.max(expansionZoom, currentZoom + 2), 16);
+      const targetZoom = Math.min(Math.max(expansionZoom, currentZoom + 2), 12);
       const duration = calculateMapFlyDuration(targetZoom);
 
       cameraRef.current.setCamera({
@@ -641,7 +641,7 @@ export default function MapScreen() {
             zoomLevel: currentZoom,
           }}
           minZoomLevel={1}
-          maxZoomLevel={18}
+          maxZoomLevel={12}
         />
 
         {/* Single ShapeSource for all room circles - prevents crash from dynamic children */}
@@ -689,66 +689,66 @@ export default function MapScreen() {
         {/* Room Markers and Clusters - using MarkerView for stability */}
         {/* Key on feature set hash to force atomic remount and prevent native index crash */}
         {mapReady && features.length > 0 && <React.Fragment key={`markers-${features.length}-${features.map(f => isCluster(f) ? f.properties.cluster_id : f.properties.eventId).join(',')}`}>
-        {features.map((feature: MapFeature) => {
-          const [lng, lat] = feature.geometry.coordinates;
-          
-          // Skip features with invalid coordinates to prevent native crash
-          if (lng == null || lat == null || !isFinite(lng) || !isFinite(lat)) {
-            return null;
-          }
-          
-          // Use stable keys that survive re-clustering
-          const stableKey = getStableFeatureKey(feature);
-          const id = isCluster(feature)
-            ? `cluster-${feature.properties.cluster_id}`
-            : `room-${feature.properties.eventId}`;
+          {features.map((feature: MapFeature) => {
+            const [lng, lat] = feature.geometry.coordinates;
 
-          // Skip if id is undefined/null
-          if (!id || !stableKey) {
-            return null;
-          }
+            // Skip features with invalid coordinates to prevent native crash
+            if (lng == null || lat == null || !isFinite(lng) || !isFinite(lat)) {
+              return null;
+            }
 
-          if (isCluster(feature)) {
+            // Use stable keys that survive re-clustering
+            const stableKey = getStableFeatureKey(feature);
+            const id = isCluster(feature)
+              ? `cluster-${feature.properties.cluster_id}`
+              : `room-${feature.properties.eventId}`;
+
+            // Skip if id is undefined/null
+            if (!id || !stableKey) {
+              return null;
+            }
+
+            if (isCluster(feature)) {
+              return (
+                <MarkerView
+                  key={stableKey}
+                  id={id}
+                  coordinate={[lng, lat]}
+                  anchor={{ x: 0.5, y: 0.5 }}
+                >
+                  <TouchableOpacity
+                    onPress={() => handleClusterPress(feature as ClusterFeature)}
+                    activeOpacity={0.8}
+                  >
+                    <MapCluster count={feature.properties.point_count} />
+                  </TouchableOpacity>
+                </MarkerView>
+              );
+            }
+
+            const room = feature.properties.room;
+            if (!room || room.latitude == null || room.longitude == null) {
+              return null;
+            }
+
             return (
               <MarkerView
                 key={stableKey}
                 id={id}
                 coordinate={[lng, lat]}
-                anchor={{ x: 0.5, y: 0.5 }}
+                anchor={{ x: 0.5, y: 1 }}
               >
                 <TouchableOpacity
-                  onPress={() => handleClusterPress(feature as ClusterFeature)}
+                  onPress={() => handleRoomPress(room)}
                   activeOpacity={0.8}
                 >
-                  <MapCluster count={feature.properties.point_count} />
+                  <View style={styles.pinMarkerContainer}>
+                    <RoomPin room={room} isSelected={selectedRoom?.id === room.id} />
+                  </View>
                 </TouchableOpacity>
               </MarkerView>
             );
-          }
-
-          const room = feature.properties.room;
-          if (!room || room.latitude == null || room.longitude == null) {
-            return null;
-          }
-
-          return (
-            <MarkerView
-              key={stableKey}
-              id={id}
-              coordinate={[lng, lat]}
-              anchor={{ x: 0.5, y: 1 }}
-            >
-              <TouchableOpacity
-                onPress={() => handleRoomPress(room)}
-                activeOpacity={0.8}
-              >
-                <View style={styles.pinMarkerContainer}>
-                  <RoomPin room={room} isSelected={selectedRoom?.id === room.id} />
-                </View>
-              </TouchableOpacity>
-            </MarkerView>
-          );
-        })}
+          })}
         </React.Fragment>}
       </MapView>
 
