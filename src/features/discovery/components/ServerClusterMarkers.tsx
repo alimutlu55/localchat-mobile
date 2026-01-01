@@ -12,6 +12,23 @@ import { RoomPin } from './RoomPin';
 import { MapCluster } from './MapCluster';
 import { Room, ClusterFeature } from '../../../types';
 
+// Category to emoji fallback map (matches CreateRoomScreen.tsx CATEGORY_OPTIONS)
+const CATEGORY_EMOJI_MAP: Record<string, string> = {
+  TRAFFIC: '🚗',
+  EVENTS: '🎉',
+  EMERGENCY: '🚨',
+  LOST_FOUND: '🔍',
+  SPORTS: '⚽',
+  FOOD: '🍕',
+  NEIGHBORHOOD: '🏘️',
+  GENERAL: '💬',
+};
+
+function getCategoryEmoji(category?: string): string {
+  if (!category) return '💬';
+  return CATEGORY_EMOJI_MAP[category.toUpperCase()] || '💬';
+}
+
 /**
  * Server Room Marker Component
  * For individual rooms from server clustering response
@@ -47,7 +64,7 @@ export const ServerRoomMarker = memo(function ServerRoomMarker({
     id: properties.roomId,
     title: properties.title || '',
     category: properties.category as Room['category'],
-    emoji: properties.categoryIcon || '💬',
+    emoji: properties.categoryIcon || getCategoryEmoji(properties.category),
     participantCount: properties.participantCount || 0,
     status: properties.status as Room['status'],
     isFull: properties.status === 'full',
@@ -91,6 +108,8 @@ export const ServerRoomMarker = memo(function ServerRoomMarker({
     prevProps.feature.properties.roomId === nextProps.feature.properties.roomId &&
     prevProps.feature.properties.participantCount === nextProps.feature.properties.participantCount &&
     prevProps.feature.properties.status === nextProps.feature.properties.status &&
+    prevProps.feature.properties.category === nextProps.feature.properties.category &&
+    prevProps.feature.properties.categoryIcon === nextProps.feature.properties.categoryIcon &&
     prevProps.feature.properties.isExpiringSoon === nextProps.feature.properties.isExpiringSoon &&
     prevProps.feature.properties.isHighActivity === nextProps.feature.properties.isHighActivity &&
     prevProps.feature.properties.isNew === nextProps.feature.properties.isNew &&

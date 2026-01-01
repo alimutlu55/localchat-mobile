@@ -59,6 +59,8 @@ export const RoomMarker = memo(function RoomMarker({
     prevProps.room.latitude === nextProps.room.latitude &&
     prevProps.room.longitude === nextProps.room.longitude &&
     prevProps.room.participantCount === nextProps.room.participantCount &&
+    prevProps.room.category === nextProps.room.category &&
+    prevProps.room.emoji === nextProps.room.emoji &&
     prevProps.isSelected === nextProps.isSelected
   );
 });

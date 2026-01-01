@@ -64,6 +64,23 @@ import { createLogger } from '../../../shared/utils/logger';
 
 const log = createLogger('Discovery');
 
+// Category to emoji fallback map (matches CreateRoomScreen.tsx CATEGORY_OPTIONS)
+const CATEGORY_EMOJI_MAP: Record<string, string> = {
+    TRAFFIC: '🚗',
+    EVENTS: '🎉',
+    EMERGENCY: '🚨',
+    LOST_FOUND: '🔍',
+    SPORTS: '⚽',
+    FOOD: '🍕',
+    NEIGHBORHOOD: '🏘️',
+    GENERAL: '💬',
+};
+
+function getCategoryEmoji(category?: string): string {
+    if (!category) return '💬';
+    return CATEGORY_EMOJI_MAP[category.toUpperCase()] || '💬';
+}
+
 /**
  * Serializes a room object for safe navigation (replaces Dates with strings)
  */
@@ -355,7 +372,7 @@ export default function DiscoveryScreen() {
                 id: f.properties.roomId!,
                 title: f.properties.title || '',
                 category: f.properties.category as Room['category'],
-                emoji: f.properties.categoryIcon || '💬',
+                emoji: f.properties.categoryIcon || getCategoryEmoji(f.properties.category),
                 participantCount: f.properties.participantCount || 0,
                 status: f.properties.status as Room['status'],
                 latitude: f.geometry.coordinates[1],

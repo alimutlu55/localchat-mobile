@@ -25,6 +25,27 @@ const processedKickEvents = new Set<string>();
 const processedBanEvents = new Set<string>();
 const EVENT_DEDUP_TTL = 5000;
 
+// Category to emoji fallback map (used when backend doesn't provide categoryIcon)
+// Synced with CATEGORY_OPTIONS in CreateRoomScreen.tsx
+const CATEGORY_EMOJI_MAP: Record<string, string> = {
+    TRAFFIC: '🚗',
+    EVENTS: '🎉',
+    EMERGENCY: '🚨',
+    LOST_FOUND: '🔍',
+    SPORTS: '⚽',
+    FOOD: '🍕',
+    NEIGHBORHOOD: '🏘️',
+    GENERAL: '💬',
+};
+
+/**
+ * Get emoji for a category with fallback to default
+ */
+function getCategoryEmoji(category?: string): string {
+    if (!category) return '💬';
+    return CATEGORY_EMOJI_MAP[category.toUpperCase()] || '💬';
+}
+
 /**
  * Global hook to handle room events
  * @param userId - Current user's ID
@@ -43,7 +64,12 @@ export function useRoomEvents(userId?: string): void {
 
         const handleRoomCreated = (payload: { roomId: string; room: any }) => {
             const roomData = payload.room;
-            log.info('Room created event received', { roomId: roomData.id });
+            log.info('Room created event received', {
+                roomId: roomData.id,
+                category: roomData.category,
+                categoryIcon: roomData.categoryIcon,
+                resolvedEmoji: roomData.categoryIcon || getCategoryEmoji(roomData.category)
+            });
 
             const currentUserId = userIdRef.current;
             const isCreator = roomData.creatorId === currentUserId;
@@ -63,7 +89,7 @@ export function useRoomEvents(userId?: string): void {
                 longitude: roomData.location?.longitude ?? roomData.longitude,
                 radius: roomData.radiusMeters,
                 category: roomData.category?.toUpperCase() || 'GENERAL',
-                emoji: '💬',
+                emoji: roomData.categoryIcon || getCategoryEmoji(roomData.category),
                 participantCount: roomData.participantCount || 1,
                 maxParticipants: 50,
                 distance: 0,
