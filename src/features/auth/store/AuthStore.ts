@@ -109,6 +109,12 @@ export interface AuthStoreActions {
     logout: () => Promise<void>;
 
     /**
+     * Delete user account - soft delete, irreversible
+     * Calls API, clears session, transitions to guest
+     */
+    deleteAccount: () => Promise<void>;
+
+    /**
      * Clear error message
      */
     clearError: () => void;
@@ -389,6 +395,62 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
                 isLoading: false,
                 isInitializing: false,
             });
+        }
+    },
+
+    deleteAccount: async () => {
+        const currentStatus = get().status;
+
+        // Only allow delete from authenticated or guest state
+        if (currentStatus !== 'authenticated' && currentStatus !== 'guest') {
+            log.warn('Delete account blocked - invalid state', { currentStatus });
+            return;
+        }
+
+        set({ status: 'loggingOut', isLoading: true, error: null });
+        log.debug('Delete account initiated');
+
+        const startTime = Date.now();
+
+        try {
+            // Disconnect WebSocket first
+            wsService.disconnect();
+
+            // Small delay to allow pending WS operations to complete
+            await new Promise((resolve) => setTimeout(resolve, 50));
+
+            // Call delete account API (this clears tokens too)
+            await authService.deleteAccount();
+
+            // Clear stores
+            useRoomStore.getState().reset();
+            useUserStore.getState().clearUser();
+
+            // Ensure minimum duration for smooth UX
+            const elapsed = Date.now() - startTime;
+            if (elapsed < MIN_LOGOUT_DURATION_MS) {
+                await new Promise((resolve) => setTimeout(resolve, MIN_LOGOUT_DURATION_MS - elapsed));
+            }
+
+            set({
+                status: 'guest',
+                user: null,
+                isAuthenticated: false,
+                isLoading: false,
+                isInitializing: false,
+                error: null,
+            });
+            log.info('Account deleted successfully');
+        } catch (err) {
+            const message = getErrorMessage(err, 'Failed to delete account');
+            log.error('Delete account failed', { error: message });
+            // Revert to previous state on failure
+            set({
+                status: currentStatus,
+                isLoading: false,
+                error: message,
+            });
+            throw err;
         }
     },
 

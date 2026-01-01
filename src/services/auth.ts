@@ -272,6 +272,20 @@ class AuthService {
   }
 
   /**
+   * Delete user account (soft delete)
+   * This action is irreversible. The account will be soft-deleted
+   * and the email can be reused for a new registration.
+   */
+  async deleteAccount(): Promise<void> {
+    await api.delete('/users/me');
+    // Clear local state after successful deletion
+    await secureStorage.remove(STORAGE_KEYS.AUTH_TOKEN);
+    await secureStorage.remove(STORAGE_KEYS.REFRESH_TOKEN);
+    await storage.remove(STORAGE_KEYS.USER_DATA);
+    this.currentUser = null;
+  }
+
+  /**
    * Handle auth response - store tokens and user data
    */
   private async handleAuthResponse(response: AuthResponse): Promise<void> {

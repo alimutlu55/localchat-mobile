@@ -30,6 +30,7 @@ import {
   HelpCircle,
 } from 'lucide-react-native';
 import { useAuth } from '../features/auth';
+import { useCurrentUser } from '../features/user/store';
 import { storage, STORAGE_KEYS } from '../services';
 import { theme } from '../core/theme';
 
@@ -91,7 +92,9 @@ function SettingLink({ icon, label, description, onPress, danger }: SettingLinkP
  */
 export default function SettingsScreen() {
   const navigation = useNavigation();
-  const { logout } = useAuth();
+  const { logout, deleteAccount } = useAuth();
+  const user = useCurrentUser();
+  const isAnonymous = user?.isAnonymous ?? true;
 
   const [notifications, setNotifications] = useState(true);
   const [locationEnabled, setLocationEnabled] = useState(true);
@@ -181,8 +184,11 @@ export default function SettingsScreen() {
                   text: 'Yes, Delete',
                   style: 'destructive',
                   onPress: async () => {
-                    // In production, call API to delete account
-                    await logout();
+                    try {
+                      await deleteAccount();
+                    } catch (error) {
+                      Alert.alert('Error', 'Failed to delete account. Please try again.');
+                    }
                   },
                 },
               ]
@@ -281,19 +287,21 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Danger Zone */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Account</Text>
-          <View style={styles.sectionCard}>
-            <SettingLink
-              icon={<Trash2 size={20} color={theme.tokens.text.error} />}
-              label="Delete Account"
-              description="Permanently delete your account"
-              onPress={handleDeleteAccount}
-              danger
-            />
+        {/* Danger Zone - Only show for authenticated users */}
+        {!isAnonymous && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Account</Text>
+            <View style={styles.sectionCard}>
+              <SettingLink
+                icon={<Trash2 size={20} color={theme.tokens.text.error} />}
+                label="Delete Account"
+                description="Permanently delete your account"
+                onPress={handleDeleteAccount}
+                danger
+              />
+            </View>
           </View>
-        </View>
+        )}
 
         {/* App Info */}
         <View style={styles.appInfo}>

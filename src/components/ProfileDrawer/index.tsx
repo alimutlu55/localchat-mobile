@@ -24,6 +24,7 @@ import {
     X,
     MapPin,
     ArrowLeft,
+    UserPlus,
 } from 'lucide-react-native';
 import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
 import { useProfileDrawer } from '../../features/user';
@@ -167,26 +168,38 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
                 onPrivacyPolicyPress={openPrivacyPolicy}
             />
 
-            {/* Danger Zone */}
-            <View style={styles.dangerSection}>
-                <TouchableOpacity
-                    style={styles.dangerButton}
-                    onPress={handleDeleteAccount}
-                >
-                    <Trash2 size={20} color="#ef4444" />
-                    <Text style={styles.dangerButtonText}>Delete Account</Text>
-                    <ChevronRight size={16} color="#fca5a5" />
-                </TouchableOpacity>
-            </View>
+            {/* Danger Zone - Only show for authenticated users */}
+            {!isAnonymous && (
+                <View style={styles.dangerSection}>
+                    <TouchableOpacity
+                        style={styles.dangerButton}
+                        onPress={handleDeleteAccount}
+                    >
+                        <Trash2 size={20} color="#ef4444" />
+                        <Text style={styles.dangerButtonText}>Delete Account</Text>
+                        <ChevronRight size={16} color="#fca5a5" />
+                    </TouchableOpacity>
+                </View>
+            )}
 
-            {/* Log Out */}
-            <TouchableOpacity
-                style={styles.signOutButton}
-                onPress={() => handleSignOut(onClose)}
-            >
-                <LogOut size={20} color="#6b7280" />
-                <Text style={styles.signOutText}>Log Out</Text>
-            </TouchableOpacity>
+            {/* Log Out / Sign Up */}
+            {isAnonymous ? (
+                <TouchableOpacity
+                    style={styles.signInButton}
+                    onPress={() => handleUpgrade(onClose)}
+                >
+                    <UserPlus size={20} color="#374151" />
+                    <Text style={styles.signInText}>Sign Up or Log In</Text>
+                </TouchableOpacity>
+            ) : (
+                <TouchableOpacity
+                    style={styles.signOutButton}
+                    onPress={() => handleSignOut(onClose)}
+                >
+                    <LogOut size={20} color="#6b7280" />
+                    <Text style={styles.signOutText}>Log Out</Text>
+                </TouchableOpacity>
+            )}
         </View>
     );
 
@@ -358,17 +371,15 @@ const styles = StyleSheet.create({
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'center',
-        backgroundColor: '#fff7ed',
+        backgroundColor: '#f3f4f6',
         borderRadius: 16,
         paddingVertical: 14,
         marginBottom: 20,
-        borderWidth: 1,
-        borderColor: '#fed7aa',
     },
     signInText: {
         fontSize: 14,
-        fontWeight: '600',
-        color: '#f97316',
+        fontWeight: '500',
+        color: '#374151',
         marginLeft: 8,
     },
     subPageHeader: {
