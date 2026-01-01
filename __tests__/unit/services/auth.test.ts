@@ -63,7 +63,8 @@ describe('AuthService', () => {
     displayName: 'Test User',
     profilePhotoUrl: 'https://example.com/avatar.jpg',
     bio: 'Test bio',
-    isAnonymous: false,
+    identityMode: 'authenticated',
+    verified: true,
     createdAt: '2024-01-01T00:00:00.000Z',
     lastActiveAt: '2024-01-02T00:00:00.000Z',
   };
@@ -208,7 +209,7 @@ describe('AuthService', () => {
   describe('loginAnonymous', () => {
     const mockAnonymousResponse = {
       ...mockAuthResponse,
-      user: { ...mockUserDTO, isAnonymous: true, email: undefined },
+      user: { ...mockUserDTO, identityMode: 'anonymous', email: undefined },
       isNewUser: true,
     };
 
@@ -509,14 +510,14 @@ describe('AuthService', () => {
   describe('upgradeAccount', () => {
     it('upgrades anonymous to full account', async () => {
       // First login anonymously
-      const anonymousUser = { ...mockUserDTO, isAnonymous: true, email: undefined };
+      const anonymousUser = { ...mockUserDTO, identityMode: 'anonymous', email: undefined };
       (api.post as jest.Mock).mockResolvedValueOnce({
         data: { ...mockAuthResponse, user: anonymousUser },
       });
       await authService.loginAnonymous();
 
       // Then upgrade
-      const upgradedUser = { ...mockUserDTO, isAnonymous: false };
+      const upgradedUser = { ...mockUserDTO, identityMode: 'authenticated' };
       (api.post as jest.Mock).mockResolvedValueOnce({ data: upgradedUser });
 
       const user = await authService.upgradeAccount('test@example.com', 'password123');

@@ -30,7 +30,7 @@ function transformUserDTO(dto: UserDTO): User {
     displayName: dto.displayName,
     profilePhotoUrl: dto.profilePhotoUrl,
     bio: dto.bio,
-    isAnonymous: dto.isAnonymous,
+    isAnonymous: dto.identityMode === 'anonymous',
     createdAt: new Date(dto.createdAt),
     lastActiveAt: dto.lastActiveAt ? new Date(dto.lastActiveAt) : undefined,
   };

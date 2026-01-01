@@ -134,7 +134,7 @@ interface UseProfileDrawerReturn {
   handleSignOut: (onClose: () => void) => void;
 
   /** Delete account with confirmation */
-  handleDeleteAccount: () => void;
+  handleDeleteAccount: (onClose: () => void) => void;
 
   /** Open terms of service */
   openTermsOfService: () => void;
@@ -151,7 +151,7 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
   const user = useCurrentUser();
   const { rooms: myRooms } = useMyRooms();
   const { settings, updateSettings } = useSettings();
-  const { logout, isAuthenticated } = useAuth();
+  const { logout, deleteAccount, isAuthenticated } = useAuth();
   const blockedUsers = useBlockedUsers();
 
   // Fetch user stats (message count) and subscribe to updates
@@ -317,14 +317,47 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
     [logout]
   );
 
-  const handleDeleteAccount = useCallback(() => {
+  const handleDeleteAccount = useCallback((onClose: () => void) => {
     Alert.alert(
       'Delete Account',
-      'Account deletion is not yet available. Please contact support@localchat.app if you need to delete your account.',
-      [{ text: 'OK', style: 'default' }]
+      'This action cannot be undone. All your data will be permanently deleted.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Delete Account',
+          style: 'destructive',
+          onPress: () => {
+            // Second confirmation
+            Alert.alert(
+              'Are you sure?',
+              'Please confirm you want to permanently delete your account.',
+              [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                  text: 'Yes, Delete',
+                  style: 'destructive',
+                  onPress: async () => {
+                    try {
+                      // Set flag to prevent auto-login as anonymous on WelcomeScreen
+                      await storage.set('skip_auto_login', true);
+                      // Close drawer first for smooth transition
+                      onClose();
+                      // Delete account (this transitions to guest state)
+                      await deleteAccount();
+                      log.info('Account deleted successfully');
+                    } catch (error) {
+                      log.error('Failed to delete account', { error });
+                      Alert.alert('Error', 'Failed to delete account. Please try again.');
+                    }
+                  },
+                },
+              ]
+            );
+          },
+        },
+      ]
     );
-    log.info('Delete account requested (not implemented)');
-  }, []);
+  }, [deleteAccount]);
 
   // =========================================================================
   // External Links

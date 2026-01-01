@@ -25,7 +25,8 @@ export interface UserDTO {
   displayName: string;
   profilePhotoUrl?: string;
   bio?: string;
-  isAnonymous: boolean;
+  identityMode: 'anonymous' | 'authenticated';
+  verified?: boolean;
   createdAt: string;
   lastActiveAt?: string;
 }

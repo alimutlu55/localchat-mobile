@@ -173,7 +173,7 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
                 <View style={styles.dangerSection}>
                     <TouchableOpacity
                         style={styles.dangerButton}
-                        onPress={handleDeleteAccount}
+                        onPress={() => handleDeleteAccount(onClose)}
                     >
                         <Trash2 size={20} color="#ef4444" />
                         <Text style={styles.dangerButtonText}>Delete Account</Text>
