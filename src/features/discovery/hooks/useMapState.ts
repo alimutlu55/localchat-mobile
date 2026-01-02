@@ -235,8 +235,9 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
   const calculateFlyDuration = useCallback(
     (targetZoom: number): number => {
       const zoomDiff = Math.abs(targetZoom - zoom);
-      const duration = 0.8 + zoomDiff * 0.2;
-      return Math.min(duration, 2.5) * 1000;
+      // Slower, smoother animation for zoom-out transitions
+      const duration = 1.2 + zoomDiff * 0.3;
+      return Math.min(duration, 4.0) * 1000; // 4 second max for smooth world view transition
     },
     [zoom]
   );

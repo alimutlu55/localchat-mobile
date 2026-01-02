@@ -387,6 +387,12 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
       // Set flag IMMEDIATELY to block competing fetches (before async)
       isPrefetchingRef.current = true;
 
+      // Clear any pending debounce timer to prevent stale fetches from racing
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
+
       // Clear any pending prefetch timer
       if (prefetchTimerRef.current) {
         clearTimeout(prefetchTimerRef.current);
@@ -405,6 +411,10 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
         Math.min(180, centerLng + lngSpan / 2),
         Math.min(85, centerLat + latSpan / 2),
       ];
+
+      // Set last fetch refs IMMEDIATELY to prevent useEffect from triggering new fetches
+      lastFetchBoundsRef.current = targetBounds;
+      lastFetchZoomRef.current = targetZoom;
 
       // Calculate when to show markers: 1 second before animation ends
       const showMarkersDelay = Math.max(0, animationDuration - 1000);
@@ -474,7 +484,11 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
             }
             // Clear refs after timer fires
             prefetchTimerRef.current = null;
-            isPrefetchingRef.current = false;
+            // Delay clearing prefetch flag to allow map to fully settle and prevent
+            // intermediate fetches from racing during animation completion
+            setTimeout(() => {
+              isPrefetchingRef.current = false;
+            }, 500);
           }, remainingDelay);
         } else {
           // Animation is almost done, show immediately
@@ -497,12 +511,12 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
         }
       }
     },
-    [category]
+    [category, userLocation]
   );
 
   /**
    * Prefetch world-level data for zoom-out to world view.
-   * Always targets zoom 1 at center (0, 20).
+   * Fetches clusters for world view and shows them immediately.
    */
   const prefetchForWorldView = useCallback(
     async (animationDuration: number) => {
@@ -511,7 +525,12 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
 
       const targetZoom = 1;
       const targetBounds: [number, number, number, number] = [-180, -85, 180, 85];
-      const showMarkersDelay = Math.max(0, animationDuration - 1000);
+
+      // Clear any pending debounce timer to prevent stale fetches from racing
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+        debounceTimerRef.current = null;
+      }
 
       // Clear any pending prefetch timer
       if (prefetchTimerRef.current) {
@@ -519,7 +538,11 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
         prefetchTimerRef.current = null;
       }
 
-      log.info('Prefetching for world view', { animationDuration, showMarkersDelay });
+      // Set last fetch refs IMMEDIATELY to prevent useEffect from triggering new fetches
+      lastFetchBoundsRef.current = targetBounds;
+      lastFetchZoomRef.current = targetZoom;
+
+      log.info('Prefetching for world view', { animationDuration });
 
       try {
         const response: ClusterResponse = await roomService.getClusters(
@@ -533,47 +556,22 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
 
         log.info('World view prefetch completed', { featureCount: response.features.length });
 
-        // Optimistically set last fetch info to avoid redundant fetches from proactive zoom updates
-        lastFetchBoundsRef.current = targetBounds;
-        lastFetchZoomRef.current = targetZoom;
+        // Show clusters IMMEDIATELY for smooth transition
+        setRawFeatures(response.features);
+        setMetadata(response.metadata);
+        reconcilePendingRooms(response.features);
 
-        if (showMarkersDelay > 50) {
-          pendingPrefetchRef.current = response;
-          prefetchTimerRef.current = setTimeout(() => {
-            if (mountedRef.current && pendingPrefetchRef.current) {
-              log.info('Showing prefetched world markers');
-              setRawFeatures(pendingPrefetchRef.current.features);
-              setMetadata(pendingPrefetchRef.current.metadata);
-              lastFetchBoundsRef.current = targetBounds;
-              lastFetchZoomRef.current = targetZoom;
+        // Keep lock active until animation ends to prevent racing
+        setTimeout(() => {
+          isPrefetchingRef.current = false;
+        }, animationDuration + 500);
 
-              // Clear pending rooms (world view covers everything)
-              reconcilePendingRooms(pendingPrefetchRef.current.features);
-
-              pendingPrefetchRef.current = null;
-            }
-            // Clear refs after timer fires
-            prefetchTimerRef.current = null;
-            isPrefetchingRef.current = false;
-          }, showMarkersDelay);
-        } else {
-          setRawFeatures(response.features);
-          setMetadata(response.metadata);
-          lastFetchBoundsRef.current = targetBounds;
-          lastFetchZoomRef.current = targetZoom;
-
-          // Clear pending rooms (world view covers everything)
-          reconcilePendingRooms(response.features);
-        }
       } catch (err) {
         log.error('World view prefetch failed', err);
-      } finally {
-        if (!prefetchTimerRef.current) {
-          isPrefetchingRef.current = false;
-        }
+        isPrefetchingRef.current = false;
       }
     },
-    [category]
+    [category, userLocation]
   );
 
   // Trigger fetch on viewport change with dynamic debounce

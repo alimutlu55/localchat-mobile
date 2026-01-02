@@ -675,13 +675,16 @@ export default function DiscoveryScreen() {
                                         circleOpacityTransition: { duration: 1000, delay: 0 },
                                     }}
                                 />
-                                {/* The Dot: Full blue (no border) and slightly smaller */}
+                                {/* The Dot: Blue with white border for premium look */}
                                 <CircleLayer
                                     id="user-location-dot"
                                     style={{
                                         circleColor: '#2563eb',
-                                        circleRadius: 5,
-                                        circleOpacity: isMapStable ? 1 : 0
+                                        circleRadius: 6,
+                                        circleStrokeColor: '#ffffff',
+                                        circleStrokeWidth: 2.5,
+                                        circleOpacity: isMapStable ? 1 : 0,
+                                        circlePitchAlignment: 'map',
                                     }}
                                 />
                             </ShapeSource>
