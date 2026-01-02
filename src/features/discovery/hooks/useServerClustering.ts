@@ -223,6 +223,8 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
   // Prefetch timing refs - for showing markers 300ms before animation ends
   const prefetchTimerRef = useRef<NodeJS.Timeout | null>(null);
   const pendingPrefetchRef = useRef<ClusterResponse | null>(null);
+  // Flag set IMMEDIATELY when prefetch starts (before async), to block competing fetches
+  const isPrefetchingRef = useRef(false);
 
   /**
    * Reconciles optimistic (pending) rooms with a fresh server response.
@@ -384,6 +386,9 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
    */
   const prefetchForLocation = useCallback(
     async (centerLng: number, centerLat: number, targetZoom: number, animationDuration: number) => {
+      // Set flag IMMEDIATELY to block competing fetches (before async)
+      isPrefetchingRef.current = true;
+
       // Clear any pending prefetch timer
       if (prefetchTimerRef.current) {
         clearTimeout(prefetchTimerRef.current);
@@ -467,6 +472,9 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
 
               pendingPrefetchRef.current = null;
             }
+            // Clear refs after timer fires
+            prefetchTimerRef.current = null;
+            isPrefetchingRef.current = false;
           }, remainingDelay);
         } else {
           // Animation is almost done, show immediately
@@ -481,6 +489,12 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
       } catch (err) {
         log.error('Prefetch failed', err);
         // Silently fail - normal fetch will happen when camera settles
+      } finally {
+        // Clear the prefetching flag after timer fires or immediately if no timer
+        // Note: if timer is set, flag clearing is handled after timer callback
+        if (!prefetchTimerRef.current) {
+          isPrefetchingRef.current = false;
+        }
       }
     },
     [category]
@@ -492,6 +506,9 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
    */
   const prefetchForWorldView = useCallback(
     async (animationDuration: number) => {
+      // Set flag IMMEDIATELY to block competing fetches (before async)
+      isPrefetchingRef.current = true;
+
       const targetZoom = 1;
       const targetBounds: [number, number, number, number] = [-180, -85, 180, 85];
       const showMarkersDelay = Math.max(0, animationDuration - 1000);
@@ -533,6 +550,9 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
 
               pendingPrefetchRef.current = null;
             }
+            // Clear refs after timer fires
+            prefetchTimerRef.current = null;
+            isPrefetchingRef.current = false;
           }, showMarkersDelay);
         } else {
           setRawFeatures(response.features);
@@ -545,6 +565,10 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
         }
       } catch (err) {
         log.error('World view prefetch failed', err);
+      } finally {
+        if (!prefetchTimerRef.current) {
+          isPrefetchingRef.current = false;
+        }
       }
     },
     [category]
@@ -594,17 +618,23 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
 
     const shouldFetchNow = isFirstLoad || zoomChanged || panChanged || forceRefetch;
 
+    // Skip fetch if prefetch is in progress - prefetch already set lastFetch* refs
+    // to the target values, so this would be a redundant/stale fetch
+    // Check isPrefetchingRef FIRST as it's set immediately when prefetch starts
+    const prefetchInProgress = isPrefetchingRef.current || prefetchTimerRef.current !== null || pendingPrefetchRef.current !== null;
+
     log.debug('Fetch check', {
       isFirstLoad,
       zoomChanged,
       panChanged,
       forceRefetch,
+      prefetchInProgress,
       currentZoom: zoom,
       lastZoom,
-      shouldFetch: shouldFetchNow
+      shouldFetch: shouldFetchNow && !prefetchInProgress
     });
 
-    if (!shouldFetchNow) {
+    if (!shouldFetchNow || prefetchInProgress) {
       return;
     }
 

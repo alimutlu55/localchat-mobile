@@ -606,9 +606,15 @@ export default function DiscoveryScreen() {
 
     const handleCenterOnUser = useCallback(() => {
         if (userLocation) {
-            centerOn(userLocation, MAP_CONFIG.DEFAULT_ZOOM);
+            const targetZoom = MAP_CONFIG.DEFAULT_ZOOM;
+            const animDuration = calculateFlyDuration(targetZoom);
+
+            // Prefetch data - will show markers 300ms before animation ends
+            prefetchForLocation(userLocation.longitude, userLocation.latitude, targetZoom, animDuration);
+
+            centerOn(userLocation, targetZoom);
         }
-    }, [userLocation, centerOn]);
+    }, [userLocation, centerOn, calculateFlyDuration, prefetchForLocation]);
 
     // ==========================================================================
     // Loading State
