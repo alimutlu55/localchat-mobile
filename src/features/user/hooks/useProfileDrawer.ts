@@ -149,7 +149,7 @@ interface UseProfileDrawerReturn {
 export function useProfileDrawer(): UseProfileDrawerReturn {
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const user = useCurrentUser();
-  const { rooms: myRooms } = useMyRooms();
+  const { activeRooms: myRooms } = useMyRooms();
   const { settings, updateSettings } = useSettings();
   const { logout, deleteAccount, isAuthenticated } = useAuth();
   const blockedUsers = useBlockedUsers();
