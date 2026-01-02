@@ -17,6 +17,7 @@ import { ClusterResponse, ClusterFeature, ClusterMetadata } from '../../../types
 import { createLogger } from '../../../shared/utils/logger';
 import { eventBus } from '../../../core/events';
 import { useRoomStore } from '../../rooms/store';
+import { isPointInBounds } from '../../../utils/geo';
 
 const log = createLogger('ServerClustering');
 
@@ -155,14 +156,6 @@ function mergePendingRooms(features: ClusterFeature[]): ClusterFeature[] {
   });
 
   return [...features, ...pendingFeatures];
-}
-
-/**
- * Check if a point is within given bounds
- */
-function isPointInBounds(lat: number, lng: number, bounds: [number, number, number, number]): boolean {
-  const [minLng, minLat, maxLng, maxLat] = bounds;
-  return lng >= minLng && lng <= maxLng && lat >= minLat && lat <= maxLat;
 }
 
 // =============================================================================
@@ -313,7 +306,7 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
         showLoading,
       });
 
-      console.log(`[useServerClustering] fetchClusters start: showLoading=${showLoading}, bounds=${JSON.stringify(fetchBounds)}`);
+      console.log(`[useServerClustering] fetchClusters start: showLoading=${showLoading}, bounds=${JSON.stringify(fetchBounds)}, userLoc=${JSON.stringify(userLocation)}`);
       isFetchingRef.current = true;
       if (showLoading) {
         setIsLoading(true);

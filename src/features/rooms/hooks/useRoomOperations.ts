@@ -112,7 +112,7 @@ export function useRoomOperations(): UseRoomOperationsReturn {
             setRoom({ ...room, hasJoined: true });
             addJoinedRoom(roomId);
 
-            log.info('RoomOperations.join - calling service', { roomId, userLocation });
+            log.info('RoomOperations.join - calling service', { roomId, userLocation, lat: userLocation.latitude, lng: userLocation.longitude });
             try {
                 // Use user's actual location, not the room's location
                 // This is critical for nearBy rooms where the backend validates

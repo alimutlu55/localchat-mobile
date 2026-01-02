@@ -61,6 +61,7 @@ import { HUDDLE_MAP_STYLE } from '../../../styles/mapStyle';
 
 // Utils
 import { createLogger } from '../../../shared/utils/logger';
+import { EPS_BY_ZOOM, calcOptimalZoomForCluster, calcAnimationDuration as calcClusterAnimationDuration } from '../../../utils/clustering';
 
 const log = createLogger('Discovery');
 
@@ -306,17 +307,17 @@ export default function DiscoveryScreen() {
     });
     // ConnectionBanner is now self-contained - no manual state needed here
 
-    // Track when we have initial data to prevent marker rendering during first fetch
+    // Track when we have initial data (even if empty) to reveal markers
     useEffect(() => {
-        if (!hasInitialData && serverFeatures.length > 0 && !isLoadingClusters) {
-            // Minimal delay to let React batch updates - reduced from 200ms
+        if (!hasInitialData && !isLoadingClusters && isMapStable) {
+            // We have initial data if loading finished, regardless of feature count
             const timer = setTimeout(() => {
                 setHasInitialData(true);
-                log.debug('Initial data loaded, markers can now render', { featureCount: serverFeatures.length });
+                log.debug('Initial data sync complete', { featureCount: serverFeatures.length });
             }, 50);
             return () => clearTimeout(timer);
         }
-    }, [serverFeatures.length, isLoadingClusters, hasInitialData]);
+    }, [isLoadingClusters, hasInitialData, isMapStable, serverFeatures.length]);
 
     const { join } = useRoomOperations();
     const { activeRooms: myActiveRooms } = useMyRooms();
@@ -468,51 +469,12 @@ export default function DiscoveryScreen() {
             const [lng, lat] = feature.geometry.coordinates;
 
             /**
-             * Server eps values by zoom (must match backend R2dbcRoomClusteringRepository):
-             * This determines at what zoom level clusters will split.
-             */
-            const EPS_BY_ZOOM: Record<number, number> = {
-                0: 15.0, 1: 8.0, 2: 4.0, 3: 2.0, 4: 1.0, 5: 0.5,
-                6: 0.25, 7: 0.1, 8: 0.05, 9: 0.02, 10: 0.01,
-                11: 0.005, 12: 0.002, 13: 0.001, 14: 0.0005,
-                15: 0.0002, 16: 0.0001, 17: 0.00005, 18: 0.00002
-            };
-
-            /**
-             * Calculate the optimal zoom level to split a cluster.
-             * Find the lowest zoom where eps is smaller than the cluster's internal spread.
-             * We want eps to be about 1/3 of bounds span to get meaningful splits.
-             */
-            const calcOptimalZoom = (boundsSpan: number, currentZoom: number): number => {
-                if (boundsSpan <= 0) return Math.min(currentZoom + 3, 18);
-
-                const targetEps = boundsSpan / 3;
-
-                for (let z = currentZoom + 1; z <= 12; z++) {
-                    const eps = EPS_BY_ZOOM[z] ?? 0.001;
-                    if (eps <= targetEps) {
-                        return z;
-                    }
-                }
-                return Math.min(currentZoom + 3, 12);
-            };
-
-            /**
              * Calculate smooth animation duration based on zoom delta.
              * Larger zoom changes get longer durations for a smooth "fly in" effect.
-             * - Small changes (1-3 levels): 600-900ms
-             * - Medium changes (4-6 levels): 1000-1400ms  
-             * - Large changes (7+ levels): 1600-2200ms
              */
             const calcAnimationDuration = (fromZoom: number, toZoom: number): number => {
                 const zoomDelta = Math.abs(toZoom - fromZoom);
-                // Base duration + extra time per zoom level
-                // Minimum 600ms, scales up to ~2200ms for large transitions
-                const baseDuration = 500;
-                const perLevelDuration = 200;
-                const duration = baseDuration + (zoomDelta * perLevelDuration);
-                // Cap at a reasonable maximum
-                return Math.min(Math.max(duration, 600), 2200);
+                return calcClusterAnimationDuration(zoomDelta);
             };
 
             if (expansionBounds && expansionBounds.length === 4) {
@@ -525,7 +487,7 @@ export default function DiscoveryScreen() {
                 const currentActualZoom = zoomRef.current;
 
                 // Calculate optimal zoom that will cause meaningful splitting
-                const optimalZoom = calcOptimalZoom(boundsSpan, currentActualZoom);
+                const optimalZoom = calcOptimalZoomForCluster(boundsSpan, currentActualZoom);
 
                 // ALWAYS progress enough to split the cluster
                 // Use at least optimalZoom + 1 to guarantee eps is small enough
@@ -704,24 +666,22 @@ export default function DiscoveryScreen() {
                                 <CircleLayer
                                     id="user-location-pulse"
                                     style={{
-                                        circleColor: 'rgba(59, 130, 246, 0.1)',
-                                        circleRadius: isPulsing ? 40 : 30,
+                                        circleColor: 'rgba(37, 99, 235, 0.1)',
+                                        circleRadius: isPulsing ? 35 : 25,
                                         circleRadiusTransition: { duration: 2000, delay: 0 },
-                                        circleStrokeColor: 'rgba(59, 130, 246, 0.3)',
-                                        circleStrokeWidth: 2,
-                                        circleOpacity: canRenderMarkers ? 1 : 0,
-                                        circleOpacityTransition: { duration: 2000, delay: 0 },
+                                        circleStrokeColor: 'rgba(37, 99, 235, 0.2)',
+                                        circleStrokeWidth: 1,
+                                        circleOpacity: isMapStable ? 1 : 0,
+                                        circleOpacityTransition: { duration: 1000, delay: 0 },
                                     }}
                                 />
-                                {/* The Dot */}
+                                {/* The Dot: Full blue (no border) and slightly smaller */}
                                 <CircleLayer
                                     id="user-location-dot"
                                     style={{
                                         circleColor: '#2563eb',
                                         circleRadius: 5,
-                                        circleStrokeColor: '#ffffff',
-                                        circleStrokeWidth: 4,
-                                        circleOpacity: canRenderMarkers ? 1 : 0
+                                        circleOpacity: isMapStable ? 1 : 0
                                     }}
                                 />
                             </ShapeSource>

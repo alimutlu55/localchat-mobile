@@ -175,22 +175,51 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
         mapRef.current.getCenter(),
       ]);
 
-      if (visibleBounds && visibleBounds.length === 2) {
-        const [ne, sw] = visibleBounds;
-        setBounds([sw[0], sw[1], ne[0], ne[1]]);
+      if (visibleBounds && visibleBounds.length === 2 && center) {
+        // MapLibre inconsistency: getCenter returns [lng, lat] but getVisibleBounds 
+        // sometimes returns [lat, lng] on certain platforms/versions.
+        // We detect this by checking which component matches the center.
+        const [[v1_0, v1_1], [v2_0, v2_1]] = visibleBounds;
+        const [cLng, cLat] = center as [number, number];
+
+        // Normalization: Determine which index is Lng vs Lat
+        // We know centerLng is between minLng and maxLng
+        const isFirstArgLat = Math.abs(v1_0 - cLat) < Math.abs(v1_0 - cLng);
+
+        let minLng, maxLng, minLat, maxLat;
+        if (isFirstArgLat) {
+          // visibleBounds is [[lat, lng], [lat, lng]]
+          minLng = Math.min(v1_1, v2_1);
+          maxLng = Math.max(v1_1, v2_1);
+          minLat = Math.min(v1_0, v2_0);
+          maxLat = Math.max(v1_0, v2_0);
+        } else {
+          // visibleBounds is [[lng, lat], [lng, lat]]
+          minLng = Math.min(v1_0, v2_0);
+          maxLng = Math.max(v1_0, v2_0);
+          minLat = Math.min(v1_1, v2_1);
+          maxLat = Math.max(v1_1, v2_1);
+        }
+
+        setBounds([minLng, minLat, maxLng, maxLat]);
+
+        if (center) {
+          setCenterCoord(center as [number, number]);
+        }
+
+        setZoom(Math.round(newZoom));
+        setIsMapMoving(false);
+
         // Mark bounds as initialized after first real update from map
         if (!hasBoundsInitialized) {
           setHasBoundsInitialized(true);
-          log.debug('Bounds initialized from map', { bounds: [sw[0], sw[1], ne[0], ne[1]] });
+          log.debug('Bounds initialized from map', { bounds: [minLng, minLat, maxLng, maxLat], isFirstArgLat });
         }
-      }
-
-      if (center) {
+      } else if (center) {
         setCenterCoord(center as [number, number]);
+        setZoom(Math.round(newZoom));
+        setIsMapMoving(false);
       }
-
-      setZoom(Math.round(newZoom));
-      setIsMapMoving(false);
 
       log.debug('Region changed', { zoom: Math.round(newZoom) });
     } catch (error) {

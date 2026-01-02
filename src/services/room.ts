@@ -21,6 +21,7 @@ import { api } from './api';
 import { Room, RoomParticipant, CreateRoomRequest, RoomCategory, RoomSortBy, ClusterResponse } from '../types';
 import { randomizeForRoomCreation } from '../utils/locationPrivacy';
 import { createLogger } from '../shared/utils/logger';
+import { formatTimeRemainingMs, isExpiringSoon as checkIsExpiringSoon } from '../utils/format';
 
 const log = createLogger('RoomService');
 
@@ -86,8 +87,8 @@ function transformRoom(dto: RoomDTO): Room {
   if (dto.expiresAt) {
     expiresAt = new Date(dto.expiresAt);
     const timeUntilExpiry = expiresAt.getTime() - now;
-    timeRemaining = formatTimeRemaining(timeUntilExpiry);
-    isExpiringSoon = timeUntilExpiry > 0 && timeUntilExpiry < 30 * 60 * 1000;
+    timeRemaining = formatTimeRemainingMs(timeUntilExpiry);
+    isExpiringSoon = checkIsExpiringSoon(expiresAt);
   } else {
     // No expiry (until_inactive) - set far future date
     expiresAt = new Date(now + 365 * 24 * 60 * 60 * 1000); // 1 year from now
@@ -122,24 +123,6 @@ function transformRoom(dto: RoomDTO): Room {
   };
 }
 
-/**
- * Format time remaining for display
- */
-function formatTimeRemaining(ms: number): string {
-  if (ms <= 0) return 'Expired';
-
-  const hours = Math.floor(ms / (1000 * 60 * 60));
-  const minutes = Math.floor((ms % (1000 * 60 * 60)) / (1000 * 60));
-
-  if (hours > 0) {
-    return `${hours}h ${minutes}m`;
-  }
-  return `${minutes}m`;
-}
-
-/**
- * Room Service class
- */
 class RoomService {
   /**
    * Get nearby rooms via /rooms/discover endpoint with pagination support

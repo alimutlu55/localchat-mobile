@@ -70,9 +70,9 @@ const DURATION_OPTIONS: Array<{ label: string; value: number; id: '1h' | '3h' | 
 ];
 
 /**
- * Allowed radius values in meters (matching backend validation)
+ * Allowed radius values in meters (matching backend database constraint: 0-100000)
  */
-const ALLOWED_RADII_METERS = [1000, 5000, 10000, 50000, 100000, 500000];
+const ALLOWED_RADII_METERS = [1000, 5000, 10000, 50000, 100000];
 
 /**
  * Radius options for UI display (converting meters to km)

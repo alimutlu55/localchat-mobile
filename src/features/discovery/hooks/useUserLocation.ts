@@ -93,6 +93,7 @@ export function useUserLocation(
       };
 
       setLocation(coords);
+      console.log(`[UserLocation] Fetched: lat=${coords.latitude}, lng=${coords.longitude}`);
       log.debug('Location fetched', coords);
     } catch (err) {
       log.error('Failed to get location', err);
@@ -125,6 +126,7 @@ export function useUserLocation(
             longitude: newLocation.coords.longitude,
           };
           setLocation(coords);
+          console.log(`[UserLocation] Updated: lat=${coords.latitude}, lng=${coords.longitude}`);
           log.debug('Location updated', coords);
         }
       );

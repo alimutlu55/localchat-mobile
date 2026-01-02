@@ -7,6 +7,9 @@
  * - useMapState: Map viewport and interaction state
  * - useMapClustering: Room clustering for map (client-side)
  * - useServerClustering: Server-side clustering for low zoom levels
+ * - useClusteringAPI: Pure API fetching for clusters
+ * - useClusterState: State hydration and management
+ * - usePrefetch: Prefetch coordination for animations
  * - useUserLocation: User geolocation tracking
  * - useMapDiscovery: Combined discovery with clustering
  * - useMapControls: Map viewport controls (zoom, pan, fly)
@@ -22,6 +25,16 @@ export type { UseMapClusteringReturn, UseMapClusteringOptions } from './useMapCl
 export { useServerClustering } from './useServerClustering';
 export type { UseServerClusteringReturn, UseServerClusteringOptions } from './useServerClustering';
 
+// Decomposed hooks from useServerClustering
+export { useClusteringAPI, getDebounceDelay, calculateViewportBounds, WORLD_VIEW_BOUNDS, WORLD_VIEW_ZOOM } from './useClusteringAPI';
+export type { FetchClusterOptions, UseClusteringAPIReturn } from './useClusteringAPI';
+
+export { useClusterState } from './useClusterState';
+export type { UseClusterStateReturn } from './useClusterState';
+
+export { usePrefetch } from './usePrefetch';
+export type { UsePrefetchOptions, UsePrefetchReturn } from './usePrefetch';
+
 export { useUserLocation } from './useUserLocation';
 export type { UseUserLocationReturn, UseUserLocationOptions, UserLocation } from './useUserLocation';
 
@@ -33,3 +46,4 @@ export type { UseMapControlsOptions, UseMapControlsReturn, MapViewportState } fr
 
 export { useViewportRoomDiscovery } from './useViewportRoomDiscovery';
 export type { UseViewportRoomDiscoveryOptions, UseViewportRoomDiscoveryReturn } from './useViewportRoomDiscovery';
+

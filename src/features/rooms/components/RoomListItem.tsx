@@ -17,6 +17,8 @@ import {
 } from 'react-native';
 import { Users, Clock, MapPin } from 'lucide-react-native';
 import { Room } from '../../../types';
+import { calculateDistance } from '../../../utils/geo';
+import { formatDistanceShort, formatTimeRemaining, isExpiringSoon } from '../../../utils/format';
 
 interface RoomListItemProps {
   room: Room;
@@ -25,57 +27,6 @@ interface RoomListItemProps {
   userLocation?: { latitude: number; longitude: number } | null;
 }
 
-/**
- * Format time remaining until expiry
- */
-function formatTimeRemaining(expiresAt: Date): string {
-  const now = new Date();
-  const diff = expiresAt.getTime() - now.getTime();
-
-  if (diff <= 0) return 'Expired';
-
-  const minutes = Math.floor(diff / 60000);
-  const hours = Math.floor(minutes / 60);
-
-  if (hours > 0) {
-    return `${hours}h ${minutes % 60}m left`;
-  }
-
-  return `${minutes}m left`;
-}
-
-/**
- * Calculate distance between two points
- */
-function calculateDistance(
-  lat1: number,
-  lon1: number,
-  lat2: number,
-  lon2: number
-): number {
-  const R = 6371e3; // Earth's radius in meters
-  const φ1 = (lat1 * Math.PI) / 180;
-  const φ2 = (lat2 * Math.PI) / 180;
-  const Δφ = ((lat2 - lat1) * Math.PI) / 180;
-  const Δλ = ((lon2 - lon1) * Math.PI) / 180;
-
-  const a =
-    Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
-    Math.cos(φ1) * Math.cos(φ2) * Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-
-  return R * c;
-}
-
-/**
- * Format distance for display
- */
-function formatDistance(meters: number): string {
-  if (meters < 1000) {
-    return `${Math.round(meters)}m`;
-  }
-  return `${(meters / 1000).toFixed(1)}km`;
-}
 
 export function RoomListItem({
   room,
@@ -123,7 +74,7 @@ export function RoomListItem({
           {distance !== null && (
             <View style={styles.metaItem}>
               <MapPin size={12} color="#9ca3af" />
-              <Text style={styles.metaText}>{formatDistance(distance)}</Text>
+              <Text style={styles.metaText}>{formatDistanceShort(distance)}</Text>
             </View>
           )}
 

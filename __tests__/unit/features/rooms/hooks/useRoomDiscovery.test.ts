@@ -31,6 +31,8 @@ const mockStoreState = {
   rooms: new Map(),
   joinedRoomIds: new Set<string>(),
   discoveredRoomIds: new Set<string>(),
+  pendingRoomIds: new Set<string>(),
+  hiddenRoomIds: new Set<string>(),
   setRooms: jest.fn(),
   updateRoom: jest.fn(),
   setDiscoveredRoomIds: jest.fn(),
