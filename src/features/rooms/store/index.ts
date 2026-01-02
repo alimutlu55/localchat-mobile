@@ -15,6 +15,7 @@ export {
   selectIsRoomMuted,
   selectIsLoading,
   selectPagination,
+  selectSelectedCategory,
   // Derived hooks
   useStoreRoom,
   useIsRoomJoinedStore,

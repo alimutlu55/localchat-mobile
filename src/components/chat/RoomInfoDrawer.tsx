@@ -38,6 +38,7 @@ import { ParticipantList } from './ParticipantList';
 import { roomService, ParticipantDTO } from '../../services';
 import { AvatarDisplay } from '../profile';
 import { BannedUsersModal, ParticipantItem } from '../room';
+import { formatTimeAgo } from '../../utils/format';
 
 interface RoomInfoDrawerProps {
     room: Room;
@@ -271,7 +272,7 @@ export function RoomInfoDrawer({
                                     <MessageCircle size={18} color={theme.tokens.text.tertiary} />
                                     <Text style={styles.gridLabel}>Created</Text>
                                 </View>
-                                <Text style={styles.gridValue}>0m ago</Text>
+                                <Text style={styles.gridValue}>{formatTimeAgo(room.createdAt)}</Text>
                             </View>
                         </View>
                     </View>

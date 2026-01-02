@@ -50,7 +50,11 @@ export default function ListScreen() {
 
     // Wrapper for joinRoom
     const joinRoom = async (room: Room): Promise<boolean> => {
-        const result = await join(room);
+        if (!userLocation) {
+            console.warn('Cannot join room - user location not available');
+            return false;
+        }
+        const result = await join(room, { latitude: userLocation.latitude, longitude: userLocation.longitude });
         return result.success;
     };
 

@@ -5,7 +5,7 @@
  * Matches web RoomListView.tsx design.
  */
 
-import React, { useState, useMemo, useCallback, memo } from 'react';
+import React, { useState, useMemo, useCallback, memo, useEffect } from 'react';
 import {
     View,
     Text,
@@ -17,6 +17,7 @@ import {
     ActivityIndicator,
     Modal,
     Dimensions,
+    Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -32,10 +33,11 @@ import {
     Zap,
     Sparkles,
     Plus,
+    ArrowUp,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Room } from '../../../types';
-import { useMyRooms, useRoomDiscovery } from '../../rooms/hooks';
+import { useMyRooms, useRoomDiscovery, useRoomStore, selectSelectedCategory } from '../../rooms';
 import { CATEGORIES } from '../../../constants';
 import { calculateDistance } from '../../../utils/format';
 import { theme } from '../../../core/theme';
@@ -170,6 +172,9 @@ const RoomListItem = memo(function RoomListItem({
     };
 
     const formatDistance = (meters: number): string => {
+        if (meters < 500) {
+            return 'Nearby';
+        }
         if (meters < 1000) {
             return `${Math.round(meters)}m away`;
         }
@@ -358,13 +363,71 @@ export function RoomListView({
     const [searchQuery, setSearchQuery] = useState('');
     const [isSearching, setIsSearching] = useState(false);
     const [searchResults, setSearchResults] = useState<Room[]>([]);
-    const [selectedCategory, setSelectedCategory] = useState('All');
+
+    // Global filter state
+    const selectedCategory = useRoomStore(selectSelectedCategory);
+    const setSelectedCategory = useRoomStore((state) => state.setSelectedCategory);
+
     const [sortBy, setSortBy] = useState<SortOption>('nearest');
     const [showFilters, setShowFilters] = useState(false);
 
     // Join Confirmation State
     const [joinPendingRoom, setJoinPendingRoom] = useState<Room | null>(null);
     const [isJoining, setIsJoining] = useState(false);
+
+    // Scroll to Top Logic
+    const flatListRef = React.useRef<FlatList>(null);
+    const [showScrollTop, setShowScrollTop] = useState(false);
+    const scrollButtonTranslateY = React.useRef(new Animated.Value(-100)).current;
+    const scrollButtonOpacity = React.useRef(new Animated.Value(0)).current; // Start invisible
+
+    const handleScroll = useCallback((event: any) => {
+        const offsetY = event.nativeEvent.contentOffset.y;
+        if (offsetY > 300 && !showScrollTop) {
+            setShowScrollTop(true);
+            Animated.parallel([
+                Animated.spring(scrollButtonTranslateY, {
+                    toValue: 4, // Slide down just below categories (tighter gap)
+                    useNativeDriver: true,
+                    damping: 20,
+                    stiffness: 200,
+                }),
+                Animated.timing(scrollButtonOpacity, {
+                    toValue: 1,
+                    duration: 200,
+                    useNativeDriver: true,
+                })
+            ]).start();
+        } else if (offsetY <= 300 && showScrollTop) {
+            setShowScrollTop(false);
+            Animated.parallel([
+                Animated.timing(scrollButtonTranslateY, {
+                    toValue: -100,
+                    duration: 200,
+                    useNativeDriver: true,
+                }),
+                Animated.timing(scrollButtonOpacity, {
+                    toValue: 0,
+                    duration: 200,
+                    useNativeDriver: true,
+                })
+            ]).start();
+        }
+    }, [showScrollTop, scrollButtonTranslateY, scrollButtonOpacity]);
+
+    const scrollToTop = () => {
+        flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+    };
+
+    // Reset scroll button when category changes
+    useEffect(() => {
+        if (showScrollTop) {
+            setShowScrollTop(false);
+            // Immediately hide without animation to avoid glitching during list update
+            scrollButtonTranslateY.setValue(-100);
+            scrollButtonOpacity.setValue(0);
+        }
+    }, [selectedCategory]);
 
     // Subscribe to myRooms to force re-render when join/leave state changes
     const { rooms: myRooms } = useMyRooms();
@@ -551,14 +614,8 @@ export function RoomListView({
         return flattened;
     }, [groupedRooms]);
 
-    if (isLoading) {
-        return (
-            <View style={styles.loadingContainer}>
-                <ActivityIndicator size="large" color={theme.tokens.brand.primary} />
-                <Text style={styles.loadingText}>Loading rooms...</Text>
-            </View>
-        );
-    }
+    // Remove early return for isLoading to keep header/filters mounted
+    // if (isLoading) { ... }
 
     return (
         <View style={[styles.container, { paddingBottom: insets.bottom }]}>
@@ -647,8 +704,13 @@ export function RoomListView({
                 </ScrollView>
             </View>
 
-            {/* Room List */}
-            {filteredRooms.length === 0 ? (
+            {/* Room List Content */}
+            {isLoading ? (
+                <View style={styles.loadingContainer}>
+                    <ActivityIndicator size="large" color={theme.tokens.brand.primary} />
+                    <Text style={styles.loadingText}>Loading rooms...</Text>
+                </View>
+            ) : filteredRooms.length === 0 ? (
                 <EmptyState
                     hasSearch={searchQuery.length > 0}
                     onClearSearch={handleClearSearch}
@@ -656,9 +718,12 @@ export function RoomListView({
                 />
             ) : (
                 <FlatList
+                    ref={flatListRef}
                     data={flattenedData}
                     keyExtractor={(item, index) => item.type === 'header' ? `header-${item.title}` : `room-${item.room.id}`}
                     extraData={myRooms}
+                    onScroll={handleScroll}
+                    scrollEventThrottle={16}
                     renderItem={({ item }) => {
                         if (item.type === 'header') {
                             return <Text style={styles.groupTitle}>{item.title}</Text>;
@@ -709,6 +774,25 @@ export function RoomListView({
                 />
             )}
 
+            {/* Scroll to Top Button */}
+            <Animated.View
+                style={[
+                    styles.scrollTopButtonContainer,
+                    {
+                        transform: [{ translateY: scrollButtonTranslateY }],
+                        opacity: scrollButtonOpacity
+                    }
+                ]}
+                pointerEvents={showScrollTop ? 'auto' : 'none'}
+            >
+                <TouchableOpacity
+                    style={styles.scrollTopButton}
+                    onPress={scrollToTop}
+                    activeOpacity={0.8}
+                >
+                    <ArrowUp size={20} color={theme.tokens.text.secondary} strokeWidth={2.5} />
+                </TouchableOpacity>
+            </Animated.View>
             {/* Join Confirmation Modal */}
             <Modal
                 visible={joinPendingRoom !== null}
@@ -1040,6 +1124,29 @@ const styles = StyleSheet.create({
     },
     activeBadge: {
         backgroundColor: '#f43f5e',
+    },
+    scrollTopButtonContainer: {
+        position: 'absolute',
+        top: 190, // Positioned closer to categories (was 200)
+        left: 0,
+        right: 0,
+        alignItems: 'center',
+        zIndex: 50,
+    },
+    scrollTopButton: {
+        backgroundColor: 'rgba(243, 244, 246, 0.8)', // Semi-transparent pale gray
+        width: 36, // Small circle
+        height: 36,
+        borderRadius: 18,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1,
+        borderColor: 'rgba(229, 231, 235, 0.8)', // Semi-transparent border
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        elevation: 3,
     },
     statusBadgeText: {
         color: '#ffffff',

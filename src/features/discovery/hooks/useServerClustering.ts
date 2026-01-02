@@ -39,6 +39,9 @@ export interface UseServerClusteringOptions {
 
   /** Optional category filter */
   category?: string;
+
+  /** User's current location for visibility filtering (nearby rooms only visible within radius) */
+  userLocation?: { latitude: number; longitude: number } | null;
 }
 
 export interface UseServerClusteringReturn {
@@ -167,7 +170,7 @@ function isPointInBounds(lat: number, lng: number, bounds: [number, number, numb
 // =============================================================================
 
 export function useServerClustering(options: UseServerClusteringOptions): UseServerClusteringReturn {
-  const { bounds, zoom, enabled, isMapReady, category } = options;
+  const { bounds, zoom, enabled, isMapReady, category, userLocation } = options;
 
   // State
   const [rawFeatures, setRawFeatures] = useState<ClusterFeature[]>([]);
@@ -324,7 +327,9 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
           expandedBounds[2],
           expandedBounds[3],
           Math.floor(fetchZoom), // Send integer zoom to server
-          category
+          category,
+          userLocation?.latitude,
+          userLocation?.longitude
         );
 
         if (!mountedRef.current) return;
@@ -361,7 +366,7 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
         isFetchingRef.current = false;
       }
     },
-    [category]
+    [category, userLocation]
   );
 
   /**
@@ -438,7 +443,9 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
           expandedBounds[2],
           expandedBounds[3],
           Math.floor(targetZoom),
-          category
+          category,
+          userLocation?.latitude,
+          userLocation?.longitude
         );
 
         if (!mountedRef.current) return;
@@ -524,7 +531,9 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
       try {
         const response: ClusterResponse = await roomService.getClusters(
           targetBounds[0], targetBounds[1], targetBounds[2], targetBounds[3],
-          targetZoom, category
+          targetZoom, category,
+          userLocation?.latitude,
+          userLocation?.longitude
         );
 
         if (!mountedRef.current) return;
@@ -666,7 +675,11 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
     if (!enabled || !isMapReady) return;
 
     log.debug('Subscribing to discovery refetch events');
+
+    // Always trigger refetch on room.created - server handles visibility filtering
+    // based on userLocation (passed in getClusters call)
     const unsubCreated = eventBus.on('room.created', () => {
+      log.debug('Room created event - triggering refetch');
       // Small delay to allow store update to propagate first
       setTimeout(() => refetch(), 500);
     });

@@ -125,10 +125,13 @@ export default function EmailEntryScreen() {
 
                     {/* Email Input */}
                     <View style={styles.inputWrapper}>
-                        <Text style={[
-                            styles.floatingLabel,
-                            email && styles.floatingLabelActive
-                        ]}>
+                        <Text
+                            style={[
+                                styles.floatingLabel,
+                                email ? styles.floatingLabelActive : {}
+                            ]}
+                            pointerEvents="none"
+                        >
                             Email
                         </Text>
                         <TextInput

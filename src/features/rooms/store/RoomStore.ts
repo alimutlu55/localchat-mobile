@@ -82,6 +82,11 @@ export interface RoomStoreState {
   hasMoreRooms: boolean;
 
   /**
+   * Currently selected category filter
+   */
+  selectedCategory: string;
+
+  /**
    * Currently selected room (for UI state)
    */
   selectedRoomId: string | null;
@@ -260,6 +265,11 @@ export interface RoomStoreActions {
    */
   setPagination: (page: number, hasMore: boolean) => void;
 
+  /**
+   * Set the current category filter
+   */
+  setSelectedCategory: (category: string) => void;
+
   // =========================================================================
   // Reset
   // =========================================================================
@@ -326,6 +336,7 @@ const initialState: RoomStoreState = {
   closingRoomIds: new Set(),
   hiddenRoomIds: new Set(),
   pendingRoomIds: new Set(),
+  selectedCategory: 'All',
 };
 
 // =============================================================================
@@ -610,6 +621,10 @@ export const useRoomStore = create<RoomStore>()(
       set({ currentPage: page, hasMoreRooms: hasMore });
     },
 
+    setSelectedCategory: (category: string) => {
+      set({ selectedCategory: category });
+    },
+
     // =========================================================================
     // Reset
     // =========================================================================
@@ -761,6 +776,11 @@ export const selectPagination = (state: RoomStore) => ({
   hasMoreRooms: state.hasMoreRooms,
   isLoadingMore: state.isLoadingMore,
 });
+
+/**
+ * Select current category
+ */
+export const selectSelectedCategory = (state: RoomStore) => state.selectedCategory;
 
 // =============================================================================
 // Derived Hooks (for common use cases)

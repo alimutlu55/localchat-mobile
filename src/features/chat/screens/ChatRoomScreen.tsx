@@ -73,6 +73,7 @@ import {
 
 // Utils
 import { createLogger } from '../../../shared/utils/logger';
+import { isAlreadyReported } from '../../../shared/utils/errors';
 
 const log = createLogger('ChatRoom');
 
@@ -415,9 +416,13 @@ export default function ChatRoomScreen() {
         }
       } else if (reportConfig.targetType === 'room') {
         await chatServices.reportRoom(roomId, data.reason, data.details);
-        Alert.alert('Report Submitted', 'Thank you for your report or feedback.');
+        // Alert removed: ReportModal handles confirmation
       }
     } catch (error) {
+      if (isAlreadyReported(error)) {
+        log.info('Room already reported, treating as success', { roomId });
+        return;
+      }
       log.error('Report submission failed', error);
       throw error;
     }

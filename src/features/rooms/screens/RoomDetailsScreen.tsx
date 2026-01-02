@@ -35,6 +35,7 @@ import { eventBus } from '../../../core/events';
 import { ChatMessage } from '../../../types';
 import { useUserId } from '../../user/store';
 import { useRoom, useRoomOperations, useRoomMembership } from '../hooks';
+import { useUserLocation } from '../../discovery/hooks';
 import { useRoomStore } from '../store';
 import { BannedUsersModal } from '../components';
 import { ParticipantItem } from '../../../components/room';
@@ -158,6 +159,9 @@ export default function RoomDetailsScreen() {
     isLeaving,
     isClosing,
   } = useRoomOperations();
+
+  // Get user location for join proximity validation
+  const { location: userLocation } = useUserLocation();
 
   const isJoiningOptimistic = isJoining(roomId);
 
@@ -356,7 +360,13 @@ export default function RoomDetailsScreen() {
       return;
     }
 
-    const result = await join(room);
+    // Check if user location is available
+    if (!userLocation) {
+      Alert.alert('Location Required', 'Unable to get your location. Please enable location services and try again.');
+      return;
+    }
+
+    const result = await join(room, { latitude: userLocation.latitude, longitude: userLocation.longitude });
 
     if (result.success) {
       // Get fresh room data from store

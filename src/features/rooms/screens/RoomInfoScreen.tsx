@@ -40,6 +40,7 @@ import { eventBus } from '../../../core/events';
 import { BannedUsersModal } from '../components';
 import { useRoom } from '../hooks';
 import { useRoomStore } from '../store/RoomStore';
+import { formatTimeAgo } from '../../../utils/format';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'RoomInfo'>;
 type RoomInfoRouteProp = RouteProp<RootStackParamList, 'RoomInfo'>;
@@ -346,7 +347,7 @@ export default function RoomInfoScreen() {
                                 <MessageCircle size={18} color="#6b7280" />
                                 <Text style={styles.gridLabel}>Created</Text>
                             </View>
-                            <Text style={styles.gridValue}>0m ago</Text>
+                            <Text style={styles.gridValue}>{formatTimeAgo(room.createdAt)}</Text>
                         </View>
                     </View>
                 </View>

@@ -33,9 +33,11 @@ export function ProfileHeader({ user, stats, onEditProfile }: ProfileHeaderProps
                 />
             </TouchableOpacity>
             <Text style={styles.profileName}>{user?.displayName || 'Guest'}</Text>
-            <Text style={styles.profileEmail}>
-                {user?.email || 'Anonymous User'}
-            </Text>
+            {((user?.isAnonymous ?? true) || user?.email) && (
+                <Text style={styles.profileEmail}>
+                    {(user?.isAnonymous ?? true) ? 'Anonymous User' : user?.email}
+                </Text>
+            )}
             <TouchableOpacity
                 style={styles.editProfileButton}
                 onPress={onEditProfile}
@@ -65,7 +67,8 @@ export function ProfileHeader({ user, stats, onEditProfile }: ProfileHeaderProps
 const styles = StyleSheet.create({
     profileHeader: {
         alignItems: 'center',
-        paddingVertical: 20,
+        paddingTop: 36,
+        paddingBottom: 20,
         borderBottomWidth: 1,
         borderBottomColor: '#f3f4f6',
         marginBottom: 16,

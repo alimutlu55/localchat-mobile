@@ -137,10 +137,13 @@ export default function LoginScreen() {
               styles.inputContainer,
               hasError && styles.inputContainerError
             ]}>
-              <Text style={[
-                styles.floatingLabel,
-                password && styles.floatingLabelActive
-              ]}>
+              <Text
+                style={[
+                  styles.floatingLabel,
+                  password ? styles.floatingLabelActive : {}
+                ]}
+                pointerEvents="none"
+              >
                 Password
               </Text>
               <TextInput

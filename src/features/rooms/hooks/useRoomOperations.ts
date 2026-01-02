@@ -29,8 +29,8 @@ export interface UseRoomOperationsReturn {
     // Actions
     // -------------------------------------------------------------------------
 
-    /** Join a room */
-    join: (room: Room) => Promise<Result<Room>>;
+    /** Join a room - requires user's current location for proximity validation */
+    join: (room: Room, userLocation: { latitude: number; longitude: number }) => Promise<Result<Room>>;
 
     /** Leave a room */
     leave: (roomId: string) => Promise<Result>;
@@ -91,7 +91,7 @@ export function useRoomOperations(): UseRoomOperationsReturn {
      * Join a room
      */
     const join = useCallback(
-        async (room: Room): Promise<Result<Room>> => {
+        async (room: Room, userLocation: { latitude: number; longitude: number }): Promise<Result<Room>> => {
             const roomId = room.id;
 
             // Use getState() for synchronous check to avoid race conditions on rapid clicks
@@ -112,13 +112,16 @@ export function useRoomOperations(): UseRoomOperationsReturn {
             setRoom({ ...room, hasJoined: true });
             addJoinedRoom(roomId);
 
-            log.info('RoomOperations.join - calling service', { roomId });
+            log.info('RoomOperations.join - calling service', { roomId, userLocation });
             try {
+                // Use user's actual location, not the room's location
+                // This is critical for nearBy rooms where the backend validates
+                // that the user is within the room's visibility radius
                 await roomService.joinRoom(
                     roomId,
-                    room.latitude ?? 0,
-                    room.longitude ?? 0,
-                    room.radius
+                    userLocation.latitude,
+                    userLocation.longitude,
+                    room.radius ?? 500
                 );
 
                 let finalRoom = room;

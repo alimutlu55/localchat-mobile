@@ -10,6 +10,7 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from 'react-native';
 import { X, AlertTriangle, Check } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -104,8 +105,9 @@ export function ReportModal({
       setTimeout(() => {
         handleClose();
       }, 2000);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Failed to submit report:', error);
+      Alert.alert('Error', error.message || 'Failed to submit report. Please try again.');
     } finally {
       setIsSubmitting(false);
     }

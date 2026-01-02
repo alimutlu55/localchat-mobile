@@ -89,8 +89,8 @@ export interface UseRoomStateReturn {
   // Operations
   // -------------------------------------------------------------------------
 
-  /** Join a room */
-  join: (room: Room) => Promise<Result<Room>>;
+  /** Join a room - requires user's current location for proximity validation */
+  join: (room: Room, userLocation: { latitude: number; longitude: number }) => Promise<Result<Room>>;
 
   /** Leave a room */
   leave: (roomId: string) => Promise<Result>;

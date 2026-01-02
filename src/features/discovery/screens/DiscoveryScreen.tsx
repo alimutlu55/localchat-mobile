@@ -31,21 +31,21 @@ import {
     ShapeSource,
     CircleLayer,
 } from '@maplibre/maplibre-react-native';
-import { MAP_CONFIG } from '../../../constants';
+import { MAP_CONFIG, CATEGORIES } from '../../../constants';
 import { Plus, Minus, Navigation, Menu, Map as MapIcon, List, Globe } from 'lucide-react-native';
 
 // Navigation
 import { RootStackParamList } from '../../../navigation/types';
 
 // Types
-import { Room, ClusterFeature } from '../../../types';
+import { Room, ClusterFeature, RoomCategory } from '../../../types';
 
 // Context
 import { useUIActions } from '../../../context';
 
 // Features
 import { useAuth } from '../../auth/hooks/useAuth';
-import { useRoomOperations, useMyRooms, useRoomDiscovery } from '../../rooms/hooks';
+import { useRoomOperations, useMyRooms, useRoomDiscovery, useRoomStore, selectSelectedCategory } from '../../rooms';
 
 // Components
 import { RoomListView, ServerRoomMarker, ServerClusterMarker } from '../components';
@@ -114,6 +114,14 @@ export default function DiscoveryScreen() {
     // ==========================================================================
 
     const { status: authStatus } = useAuth();
+
+    // Global Filter State
+    const selectedCategory = useRoomStore(selectSelectedCategory);
+
+    // Convert 'All' to undefined for the API
+    // AND convert Label to ID because API expects ID (e.g. "LOST_FOUND") not Label ("Lost & Found")
+    const categoryConfig = CATEGORIES.find(c => c.label === selectedCategory);
+    const categoryFilter = selectedCategory === 'All' ? undefined : (categoryConfig?.id || selectedCategory);
 
     // Track logout state synchronously to hide markers before unmounting
     // Prevents Fabric view recycling crash during navigation transitions
@@ -293,6 +301,8 @@ export default function DiscoveryScreen() {
         zoom,
         enabled: isMapReady && hasBoundsInitialized,
         isMapReady: isMapReady && hasBoundsInitialized,
+        category: undefined, // Filter only applies to List view (not map)
+        userLocation, // For visibility filtering - nearby rooms only visible within radius
     });
     // ConnectionBanner is now self-contained - no manual state needed here
 
@@ -326,6 +336,7 @@ export default function DiscoveryScreen() {
         latitude: userLocation?.latitude || 0,
         longitude: userLocation?.longitude || 0,
         autoFetch: viewMode === 'list' && !!userLocation,
+        category: categoryFilter as RoomCategory | undefined, // Pass global filter to list discovery
     });
 
     // Refresh discovery when switching to list view
@@ -333,6 +344,7 @@ export default function DiscoveryScreen() {
         if (viewMode === 'list' && userLocation) {
             refreshDiscovery();
         }
+        // Refresh when category changes is handled by useRoomDiscovery internal useEffect
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [viewMode, userLocation?.latitude, userLocation?.longitude]);
 
@@ -360,7 +372,11 @@ export default function DiscoveryScreen() {
 
     // Wrapper for joinRoom to match expected signature
     const joinRoom = async (room: Room): Promise<boolean> => {
-        const result = await join(room);
+        if (!userLocation) {
+            log.warn('Cannot join room - user location not available');
+            return false;
+        }
+        const result = await join(room, { latitude: userLocation.latitude, longitude: userLocation.longitude });
         return result.success;
     };
 

@@ -112,3 +112,48 @@ export function sortByDistance<T extends { distance?: number }>(rooms: T[]): T[]
     return distA - distB;
   });
 }
+
+/**
+ * Format a timestamp to relative time ago string
+ * 
+ * @param date Date object or ISO string or timestamp
+ * @returns Formatted string (e.g., "5m ago", "2h ago", "1d ago")
+ */
+export function formatTimeAgo(date: Date | string | number | undefined | null): string {
+  if (!date) {
+    return 'Just now';
+  }
+
+  const now = new Date();
+  const past = date instanceof Date ? date : new Date(date);
+
+  // Check for invalid date
+  if (isNaN(past.getTime())) {
+    return 'Just now';
+  }
+
+  const diffMs = now.getTime() - past.getTime();
+  const diffSeconds = Math.floor(diffMs / 1000);
+  const diffMinutes = Math.floor(diffSeconds / 60);
+  const diffHours = Math.floor(diffMinutes / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffSeconds < 60) {
+    return 'Just now';
+  }
+
+  if (diffMinutes < 60) {
+    return `${diffMinutes}m ago`;
+  }
+
+  if (diffHours < 24) {
+    return `${diffHours}h ago`;
+  }
+
+  if (diffDays < 7) {
+    return `${diffDays}d ago`;
+  }
+
+  // For older dates, show the actual date
+  return past.toLocaleDateString();
+}

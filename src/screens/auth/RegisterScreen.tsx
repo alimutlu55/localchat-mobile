@@ -113,10 +113,13 @@ export default function RegisterScreen() {
             {/* Display Name Input */}
             <View style={styles.inputGroup}>
               <View style={styles.inputContainer}>
-                <Text style={[
-                  styles.floatingLabel,
-                  displayName && styles.floatingLabelActive
-                ]}>
+                <Text
+                  style={[
+                    styles.floatingLabel,
+                    displayName ? styles.floatingLabelActive : {}
+                  ]}
+                  pointerEvents="none"
+                >
                   Display Name
                 </Text>
                 <TextInput
@@ -139,10 +142,13 @@ export default function RegisterScreen() {
             {/* Email Input */}
             <View style={styles.inputGroup}>
               <View style={styles.inputContainer}>
-                <Text style={[
-                  styles.floatingLabel,
-                  email && styles.floatingLabelActive
-                ]}>
+                <Text
+                  style={[
+                    styles.floatingLabel,
+                    email ? styles.floatingLabelActive : {}
+                  ]}
+                  pointerEvents="none"
+                >
                   Email
                 </Text>
                 <TextInput
@@ -166,10 +172,13 @@ export default function RegisterScreen() {
             {/* Password Input */}
             <View style={styles.inputGroup}>
               <View style={styles.inputContainer}>
-                <Text style={[
-                  styles.floatingLabel,
-                  password && styles.floatingLabelActive
-                ]}>
+                <Text
+                  style={[
+                    styles.floatingLabel,
+                    password ? styles.floatingLabelActive : {}
+                  ]}
+                  pointerEvents="none"
+                >
                   Password
                 </Text>
                 <TextInput
@@ -203,10 +212,13 @@ export default function RegisterScreen() {
             {/* Confirm Password Input */}
             <View style={styles.inputGroup}>
               <View style={styles.inputContainer}>
-                <Text style={[
-                  styles.floatingLabel,
-                  confirmPassword && styles.floatingLabelActive
-                ]}>
+                <Text
+                  style={[
+                    styles.floatingLabel,
+                    confirmPassword ? styles.floatingLabelActive : {}
+                  ]}
+                  pointerEvents="none"
+                >
                   Confirm Password
                 </Text>
                 <TextInput

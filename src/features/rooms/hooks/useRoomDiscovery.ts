@@ -109,9 +109,11 @@ export function useRoomDiscovery(
   const storeSetRooms = useRoomStore((s) => s.setRooms);
   const storeRooms = useRoomStore((s) => s.rooms); // Subscribe to rooms Map for reactivity
   const storeJoinedIds = useRoomStore((s) => s.joinedRoomIds);
+  const storeHiddenIds = useRoomStore((s) => s.hiddenRoomIds); // Subscribe to hidden rooms (banned users)
   const setDiscoveredRoomIds = useRoomStore((s) => s.setDiscoveredRoomIds);
   const addDiscoveredRoomIds = useRoomStore((s) => s.addDiscoveredRoomIds);
   const storeDiscoveredIds = useRoomStore((s) => s.discoveredRoomIds);
+  const storePendingIds = useRoomStore((s) => s.pendingRoomIds);
 
   // State
   const [isLoading, setIsLoading] = useState(false);
@@ -126,9 +128,24 @@ export function useRoomDiscovery(
 
   // Compute rooms from store
   // Note: We subscribe to storeRooms (the Map) so this recomputes when rooms are added/removed
+  // Also filters out hidden rooms (e.g., rooms the user is banned from)
   const rooms = useMemo(() => {
+
     const roomList: Room[] = [];
-    storeDiscoveredIds.forEach((id) => {
+    const seenIds = new Set<string>();
+
+    // Combine discovered rooms and pending rooms (e.g., user's newly created rooms)
+    // This ensures local rooms don't disappear if buried on page 2 of refresh
+    const allRoomIds = new Set([...storeDiscoveredIds, ...storePendingIds]);
+
+    allRoomIds.forEach((id) => {
+      if (seenIds.has(id)) return;
+      seenIds.add(id);
+
+      // Skip hidden rooms (banned users shouldn't see these rooms)
+      if (storeHiddenIds.has(id)) {
+        return;
+      }
       const room = storeRooms.get(id);
       if (room) {
         roomList.push({
@@ -139,14 +156,14 @@ export function useRoomDiscovery(
     });
     // Sort by distance (closest first)
     roomList.sort((a, b) => (a.distance || 0) - (b.distance || 0));
+
     return roomList;
-  }, [storeDiscoveredIds, storeRooms, storeJoinedIds]);
+  }, [storeDiscoveredIds, storePendingIds, storeRooms, storeJoinedIds, storeHiddenIds]);
 
   /**
    * Fetch rooms (initial or refresh)
    */
   const fetchRooms = useCallback(async (throwOnError = false) => {
-    log.debug('Fetching rooms', { latitude, longitude, radius, page: 0 });
     setIsLoading(true);
     setError(null);
 
@@ -160,7 +177,6 @@ export function useRoomDiscovery(
         category
       );
 
-      log.info('Fetched rooms', { count: result.rooms.length, hasNext: result.hasNext });
 
       // Update store with all rooms
       storeSetRooms(result.rooms);
@@ -173,7 +189,6 @@ export function useRoomDiscovery(
       setCurrentPage(1);
       hasFetchedRef.current = true;
     } catch (err) {
-      log.error('Failed to fetch rooms', err);
       setError(err instanceof Error ? err.message : 'Failed to fetch rooms');
       if (throwOnError) {
         throw err;
@@ -188,11 +203,9 @@ export function useRoomDiscovery(
    */
   const loadMore = useCallback(async () => {
     if (isLoadingMore || !hasMore) {
-      log.debug('Skip loadMore', { isLoadingMore, hasMore });
       return;
     }
 
-    log.debug('Loading more rooms', { page: currentPage });
     setIsLoadingMore(true);
 
     try {
@@ -205,7 +218,6 @@ export function useRoomDiscovery(
         category
       );
 
-      log.info('Loaded more rooms', { count: result.rooms.length, hasNext: result.hasNext });
 
       // Update store
       storeSetRooms(result.rooms);
@@ -216,7 +228,6 @@ export function useRoomDiscovery(
       setHasMore(result.hasNext);
       setCurrentPage((prev) => prev + 1);
     } catch (err) {
-      log.error('Failed to load more rooms', err);
       setError(err instanceof Error ? err.message : 'Failed to load more rooms');
     } finally {
       setIsLoadingMore(false);
@@ -245,23 +256,66 @@ export function useRoomDiscovery(
     [storeUpdateRoom]
   );
 
-  // Auto-fetch on mount if enabled
+  // Auto-fetch on mount or when filters change
   useEffect(() => {
-    if (autoFetch && !hasFetchedRef.current && latitude !== 0 && longitude !== 0) {
-      fetchRooms();
+    if (autoFetch && latitude !== 0 && longitude !== 0) {
+      // If filters changed or initial load, fetch
+      // We rely on fetchRooms to handle the actual fetching
+      // Note: We don't check hasFetchedRef here because we WANT to refetch on filter changes
+      fetchRooms(false);
     }
-  }, [autoFetch, latitude, longitude, fetchRooms]);
+  }, [autoFetch, latitude, longitude, radius, category, fetchRooms]);
 
   // Real-time updates for discovery list
   useEffect(() => {
+    /**
+     * Calculate distance between two points using Haversine formula
+     * @returns distance in meters
+     */
+    const calculateDistance = (
+      lat1: number, lon1: number,
+      lat2: number, lon2: number
+    ): number => {
+      const R = 6371e3; // Earth's radius in meters
+      const φ1 = lat1 * Math.PI / 180;
+      const φ2 = lat2 * Math.PI / 180;
+      const Δφ = (lat2 - lat1) * Math.PI / 180;
+      const Δλ = (lon2 - lon1) * Math.PI / 180;
+
+      const a = Math.sin(Δφ / 2) * Math.sin(Δφ / 2) +
+        Math.cos(φ1) * Math.cos(φ2) *
+        Math.sin(Δλ / 2) * Math.sin(Δλ / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+
+      return R * c;
+    };
+
     // Handle new rooms created anywhere
     const unsubCreated = eventBus.on('room.created', (payload) => {
+
       if (payload.room) {
-        log.debug('Real-time: Adding newly created room to discovery', { roomId: payload.roomId });
+        // Correctly handle nested location in real-time payload
+        const roomRadius = payload.room.radiusMeters || payload.room.radius || 0;
+        const roomLat = payload.room.location?.latitude ?? payload.room.latitude;
+        const roomLng = payload.room.location?.longitude ?? payload.room.longitude;
+
+
+        // Check visibility: Global rooms (radius = 0) are always visible
+        // Nearby rooms require user to be within the room's radius
+        if (roomRadius > 0 && roomLat !== undefined && roomLng !== undefined) {
+          const distanceToRoom = calculateDistance(latitude, longitude, roomLat, roomLng);
+
+          if (distanceToRoom > roomRadius) {
+            return;
+          }
+        }
+
+
         const room = {
           ...payload.room,
           expiresAt: payload.room.expiresAt ? new Date(payload.room.expiresAt) : new Date(),
           createdAt: payload.room.createdAt ? new Date(payload.room.createdAt) : new Date(),
+          radius: roomRadius, // Ensure radius is correctly set
         };
         storeSetRooms([room]);
         // 2. Add to discovery list (will be sorted by useMemo)
@@ -283,7 +337,7 @@ export function useRoomDiscovery(
       unsubCreated();
       unsubClosed();
     };
-  }, [storeSetRooms, addDiscoveredRoomIds, setDiscoveredRoomIds]);
+  }, [latitude, longitude, storeSetRooms, addDiscoveredRoomIds, setDiscoveredRoomIds]);
 
   return {
     rooms,

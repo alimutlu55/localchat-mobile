@@ -41,24 +41,10 @@ export function randomizeLocation(lat: number, lng: number, radiusMeters: number
 
 /**
  * Randomize location for room creation.
- * Applies 30% of room radius as privacy offset.
+ * Applies a fixed privacy offset to the room's stored location.
  */
 export function randomizeForRoomCreation(lat: number, lng: number, roomRadiusMeters: number): LocationCoordinates {
-    const privacyRadius = roomRadiusMeters * 0.3;
-    return randomizeLocation(lat, lng, privacyRadius);
-}
-
-/**
- * Randomize location for joining a room.
- */
-export function randomizeForRoomJoin(lat: number, lng: number, roomRadiusMeters: number): LocationCoordinates {
-    const privacyRadius = roomRadiusMeters * 0.5;
-    return randomizeLocation(lat, lng, privacyRadius);
-}
-
-/**
- * Randomize location for discovery queries.
- */
-export function randomizeForDiscovery(lat: number, lng: number): LocationCoordinates {
-    return randomizeLocation(lat, lng, 200);
+    // We use a fixed radius for privacy offset regardless of room visibility radius
+    // to ensure user privacy is protected even for small rooms.
+    return randomizeLocation(lat, lng, roomRadiusMeters);
 }

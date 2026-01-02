@@ -28,6 +28,9 @@ jest.mock('../../../src/services', () => ({
   wsService: require('../../mocks/authMocks').mockWsService,
 }));
 
+// Mock user location for join tests
+const mockUserLocation = { latitude: 40.7128, longitude: -74.006 };
+
 describe('Room Actions Integration', () => {
   beforeEach(() => {
     // Reset store
@@ -51,15 +54,15 @@ describe('Room Actions Integration', () => {
         const { result } = renderHook(() => useRoomOperations());
 
         const joinResult = await act(async () => {
-          return result.current.join(mockRoom);
+          return result.current.join(mockRoom, mockUserLocation);
         });
 
         expect(joinResult.success).toBe(true);
         expect(mockRoomService.joinRoom).toHaveBeenCalledWith(
           mockRoom.id,
-          mockRoom.latitude || 0,
-          mockRoom.longitude || 0,
-          mockRoom.radius
+          mockUserLocation.latitude,
+          mockUserLocation.longitude,
+          mockRoom.radius ?? 500
         );
 
         // Room should be in store and marked as joined
@@ -76,7 +79,7 @@ describe('Room Actions Integration', () => {
 
         // Start join (don't await)
         act(() => {
-          result.current.join(mockRoom);
+          result.current.join(mockRoom, mockUserLocation);
         });
 
         // Optimistic update should be applied immediately
@@ -100,7 +103,7 @@ describe('Room Actions Integration', () => {
         // Start join
         let joinPromise: Promise<any>;
         act(() => {
-          joinPromise = result.current.join(mockRoom);
+          joinPromise = result.current.join(mockRoom, mockUserLocation);
         });
 
         expect(result.current.isJoining(mockRoom.id)).toBe(true);
@@ -118,7 +121,7 @@ describe('Room Actions Integration', () => {
         const { result } = renderHook(() => useRoomOperations());
 
         const joinResult = await act(async () => {
-          return result.current.join(mockRoom);
+          return result.current.join(mockRoom, mockUserLocation);
         });
 
         expect(joinResult.success).toBe(false);
@@ -133,7 +136,7 @@ describe('Room Actions Integration', () => {
         const { result } = renderHook(() => useRoomOperations());
 
         const joinResult = await act(async () => {
-          return result.current.join(mockRoom);
+          return result.current.join(mockRoom, mockUserLocation);
         });
 
         expect(joinResult.success).toBe(false);
@@ -146,7 +149,7 @@ describe('Room Actions Integration', () => {
         const { result } = renderHook(() => useRoomOperations());
 
         const joinResult = await act(async () => {
-          return result.current.join(mockRoom);
+          return result.current.join(mockRoom, mockUserLocation);
         });
 
         expect(joinResult.success).toBe(true);
@@ -161,12 +164,12 @@ describe('Room Actions Integration', () => {
 
         // First join
         act(() => {
-          result.current.join(mockRoom);
+          result.current.join(mockRoom, mockUserLocation);
         });
 
         // Try second join immediately
         const secondResult = await act(async () => {
-          return result.current.join(mockRoom);
+          return result.current.join(mockRoom, mockUserLocation);
         });
 
         expect(secondResult.success).toBe(false);
@@ -181,7 +184,7 @@ describe('Room Actions Integration', () => {
         const { result } = renderHook(() => useRoomOperations());
 
         await act(async () => {
-          await result.current.join(mockRoom);
+          await result.current.join(mockRoom, mockUserLocation);
         });
 
         expect(mockRoomService.getRoom).toHaveBeenCalledWith(mockRoom.id);
@@ -403,7 +406,7 @@ describe('Room Actions Integration', () => {
 
       // Try to join while leaving
       const joinResult = await act(async () => {
-        return result.current.join(mockRoom);
+        return result.current.join(mockRoom, mockUserLocation);
       });
 
       expect(joinResult.success).toBe(false);
@@ -419,8 +422,8 @@ describe('Room Actions Integration', () => {
       // Join both rooms simultaneously
       const [result1, result2] = await act(async () => {
         return Promise.all([
-          result.current.join(room1),
-          result.current.join(room2),
+          result.current.join(room1, mockUserLocation),
+          result.current.join(room2, mockUserLocation),
         ]);
       });
 

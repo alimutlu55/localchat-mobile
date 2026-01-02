@@ -19,7 +19,7 @@
 
 import { api } from './api';
 import { Room, RoomParticipant, CreateRoomRequest, RoomCategory, RoomSortBy, ClusterResponse } from '../types';
-import { randomizeForRoomCreation, randomizeForRoomJoin, randomizeForDiscovery } from '../utils/locationPrivacy';
+import { randomizeForRoomCreation } from '../utils/locationPrivacy';
 import { createLogger } from '../shared/utils/logger';
 
 const log = createLogger('RoomService');
@@ -95,6 +95,7 @@ function transformRoom(dto: RoomDTO): Room {
     isExpiringSoon = false;
   }
 
+
   return {
     id: dto.id,
     title: dto.title,
@@ -160,11 +161,9 @@ class RoomService {
     radius?: number,
     category?: RoomCategory
   ): Promise<{ rooms: Room[]; hasNext: boolean; totalElements: number }> {
-    const randomized = randomizeForDiscovery(latitude, longitude);
-
     const params = new URLSearchParams({
-      latitude: randomized.lat.toString(),
-      longitude: randomized.lng.toString(),
+      latitude: latitude.toString(),
+      longitude: longitude.toString(),
       page: page.toString(),
       pageSize: pageSize.toString(),
     });
@@ -177,6 +176,7 @@ class RoomService {
       params.append('category', category);
     }
 
+
     // Backend wraps response in ApiResponse { data: PagedResult<RoomDTO> }
     const response = await api.get<{
       data: {
@@ -187,6 +187,7 @@ class RoomService {
         hasNext: boolean;
       }
     }>(`/rooms/discover?${params}`);
+
 
     return {
       rooms: response.data.content.map(transformRoom),
@@ -247,11 +248,9 @@ class RoomService {
    */
   async joinRoom(roomId: string, latitude: number, longitude: number, roomRadius: number = 500): Promise<void> {
     log.info('joinRoom start', { roomId, latitude, longitude, roomRadius });
-    const randomized = randomizeForRoomJoin(latitude, longitude, roomRadius);
-    log.debug('joinRoom randomized', { roomId, ...randomized });
     await api.post(`/rooms/${roomId}/join`, {
-      latitude: randomized.lat,
-      longitude: randomized.lng
+      latitude,
+      longitude
     });
     log.info('joinRoom finished', { roomId });
   }
@@ -350,6 +349,8 @@ class RoomService {
    * @param maxLat Northern boundary latitude
    * @param zoom Current map zoom level (1-20)
    * @param category Optional category filter
+   * @param userLat User's latitude for visibility filtering
+   * @param userLng User's longitude for visibility filtering
    * @returns ClusterResponse with GeoJSON features and metadata
    */
   async getClusters(
@@ -358,7 +359,9 @@ class RoomService {
     maxLng: number,
     maxLat: number,
     zoom: number,
-    category?: string
+    category?: string,
+    userLat?: number,
+    userLng?: number
   ): Promise<ClusterResponse> {
     const params = new URLSearchParams({
       minLng: minLng.toString(),
@@ -370,6 +373,13 @@ class RoomService {
 
     if (category) {
       params.append('category', category);
+    }
+
+    // Pass user location for visibility filtering
+    // Nearby rooms are only visible if user is within the room's radius
+    if (userLat !== undefined && userLng !== undefined) {
+      params.append('userLat', userLat.toString());
+      params.append('userLng', userLng.toString());
     }
 
     // Server returns ClusterResponse. We support both direct GeoJSON and ApiResponse-wrapped
