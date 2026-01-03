@@ -109,6 +109,11 @@ export interface RoomStoreState {
    * Replacing module-level state in useDiscoveryEvents
    */
   pendingRoomIds: Set<string>;
+
+  /**
+   * User's room creation quota
+   */
+  quota: { used: number; limit: number; resetAt: Date } | null;
 }
 
 export interface RoomStoreActions {
@@ -311,7 +316,15 @@ export interface RoomStoreActions {
   /**
    * Check if a room is pending
    */
+  /**
+   * Check if a room is pending
+   */
   isPending: (roomId: string) => boolean;
+
+  /**
+   * Set the user's room creation quota
+   */
+  setQuota: (quota: { used: number; limit: number; resetAt: Date } | null) => void;
 }
 
 export type RoomStore = RoomStoreState & RoomStoreActions;
@@ -337,6 +350,7 @@ const initialState: RoomStoreState = {
   hiddenRoomIds: new Set(),
   pendingRoomIds: new Set(),
   selectedCategory: 'All',
+  quota: null,
 };
 
 // =============================================================================
@@ -692,6 +706,10 @@ export const useRoomStore = create<RoomStore>()(
 
     isPending: (roomId) => {
       return get().pendingRoomIds.has(roomId);
+    },
+
+    setQuota: (quota) => {
+      set({ quota });
     },
   }))
 );

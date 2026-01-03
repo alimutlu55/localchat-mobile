@@ -73,6 +73,15 @@ export interface BannedUserDTO {
 }
 
 /**
+ * Room Quota from backend
+ */
+export interface RoomQuota {
+  used: number;
+  limit: number;
+  resetAt: string;
+}
+
+/**
  * Transform backend DTO to frontend Room model
  */
 function transformRoom(dto: RoomDTO): Room {
@@ -414,6 +423,14 @@ class RoomService {
 
     const response = await api.get<{ data: RoomDTO[] }>(`/rooms/search?${params}`);
     return response.data.map(transformRoom);
+  }
+
+  /**
+   * Get user's room creation quota
+   */
+  async getQuota(): Promise<RoomQuota> {
+    const response = await api.get<{ data: RoomQuota }>(`/rooms/quota`);
+    return response.data;
   }
 }
 

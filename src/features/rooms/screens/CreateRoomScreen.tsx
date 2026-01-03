@@ -41,6 +41,7 @@ import { RoomCategory } from '../../../types';
 // import { CATEGORIES } from '../../../constants'; // Unused
 import { useRoomStore } from '../store';
 import { useMyRooms } from '../hooks';
+import { useRoomQuota } from '../hooks/useRoomQuota';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'CreateRoom'>;
 
@@ -107,7 +108,7 @@ export default function CreateRoomScreen() {
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(true);
-  const [roomsCreatedToday] = useState(2); // Mock value for now
+  const { quota, refreshQuota, isLimitReached } = useRoomQuota();
 
   /**
    * Get current location on mount
@@ -204,6 +205,11 @@ export default function CreateRoomScreen() {
 
       // Add room to context so it receives WebSocket updates
       console.log('[CreateRoomScreen] Adding room to context before navigation');
+
+      // Refresh quota after creation to get latest used count and reset time
+      refreshQuota();
+
+      // Show success and navigate
       addCreatedRoom(roomWithCreatorFlag);
 
       // Navigate to the new room using new roomId-based pattern
@@ -519,7 +525,7 @@ export default function CreateRoomScreen() {
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
         <TouchableOpacity
           onPress={handleCreate}
-          disabled={isLoading || !title.trim() || !categoryLabel}
+          disabled={isLoading || !title.trim() || !categoryLabel || isLimitReached}
           activeOpacity={0.8}
         >
           <LinearGradient
@@ -528,18 +534,20 @@ export default function CreateRoomScreen() {
             end={{ x: 1, y: 0 }}
             style={[
               styles.createRoomButton,
-              (isLoading || !title.trim() || !categoryLabel) && { opacity: 0.5 }
+              (isLoading || !title.trim() || !categoryLabel || isLimitReached) && { opacity: 0.5 }
             ]}
           >
             {isLoading ? (
               <ActivityIndicator color="#fff" />
             ) : (
-              <Text style={styles.createRoomButtonText}>Create Room</Text>
+              <Text style={styles.createRoomButtonText}>
+                {isLimitReached ? "Daily Limit Reached" : "Create Room"}
+              </Text>
             )}
           </LinearGradient>
         </TouchableOpacity>
-        <Text style={styles.dailyLimitText}>
-          Daily limit: {roomsCreatedToday}/3 rooms
+        <Text style={[styles.dailyLimitText, isLimitReached && styles.limitReachedText]}>
+          Daily limit: {quota?.used ?? 0}/{quota?.limit ?? 10} rooms
         </Text>
       </View>
     </View>
@@ -885,5 +893,9 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontSize: 12,
     color: '#94a3b8',
+  },
+  limitReachedText: {
+    color: '#FF3B30',
+    fontWeight: '600',
   },
 });
