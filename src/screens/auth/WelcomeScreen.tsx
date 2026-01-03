@@ -154,18 +154,10 @@ export default function WelcomeScreen() {
             <Text style={styles.primaryButtonText}>Sign in with Email</Text>
           </TouchableOpacity>
 
-          {/* Google Sign-In */}
           <GoogleSignInButton
             onError={(error) => console.error('Google sign-in error:', error)}
             disabled={authLoading}
           />
-
-          {/* Divider */}
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>or</Text>
-            <View style={styles.dividerLine} />
-          </View>
 
           <TouchableOpacity
             style={styles.secondaryButton}
@@ -338,20 +330,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#dc2626',
     textAlign: 'center',
-  },
-  divider: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 8,
-  },
-  dividerLine: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#e5e7eb',
-  },
-  dividerText: {
-    fontSize: 12,
-    color: '#9ca3af',
-    paddingHorizontal: 12,
   },
 });
