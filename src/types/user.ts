@@ -91,3 +91,11 @@ export interface ProfileUpdateRequest {
   bio?: string;
 }
 
+/**
+ * Google OAuth Login Request
+ */
+export interface GoogleLoginRequest {
+  idToken: string;
+  deviceId?: string;
+  devicePlatform?: 'ios' | 'android' | 'web';
+}

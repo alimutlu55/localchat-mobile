@@ -10,6 +10,7 @@ export type {
   LoginRequest,
   RegisterRequest,
   AnonymousLoginRequest,
+  GoogleLoginRequest,
   AuthResponse,
   ProfileUpdateRequest,
 } from './user';

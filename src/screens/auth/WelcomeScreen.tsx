@@ -15,6 +15,7 @@ import { AuthStackParamList } from '../../navigation/types';
 import { onboardingService } from '../../services/onboarding';
 import { storage } from '../../services/storage';
 import { useAuth } from '../../features/auth';
+import { GoogleSignInButton } from '../../components/auth';
 
 type NavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Welcome'>;
 
@@ -152,6 +153,19 @@ export default function WelcomeScreen() {
             <Mail size={20} color="#1f2937" />
             <Text style={styles.primaryButtonText}>Sign in with Email</Text>
           </TouchableOpacity>
+
+          {/* Google Sign-In */}
+          <GoogleSignInButton
+            onError={(error) => console.error('Google sign-in error:', error)}
+            disabled={authLoading}
+          />
+
+          {/* Divider */}
+          <View style={styles.divider}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>or</Text>
+            <View style={styles.dividerLine} />
+          </View>
 
           <TouchableOpacity
             style={styles.secondaryButton}
@@ -324,5 +338,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#dc2626',
     textAlign: 'center',
+  },
+  divider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 8,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#e5e7eb',
+  },
+  dividerText: {
+    fontSize: 12,
+    color: '#9ca3af',
+    paddingHorizontal: 12,
   },
 });

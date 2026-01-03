@@ -176,6 +176,29 @@ class AuthService {
   }
 
   /**
+   * Login with Google OAuth
+   * Backend returns: { data: { accessToken, refreshToken, user, isNewUser } }
+   * 
+   * @param idToken The Google ID token obtained from Google Sign-In
+   */
+  async loginWithGoogle(idToken: string): Promise<User> {
+    const deviceId = await this.getDeviceId();
+    const request = {
+      idToken,
+      deviceId,
+      devicePlatform: this.getDevicePlatform(),
+    };
+
+    const response = await api.post<{ data: AuthResponse & { isNewUser?: boolean } }>(
+      '/auth/google',
+      request,
+      { skipAuth: true }
+    );
+    await this.handleAuthResponse(response.data);
+    return this.currentUser!;
+  }
+
+  /**
    * Logout user
    */
   async logout(): Promise<void> {

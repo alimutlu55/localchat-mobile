@@ -105,6 +105,11 @@ export interface AuthStoreActions {
     loginAnonymous: (displayName?: string) => Promise<void>;
 
     /**
+     * Login with Google OAuth
+     */
+    loginWithGoogle: (idToken: string) => Promise<void>;
+
+    /**
      * Logout user - orchestrated cleanup before state transition
      */
     logout: () => Promise<void>;
@@ -337,6 +342,52 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
         } catch (err) {
             const message = getErrorMessage(err, 'Anonymous login failed');
             log.warn('Anonymous login unsuccessful', { reason: message });
+            set({
+                status: 'guest',
+                error: message,
+                isLoading: false,
+                isAuthenticated: false,
+            });
+            useAppStore.getState().setAuthState('guest', null);
+            throw err;
+        }
+    },
+
+    loginWithGoogle: async (idToken: string) => {
+        const currentStatus = get().status;
+
+        // Prevent login if already authenticated or in transition
+        if (currentStatus === 'authenticated' || currentStatus === 'authenticating' || currentStatus === 'loggingOut') {
+            log.warn('Google login blocked - invalid state', { currentStatus });
+            return;
+        }
+
+        set({ status: 'authenticating', isLoading: true, error: null });
+        useAppStore.getState().setAuthState('authenticating', null);
+
+        try {
+            log.debug('Google login attempt');
+
+            // Call auth service
+            const user = await authService.loginWithGoogle(idToken);
+
+            // Update UserStore
+            useUserStore.getState().setUser(user);
+
+            // Connect WebSocket
+            await wsService.connect();
+
+            set({
+                status: 'authenticated',
+                isAuthenticated: true,
+                isLoading: false,
+                isInitializing: false,
+            });
+            useAppStore.getState().setAuthState('authenticated', user.id);
+            log.debug('Google login successful', { userId: user.id });
+        } catch (err) {
+            const message = getErrorMessage(err, 'Google login failed');
+            log.warn('Google login unsuccessful', { reason: message });
             set({
                 status: 'guest',
                 error: message,

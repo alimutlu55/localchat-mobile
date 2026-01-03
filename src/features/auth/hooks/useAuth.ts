@@ -47,6 +47,7 @@ export function useAuth() {
     const login = useAuthStore((state) => state.login);
     const register = useAuthStore((state) => state.register);
     const loginAnonymous = useAuthStore((state) => state.loginAnonymous);
+    const loginWithGoogle = useAuthStore((state) => state.loginWithGoogle);
     const logout = useAuthStore((state) => state.logout);
     const deleteAccount = useAuthStore((state) => state.deleteAccount);
     const error = useAuthStore((state) => state.error);
@@ -81,6 +82,7 @@ export function useAuth() {
         login,
         register,
         loginAnonymous,
+        loginWithGoogle,
         logout,
         deleteAccount,
         clearError,
