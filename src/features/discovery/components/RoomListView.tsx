@@ -2,40 +2,26 @@
  * RoomListView Component
  *
  * List view displaying nearby rooms with search, category filters, and sorting.
- * Matches web RoomListView.tsx design.
+ * Uses decomposed components for search, filters, and room items.
  */
 
 import React, { useState, useMemo, useCallback, memo, useEffect } from 'react';
 import {
     View,
     Text,
-    StyleSheet,
-    ScrollView,
-    TextInput,
     TouchableOpacity,
     FlatList,
     ActivityIndicator,
     Modal,
-    Dimensions,
     Animated,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
     Search,
-    X,
     SlidersHorizontal,
     MapPin,
-    Users,
-    Clock,
-    ChevronRight,
-    LogIn,
-    Check,
-    Zap,
-    Sparkles,
-    Plus,
     ArrowUp,
 } from 'lucide-react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { Room } from '../../../types';
 import { useMyRooms, useRoomDiscovery, useRoomStore, selectSelectedCategory } from '../../rooms';
 import { CATEGORIES } from '../../../constants';
@@ -43,16 +29,14 @@ import { calculateDistance } from '../../../utils/format';
 import { theme } from '../../../core/theme';
 import { roomService } from '../../../services/room';
 
-// Build category filter options: ['All', 'Food & Dining', 'Events', ...]
-const CATEGORY_FILTERS = ['All', ...CATEGORIES.map(cat => cat.label)];
+// Decomposed components
+import { ListViewSearch } from '../list/ListViewSearch';
+import { ListViewFilters, type ListViewSortOption } from '../list/ListViewFilters';
+import { ListViewItem } from '../list/ListViewItem';
 
-// Helper to get category label from ID
-const getCategoryLabel = (categoryId: string): string => {
-    const category = CATEGORIES.find(cat => cat.id === categoryId);
-    return category?.label || categoryId;
-};
+// Styles
+import { styles } from './RoomListView.styles';
 
-type SortOption = 'nearest' | 'most-active' | 'expiring-soon' | 'newest';
 
 interface RoomListViewProps {
     rooms: Room[];
@@ -67,36 +51,8 @@ interface RoomListViewProps {
 }
 
 /**
- * Category Chip Component
- * Memoized to prevent unnecessary re-renders
- */
-const CategoryChip = memo(function CategoryChip({
-    label,
-    isSelected,
-    onPress,
-}: {
-    label: string;
-    isSelected: boolean;
-    onPress: () => void;
-}) {
-    return (
-        <TouchableOpacity
-            style={[styles.categoryChip, isSelected && styles.categoryChipSelected]}
-            onPress={onPress}
-            activeOpacity={0.7}
-        >
-            <Text
-                style={[styles.categoryChipText, isSelected && styles.categoryChipTextSelected]}
-            >
-                {label}
-            </Text>
-        </TouchableOpacity>
-    );
-});
-
-/**
  * Room List Item Wrapper - connects to RoomContext
- * NOT memoized because it needs to re-render when RoomContext changes
+ * Uses the decomposed ListViewItem component
  */
 function RoomListItemWrapper({
     room,
@@ -109,192 +65,27 @@ function RoomListItemWrapper({
     onEnterRoom?: (room: Room) => void;
     userLocation?: { latitude: number; longitude: number; lat?: number; lng?: number } | null;
 }) {
-    // Use centralized hook to check if room is joined
     const { isJoined } = useMyRooms();
     const hasJoined = isJoined(room.id);
 
+    // Convert userLocation to format expected by ListViewItem
+    const normalizedLocation = userLocation ? {
+        latitude: userLocation.latitude,
+        longitude: userLocation.longitude,
+    } : null;
+
     return (
-        <RoomListItem
+        <ListViewItem
             room={room}
             hasJoined={hasJoined}
             onJoin={onJoin}
-            onEnterRoom={onEnterRoom}
-            userLocation={userLocation}
+            onEnter={onEnterRoom}
+            userLocation={normalizedLocation}
         />
     );
 }
 
-/**
- * Room List Item Component
- * Memoized with custom comparison to prevent unnecessary re-renders
- */
-const RoomListItem = memo(function RoomListItem({
-    room,
-    hasJoined,
-    onJoin,
-    onEnterRoom,
-    userLocation,
-}: {
-    room: Room;
-    hasJoined: boolean;
-    onJoin?: (room: Room) => void;
-    onEnterRoom?: (room: Room) => void;
-    userLocation?: { latitude: number; longitude: number; lat?: number; lng?: number } | null;
-}) {
-    const [isJoining, setIsJoining] = useState(false);
-
-    // No local joinSuccess state - rely entirely on hasJoined from context
-    // This prevents stale state when user leaves and returns
-
-    // Calculate room distance
-    const roomDistance = useMemo(() => {
-        // Only use pre-calculated distance if it's a valid positive value
-        // (distance: 0 or undefined means we need to calculate it)
-        if (room.distance !== undefined && room.distance > 0) {
-            return room.distance;
-        }
-        // Calculate distance from user location if available
-        if (room.latitude && room.longitude && userLocation) {
-            const userLat = userLocation.lat || userLocation.latitude;
-            const userLng = userLocation.lng || userLocation.longitude;
-            if (userLat && userLng) {
-                return calculateDistance(userLat, userLng, room.latitude, room.longitude);
-            }
-        }
-        return 0;
-    }, [room.distance, room.latitude, room.longitude, userLocation]);
-
-    const getTimeColor = () => {
-        const hoursLeft = (room.expiresAt.getTime() - Date.now()) / (1000 * 60 * 60);
-        if (hoursLeft < 0.25) return theme.tokens.text.error;
-        if (hoursLeft < 1) return theme.tokens.brand.primary;
-        return theme.tokens.text.success;
-    };
-
-    const formatDistance = (meters: number): string => {
-        if (meters < 500) {
-            return 'Nearby';
-        }
-        if (meters < 1000) {
-            return `${Math.round(meters)}m away`;
-        }
-        const km = meters / 1000;
-        if (km < 10) {
-            return `${km.toFixed(1)}km away`;
-        }
-        return `${Math.round(km)}km away`;
-    };
-
-    const getDistanceColor = (meters: number): string => {
-        if (meters < 500) return theme.tokens.text.success; // Green - very close
-        if (meters < 2000) return theme.tokens.brand.primary; // Orange - nearby
-        return theme.tokens.text.tertiary; // Gray - far
-    };
-
-    const getGradientColors = () => {
-        // Soft Peach/Apricot Palette - "Just enough color"
-        if (room.isExpiringSoon) return [theme.palette.orange[400], theme.palette.orange[300]]; // Warmer orange-peach
-
-        // Smooth Peach - A step up from cream, elegant and visible
-        return [theme.tokens.action.secondary.default, theme.tokens.action.secondary.active]; // Very light peach to soft apricot
-    };
-
-    const handlePress = () => {
-        if (hasJoined) {
-            onEnterRoom?.(room);
-        } else {
-            onJoin?.(room);
-        }
-    };
-
-    return (
-        <TouchableOpacity
-            style={styles.roomCard}
-            onPress={handlePress}
-            activeOpacity={0.8}
-        >
-            <View style={styles.roomCardContent}>
-                {/* Emoji with Gradient Background */}
-                <View style={styles.emojiContainer}>
-                    <LinearGradient
-                        colors={getGradientColors() as [string, string, ...string[]]}
-                        start={{ x: 0, y: 0 }}
-                        end={{ x: 1, y: 1 }}
-                        style={styles.roomEmoji}
-                    >
-                        <Text style={styles.roomEmojiText}>{room.emoji}</Text>
-                    </LinearGradient>
-
-                    {/* Status Badges */}
-                    <View style={styles.statusBadgesContainer}>
-                        {room.isNew && (
-                            <View style={[styles.statusBadge, styles.newBadge]}>
-                                <Sparkles size={8} color={theme.tokens.text.onPrimary} />
-                                <Text style={styles.statusBadgeText}>New</Text>
-                            </View>
-                        )}
-                        {room.isHighActivity && (
-                            <View style={[styles.statusBadge, styles.activeBadge]}>
-                                <Zap size={8} color={theme.tokens.text.onPrimary} />
-                                <Text style={styles.statusBadgeText}>Active</Text>
-                            </View>
-                        )}
-                    </View>
-                </View>
-
-                {/* Info */}
-                <View style={styles.roomInfo}>
-                    <View style={styles.titleRow}>
-                        <Text style={styles.roomTitle} numberOfLines={1}>
-                            {room.title}
-                        </Text>
-                        <View style={styles.topRightMeta}>
-                            {room.isExpiringSoon && (
-                                <Clock size={12} color={theme.tokens.brand.primary} strokeWidth={3} />
-                            )}
-                            <Text style={[styles.metaText, { color: getDistanceColor(roomDistance), fontWeight: '600' }]}>
-                                {formatDistance(roomDistance)}
-                            </Text>
-                        </View>
-                    </View>
-
-                    {/* Meta Row: People & Time */}
-                    <View style={styles.roomMeta}>
-                        <View style={styles.metaItem}>
-                            <Users size={12} color={theme.tokens.text.tertiary} />
-                            <Text style={styles.metaText}>
-                                {room.participantCount}
-                            </Text>
-                        </View>
-                        <View style={styles.metaItem}>
-                            <Clock size={12} color={getTimeColor()} />
-                            <Text style={[styles.timeText, { color: getTimeColor() }]}>
-                                {room.timeRemaining}
-                            </Text>
-                        </View>
-                        <View style={styles.categoryBadge}>
-                            <Text style={styles.categoryBadgeText}>{getCategoryLabel(room.category)}</Text>
-                        </View>
-                    </View>
-
-                    {room.description ? (
-                        <Text style={styles.roomDescription} numberOfLines={1}>
-                            {room.description}
-                        </Text>
-                    ) : null}
-                </View>
-            </View>
-        </TouchableOpacity>
-    );
-}, (prevProps, nextProps) => {
-    // Custom comparison function for optimal re-render control
-    return (
-        prevProps.room.id === nextProps.room.id &&
-        prevProps.room.participantCount === nextProps.room.participantCount &&
-        prevProps.room.isExpiringSoon === nextProps.room.isExpiringSoon &&
-        prevProps.hasJoined === nextProps.hasJoined
-    );
-});
+// RoomListItem is now provided by ListViewItem component
 
 /**
  * Empty State Component
@@ -368,7 +159,7 @@ export function RoomListView({
     const selectedCategory = useRoomStore(selectSelectedCategory);
     const setSelectedCategory = useRoomStore((state) => state.setSelectedCategory);
 
-    const [sortBy, setSortBy] = useState<SortOption>('nearest');
+    const [sortBy, setSortBy] = useState<ListViewSortOption>('nearest');
     const [showFilters, setShowFilters] = useState(false);
 
     // Join Confirmation State
@@ -631,78 +422,23 @@ export function RoomListView({
                     </TouchableOpacity>
                 </View>
 
-                {/* Search */}
-                <View style={styles.searchContainer}>
-                    <Search size={18} color={theme.tokens.text.tertiary} style={styles.searchIcon} />
-                    <TextInput
-                        style={styles.searchInput}
-                        placeholder="Search rooms..."
-                        placeholderTextColor={theme.tokens.text.tertiary}
-                        value={searchQuery}
-                        onChangeText={setSearchQuery}
-                        autoCapitalize="none"
-                    />
-                    {searchQuery.length > 0 && (
-                        <TouchableOpacity style={styles.clearButton} onPress={handleClearSearch}>
-                            <X size={16} color={theme.tokens.text.tertiary} />
-                        </TouchableOpacity>
-                    )}
-                    {isSearching && (
-                        <ActivityIndicator
-                            size="small"
-                            color={theme.tokens.brand.primary}
-                            style={styles.searchLoadingIndicator}
-                        />
-                    )}
-                </View>
+                {/* Search - Using decomposed component */}
+                <ListViewSearch
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                    onClear={handleClearSearch}
+                    isSearching={isSearching}
+                />
             </View>
 
-            {/* Sort Options (when filter visible) */}
-            {showFilters && (
-                <View style={styles.filterPanel}>
-                    <View style={styles.filterRow}>
-                        <Text style={styles.filterLabel}>Sort by:</Text>
-                        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-                            {(['nearest', 'most-active', 'expiring-soon', 'newest'] as SortOption[]).map(
-                                (option) => (
-                                    <TouchableOpacity
-                                        key={option}
-                                        style={[styles.sortChip, sortBy === option && styles.sortChipSelected]}
-                                        onPress={() => setSortBy(option)}
-                                    >
-                                        <Text
-                                            style={[
-                                                styles.sortChipText,
-                                                sortBy === option && styles.sortChipTextSelected,
-                                            ]}
-                                        >
-                                            {option.replace('-', ' ')}
-                                        </Text>
-                                    </TouchableOpacity>
-                                )
-                            )}
-                        </ScrollView>
-                    </View>
-                </View>
-            )}
-
-            {/* Category Chips */}
-            <View style={styles.categoriesContainer}>
-                <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.categoriesContent}
-                >
-                    {CATEGORY_FILTERS.map((category) => (
-                        <CategoryChip
-                            key={category}
-                            label={category}
-                            isSelected={selectedCategory === category}
-                            onPress={() => setSelectedCategory(category)}
-                        />
-                    ))}
-                </ScrollView>
-            </View>
+            {/* Filters - Using decomposed component */}
+            <ListViewFilters
+                selectedCategory={selectedCategory}
+                onCategorySelect={setSelectedCategory}
+                sortBy={sortBy}
+                onSortSelect={setSortBy}
+                showFilters={showFilters}
+            />
 
             {/* Room List Content */}
             {isLoading ? (
@@ -844,504 +580,5 @@ export function RoomListView({
     );
 }
 
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: theme.tokens.bg.canvas,
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: theme.tokens.bg.canvas,
-    },
-    loadingText: {
-        marginTop: 12,
-        fontSize: 14,
-        color: '#6b7280',
-    },
-    header: {
-        backgroundColor: theme.tokens.bg.surface,
-        borderBottomWidth: 1,
-        borderBottomColor: theme.tokens.border.subtle,
-        paddingHorizontal: 16,
-        paddingTop: 24,
-        paddingBottom: 12,
-    },
-    headerTop: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    headerTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: '#1f2937',
-    },
-    filterButton: {
-        width: 36,
-        height: 36,
-        borderRadius: 12,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    filterButtonActive: {
-        backgroundColor: '#fff7ed',
-    },
-    searchContainer: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        backgroundColor: '#f3f4f6',
-        borderRadius: 12,
-        paddingHorizontal: 12,
-    },
-    searchIcon: {
-        marginRight: 8,
-    },
-    searchInput: {
-        flex: 1,
-        height: 44,
-        fontSize: 15,
-        color: '#1f2937',
-    },
-    clearButton: {
-        width: 24,
-        height: 24,
-        borderRadius: 12,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#e5e7eb',
-    },
-    searchLoadingIndicator: {
-        marginLeft: 4,
-    },
-    filterPanel: {
-        backgroundColor: '#ffffff',
-        borderBottomWidth: 1,
-        borderBottomColor: '#e5e7eb',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-    },
-    filterRow: {
-        flexDirection: 'row',
-        alignItems: 'center',
-    },
-    filterLabel: {
-        fontSize: 14,
-        color: '#6b7280',
-        marginRight: 12,
-    },
-    sortChip: {
-        paddingHorizontal: 12,
-        paddingVertical: 6,
-        borderRadius: 8,
-        backgroundColor: theme.tokens.bg.subtle,
-        marginRight: 8,
-    },
-    sortChipSelected: {
-        backgroundColor: '#fff7ed',
-    },
-    sortChipText: {
-        fontSize: 13,
-        color: '#6b7280',
-        textTransform: 'capitalize',
-    },
-    sortChipTextSelected: {
-        color: '#FF6410',
-        fontWeight: '500',
-    },
-    categoriesContainer: {
-        backgroundColor: '#ffffff',
-        borderBottomWidth: 1,
-        borderBottomColor: '#e5e7eb',
-        paddingVertical: 12,
-    },
-    categoriesContent: {
-        paddingHorizontal: 16,
-        gap: 8,
-    },
-    categoryChip: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 20,
-        backgroundColor: '#f3f4f6',
-        marginRight: 8,
-    },
-    categoryChipSelected: {
-        backgroundColor: '#FF6410',
-    },
-    categoryChipText: {
-        fontSize: 14,
-        color: '#6b7280',
-    },
-    categoryChipTextSelected: {
-        color: '#ffffff',
-        fontWeight: '500',
-    },
-    roomList: {
-        flex: 1,
-    },
-    roomListContent: {
-        padding: 16,
-    },
-    group: {
-        marginBottom: 24,
-    },
-    groupTitle: {
-        fontSize: 13,
-        fontWeight: '500',
-        color: '#6b7280',
-        marginBottom: 12,
-        paddingHorizontal: 4,
-    },
-    roomCard: {
-        backgroundColor: '#ffffff',
-        borderRadius: 12,
-        padding: 12,
-        marginBottom: 8,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
-        elevation: 2,
-        borderWidth: 1,
-        borderColor: '#f3f4f6',
-    },
-    roomCardContent: {
-        flexDirection: 'row',
-        gap: 12,
-    },
-    emojiContainer: {
-        position: 'relative',
-    },
-    roomEmoji: {
-        width: 40,
-        height: 40,
-        borderRadius: 10,
-        backgroundColor: '#f3f4f6', // Softer default gray
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    actionBadge: {
-        position: 'absolute',
-        top: -4,
-        right: -4,
-        width: 16,
-        height: 16,
-        borderRadius: 8,
-        backgroundColor: '#FF6410',
-        borderWidth: 2,
-        borderColor: '#ffffff',
-        justifyContent: 'center',
-        alignItems: 'center',
-        zIndex: 10,
-    },
-    roomEmojiText: {
-        fontSize: 20,
-    },
-    roomInfo: {
-        flex: 1,
-    },
-    roomTitle: {
-        fontSize: 15,
-        fontWeight: '600',
-        color: '#1f2937',
-        marginBottom: 2,
-    },
-    roomDescription: {
-        fontSize: 12,
-        color: '#6b7280',
-        marginTop: 4,
-        lineHeight: 16,
-    },
-    roomMeta: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 8,
-    },
-    metaItem: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-    },
-    metaText: {
-        fontSize: 12,
-        color: '#6b7280',
-    },
-    bottomMetaRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginTop: 6,
-    },
-    badgesWrapper: {
-        flexDirection: 'row',
-        gap: 6,
-        alignItems: 'center',
-    },
-    categoryBadge: {
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        borderRadius: 6,
-        backgroundColor: '#f3e8ff',
-    },
-    categoryBadgeText: {
-        fontSize: 10,
-        color: '#7c3aed',
-        fontWeight: '600',
-    },
-    timeBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 4,
-        backgroundColor: '#f9fafb',
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        borderRadius: 6,
-    },
-    timeText: {
-        fontSize: 11,
-        fontWeight: '500',
-    },
-    statusBadge: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 2,
-        paddingHorizontal: 4,
-        paddingVertical: 1,
-        borderRadius: 6,
-        borderWidth: 1,
-        borderColor: '#ffffff',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.1,
-        shadowRadius: 1,
-        elevation: 1,
-    },
-    newBadge: {
-        backgroundColor: '#10b981',
-    },
-    activeBadge: {
-        backgroundColor: '#f43f5e',
-    },
-    scrollTopButtonContainer: {
-        position: 'absolute',
-        top: 190, // Positioned closer to categories (was 200)
-        left: 0,
-        right: 0,
-        alignItems: 'center',
-        zIndex: 50,
-    },
-    scrollTopButton: {
-        backgroundColor: 'rgba(243, 244, 246, 0.8)', // Semi-transparent pale gray
-        width: 36, // Small circle
-        height: 36,
-        borderRadius: 18,
-        alignItems: 'center',
-        justifyContent: 'center',
-        borderWidth: 1,
-        borderColor: 'rgba(229, 231, 235, 0.8)', // Semi-transparent border
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 3,
-        elevation: 3,
-    },
-    statusBadgeText: {
-        color: '#ffffff',
-        fontSize: 7,
-        fontWeight: '700',
-    },
-    titleRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: 2,
-    },
-    topRightMeta: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        gap: 6,
-    },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: 'rgba(0, 0, 0, 0.5)',
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 24,
-    },
-    modalContent: {
-        backgroundColor: '#ffffff',
-        borderRadius: 28,
-        padding: 20,
-        width: '100%',
-        maxWidth: 320,
-        alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 10 },
-        shadowOpacity: 0.08,
-        shadowRadius: 15,
-        elevation: 8,
-    },
-    modalHeader: {
-        alignItems: 'center',
-        marginBottom: 20,
-    },
-    modalEmojiContainer: {
-        width: 56,
-        height: 56,
-        borderRadius: 18,
-        backgroundColor: '#fff7ed',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 12,
-    },
-    modalEmoji: {
-        fontSize: 28,
-    },
-    modalTitle: {
-        fontSize: 18,
-        fontWeight: '700',
-        color: '#1f2937',
-        textAlign: 'center',
-        marginBottom: 6,
-    },
-    modalSubtitle: {
-        fontSize: 14,
-        color: '#6b7280',
-        textAlign: 'center',
-    },
-    modalActions: {
-        flexDirection: 'row',
-        gap: 12,
-        width: '100%',
-    },
-    cancelButton: {
-        flex: 1,
-        paddingVertical: 12,
-        borderRadius: 14,
-        backgroundColor: '#f1f5f9',
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    cancelButtonText: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#64748b',
-    },
-    confirmButton: {
-        flex: 1,
-        paddingVertical: 12,
-        borderRadius: 14,
-        backgroundColor: '#FF6410',
-        alignItems: 'center',
-        justifyContent: 'center',
-        shadowColor: '#FF6410',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.2,
-        shadowRadius: 8,
-        elevation: 4,
-    },
-    confirmButtonText: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#ffffff',
-    },
-    statusBadgesContainer: {
-        position: 'absolute',
-        bottom: -6,
-        left: -4,
-        right: -4,
-        flexDirection: 'row',
-        justifyContent: 'center',
-        gap: 4,
-    },
-    emptyState: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        padding: 24,
-    },
-    emptyIcon: {
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        backgroundColor: '#fff7ed',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    emptyIconSearch: {
-        width: 64,
-        height: 64,
-        borderRadius: 32,
-        backgroundColor: '#f3f4f6',
-        justifyContent: 'center',
-        alignItems: 'center',
-        marginBottom: 16,
-    },
-    emptyTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: '#1f2937',
-        marginBottom: 8,
-    },
-    emptySubtitle: {
-        fontSize: 14,
-        color: '#6b7280',
-        textAlign: 'center',
-        marginBottom: 24,
-    },
-    emptyButton: {
-        paddingHorizontal: 24,
-        paddingVertical: 12,
-        backgroundColor: '#FF6410',
-        borderRadius: 16,
-    },
-    emptyButtonText: {
-        fontSize: 15,
-        fontWeight: '600',
-        color: '#ffffff',
-    },
-    emptyButtonSecondary: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        backgroundColor: '#f3f4f6',
-        borderRadius: 8,
-        marginBottom: 16,
-    },
-    emptyButtonSecondaryText: {
-        fontSize: 14,
-        color: '#6b7280',
-    },
-    footer: {
-        textAlign: 'center',
-        fontSize: 13,
-        color: '#6b7280',
-        paddingVertical: 16,
-    },
-    loadingMoreContainer: {
-        flexDirection: 'row',
-        justifyContent: 'center',
-        alignItems: 'center',
-        paddingVertical: 20,
-        gap: 12,
-    },
-    loadingMoreText: {
-        fontSize: 14,
-        color: '#6b7280',
-        fontWeight: '500',
-    },
-    endOfListContainer: {
-        paddingVertical: 20,
-        alignItems: 'center',
-    },
-    endOfListText: {
-        fontSize: 13,
-        color: '#16a34a',
-        fontWeight: '600',
-    },
-});
 
 export default RoomListView;

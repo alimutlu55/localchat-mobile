@@ -12,11 +12,9 @@
  */
 
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { eventBus } from '../../../core/events';
 import {
     View,
     Text,
-    StyleSheet,
     TouchableOpacity,
     ActivityIndicator,
     Animated,
@@ -27,9 +25,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
     MapView,
     Camera,
-    PointAnnotation,
-    ShapeSource,
-    CircleLayer,
 } from '@maplibre/maplibre-react-native';
 import { MAP_CONFIG, CATEGORIES } from '../../../constants';
 import { Plus, Minus, Navigation, Menu, Map as MapIcon, List, Globe } from 'lucide-react-native';
@@ -48,39 +43,29 @@ import { useAuth } from '../../auth/hooks/useAuth';
 import { useRoomOperations, useMyRooms, useRoomDiscovery, useRoomStore, selectSelectedCategory } from '../../rooms';
 
 // Components
-import { RoomListView, ServerRoomMarker, ServerClusterMarker } from '../components';
 import { ConnectionBanner } from '../../../components/chat/ConnectionBanner';
+import { MapViewMarkers } from '../map/MapViewMarkers';
+import { MapViewLocation } from '../map/MapViewLocation';
+import RoomListView from '../components/RoomListView';
 
 // Hooks
 import { useMapState, useUserLocation, useServerClustering } from '../hooks';
+import { useDiscoveryViewState } from '../hooks/state/useDiscoveryViewState';
+import { useDiscoveryFilters } from '../hooks/state/useDiscoveryFilters';
+import { useMapTransitions } from '../hooks/animations/useMapTransitions';
 
 // Network - ConnectionBanner is self-contained, no imports needed here
 
 // Styles
 import { HUDDLE_MAP_STYLE } from '../../../styles/mapStyle';
+import { styles } from './DiscoveryScreen.styles';
 
 // Utils
 import { createLogger } from '../../../shared/utils/logger';
-import { EPS_BY_ZOOM, calcOptimalZoomForCluster, calcAnimationDuration as calcClusterAnimationDuration } from '../../../utils/clustering';
+import { calcOptimalZoomForCluster, calcAnimationDuration as calcClusterAnimationDuration } from '../../../utils/clustering';
 
 const log = createLogger('Discovery');
 
-// Category to emoji fallback map (matches CreateRoomScreen.tsx CATEGORY_OPTIONS)
-const CATEGORY_EMOJI_MAP: Record<string, string> = {
-    TRAFFIC: '🚗',
-    EVENTS: '🎉',
-    EMERGENCY: '🚨',
-    LOST_FOUND: '🔍',
-    SPORTS: '⚽',
-    FOOD: '🍕',
-    NEIGHBORHOOD: '🏘️',
-    GENERAL: '💬',
-};
-
-function getCategoryEmoji(category?: string): string {
-    if (!category) return '💬';
-    return CATEGORY_EMOJI_MAP[category.toUpperCase()] || '💬';
-}
 
 /**
  * Serializes a room object for safe navigation (replaces Dates with strings)
@@ -107,8 +92,14 @@ type ViewMode = 'map' | 'list';
 export default function DiscoveryScreen() {
     const navigation = useNavigation<NavigationProp>();
 
-    // View mode state
-    const [viewMode, setViewMode] = useState<ViewMode>('map');
+    // View mode state (decomposed hook)
+    const {
+        mode: viewMode,
+        setMode: setViewMode,
+        isTransitioning: isViewTransitioning,
+        shouldRenderMap,
+        listOpacity,
+    } = useDiscoveryViewState({ initialMode: 'map' });
 
     // ==========================================================================
     // Auth Status & Logout Protection
@@ -134,48 +125,13 @@ export default function DiscoveryScreen() {
     }
 
     // ==========================================================================
-    // Map Initialization & Smooth Transitions
+    // Map Initialization & Smooth Transitions (decomposed hook)
     // ==========================================================================
 
-    // Map stabilization state - prevents marker rendering until map is fully ready
-    // This fixes a native crash where MapLibre tries to insert nil subviews
-    const [isMapStable, setIsMapStable] = useState(false);
+    // NOTE: Using useMapTransitions hook for stabilization and animations
+    // We receive isMapReady from useMapState below, so we initialize transitions
+    // after useMapState is called. This is done by passing isMapReady as a param.
 
-    // Track if initial data has loaded - prevent marker rendering during first fetch
-    const [hasInitialData, setHasInitialData] = useState(false);
-
-    // Markers render only when map is ready, data loaded, and not logging out
-    const canRenderMarkers = isMapStable && hasInitialData && authStatus !== 'loggingOut' && !isLoggingOutRef.current;
-
-    // Map overlay opacity - fades out to reveal map smoothly
-    const mapOverlayOpacity = useRef(new Animated.Value(1)).current;
-
-    // Markers opacity - fade in markers after map is stable
-    const markersOpacity = useRef(new Animated.Value(0)).current;
-
-    // Animation for view switching
-    const listOpacity = useRef(new Animated.Value(0)).current;
-
-    // Map unmounting for performance - completely stops MapView resource usage when in List mode
-    const [shouldRenderMap, setShouldRenderMap] = useState(viewMode === 'map');
-
-    useEffect(() => {
-        Animated.timing(listOpacity, {
-            toValue: viewMode === 'list' ? 1 : 0,
-            duration: 150,
-            useNativeDriver: true,
-        }).start();
-
-        if (viewMode === 'map') {
-            setShouldRenderMap(true);
-        } else {
-            // Keep map for transition duration, then unmount to save resources
-            const timer = setTimeout(() => {
-                setShouldRenderMap(false);
-            }, 300);
-            return () => clearTimeout(timer);
-        }
-    }, [viewMode, listOpacity]);
 
     // ==========================================================================
     // Hooks
@@ -209,9 +165,7 @@ export default function DiscoveryScreen() {
         maxZoom: 12,
     });
 
-    // User location pulse animation - after userLocation is declared
-    const [isPulsing, setIsPulsing] = useState(false);
-    const userLocationPulseAnim = useRef(new Animated.Value(1)).current;
+    // NOTE: User location pulse animation is now handled internally by MapViewLocation component
 
     // Zoom ref to avoid stale closures in press handlers
     const zoomRef = useRef(zoom);
@@ -219,82 +173,26 @@ export default function DiscoveryScreen() {
         zoomRef.current = zoom;
     }, [zoom]);
 
-    useEffect(() => {
-        const interval = setInterval(() => {
-            setIsPulsing(p => !p);
-        }, 2000);
-        return () => clearInterval(interval);
-    }, []);
 
-    useEffect(() => {
-        if (userLocation) {
-            const pulseAnimation = Animated.loop(
-                Animated.sequence([
-                    Animated.timing(userLocationPulseAnim, {
-                        toValue: 1.3,
-                        duration: 1500,
-                        useNativeDriver: true,
-                    }),
-                    Animated.timing(userLocationPulseAnim, {
-                        toValue: 1,
-                        duration: 1500,
-                        useNativeDriver: true,
-                    }),
-                ])
-            );
-            pulseAnimation.start();
+    // Map transitions (decomposed hook) - provides stabilization and animation values
+    const {
+        isMapStable,
+        hasInitialData,
+        canRenderMarkers: baseCanRenderMarkers,
+        overlayOpacity: mapOverlayOpacity,
+        markersOpacity,
+        setDataLoaded,
+    } = useMapTransitions({ isMapReady });
 
-            return () => {
-                pulseAnimation.stop();
-            };
-        }
-    }, [userLocation, userLocationPulseAnim]);
+    // CRITICAL: Add auth logout guard to marker rendering
+    // Prevents Fabric view recycling crash during navigation transitions
+    const canRenderMarkers = baseCanRenderMarkers && authStatus !== 'loggingOut' && !isLoggingOutRef.current;
 
-    // Smooth map initialization sequence
-    // CRITICAL: Increased delays to prevent MapLibre native crashes
-    // The native layer needs time to stabilize before React adds markers
-    useEffect(() => {
-        if (isMapReady) {
-            // Phase 1: Wait for map to stabilize internally (300ms - increased from 100ms)
-            // This gives MapLibre time to finish internal setup
-            const stabilizeTimer = setTimeout(() => {
-                setIsMapStable(true);
-                log.debug('Map stabilized, starting fade-in sequence');
-
-                // Phase 2: Fade out the overlay to reveal the map (300ms)
-                Animated.timing(mapOverlayOpacity, {
-                    toValue: 0,
-                    duration: 300,
-                    useNativeDriver: true,
-                }).start();
-
-                // Phase 3: Fade in markers after rooms have loaded (500ms delay, 400ms fade)
-                // Increased delay to ensure room fetch has completed
-                setTimeout(() => {
-                    Animated.timing(markersOpacity, {
-                        toValue: 1,
-                        duration: 400,
-                        useNativeDriver: true,
-                    }).start();
-                }, 500);
-            }, 300);
-
-            return () => clearTimeout(stabilizeTimer);
-        } else {
-            // Reset animations when map is not ready
-            setIsMapStable(false);
-            mapOverlayOpacity.setValue(1);
-            markersOpacity.setValue(0);
-        }
-    }, [isMapReady, mapOverlayOpacity, markersOpacity]);
 
     const {
         features: serverFeatures,
-        setFeatures: setServerFeatures,
         isLoading: isLoadingClusters,
-        error: clusterError,
         metadata: clusterMetadata,
-        refetch: refetchClusters,
         prefetchForLocation,
         prefetchForWorldView,
     } = useServerClustering({
@@ -312,15 +210,14 @@ export default function DiscoveryScreen() {
         if (!hasInitialData && !isLoadingClusters && isMapStable) {
             // We have initial data if loading finished, regardless of feature count
             const timer = setTimeout(() => {
-                setHasInitialData(true);
+                setDataLoaded();
                 log.debug('Initial data sync complete', { featureCount: serverFeatures.length });
             }, 50);
             return () => clearTimeout(timer);
         }
-    }, [isLoadingClusters, hasInitialData, isMapStable, serverFeatures.length]);
+    }, [isLoadingClusters, hasInitialData, isMapStable, serverFeatures.length, setDataLoaded]);
 
     const { join } = useRoomOperations();
-    const { activeRooms: myActiveRooms } = useMyRooms();
 
     // ==========================================================================
     // List View: Proximity-based room discovery with pagination
@@ -332,7 +229,6 @@ export default function DiscoveryScreen() {
         hasMore: hasMoreRooms,
         loadMore: loadMoreRooms,
         refresh: refreshDiscovery,
-        error: discoveryError,
     } = useRoomDiscovery({
         latitude: userLocation?.latitude || 0,
         longitude: userLocation?.longitude || 0,
@@ -362,8 +258,6 @@ export default function DiscoveryScreen() {
         );
     }, [userLocation, bounds]);
 
-    // Local state for selected room
-    const [selectedRoom, setSelectedRoom] = useState<Room | null>(null);
     const [selectedFeature, setSelectedFeature] = useState<ClusterFeature | null>(null);
 
     // Handle marker deselection (user tapped elsewhere on map)
@@ -381,28 +275,6 @@ export default function DiscoveryScreen() {
         return result.success;
     };
 
-    // Extract rooms from server features for list view
-    const activeRooms = useMemo(() => {
-        return serverFeatures
-            .filter(f => !f.properties.cluster && f.properties.roomId)
-            .map(f => ({
-                id: f.properties.roomId!,
-                title: f.properties.title || '',
-                category: f.properties.category as Room['category'],
-                emoji: f.properties.categoryIcon || getCategoryEmoji(f.properties.category),
-                participantCount: f.properties.participantCount || 0,
-                status: f.properties.status as Room['status'],
-                latitude: f.geometry.coordinates[1],
-                longitude: f.geometry.coordinates[0],
-                expiresAt: f.properties.expiresAt ? new Date(f.properties.expiresAt) : new Date(),
-                createdAt: new Date(),
-                maxParticipants: 500,
-                distance: 0,
-                timeRemaining: '',
-                isCreator: f.properties.isCreator,
-                hasJoined: f.properties.hasJoined,
-            } as Room));
-    }, [serverFeatures]);
 
     // Total events count from server metadata
     const totalEventsInView = clusterMetadata?.totalRooms || serverFeatures.length;
@@ -550,14 +422,6 @@ export default function DiscoveryScreen() {
         [isMapReady, cameraRef, prefetchForLocation]
     );
 
-    const handleRoomPress = useCallback(
-        (room: Room) => {
-            log.debug('Room pressed', { roomId: room.id });
-            setSelectedRoom(room);
-            navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: room });
-        },
-        [navigation]
-    );
 
     const handleCreateRoom = useCallback(() => {
         navigation.navigate('CreateRoom');
@@ -649,78 +513,20 @@ export default function DiscoveryScreen() {
                         />
 
 
-                        {/* User Location Indicator - Using Layer for zero-interaction and perfect layering */}
-                        {userLocation && (
-                            <ShapeSource
-                                id="user-location-source"
-                                shape={{
-                                    type: 'Feature',
-                                    geometry: {
-                                        type: 'Point',
-                                        coordinates: [userLocation.longitude, userLocation.latitude]
-                                    },
-                                    properties: {}
-                                }}
-                            >
-                                {/* Pulse - Animated via native transitions to stay behind and non-blocking */}
-                                <CircleLayer
-                                    id="user-location-pulse"
-                                    style={{
-                                        circleColor: 'rgba(37, 99, 235, 0.1)',
-                                        circleRadius: isPulsing ? 35 : 25,
-                                        circleRadiusTransition: { duration: 2000, delay: 0 },
-                                        circleStrokeColor: 'rgba(37, 99, 235, 0.2)',
-                                        circleStrokeWidth: 1,
-                                        circleOpacity: isMapStable ? 1 : 0,
-                                        circleOpacityTransition: { duration: 1000, delay: 0 },
-                                    }}
-                                />
-                                {/* The Dot: Blue with white border for premium look */}
-                                <CircleLayer
-                                    id="user-location-dot"
-                                    style={{
-                                        circleColor: '#2563eb',
-                                        circleRadius: 6,
-                                        circleStrokeColor: '#ffffff',
-                                        circleStrokeWidth: 2.5,
-                                        circleOpacity: isMapStable ? 1 : 0,
-                                        circlePitchAlignment: 'map',
-                                    }}
-                                />
-                            </ShapeSource>
-                        )}
-
-                        {/* Server-Side Room & Cluster Markers - Gated for stability */}
-                        {canRenderMarkers && serverFeatures.map((feature) => {
-                            if (feature.properties.cluster) {
-                                // Cluster marker
-                                if (feature.properties.clusterId == null) {
-                                    return null;
-                                }
-                                return (
-                                    <ServerClusterMarker
-                                        key={`server-cluster-${feature.properties.clusterId}`}
-                                        feature={feature}
-                                        onPress={handleServerClusterPress}
-                                        onDeselect={handleMarkerDeselect}
-                                    />
-                                );
-                            }
-
-                            // Individual room marker
-                            if (!feature.properties.roomId) {
-                                return null;
-                            }
-                            return (
-                                <ServerRoomMarker
-                                    key={`server-room-${feature.properties.roomId}`}
-                                    feature={feature}
-                                    isSelected={selectedFeature?.properties.roomId === feature.properties.roomId}
-                                    onPress={handleServerRoomPress}
-                                    onDeselect={handleMarkerDeselect}
-                                />
-                            );
-                        })}
+                        {/* User Location Indicator (decomposed component) */}
+                        <MapViewLocation
+                            location={userLocation}
+                            isMapStable={isMapStable}
+                        />
+                        {/* Server-Side Room & Cluster Markers (decomposed component) */}
+                        <MapViewMarkers
+                            features={serverFeatures}
+                            canRenderMarkers={canRenderMarkers}
+                            selectedFeature={selectedFeature}
+                            onRoomPress={handleServerRoomPress}
+                            onClusterPress={handleServerClusterPress}
+                            onDeselect={handleMarkerDeselect}
+                        />
                     </MapView>
                 )}
 
@@ -868,264 +674,3 @@ export default function DiscoveryScreen() {
     );
 }
 
-// =============================================================================
-// Styles
-// =============================================================================
-
-const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        backgroundColor: '#f3f4f6',
-    },
-    loadingContainer: {
-        flex: 1,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#ffffff',
-    },
-    loadingText: {
-        marginTop: 16,
-        fontSize: 16,
-        color: '#6b7280',
-    },
-    mapContainer: {
-        ...StyleSheet.absoluteFillObject,
-    },
-    map: {
-        flex: 1,
-    },
-    mapLoadingOverlay: {
-        ...StyleSheet.absoluteFillObject,
-        backgroundColor: '#f9fafb',
-        justifyContent: 'center',
-        alignItems: 'center',
-        zIndex: 10,
-    },
-    mapLoadingContent: {
-        alignItems: 'center',
-        gap: 16,
-    },
-    mapLoadingText: {
-        fontSize: 16,
-        color: '#6b7280',
-        fontWeight: '500',
-    },
-    listContainer: {
-        ...StyleSheet.absoluteFillObject,
-        paddingTop: 100,
-        backgroundColor: '#f9fafb',
-    },
-    header: {
-        position: 'absolute',
-        top: 0,
-        left: 0,
-        right: 0,
-        backgroundColor: 'rgba(255, 255, 255, 0.95)',
-        borderBottomWidth: 1,
-        borderBottomColor: '#e5e7eb',
-    },
-    headerContent: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        paddingHorizontal: 16,
-        paddingVertical: 12,
-    },
-    hamburgerButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 12,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    headerTitle: {
-        fontSize: 22,
-        fontWeight: '600',
-        color: '#1f2937',
-        textAlign: 'center',
-        flex: 1,
-    },
-    headerCreateButton: {
-        width: 36,
-        height: 36,
-        borderRadius: 12,
-        justifyContent: 'center',
-        alignItems: 'center',
-        backgroundColor: '#FF6410',
-    },
-    mapControls: {
-        position: 'absolute',
-        top: 150,
-        right: 10,
-        gap: 12,
-    },
-    controlButton: {
-        width: 48,
-        height: 48,
-        borderRadius: 16,
-        backgroundColor: '#ffffff',
-        justifyContent: 'center',
-        alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 4,
-        elevation: 3,
-        borderWidth: 1,
-        borderColor: '#e5e7eb',
-    },
-    controlButtonActive: {
-        backgroundColor: '#eff6ff',
-    },
-    zoomCard: {
-        backgroundColor: '#ffffff',
-        borderRadius: 16,
-        padding: 4,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 6,
-        elevation: 4,
-        borderWidth: 1,
-        borderColor: '#e5e7eb',
-    },
-    zoomButton: {
-        width: 40,
-        height: 40,
-        borderRadius: 12,
-        justifyContent: 'center',
-        alignItems: 'center',
-    },
-    zoomDivider: {
-        height: 1,
-        backgroundColor: '#e5e7eb',
-        marginVertical: 2,
-    },
-    eventsCounter: {
-        position: 'absolute',
-        bottom: 115,
-        left: 16,
-        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderRadius: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 6,
-        elevation: 3,
-        borderWidth: 1,
-        borderColor: 'rgba(229, 231, 235, 0.5)',
-    },
-    eventsCounterText: {
-        fontSize: 13,
-        color: '#4b5563',
-        fontWeight: '500',
-    },
-    userLocationMarkerContainer: {
-        width: 80,
-        height: 80,
-        alignItems: 'center',
-        justifyContent: 'center',
-    },
-    userLocationDot: {
-        width: 16,
-        height: 16,
-        backgroundColor: '#2563eb',
-        borderRadius: 8,
-        borderWidth: 4,
-        borderColor: '#ffffff',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.3,
-        shadowRadius: 8,
-        elevation: 3,
-    },
-    userLocationPulse: {
-        position: 'absolute',
-        width: 80,
-        height: 80,
-        borderRadius: 40,
-        backgroundColor: 'rgba(59, 130, 246, 0.1)',
-        borderWidth: 2,
-        borderColor: 'rgba(59, 130, 246, 0.3)',
-    },
-    viewToggleContainer: {
-        position: 'absolute',
-        bottom: 32,
-        left: 0,
-        right: 0,
-        alignItems: 'center',
-        zIndex: 100,
-    },
-    viewToggle: {
-        flexDirection: 'row',
-        backgroundColor: '#ffffff',
-        borderRadius: 16,
-        padding: 8,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 12,
-        elevation: 8,
-        borderWidth: 1,
-        borderColor: '#e5e7eb',
-    },
-    viewToggleButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 8,
-        paddingHorizontal: 16,
-        borderRadius: 12,
-        gap: 6,
-    },
-    viewToggleButtonActive: {
-        backgroundColor: '#FF6410',
-    },
-    viewToggleText: {
-        fontSize: 14,
-        color: '#6b7280',
-    },
-    viewToggleTextActive: {
-        fontSize: 14,
-        color: '#ffffff',
-        fontWeight: '500',
-    },
-    emptyState: {
-        position: 'absolute',
-        bottom: 100,
-        left: 20,
-        right: 20,
-        backgroundColor: '#ffffff',
-        borderRadius: 16,
-        padding: 24,
-        alignItems: 'center',
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.1,
-        shadowRadius: 12,
-        elevation: 5,
-    },
-    emptyTitle: {
-        fontSize: 18,
-        fontWeight: '600',
-        color: '#1f2937',
-        marginBottom: 8,
-    },
-    emptyText: {
-        fontSize: 14,
-        color: '#6b7280',
-        marginBottom: 16,
-    },
-    createButton: {
-        backgroundColor: '#FF6410',
-        paddingVertical: 12,
-        paddingHorizontal: 24,
-        borderRadius: 12,
-    },
-    createButtonText: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: '#ffffff',
-    },
-});

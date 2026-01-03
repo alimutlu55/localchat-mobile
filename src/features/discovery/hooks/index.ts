@@ -14,7 +14,15 @@
  * - useMapDiscovery: Combined discovery with clustering
  * - useMapControls: Map viewport controls (zoom, pan, fly)
  * - useViewportRoomDiscovery: Viewport-based room loading
+ *
+ * Decomposed (Phase 2):
+ * - hooks/state/: State management hooks (useDiscoveryViewState, useDiscoveryFilters)
+ * - hooks/animations/: Animation hooks (useMapTransitions)
  */
+
+// =============================================================================
+// ORIGINAL HOOKS
+// =============================================================================
 
 export { useMapState } from './useMapState';
 export type { UseMapStateReturn, UseMapStateOptions, MapCoordinate } from './useMapState';
@@ -47,3 +55,12 @@ export type { UseMapControlsOptions, UseMapControlsReturn, MapViewportState } fr
 export { useViewportRoomDiscovery } from './useViewportRoomDiscovery';
 export type { UseViewportRoomDiscoveryOptions, UseViewportRoomDiscoveryReturn } from './useViewportRoomDiscovery';
 
+// =============================================================================
+// DECOMPOSED HOOKS (Phase 2)
+// =============================================================================
+
+// State Hooks
+export * from './state';
+
+// Animation Hooks
+export * from './animations';
