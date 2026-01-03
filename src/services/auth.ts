@@ -204,7 +204,8 @@ class AuthService {
   async logout(): Promise<void> {
     try {
       // Notify server (best effort)
-      await api.post('/auth/logout', {}).catch(() => { });
+      const refreshToken = await secureStorage.get(STORAGE_KEYS.REFRESH_TOKEN);
+      await api.post('/auth/logout', { refreshToken }).catch(() => { });
     } finally {
       // Clear local state
       await secureStorage.remove(STORAGE_KEYS.AUTH_TOKEN);
