@@ -33,7 +33,7 @@ import { useProfileDrawer } from '../../features/user';
 
 // Sub-components
 import { ProfileHeader } from './ProfileHeader';
-import { UpgradeBanner } from './UpgradeBanner';
+
 import { ActiveRoomsList } from './ActiveRoomsList';
 import { AccountSettings } from './AccountSettings';
 import { NotificationSettings } from './NotificationSettings';
@@ -142,10 +142,7 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
                 onEditProfile={() => handleEditProfile(onClose)}
             />
 
-            <UpgradeBanner
-                isAnonymous={isAnonymous}
-                onUpgrade={() => handleUpgrade(onClose)}
-            />
+
 
             <ActiveRoomsList
                 rooms={myRooms}
@@ -177,24 +174,13 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
                 onReportProblemPress={() => setIsReportModalVisible(true)}
             />
 
-            {/* Log Out / Sign Up */}
-            {isAnonymous ? (
-                <TouchableOpacity
-                    style={styles.signInButton}
-                    onPress={() => handleUpgrade(onClose)}
-                >
-                    <UserPlus size={20} color="#374151" />
-                    <Text style={styles.signInText}>Sign Up or Log In</Text>
-                </TouchableOpacity>
-            ) : (
-                <TouchableOpacity
-                    style={styles.signOutButton}
-                    onPress={() => handleSignOut(onClose)}
-                >
-                    <LogOut size={20} color="#6b7280" />
-                    <Text style={styles.signOutText}>Log Out</Text>
-                </TouchableOpacity>
-            )}
+            <TouchableOpacity
+                style={styles.signOutButton}
+                onPress={() => handleSignOut(onClose)}
+            >
+                <LogOut size={20} color="#6b7280" />
+                <Text style={styles.signOutText}>Log Out</Text>
+            </TouchableOpacity>
         </View>
     );
 
@@ -370,21 +356,7 @@ const styles = StyleSheet.create({
         color: '#6b7280',
         marginLeft: 8,
     },
-    signInButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: '#f3f4f6',
-        borderRadius: 16,
-        paddingVertical: 14,
-        marginBottom: 20,
-    },
-    signInText: {
-        fontSize: 14,
-        fontWeight: '500',
-        color: '#374151',
-        marginLeft: 8,
-    },
+
     subPageHeader: {
         flexDirection: 'row',
         alignItems: 'center',

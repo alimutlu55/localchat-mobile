@@ -26,7 +26,7 @@ import { useNavigation } from '@react-navigation/native';
 import { ArrowLeft, Camera, User, Mail, Shield, FileText, Check } from 'lucide-react-native';
 import { useAuth } from '../features/auth';
 import { useCurrentUser } from '../features/user/store';
-import { AvatarPicker, UpgradeBenefitsModal, AvatarDisplay } from '../components/profile';
+import { AvatarPicker, AvatarDisplay } from '../components/profile';
 
 const MAX_DISPLAY_NAME_LENGTH = 30;
 const MAX_BIO_LENGTH = 150;
@@ -42,7 +42,6 @@ export default function EditProfileScreen() {
   const [avatarUrl, setAvatarUrl] = useState(user?.profilePhotoUrl || '');
   const [isLoading, setIsLoading] = useState(false);
   const [showAvatarPicker, setShowAvatarPicker] = useState(false);
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
 
   const [isSavingName, setIsSavingName] = useState(false);
   const [isSavingBio, setIsSavingBio] = useState(false);
@@ -158,22 +157,7 @@ export default function EditProfileScreen() {
     }
   };
 
-  /**
-   * Handle upgrade
-   */
-  const handleUpgrade = async () => {
-    setShowUpgradeModal(false);
-    setIsLoading(true);
-    try {
-      // @ts-ignore
-      await user?.isAnonymous ? Alert.alert('Info', 'In a real app, this would start the registration flow.') : null;
-      navigation.navigate('Onboarding');
-    } catch (error) {
-      Alert.alert('Error', 'Failed to initiate upgrade.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
+
 
   return (
     <SafeAreaView style={styles.container} edges={['top']}>
@@ -315,32 +299,7 @@ export default function EditProfileScreen() {
               </View>
             )}
 
-            {/* Account Type Badge */}
-            <View style={styles.accountTypeCard}>
-              <View style={styles.accountTypeIcon}>
-                <Shield size={24} color={user?.isAnonymous ? '#9ca3af' : '#22c55e'} />
-              </View>
-              <View style={styles.accountTypeContent}>
-                <Text style={styles.accountTypeTitle}>
-                  {user?.isAnonymous ? 'Anonymous Account' : 'Verified Account'}
-                </Text>
-                <Text style={styles.accountTypeDescription}>
-                  {user?.isAnonymous
-                    ? 'Upgrade to sync across devices'
-                    : 'Your account is linked to your email'}
-                </Text>
-              </View>
-            </View>
 
-            {/* Upgrade Button (for anonymous users) */}
-            {user?.isAnonymous && (
-              <TouchableOpacity
-                style={styles.upgradeButton}
-                onPress={() => setShowUpgradeModal(true)}
-              >
-                <Text style={styles.upgradeButtonText}>Upgrade Account</Text>
-              </TouchableOpacity>
-            )}
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -353,12 +312,7 @@ export default function EditProfileScreen() {
         onSelect={handleAvatarSelect}
       />
 
-      {/* Upgrade Benefits Modal */}
-      <UpgradeBenefitsModal
-        isOpen={showUpgradeModal}
-        onClose={() => setShowUpgradeModal(false)}
-        onUpgrade={handleUpgrade}
-      />
+
     </SafeAreaView>
   );
 }
@@ -523,48 +477,7 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#9ca3af',
   },
-  accountTypeCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    gap: 12,
-  },
-  accountTypeIcon: {
-    width: 48,
-    height: 48,
-    borderRadius: 12,
-    backgroundColor: '#f3f4f6',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  accountTypeContent: {
-    flex: 1,
-  },
-  accountTypeTitle: {
-    fontSize: 15,
-    fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 2,
-  },
-  accountTypeDescription: {
-    fontSize: 12,
-    color: '#6b7280',
-  },
-  upgradeButton: {
-    backgroundColor: '#FF6410',
-    paddingVertical: 16,
-    borderRadius: 12,
-    alignItems: 'center',
-  },
-  upgradeButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
-  },
+
   inlineSaveButton: {
     padding: 8,
     borderRadius: 8,

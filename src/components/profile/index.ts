@@ -5,5 +5,4 @@
  */
 
 export { AvatarPicker, AvatarDisplay, generateAvatarUrl } from './AvatarPicker';
-export { UpgradeBenefitsModal } from './UpgradeBenefitsModal';
 

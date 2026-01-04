@@ -77,6 +77,7 @@ const styles = StyleSheet.create({
         fontSize: 18,
         fontWeight: '600',
         color: '#1f2937',
+        marginTop: 12,
         marginBottom: 4,
     },
     profileEmail: {
