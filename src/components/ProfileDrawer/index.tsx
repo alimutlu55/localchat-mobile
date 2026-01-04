@@ -21,6 +21,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
     LogOut,
+    LogIn,
     ChevronRight,
     Trash2,
     X,
@@ -174,13 +175,23 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
                 onReportProblemPress={() => setIsReportModalVisible(true)}
             />
 
-            <TouchableOpacity
-                style={styles.signOutButton}
-                onPress={() => handleSignOut(onClose)}
-            >
-                <LogOut size={20} color="#6b7280" />
-                <Text style={styles.signOutText}>Log Out</Text>
-            </TouchableOpacity>
+            {isAnonymous ? (
+                <TouchableOpacity
+                    style={styles.signOutButton}
+                    onPress={() => handleUpgrade(onClose)}
+                >
+                    <LogIn size={20} color="#6b7280" />
+                    <Text style={styles.signOutText}>Sign In / Sign Up</Text>
+                </TouchableOpacity>
+            ) : (
+                <TouchableOpacity
+                    style={styles.signOutButton}
+                    onPress={() => handleSignOut(onClose)}
+                >
+                    <LogOut size={20} color="#6b7280" />
+                    <Text style={styles.signOutText}>Log Out</Text>
+                </TouchableOpacity>
+            )}
         </View>
     );
 
