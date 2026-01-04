@@ -185,7 +185,7 @@ export default function PrivacySettingsScreen() {
             try {
               Alert.alert(
                 'Export Requested',
-                'Your data export is being prepared. For now, please contact support@localchat.app to receive your data export.',
+                'Your data export is being prepared. For now, please contact localchat.official@gmail.com to receive your data export.',
                 [{ text: 'OK' }]
               );
               // TODO: Implement actual download when API is ready

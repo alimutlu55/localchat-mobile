@@ -116,8 +116,8 @@ export default function PrivacyPolicyScreen() {
                         nearby chat rooms and display your approximate position on the map
                     </Text>
                     <Text style={styles.bulletItem}>
-                        • Your exact location is <Text style={styles.bold}>never</Text> stored permanently
-                        on our servers
+                        • When you create a room, only an <Text style={styles.bold}>approximate location</Text> (randomly
+                        offset by ~500m) is stored—your exact position is never sent to our servers
                     </Text>
                     <Text style={styles.bulletItem}>
                         • Other users see only that you are "nearby" - they cannot see your exact coordinates
@@ -226,8 +226,8 @@ export default function PrivacyPolicyScreen() {
                         cleared on logout
                     </Text>
                     <Text style={styles.bulletItem}>
-                        • <Text style={styles.bold}>Location</Text> - Not stored permanently; used only
-                        for real-time room discovery
+                        • <Text style={styles.bold}>Location</Text> - Your exact location is never stored;
+                        room locations are approximate (~500m offset) and deleted when rooms expire
                     </Text>
 
                     <Text style={styles.paragraph}>

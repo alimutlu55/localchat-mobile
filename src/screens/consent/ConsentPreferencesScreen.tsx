@@ -109,8 +109,8 @@ export default function ConsentPreferencesScreen() {
                         <View style={styles.preferenceInfo}>
                             <Text style={styles.preferenceTitle}>Location Processing</Text>
                             <Text style={styles.preferenceDescription}>
-                                Real-time location is required for room discovery. Your exact
-                                coordinates are never permanently stored on our servers.
+                                Real-time location is required for room discovery. When you create
+                                a room, only an approximate location (~500m offset) is stored—never your exact position.
                             </Text>
                         </View>
                         <View style={styles.checkContainer}>

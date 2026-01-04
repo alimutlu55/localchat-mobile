@@ -99,7 +99,7 @@ export default function ConsentScreen() {
                     <Text style={[styles.dataTitle, { color: theme.tokens.text.primary }]}>What we collect:</Text>
                     <Text style={[styles.dataItem, { color: theme.tokens.text.secondary }]}>
                         • <Text style={[styles.bold, { color: theme.tokens.text.primary }]}>Location</Text> — Used in real-time to discover
-                        nearby rooms. Your exact coordinates are never permanently stored.
+                        nearby rooms. When you create a room, only an approximate location (within ~500m) is stored—never your exact position.
                     </Text>
                     <Text style={[styles.dataItem, { color: theme.tokens.text.secondary }]}>
                         • <Text style={[styles.bold, { color: theme.tokens.text.primary }]}>Rooms & Messages</Text> — Automatically deleted

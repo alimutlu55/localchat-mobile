@@ -480,7 +480,7 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
           onPress: () => {
             Alert.alert(
               'Export Requested',
-              'Your data export is being prepared. Please contact support@localchat.app to receive your data export.',
+              'Your data export is being prepared. Please contact localchat.official@gmail.com to receive your data export.',
               [{ text: 'OK' }]
             );
           },

@@ -243,11 +243,11 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
                 return renderSubPage(
                     'Help Center',
                     <View style={styles.subPageContent}>
-                        <TouchableOpacity onPress={() => Linking.openURL('mailto:support@localchat.app')}>
+                        <TouchableOpacity onPress={() => Linking.openURL('mailto:localchat.official@gmail.com')}>
                             <Text style={styles.infoText}>
                                 Need help? Contact us at{' '}
                                 <Text style={{ color: '#FF6410', fontWeight: '500' }}>
-                                    support@localchat.app
+                                    localchat.official@gmail.com
                                 </Text>
                             </Text>
                         </TouchableOpacity>

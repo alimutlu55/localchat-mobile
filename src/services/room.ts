@@ -220,10 +220,10 @@ class RoomService {
    * Backend returns: { data: RoomDTO }
    */
   async createRoom(request: CreateRoomRequest): Promise<Room> {
-    // Use a fixed privacy radius (200m) for room creation
+    // Use a fixed privacy radius (500m) for room creation
     // The visibility radius (radiusMeters) controls who can SEE the room, not where it's placed
     // These are separate concerns: privacy offset should not scale with visibility range
-    const FIXED_PRIVACY_RADIUS = 200;
+    const FIXED_PRIVACY_RADIUS = 500;
     const randomized = randomizeForRoomCreation(request.latitude, request.longitude, FIXED_PRIVACY_RADIUS);
     const safeRequest = {
       ...request,
