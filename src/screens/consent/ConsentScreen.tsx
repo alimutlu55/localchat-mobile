@@ -20,7 +20,7 @@ import {
     ScrollView,
     StatusBar,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MapPin, MessageCircle, Shield, Clock } from 'lucide-react-native';
@@ -33,6 +33,7 @@ type NavigationProp = NativeStackNavigationProp<any>;
 export default function ConsentScreen() {
     const navigation = useNavigation<NavigationProp>();
     const theme = useTheme();
+    const insets = useSafeAreaInsets();
 
     const handleAcceptAll = async () => {
         await consentService.acceptAll();
@@ -61,7 +62,7 @@ export default function ConsentScreen() {
     };
 
     return (
-        <SafeAreaView style={[styles.container, { backgroundColor: theme.tokens.bg.surface }]}>
+        <SafeAreaView style={[styles.container, { backgroundColor: theme.tokens.bg.surface }]} edges={['top']}>
             <StatusBar barStyle="dark-content" backgroundColor={theme.tokens.bg.surface} />
             <ScrollView
                 style={styles.scrollView}
@@ -70,17 +71,17 @@ export default function ConsentScreen() {
             >
                 {/* App Branding Icons - represent core features */}
                 <View style={styles.iconRow}>
-                    <View style={[styles.iconContainer, { borderColor: theme.tokens.border.subtle }]}>
-                        <MapPin size={36} color={theme.tokens.brand.primary} strokeWidth={1.5} />
+                    <View style={[styles.iconContainer, { backgroundColor: theme.tokens.brand.primary + '10', borderColor: theme.tokens.brand.primary + '20' }]}>
+                        <MapPin size={32} color={theme.tokens.brand.primary} strokeWidth={2} />
                     </View>
-                    <View style={[styles.iconContainer, { borderColor: theme.tokens.border.subtle }]}>
-                        <MessageCircle size={36} color={theme.tokens.brand.primary} strokeWidth={1.5} />
+                    <View style={[styles.iconContainer, { backgroundColor: theme.tokens.brand.primary + '10', borderColor: theme.tokens.brand.primary + '20' }]}>
+                        <MessageCircle size={32} color={theme.tokens.brand.primary} strokeWidth={2} />
                     </View>
-                    <View style={[styles.iconContainer, { borderColor: theme.tokens.border.subtle }]}>
-                        <Clock size={36} color={theme.tokens.brand.primary} strokeWidth={1.5} />
+                    <View style={[styles.iconContainer, { backgroundColor: theme.tokens.brand.primary + '10', borderColor: theme.tokens.brand.primary + '20' }]}>
+                        <Clock size={32} color={theme.tokens.brand.primary} strokeWidth={2} />
                     </View>
-                    <View style={[styles.iconContainer, { borderColor: theme.tokens.border.subtle }]}>
-                        <Shield size={36} color={theme.tokens.brand.primary} strokeWidth={1.5} />
+                    <View style={[styles.iconContainer, { backgroundColor: theme.tokens.brand.primary + '10', borderColor: theme.tokens.brand.primary + '20' }]}>
+                        <Shield size={32} color={theme.tokens.brand.primary} strokeWidth={2} />
                     </View>
                 </View>
 
@@ -131,23 +132,13 @@ export default function ConsentScreen() {
             </ScrollView>
 
             {/* Action Buttons */}
-            <View style={styles.buttonContainer}>
-                {/* Legal links - Sticky to buttons */}
-                <View style={[styles.legalLinks, { borderTopColor: theme.tokens.border.subtle }]}>
-                    <Text style={[styles.legalText, { color: theme.tokens.text.tertiary }]}>
-                        By continuing, you agree to our{' '}
-                        <Text style={[styles.link, { color: theme.tokens.brand.primary }]} onPress={handleViewTerms}>Terms of Service</Text>
-                        {' '}and{' '}
-                        <Text style={[styles.link, { color: theme.tokens.brand.primary }]} onPress={handleViewPrivacy}>Privacy Policy</Text>.
-                    </Text>
-                </View>
-
+            <View style={[styles.buttonContainer, { paddingBottom: Math.max(insets.bottom, 12) }]}>
                 <TouchableOpacity
-                    style={[styles.primaryButton, { backgroundColor: theme.tokens.bg.subtle }]}
+                    style={[styles.primaryButton, { backgroundColor: theme.tokens.brand.primary }]}
                     onPress={handleAcceptAll}
                     activeOpacity={0.8}
                 >
-                    <Text style={[styles.primaryButtonText, { color: theme.tokens.text.primary }]}>Accept all</Text>
+                    <Text style={[styles.primaryButtonText, { color: theme.tokens.text.onPrimary }]}>Accept all</Text>
                 </TouchableOpacity>
 
                 <TouchableOpacity
@@ -165,6 +156,16 @@ export default function ConsentScreen() {
                 >
                     <Text style={[styles.secondaryButtonText, { color: theme.tokens.text.secondary }]}>Only essential</Text>
                 </TouchableOpacity>
+
+                {/* Legal links moved to the bottom */}
+                <View style={[styles.legalLinks, { borderTopColor: theme.tokens.border.subtle }]}>
+                    <Text style={[styles.legalText, { color: theme.tokens.text.tertiary }]}>
+                        By continuing, you agree to our{' '}
+                        <Text style={[styles.link, { color: theme.tokens.brand.primary }]} onPress={handleViewTerms}>Terms of Service</Text>
+                        {' '}and{' '}
+                        <Text style={[styles.link, { color: theme.tokens.brand.primary }]} onPress={handleViewPrivacy}>Privacy Policy</Text>.
+                    </Text>
+                </View>
             </View>
         </SafeAreaView>
     );
@@ -242,8 +243,8 @@ const styles = StyleSheet.create({
         marginBottom: 6,
     },
     legalLinks: {
-        marginTop: 16,
-        paddingTop: 16,
+        marginTop: 8,
+        paddingTop: 8,
         borderTopWidth: 1,
     },
     legalText: {
@@ -256,12 +257,11 @@ const styles = StyleSheet.create({
     },
     buttonContainer: {
         paddingHorizontal: 24,
-        paddingBottom: 24,
-        gap: 12,
-        marginTop: 20, // Add margin to separate from content above
+        gap: 8,
+        marginTop: 12,
     },
     primaryButton: {
-        paddingVertical: 16,
+        paddingVertical: 12,
         borderRadius: 30,
         alignItems: 'center',
     },
@@ -270,7 +270,7 @@ const styles = StyleSheet.create({
         fontWeight: '600',
     },
     secondaryButton: {
-        paddingVertical: 16,
+        paddingVertical: 12,
         borderRadius: 30,
         alignItems: 'center',
         borderWidth: 1,
