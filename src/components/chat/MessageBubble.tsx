@@ -246,47 +246,74 @@ export function MessageBubble({
           )}
 
           {isOwn ? (
-            <View>
-              <TouchableOpacity
-                onPress={message.status === 'failed' ? handleRetry : handlePress}
-                onLongPress={message.status === 'failed' ? undefined : handleLongPress}
-                activeOpacity={0.85}
-              >
-                <LinearGradient
-                  colors={
-                    message.status === 'failed'
-                      ? [theme.tokens.status.error.main, theme.tokens.status.error.main]
-                      : [theme.tokens.brand.primary, theme.tokens.brand.secondary]
-                  }
-                  start={{ x: 0, y: 0 }}
-                  end={{ x: 1, y: 1 }}
-                  style={[
-                    styles.bubble,
-                    styles.bubbleOwn,
-                    message.status === 'failed' && styles.bubbleFailed,
-                  ]}
+            <View style={{ alignItems: 'flex-end' }}>
+              <View style={{ position: 'relative' }}>
+                <TouchableOpacity
+                  onPress={message.status === 'failed' ? handleRetry : handlePress}
+                  onLongPress={message.status === 'failed' ? undefined : handleLongPress}
+                  activeOpacity={0.85}
                 >
-                  <View style={styles.bubbleContentRow}>
-                    <Text style={[styles.messageText, styles.messageTextOwn]}>
-                      {message.content}
-                    </Text>
-                    <View style={styles.ownMessageMeta}>
-                      {message.status === 'failed' ? (
-                        <>
-                          <AlertCircle size={14} color={theme.tokens.text.onPrimary} />
-                        </>
-                      ) : (
-                        <>
-                          <Text style={styles.messageTimeOwn}>
-                            {formatTime(message.timestamp)}
-                          </Text>
-                          {getStatusIcon()}
-                        </>
-                      )}
+                  <LinearGradient
+                    colors={
+                      message.status === 'failed'
+                        ? [theme.tokens.status.error.main, theme.tokens.status.error.main]
+                        : [theme.tokens.brand.primary, theme.tokens.brand.secondary]
+                    }
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                    style={[
+                      styles.bubble,
+                      styles.bubbleOwn,
+                      message.status === 'failed' && styles.bubbleFailed,
+                      message.reactions && message.reactions.length > 0 && { marginBottom: 12 },
+                    ]}
+                  >
+                    <View style={styles.bubbleContentRow}>
+                      <Text style={[styles.messageText, styles.messageTextOwn]}>
+                        {message.content}
+                      </Text>
+                      <View style={styles.ownMessageMeta}>
+                        {message.status === 'failed' ? (
+                          <>
+                            <AlertCircle size={14} color={theme.tokens.text.onPrimary} />
+                          </>
+                        ) : (
+                          <>
+                            <Text style={styles.messageTimeOwn}>
+                              {formatTime(message.timestamp)}
+                            </Text>
+                            {getStatusIcon()}
+                          </>
+                        )}
+                      </View>
                     </View>
+                  </LinearGradient>
+                </TouchableOpacity>
+                {message.reactions && message.reactions.length > 0 && (
+                  <View style={[styles.reactionsContainer, styles.reactionsContainerOwn]}>
+                    {message.reactions.map((reaction, idx) => (
+                      <TouchableOpacity
+                        key={idx}
+                        style={[
+                          styles.reactionPill,
+                          styles.reactionPillOwn,
+                          reaction.userReacted && styles.reactionPillActiveOwn
+                        ]}
+                        onPress={() => onReact?.(message.id, reaction.emoji)}
+                      >
+                        <Text style={styles.reactionEmoji}>{reaction.emoji}</Text>
+                        <Text style={[
+                          styles.reactionCount,
+                          styles.reactionCountOwn,
+                          reaction.userReacted && styles.reactionCountActiveOwn
+                        ]}>
+                          {reaction.count}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
                   </View>
-                </LinearGradient>
-              </TouchableOpacity>
+                )}
+              </View>
               {/* Failed message retry hint */}
               {message.status === 'failed' && (
                 <TouchableOpacity
@@ -298,83 +325,65 @@ export function MessageBubble({
                   <Text style={styles.retryHintText}>Tap to retry</Text>
                 </TouchableOpacity>
               )}
-              {message.reactions && message.reactions.length > 0 && (
-                <View style={styles.reactionsContainer}>
-                  {message.reactions.map((reaction, idx) => (
-                    <TouchableOpacity
-                      key={idx}
-                      style={[
-                        styles.reactionPill,
-                        styles.reactionPillOwn,
-                        reaction.userReacted && styles.reactionPillActiveOwn
-                      ]}
-                      onPress={() => onReact?.(message.id, reaction.emoji)}
-                    >
-                      <Text style={styles.reactionEmoji}>{reaction.emoji}</Text>
-                      <Text style={[
-                        styles.reactionCount,
-                        styles.reactionCountOwn,
-                        reaction.userReacted && styles.reactionCountActiveOwn
-                      ]}>
-                        {reaction.count}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              )}
             </View>
           ) : (
-            <View style={styles.incomingContainer}>
-              <TouchableOpacity
-                style={styles.bubble}
-                onPress={handlePress}
-                onLongPress={handleLongPress}
-                activeOpacity={0.8}
-              >
-                <Text style={styles.messageText}>
-                  {message.content}
-                  {'  '}
-                  <Text style={styles.messageTimeInside}>
-                    {formatTime(message.timestamp)}
-                  </Text>
-                </Text>
-              </TouchableOpacity>
-              {message.reactions && message.reactions.length > 0 && (
-                <View style={styles.reactionsContainer}>
-                  {message.reactions.map((reaction, idx) => (
-                    <TouchableOpacity
-                      key={idx}
-                      style={[
-                        styles.reactionPill,
-                        styles.reactionPillIncoming,
-                        reaction.userReacted && styles.reactionPillActiveIncoming
-                      ]}
-                      onPress={() => onReact?.(message.id, reaction.emoji)}
-                    >
-                      <Text style={styles.reactionEmoji}>{reaction.emoji}</Text>
-                      <Text style={[
-                        styles.reactionCount,
-                        styles.reactionCountIncoming,
-                        reaction.userReacted && styles.reactionCountActiveIncoming
-                      ]}>
-                        {reaction.count}
+            <View style={{ alignItems: 'flex-start' }}>
+              <View style={{ position: 'relative' }}>
+                <View style={styles.incomingContainer}>
+                  <TouchableOpacity
+                    style={[
+                      styles.bubble,
+                      message.reactions && message.reactions.length > 0 && { marginBottom: 12 },
+                    ]}
+                    onPress={handlePress}
+                    onLongPress={handleLongPress}
+                    activeOpacity={0.8}
+                  >
+                    <Text style={styles.messageText}>
+                      {message.content}
+                      {'  '}
+                      <Text style={styles.messageTimeInside}>
+                        {formatTime(message.timestamp)}
                       </Text>
-                    </TouchableOpacity>
-                  ))}
+                    </Text>
+                  </TouchableOpacity>
                 </View>
-              )}
+                {message.reactions && message.reactions.length > 0 && (
+                  <View style={[styles.reactionsContainer, styles.reactionsContainerIncoming]}>
+                    {message.reactions.map((reaction, idx) => (
+                      <TouchableOpacity
+                        key={idx}
+                        style={[
+                          styles.reactionPill,
+                          styles.reactionPillIncoming,
+                          reaction.userReacted && styles.reactionPillActiveIncoming
+                        ]}
+                        onPress={() => onReact?.(message.id, reaction.emoji)}
+                      >
+                        <Text style={styles.reactionEmoji}>{reaction.emoji}</Text>
+                        <Text style={[
+                          styles.reactionCount,
+                          styles.reactionCountIncoming,
+                          reaction.userReacted && styles.reactionCountActiveIncoming
+                        ]}>
+                          {reaction.count}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
             </View>
           )}
         </View>
       </Animated.View >
 
       {/* Context Menu Modal */}
-      < Modal
+      <Modal
         visible={showContextMenu}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowContextMenu(false)
-        }
+        onRequestClose={() => setShowContextMenu(false)}
       >
         <Pressable
           style={styles.modalOverlay}
@@ -441,7 +450,7 @@ export function MessageBubble({
       </Modal >
 
       {/* Emoji Selector Drawer */}
-      < Modal
+      <Modal
         visible={showEmojiDrawer}
         transparent
         animationType="none"
@@ -632,40 +641,43 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     position: 'absolute',
-    bottom: -12,
-    left: -8,
-    zIndex: 10,
+    bottom: -8,
     gap: 4,
+    zIndex: 10,
+  },
+  reactionsContainerOwn: {
+    right: 4,
+  },
+  reactionsContainerIncoming: {
+    left: 4,
   },
   reactionPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 12,
+    paddingHorizontal: 5,
+    paddingVertical: 2,
+    height: 20,
+    borderRadius: 10,
     gap: 2,
-    borderWidth: 1.5,
-    shadowColor: theme.tokens.border.strong,
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 1,
-    elevation: 2,
+    borderWidth: 0,
   },
   reactionPillOwn: {
-    backgroundColor: theme.tokens.bg.surface,
-    borderColor: theme.tokens.border.subtle,
+    backgroundColor: 'transparent',
+    borderColor: 'transparent',
   },
   reactionPillIncoming: {
-    backgroundColor: theme.tokens.bg.surface,
-    borderColor: theme.tokens.border.subtle,
+    backgroundColor: 'transparent',
+    borderColor: 'transparent',
   },
   reactionPillActiveOwn: {
-    backgroundColor: theme.tokens.action.secondary.default,
-    borderColor: theme.tokens.brand.primary,
+    backgroundColor: 'transparent',
+    borderColor: 'transparent',
+    borderWidth: 0,
   },
   reactionPillActiveIncoming: {
-    backgroundColor: theme.tokens.action.secondary.default,
-    borderColor: theme.tokens.brand.primary,
+    backgroundColor: 'transparent',
+    borderColor: 'transparent',
+    borderWidth: 0,
   },
   reactionEmoji: {
     fontSize: 12,
@@ -681,10 +693,10 @@ const styles = StyleSheet.create({
     color: theme.tokens.text.secondary,
   },
   reactionCountActiveOwn: {
-    color: theme.tokens.brand.primary,
+    color: theme.tokens.text.secondary,
   },
   reactionCountActiveIncoming: {
-    color: theme.tokens.brand.primary,
+    color: theme.tokens.text.secondary,
   },
   ownMessageMeta: {
     flexDirection: 'row',
