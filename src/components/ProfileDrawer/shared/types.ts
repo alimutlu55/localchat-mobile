@@ -7,7 +7,7 @@ import { Room } from '../../../types';
 /**
  * Sub-page navigation type
  */
-export type SubPage = 'main' | 'location' | 'notifications' | 'language' | 'help' | 'blocked';
+export type SubPage = 'main' | 'location' | 'notifications' | 'language' | 'help' | 'blocked' | 'data-controls';
 
 /**
  * User statistics

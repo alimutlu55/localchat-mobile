@@ -16,6 +16,7 @@ import {
     Text,
     StyleSheet,
     TouchableOpacity,
+    Linking,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -38,6 +39,8 @@ import { AccountSettings } from './AccountSettings';
 import { NotificationSettings } from './NotificationSettings';
 import { AboutSection } from './AboutSection';
 import { BlockedUsersPage } from './BlockedUsersPage';
+import { DataControlsPage } from './DataControlsPage';
+import { ReportProblemModal } from './ReportProblemModal';
 import { Section, SettingRow } from './shared';
 import { SubPage } from './shared/types';
 
@@ -71,10 +74,11 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
         handleRoomPress,
         handleUpgrade,
         handleSignOut,
-        handleDeleteAccount,
         openTermsOfService,
         openPrivacyPolicy,
         openHelpCenter,
+        handleDeleteMyRooms,
+        handleHardDeleteAccount,
     } = useProfileDrawer();
     const insets = useSafeAreaInsets();
 
@@ -82,6 +86,7 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
     // Local State - UI only
     // =========================================================================
     const [currentPage, setCurrentPage] = useState<SubPage>('main');
+    const [isReportModalVisible, setIsReportModalVisible] = useState(false);
 
     // BottomSheet refs and config
     const bottomSheetRef = useRef<BottomSheet>(null);
@@ -150,6 +155,7 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
             <AccountSettings
                 blockedUsersCount={blockedUsers.count}
                 onBlockedUsersPress={() => setCurrentPage('blocked')}
+                onDataControlsPress={() => setCurrentPage('data-controls')}
             />
 
             <NotificationSettings
@@ -163,26 +169,13 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
                 appVersion={appVersion}
                 language={language}
                 locationMode={locationMode}
-                onHelpPress={openHelpCenter}
+                onHelpPress={() => openHelpCenter(onClose)}
                 onLanguagePress={() => setCurrentPage('language')}
                 onLocationPress={() => setCurrentPage('location')}
-                onTermsPress={openTermsOfService}
-                onPrivacyPolicyPress={openPrivacyPolicy}
+                onTermsPress={() => openTermsOfService(onClose)}
+                onPrivacyPolicyPress={() => openPrivacyPolicy(onClose)}
+                onReportProblemPress={() => setIsReportModalVisible(true)}
             />
-
-            {/* Danger Zone - Only show for authenticated users */}
-            {!isAnonymous && (
-                <View style={styles.dangerSection}>
-                    <TouchableOpacity
-                        style={styles.dangerButton}
-                        onPress={() => handleDeleteAccount(onClose)}
-                    >
-                        <Trash2 size={20} color="#ef4444" />
-                        <Text style={styles.dangerButtonText}>Delete Account</Text>
-                        <ChevronRight size={16} color="#fca5a5" />
-                    </TouchableOpacity>
-                </View>
-            )}
 
             {/* Log Out / Sign Up */}
             {isAnonymous ? (
@@ -264,10 +257,25 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
                 return renderSubPage(
                     'Help Center',
                     <View style={styles.subPageContent}>
-                        <Text style={styles.infoText}>
-                            Need help? Contact us at support@localchat.app
-                        </Text>
+                        <TouchableOpacity onPress={() => Linking.openURL('mailto:support@localchat.app')}>
+                            <Text style={styles.infoText}>
+                                Need help? Contact us at{' '}
+                                <Text style={{ color: '#FF6410', fontWeight: '500' }}>
+                                    support@localchat.app
+                                </Text>
+                            </Text>
+                        </TouchableOpacity>
                     </View>
+                );
+            case 'data-controls':
+                return (
+                    <DataControlsPage
+                        onBack={() => setCurrentPage('main')}
+                        onDeleteRooms={handleDeleteMyRooms}
+                        onDeleteAccount={() => handleHardDeleteAccount(onClose)}
+                        isAnonymous={isAnonymous}
+                        createdRoomsCount={myRooms.filter(r => r.isCreator).length}
+                    />
                 );
             default:
                 return renderMainPage();
@@ -279,29 +287,37 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
     // =========================================================================
 
     return (
-        <BottomSheet
-            ref={bottomSheetRef}
-            index={-1}
-            snapPoints={snapPoints}
-            enablePanDownToClose={true}
-            backdropComponent={renderBackdrop}
-            onChange={handleSheetChanges}
-            backgroundStyle={styles.drawerBackground}
-            handleIndicatorStyle={styles.handleIndicator}
-        >
-            <View style={styles.headerContainer}>
-                <TouchableOpacity
-                    style={styles.headerCloseButton}
-                    onPress={onClose}
-                    hitSlop={{ top: 24, bottom: 24, left: 24, right: 24 }}
-                >
-                    <X size={18} color="#6b7280" />
-                </TouchableOpacity>
-            </View>
-            <BottomSheetScrollView contentContainerStyle={styles.contentContainer}>
-                {renderContent()}
-            </BottomSheetScrollView>
-        </BottomSheet>
+        <>
+            <BottomSheet
+                ref={bottomSheetRef}
+                index={-1}
+                snapPoints={snapPoints}
+                enablePanDownToClose={true}
+                backdropComponent={renderBackdrop}
+                onChange={handleSheetChanges}
+                backgroundStyle={styles.drawerBackground}
+                handleIndicatorStyle={styles.handleIndicator}
+            >
+                <View style={styles.headerContainer}>
+                    <TouchableOpacity
+                        style={styles.headerCloseButton}
+                        onPress={onClose}
+                        hitSlop={{ top: 24, bottom: 24, left: 24, right: 24 }}
+                    >
+                        <X size={18} color="#6b7280" />
+                    </TouchableOpacity>
+                </View>
+                <BottomSheetScrollView contentContainerStyle={styles.contentContainer}>
+                    {renderContent()}
+                </BottomSheetScrollView>
+            </BottomSheet>
+
+            {/* Report a Problem Modal */}
+            <ReportProblemModal
+                visible={isReportModalVisible}
+                onClose={() => setIsReportModalVisible(false)}
+            />
+        </>
     );
 }
 
@@ -338,24 +354,6 @@ const styles = StyleSheet.create({
         paddingHorizontal: 16,
         paddingBottom: 40,
         paddingTop: 8,
-    },
-    dangerSection: {
-        backgroundColor: '#fef2f2',
-        borderRadius: 16,
-        overflow: 'hidden',
-        marginBottom: 20,
-    },
-    dangerButton: {
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingVertical: 14,
-        paddingHorizontal: 16,
-    },
-    dangerButtonText: {
-        flex: 1,
-        fontSize: 14,
-        color: '#ef4444',
-        marginLeft: 12,
     },
     signOutButton: {
         flexDirection: 'row',

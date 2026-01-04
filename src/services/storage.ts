@@ -168,5 +168,37 @@ export const secureStorage = {
   },
 };
 
+/**
+ * Device storage for device-specific identifiers
+ */
+const DEVICE_ID_KEY = '@localchat/device_id';
+
+export const deviceStorage = {
+  /**
+   * Get device ID, generating one if it doesn't exist
+   */
+  async getDeviceId(): Promise<string> {
+    const existing = await storage.get<string>(DEVICE_ID_KEY);
+    if (existing) return existing;
+
+    // Generate new UUID
+    const newId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+      const r = Math.random() * 16 | 0;
+      const v = c === 'x' ? r : (r & 0x3 | 0x8);
+      return v.toString(16);
+    });
+
+    await storage.set(DEVICE_ID_KEY, newId);
+    return newId;
+  },
+
+  /**
+   * Set device ID
+   */
+  async setDeviceId(deviceId: string): Promise<boolean> {
+    return storage.set(DEVICE_ID_KEY, deviceId);
+  },
+};
+
 export default storage;
 

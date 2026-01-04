@@ -239,13 +239,18 @@ export function RoomListView({
     const userLocation = userLocationProp;
 
     // Helper to get room distance (calculate if not provided)
-    const getRoomDistance = useCallback((room: Room): number => {
+    const getRoomDistance = useCallback((room: Room): number | null => {
+        // If we don't have user location, we shouldn't show/use distances relative to yourself
+        if (!userLocation) {
+            return null;
+        }
+
         // Only use pre-calculated distance if it's a valid positive value
         if (room.distance !== undefined && room.distance > 0) {
             return room.distance;
         }
         // Calculate distance from user location if room has coordinates
-        if (room.latitude !== undefined && room.longitude !== undefined && userLocation) {
+        if (room.latitude !== undefined && room.longitude !== undefined) {
             return calculateDistance(
                 userLocation.lat || userLocation.latitude,
                 userLocation.lng || userLocation.longitude,
@@ -253,8 +258,8 @@ export function RoomListView({
                 room.longitude
             );
         }
-        // Fallback to 0 if no coordinates
-        return 0;
+
+        return null;
     }, [userLocation]);
 
     // Backend search effect - debounced
@@ -315,8 +320,11 @@ export function RoomListView({
         // Sort
         filtered.sort((a, b) => {
             switch (sortBy) {
-                case 'nearest':
-                    return getRoomDistance(a) - getRoomDistance(b);
+                case 'nearest': {
+                    const distA = getRoomDistance(a) ?? 999999;
+                    const distB = getRoomDistance(b) ?? 999999;
+                    return distA - distB;
+                }
                 case 'most-active':
                     return b.participantCount - a.participantCount;
                 case 'expiring-soon':
@@ -333,6 +341,11 @@ export function RoomListView({
 
     // Group rooms by distance
     const groupedRooms = useMemo(() => {
+        if (!userLocation) {
+            // If no user location, just show one group
+            return [{ title: 'Rooms in view', rooms: filteredRooms }];
+        }
+
         const groups: { title: string; rooms: Room[] }[] = [
             { title: 'Nearby (< 500m)', rooms: [] },
             { title: 'Close (< 1km)', rooms: [] },
@@ -342,7 +355,9 @@ export function RoomListView({
 
         filteredRooms.forEach((room) => {
             const distance = getRoomDistance(room);
-            if (distance < 500) {
+            if (distance === null) {
+                groups[3].rooms.push(room);
+            } else if (distance < 500) {
                 groups[0].rooms.push(room);
             } else if (distance < 1000) {
                 groups[1].rooms.push(room);
@@ -354,7 +369,7 @@ export function RoomListView({
         });
 
         return groups.filter((group) => group.rooms.length > 0);
-    }, [filteredRooms, getRoomDistance]);
+    }, [filteredRooms, getRoomDistance, userLocation]);
 
     const handleClearSearch = useCallback(() => {
         setSearchQuery('');

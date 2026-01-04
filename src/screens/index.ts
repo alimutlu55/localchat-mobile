@@ -15,6 +15,13 @@ export { default as AnonymousLoginScreen } from './auth/AnonymousLoginScreen';
 export { default as ForgotPasswordScreen } from './auth/ForgotPasswordScreen';
 export { default as OnboardingScreen } from './auth/OnboardingScreen';
 
+// Consent screens
+export {
+    ConsentScreen,
+    ConsentPreferencesScreen,
+    LocationPermissionScreen
+} from './consent';
+
 // Main screens
 // DiscoveryScreen now uses feature-based architecture with hooks
 export { DiscoveryScreen } from '../features/discovery';

@@ -19,6 +19,7 @@ import {
   ProfileUpdateRequest
 } from '../types';
 import { generateUUID } from '../utils/uuid';
+import { APP_VERSION } from '../version';
 
 /**
  * Transform UserDTO to User model
@@ -161,7 +162,7 @@ class AuthService {
     const request: AnonymousLoginRequest = {
       deviceId,
       devicePlatform: this.getDevicePlatform(),
-      appVersion: '1.0.0',
+      appVersion: APP_VERSION,
     };
 
     const response = await api.post<{ data: AuthResponse & { isNewUser?: boolean } }>('/auth/anonymous', request, { skipAuth: true });
@@ -310,6 +311,32 @@ class AuthService {
   }
 
   /**
+   * Delete all rooms created by the current user.
+   * This is a permanent, irreversible operation.
+   * 
+   * @returns Object containing the count of deleted rooms
+   */
+  async deleteMyRooms(): Promise<{ roomsDeleted: number }> {
+    const response = await api.delete<{ data: { roomsDeleted: number } }>('/users/me/rooms');
+    return response.data;
+  }
+
+  /**
+   * Hard delete user account and ALL associated data.
+   * This includes: profile, settings, rooms, messages, participations, etc.
+   * 
+   * WARNING: This action is IRREVERSIBLE!
+   */
+  async hardDeleteAccount(): Promise<void> {
+    await api.delete('/users/me/data');
+    // Clear local state after successful deletion
+    await secureStorage.remove(STORAGE_KEYS.AUTH_TOKEN);
+    await secureStorage.remove(STORAGE_KEYS.REFRESH_TOKEN);
+    await storage.remove(STORAGE_KEYS.USER_DATA);
+    this.currentUser = null;
+  }
+
+  /**
    * Handle auth response - store tokens and user data
    */
   private async handleAuthResponse(response: AuthResponse): Promise<void> {
@@ -334,6 +361,7 @@ class AuthService {
   private generateDeviceId(): string {
     return generateUUID();
   }
+
 }
 
 /**

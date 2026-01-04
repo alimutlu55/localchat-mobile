@@ -36,6 +36,11 @@ export interface RoomNavParams {
  */
 export type RootStackParamList = {
   Splash: undefined;
+  // Consent flow (shown before auth on first launch)
+  Consent: undefined;
+  ConsentPreferences: undefined;
+  LocationPermission: undefined;
+  // Auth flow
   Auth: NavigatorScreenParams<AuthStackParamList>;
   Main: NavigatorScreenParams<MainTabParamList>;
   Discovery: undefined;
@@ -48,7 +53,7 @@ export type RootStackParamList = {
     onCloseRoom?: () => void;
     onCloseSuccess?: () => void;
   };
-  CreateRoom: undefined;
+  CreateRoom: { initialLocation?: { latitude: number; longitude: number } };
   Settings: undefined;
   Profile: undefined;
   EditProfile: undefined;
@@ -56,7 +61,13 @@ export type RootStackParamList = {
   Onboarding: undefined;
   List: undefined;
   Login: undefined;
+  // About & Legal screens
+  About: undefined;
+  PrivacyPolicy: undefined;
+  TermsOfService: undefined;
+  PrivacySettings: undefined;
 };
+
 
 /**
  * Auth Stack Navigator Params
@@ -68,6 +79,9 @@ export type AuthStackParamList = {
   Register: undefined;
   AnonymousLogin: undefined;
   ForgotPassword: undefined;
+  // Legal screens (accessible before login for consent)
+  TermsOfService: undefined;
+  PrivacyPolicy: undefined;
 };
 
 /**

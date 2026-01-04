@@ -87,7 +87,7 @@ export interface UseMapStateReturn {
 export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn {
   const {
     defaultCenter,
-    defaultZoom = 13,
+    defaultZoom = defaultCenter ? 13 : 1, // Default to world view (1) if no center, else street view (13)
     minZoom = 1,
     maxZoom = 12,
   } = options;
@@ -121,6 +121,7 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
     if (defaultCenter) {
       return calculateInitialBounds(defaultCenter);
     }
+    // World view bounds
     return [-180, -85, 180, 85];
   });
 
@@ -128,7 +129,8 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
     if (defaultCenter) {
       return [defaultCenter.longitude, defaultCenter.latitude];
     }
-    return [0, 0];
+    // World view center (slightly north to show more land mass)
+    return [0, 20];
   });
 
   // Update state when defaultCenter changes (initialization only)

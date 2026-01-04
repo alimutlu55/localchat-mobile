@@ -18,14 +18,16 @@ import {
     TouchableOpacity,
     ActivityIndicator,
     Animated,
+    Alert,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
     MapView,
     Camera,
 } from '@maplibre/maplibre-react-native';
+import { consentService } from '../../../services/consent';
 import { MAP_CONFIG, CATEGORIES } from '../../../constants';
 import { Plus, Minus, Navigation, Menu, Map as MapIcon, List, Globe } from 'lucide-react-native';
 
@@ -138,7 +140,8 @@ export default function DiscoveryScreen() {
     // ==========================================================================
 
     // User Location
-    const { location: userLocation, isLoading: isLocationLoading, permissionDenied } = useUserLocation();
+    const { location: userLocation, isLoading: isLocationLoading, permissionDenied, refresh: refreshLocation } = useUserLocation();
+
 
     // Map State
     const {
@@ -160,10 +163,28 @@ export default function DiscoveryScreen() {
         calculateFlyDuration,
     } = useMapState({
         defaultCenter: userLocation || undefined,
-        defaultZoom: 12,
+        defaultZoom: userLocation ? 12 : 1,
         minZoom: 1,
         maxZoom: 12,
     });
+
+    // Refresh location when screen comes into focus (e.g. back from permission screen)
+    useFocusEffect(
+        useCallback(() => {
+            refreshLocation();
+        }, [refreshLocation])
+    );
+
+    // Auto-center on user when location becomes available
+    // This handles the "enable location -> auto zoom to user" flow
+    const prevLocationRef = useRef(userLocation);
+    useEffect(() => {
+        if (!prevLocationRef.current && userLocation) {
+            log.debug('Location became available, auto-centering');
+            centerOn(userLocation);
+        }
+        prevLocationRef.current = userLocation;
+    }, [userLocation, centerOn]);
 
     // NOTE: User location pulse animation is now handled internally by MapViewLocation component
 
@@ -230,20 +251,20 @@ export default function DiscoveryScreen() {
         loadMore: loadMoreRooms,
         refresh: refreshDiscovery,
     } = useRoomDiscovery({
-        latitude: userLocation?.latitude || 0,
-        longitude: userLocation?.longitude || 0,
-        autoFetch: viewMode === 'list' && !!userLocation,
+        latitude: userLocation?.latitude ?? centerCoord[1],
+        longitude: userLocation?.longitude ?? centerCoord[0],
+        autoFetch: viewMode === 'list', // Enable auto-fetch even without userLocation (uses map center)
         category: categoryFilter as RoomCategory | undefined, // Pass global filter to list discovery
     });
 
     // Refresh discovery when switching to list view
     useEffect(() => {
-        if (viewMode === 'list' && userLocation) {
+        if (viewMode === 'list') {
             refreshDiscovery();
         }
         // Refresh when category changes is handled by useRoomDiscovery internal useEffect
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [viewMode, userLocation?.latitude, userLocation?.longitude]);
+    }, [viewMode, userLocation?.latitude, userLocation?.longitude, centerCoord[1], centerCoord[0]]);
 
 
     // Check if user's location is currently within map bounds
@@ -267,11 +288,19 @@ export default function DiscoveryScreen() {
 
     // Wrapper for joinRoom to match expected signature
     const joinRoom = async (room: Room): Promise<boolean> => {
-        if (!userLocation) {
-            log.warn('Cannot join room - user location not available');
-            return false;
+        // Use user location if available, otherwise fallback to map center
+        const effectiveLocation = userLocation || {
+            latitude: centerCoord[1],
+            longitude: centerCoord[0]
+        };
+
+        if (userLocation) {
+            log.info('Joining room using precise user location', { roomId: room.id });
+        } else {
+            log.info('Joining room using map center fallback', { roomId: room.id, lat: effectiveLocation.latitude, lng: effectiveLocation.longitude });
         }
-        const result = await join(room, { latitude: userLocation.latitude, longitude: userLocation.longitude });
+
+        const result = await join(room, effectiveLocation);
         return result.success;
     };
 
@@ -423,9 +452,22 @@ export default function DiscoveryScreen() {
     );
 
 
-    const handleCreateRoom = useCallback(() => {
-        navigation.navigate('CreateRoom');
-    }, [navigation]);
+    const handleCreateRoom = useCallback(async () => {
+        const consentStatus = await consentService.getStatus();
+        const hasConsent = consentStatus.options?.locationConsent;
+
+        if (!hasConsent) {
+            navigation.navigate('LocationPermission');
+            return;
+        }
+
+        navigation.navigate('CreateRoom', {
+            initialLocation: userLocation || {
+                latitude: centerCoord[1],
+                longitude: centerCoord[0]
+            }
+        });
+    }, [navigation, userLocation, centerCoord]);
 
     const handleJoinRoom = useCallback(
         async (room: Room): Promise<boolean> => {

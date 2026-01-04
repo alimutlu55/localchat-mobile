@@ -9,16 +9,18 @@ import { useMemo, useCallback, useState, useEffect } from 'react';
 import { Alert, Linking } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import Constants from 'expo-constants';
 import { RootStackParamList } from '../../../navigation/types';
+import { APP_VERSION } from '../../../version';
 import { useCurrentUser } from '../store';
 import { useSettings } from './useSettings';
 import { useBlockedUsers } from './useBlockedUsers';
 import { useMyRooms } from '../../rooms/hooks';
+import { useRoomStore } from '../../rooms/store/RoomStore';
 import { useAuth } from '../../auth';
 import { Room } from '../../../types';
 import { storage } from '../../../services/storage';
 import { authService } from '../../../services/auth';
+import { consentService } from '../../../services/consent';
 import { eventBus } from '../../../core/events/EventBus';
 import { createLogger } from '../../../shared/utils/logger';
 
@@ -137,13 +139,45 @@ interface UseProfileDrawerReturn {
   handleDeleteAccount: (onClose: () => void) => void;
 
   /** Open terms of service */
-  openTermsOfService: () => void;
+  openTermsOfService: (onClose: () => void) => void;
 
   /** Open privacy policy */
-  openPrivacyPolicy: () => void;
+  openPrivacyPolicy: (onClose: () => void) => void;
 
-  /** Open help center */
-  openHelpCenter: () => void;
+  /** Open help center / about */
+  openHelpCenter: (onClose: () => void) => void;
+
+  // =========================================================================
+  // Data & Consent (GDPR/KVKK)
+  // =========================================================================
+
+  /** Analytics consent status */
+  analyticsConsent: boolean;
+
+  /** Marketing consent status */
+  marketingConsent: boolean;
+
+  /** Update analytics consent */
+  handleAnalyticsToggle: (value: boolean) => Promise<void>;
+
+  /** Update marketing consent */
+  handleMarketingToggle: (value: boolean) => Promise<void>;
+
+  /** Export user data */
+  handleExportData: () => void;
+
+  /** View consent preferences */
+  handleViewConsent: (onClose: () => void) => void;
+
+  // =========================================================================
+  // Data Controls
+  // =========================================================================
+
+  /** Delete all rooms created by user */
+  handleDeleteMyRooms: () => Promise<void>;
+
+  /** Hard delete account and all data */
+  handleHardDeleteAccount: (onClose: () => void) => Promise<void>;
 }
 
 export function useProfileDrawer(): UseProfileDrawerReturn {
@@ -151,7 +185,7 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
   const user = useCurrentUser();
   const { activeRooms: myRooms } = useMyRooms();
   const { settings, updateSettings } = useSettings();
-  const { logout, deleteAccount, isAuthenticated } = useAuth();
+  const { logout, deleteAccount, hardDeleteAccount, isAuthenticated } = useAuth();
   const blockedUsers = useBlockedUsers();
 
   // Fetch user stats (message count) and subscribe to updates
@@ -202,7 +236,7 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
   }, [user?.createdAt, myRooms.length, messagesSent]);
 
   const appVersion = useMemo(() => {
-    return Constants.expoConfig?.version || '1.0.0';
+    return APP_VERSION;
   }, []);
 
   const notificationSettings = useMemo<NotificationSettingsData>(
@@ -377,17 +411,146 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
     }
   }, []);
 
-  const openTermsOfService = useCallback(() => {
-    openUrl(LEGAL_URLS.termsOfService, 'Terms of Service');
-  }, [openUrl]);
+  const openTermsOfService = useCallback((onClose: () => void) => {
+    onClose();
+    navigation.navigate('TermsOfService');
+  }, [navigation]);
 
-  const openPrivacyPolicy = useCallback(() => {
-    openUrl(LEGAL_URLS.privacyPolicy, 'Privacy Policy');
-  }, [openUrl]);
+  const openPrivacyPolicy = useCallback((onClose: () => void) => {
+    onClose();
+    navigation.navigate('PrivacyPolicy');
+  }, [navigation]);
 
-  const openHelpCenter = useCallback(() => {
-    openUrl(LEGAL_URLS.helpCenter, 'Help Center');
-  }, [openUrl]);
+  const openHelpCenter = useCallback((onClose: () => void) => {
+    onClose();
+    navigation.navigate('About');
+  }, [navigation]);
+
+  // =========================================================================
+  // Consent State & Handlers (GDPR/KVKK)
+  // =========================================================================
+
+  const [analyticsConsent, setAnalyticsConsent] = useState(false);
+  const [marketingConsent, setMarketingConsent] = useState(false);
+
+  // Load consent preferences on mount
+  useEffect(() => {
+    const loadConsent = async () => {
+      try {
+        const status = await consentService.getStatus();
+        if (status.options) {
+          setAnalyticsConsent(status.options.analyticsConsent);
+          setMarketingConsent(status.options.marketingConsent);
+        }
+      } catch (error) {
+        log.warn('Failed to load consent preferences', error);
+      }
+    };
+    loadConsent();
+  }, []);
+
+  const handleAnalyticsToggle = useCallback(async (value: boolean) => {
+    try {
+      await consentService.updatePreferences(undefined, value);
+      setAnalyticsConsent(value);
+    } catch (error) {
+      log.error('Failed to update analytics consent', error);
+      Alert.alert('Error', 'Failed to update preference. Please try again.');
+    }
+  }, []);
+
+  const handleMarketingToggle = useCallback(async (value: boolean) => {
+    try {
+      await consentService.updatePreferences(value, undefined);
+      setMarketingConsent(value);
+    } catch (error) {
+      log.error('Failed to update marketing consent', error);
+      Alert.alert('Error', 'Failed to update preference. Please try again.');
+    }
+  }, []);
+
+  const handleExportData = useCallback(() => {
+    Alert.alert(
+      'Export Your Data',
+      'This will prepare a download of all your personal data in JSON format. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Export',
+          onPress: () => {
+            Alert.alert(
+              'Export Requested',
+              'Your data export is being prepared. Please contact support@localchat.app to receive your data export.',
+              [{ text: 'OK' }]
+            );
+          },
+        },
+      ]
+    );
+  }, []);
+
+  const handleViewConsent = useCallback((onClose: () => void) => {
+    onClose();
+    navigation.navigate('PrivacyPolicy');
+  }, [navigation]);
+
+  // =========================================================================
+  // Data Controls Handlers
+  // =========================================================================
+
+  const handleDeleteMyRooms = useCallback(async () => {
+    try {
+      // Get current created room IDs before deletion
+      const store = useRoomStore.getState();
+      const createdRoomIds = Array.from(store.createdRoomIds);
+
+      const result = await authService.deleteMyRooms();
+
+      if (result.roomsDeleted === 0) {
+        Alert.alert(
+          'No Rooms Found',
+          'You haven\'t created any rooms to delete.'
+        );
+      } else {
+        // Clear created rooms from store immediately
+
+        // Optimistically remove each created room from the entire store
+        // This clears them from joinedRoomIds, discoveredRoomIds, and the rooms map
+        store.createdRoomIds.forEach(id => {
+          store.removeRoom(id);
+        });
+
+        store.setCreatedRoomIds(new Set());
+
+        Alert.alert(
+          'Rooms Deleted',
+          `${result.roomsDeleted} room(s) have been permanently deleted.`
+        );
+      }
+      log.info('Deleted user rooms', { count: result.roomsDeleted });
+    } catch (error) {
+      log.error('Failed to delete rooms', { error });
+      Alert.alert('Error', 'Failed to delete rooms. Please try again.');
+      throw error;
+    }
+  }, []);
+
+  const handleHardDeleteAccount = useCallback(async (onClose: () => void) => {
+    try {
+      // Set flag to prevent auto-login as anonymous on WelcomeScreen
+      await storage.set('skip_auto_login', true);
+      // Close drawer first for smooth transition
+      onClose();
+      // Hard delete account (via AuthStore for full cleanup and logout)
+      await hardDeleteAccount();
+      log.info('Account hard deleted successfully');
+    } catch (error) {
+      log.error('Failed to hard delete account', { error });
+      Alert.alert('Error', 'Failed to delete account. Please try again.');
+      throw error;
+    }
+  }, [hardDeleteAccount]);
+
 
   // =========================================================================
   // Return
@@ -426,6 +589,18 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
     openTermsOfService,
     openPrivacyPolicy,
     openHelpCenter,
+
+    // Consent (GDPR/KVKK)
+    analyticsConsent,
+    marketingConsent,
+    handleAnalyticsToggle,
+    handleMarketingToggle,
+    handleExportData,
+    handleViewConsent,
+
+    // Data controls
+    handleDeleteMyRooms,
+    handleHardDeleteAccount,
   };
 }
 

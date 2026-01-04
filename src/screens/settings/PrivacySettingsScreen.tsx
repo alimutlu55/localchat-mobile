@@ -31,9 +31,12 @@ import {
   Globe,
   Clock,
   Trash2,
+  BarChart3,
+  Bell,
+  Download,
 } from 'lucide-react-native';
 import { useSettings } from '../../features/user';
-import { blockService, BlockedUser } from '../../services';
+import { blockService, BlockedUser, consentService } from '../../services';
 import { theme } from '../../core/theme';
 
 type LocationMode = 'precise' | 'approximate' | 'manual' | 'off';
@@ -55,6 +58,26 @@ export default function PrivacySettingsScreen() {
   const [locationMode, setLocationMode] = useState<LocationMode>(settings?.locationMode ?? 'approximate');
   const [blockedCount, setBlockedCount] = useState(0);
   const [showLocationPicker, setShowLocationPicker] = useState(false);
+
+  // Consent state
+  const [analyticsConsent, setAnalyticsConsent] = useState(false);
+  const [marketingConsent, setMarketingConsent] = useState(false);
+
+  // Load consent preferences on mount
+  useEffect(() => {
+    const loadConsent = async () => {
+      try {
+        const status = await consentService.getStatus();
+        if (status.options) {
+          setAnalyticsConsent(status.options.analyticsConsent);
+          setMarketingConsent(status.options.marketingConsent);
+        }
+      } catch (error) {
+        console.error('Failed to load consent preferences:', error);
+      }
+    };
+    loadConsent();
+  }, []);
 
   // Load blocked users count
   useEffect(() => {
@@ -109,6 +132,69 @@ export default function PrivacySettingsScreen() {
           style: 'destructive',
           onPress: () => {
             Alert.alert('Coming Soon', 'Account deletion will be available soon.');
+          },
+        },
+      ]
+    );
+  };
+
+  // Consent handlers - GDPR/KVKK
+  const handleAnalyticsToggle = async (value: boolean) => {
+    try {
+      await consentService.updatePreferences(undefined, value);
+      setAnalyticsConsent(value);
+      if (!value) {
+        Alert.alert(
+          'Analytics Disabled',
+          'Your preference has been saved. We will no longer collect analytics data.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Failed to update analytics consent:', error);
+      Alert.alert('Error', 'Failed to update preference. Please try again.');
+    }
+  };
+
+  const handleMarketingToggle = async (value: boolean) => {
+    try {
+      await consentService.updatePreferences(value, undefined);
+      setMarketingConsent(value);
+      if (!value) {
+        Alert.alert(
+          'Marketing Disabled',
+          'Your preference has been saved. You will no longer receive marketing communications.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (error) {
+      console.error('Failed to update marketing consent:', error);
+      Alert.alert('Error', 'Failed to update preference. Please try again.');
+    }
+  };
+
+  const handleExportData = async () => {
+    Alert.alert(
+      'Export Your Data',
+      'This will download all your personal data in JSON format. Continue?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Export',
+          onPress: async () => {
+            try {
+              Alert.alert(
+                'Export Requested',
+                'Your data export is being prepared. For now, please contact support@localchat.app to receive your data export.',
+                [{ text: 'OK' }]
+              );
+              // TODO: Implement actual download when API is ready
+              // const data = await api.get('/consent/export');
+              // Share or save the data
+            } catch (error) {
+              console.error('Failed to export data:', error);
+              Alert.alert('Error', 'Failed to export data. Please try again.');
+            }
           },
         },
       ]
@@ -259,6 +345,70 @@ export default function PrivacySettingsScreen() {
             <ChevronRight size={20} color={theme.tokens.text.tertiary} />
           </TouchableOpacity>
         </View>
+
+        {/* Data Consent Section - GDPR/KVKK Compliance */}
+        <Text style={styles.sectionTitle}>Data Consent</Text>
+        <View style={styles.card}>
+          <View style={styles.settingRow}>
+            <View style={styles.settingIcon}>
+              <BarChart3 size={20} color={theme.tokens.text.secondary} />
+            </View>
+            <View style={styles.settingContent}>
+              <Text style={styles.settingLabel}>Usage Analytics</Text>
+              <Text style={styles.settingDescription}>
+                Help improve LocalChat with anonymized usage data
+              </Text>
+            </View>
+            <Switch
+              value={analyticsConsent}
+              onValueChange={handleAnalyticsToggle}
+              trackColor={{ false: theme.tokens.border.strong, true: theme.tokens.action.secondary.active }}
+              thumbColor={analyticsConsent ? theme.tokens.brand.primary : theme.tokens.bg.subtle}
+            />
+          </View>
+
+          <View style={styles.divider} />
+
+          <View style={styles.settingRow}>
+            <View style={styles.settingIcon}>
+              <Bell size={20} color={theme.tokens.text.secondary} />
+            </View>
+            <View style={styles.settingContent}>
+              <Text style={styles.settingLabel}>Product Updates</Text>
+              <Text style={styles.settingDescription}>
+                Receive emails about new features and tips
+              </Text>
+            </View>
+            <Switch
+              value={marketingConsent}
+              onValueChange={handleMarketingToggle}
+              trackColor={{ false: theme.tokens.border.strong, true: theme.tokens.action.secondary.active }}
+              thumbColor={marketingConsent ? theme.tokens.brand.primary : theme.tokens.bg.subtle}
+            />
+          </View>
+
+          <View style={styles.divider} />
+
+          <TouchableOpacity
+            style={styles.settingRow}
+            onPress={handleExportData}
+          >
+            <View style={styles.settingIcon}>
+              <Download size={20} color={theme.tokens.text.secondary} />
+            </View>
+            <View style={styles.settingContent}>
+              <Text style={styles.settingLabel}>Export My Data</Text>
+              <Text style={styles.settingDescription}>
+                Download all your personal data (GDPR)
+              </Text>
+            </View>
+            <ChevronRight size={20} color={theme.tokens.text.tertiary} />
+          </TouchableOpacity>
+        </View>
+
+        <Text style={styles.sectionHint}>
+          You can withdraw consent at any time. This won't affect the lawfulness of processing based on consent before withdrawal.
+        </Text>
 
         {/* Data & Account Section */}
         <Text style={styles.sectionTitle}>Data & Account</Text>

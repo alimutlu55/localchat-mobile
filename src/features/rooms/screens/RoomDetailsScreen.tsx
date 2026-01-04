@@ -360,13 +360,14 @@ export default function RoomDetailsScreen() {
       return;
     }
 
-    // Check if user location is available
-    if (!userLocation) {
-      Alert.alert('Location Required', 'Unable to get your location. Please enable location services and try again.');
-      return;
-    }
+    // Use user location if available, otherwise fallback to room location (assume user is there)
+    // This allows users without location permission to join rooms they can see.
+    const effectiveLocation = userLocation || {
+      latitude: room.latitude ?? 0,
+      longitude: room.longitude ?? 0
+    };
 
-    const result = await join(room, { latitude: userLocation.latitude, longitude: userLocation.longitude });
+    const result = await join(room, { latitude: effectiveLocation.latitude, longitude: effectiveLocation.longitude });
 
     if (result.success) {
       // Get fresh room data from store

@@ -18,6 +18,11 @@ import {
   ForgotPasswordScreen,
 } from '../screens';
 
+import {
+  PrivacyPolicyScreen,
+  TermsOfServiceScreen,
+} from '../screens/settings';
+
 const Stack = createNativeStackNavigator<AuthStackParamList>();
 
 /**
@@ -38,8 +43,12 @@ export function AuthNavigator() {
       <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen name="AnonymousLogin" component={AnonymousLoginScreen} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+      {/* Legal screens for consent */}
+      <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
+      <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
     </Stack.Navigator>
   );
 }
 
 export default AuthNavigator;
+

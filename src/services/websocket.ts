@@ -35,6 +35,7 @@ import { useNetworkStore } from '../core/network';
 import { API_CONFIG, WS_EVENTS, STORAGE_KEYS } from '../constants';
 import { secureStorage } from './storage';
 import { api } from './api';
+import { APP_VERSION } from '../version';
 
 /**
  * WebSocket connection state
@@ -384,7 +385,7 @@ class WebSocketService {
         accessToken: this.authToken,
         clientInfo: {
           platform: 'IOS',
-          appVersion: '1.0.0',
+          appVersion: APP_VERSION,
           deviceId: 'mobile-app',
         },
       },

@@ -65,10 +65,17 @@ export const ListViewItem = memo(
     }: ListViewItemProps) {
         // Calculate room distance
         const roomDistance = useMemo(() => {
+            // Only show distance if we have a real user location to compare against.
+            // If userLocation is null, we are in discovery fallback mode (map center).
+            if (!userLocation) {
+                return null;
+            }
+
             if (room.distance !== undefined && room.distance > 0) {
                 return room.distance;
             }
-            if (room.latitude && room.longitude && userLocation) {
+
+            if (room.latitude && room.longitude) {
                 return calculateDistance(
                     userLocation.latitude,
                     userLocation.longitude,
@@ -76,7 +83,7 @@ export const ListViewItem = memo(
                     room.longitude
                 );
             }
-            return 0;
+            return null;
         }, [room.distance, room.latitude, room.longitude, userLocation]);
 
         const getTimeColor = useCallback(() => {
@@ -86,7 +93,8 @@ export const ListViewItem = memo(
             return theme.tokens.text.success;
         }, [room.expiresAt]);
 
-        const formatDistance = useCallback((meters: number): string => {
+        const formatDistance = useCallback((meters: number | null): string => {
+            if (meters === null) return '';
             if (meters < 500) return 'Nearby';
             if (meters < 1000) return `${Math.round(meters)}m away`;
             const km = meters / 1000;
@@ -94,7 +102,8 @@ export const ListViewItem = memo(
             return `${Math.round(km)}km away`;
         }, []);
 
-        const getDistanceColor = useCallback((meters: number): string => {
+        const getDistanceColor = useCallback((meters: number | null): string => {
+            if (meters === null) return theme.tokens.text.tertiary; // Disabled
             if (meters < 500) return theme.tokens.text.success; // Green - very close
             if (meters < 2000) return theme.tokens.brand.primary; // Orange - nearby
             return theme.tokens.text.tertiary; // Gray - far

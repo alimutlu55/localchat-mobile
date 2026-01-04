@@ -33,6 +33,7 @@ import { useAuth } from '../features/auth';
 import { useCurrentUser } from '../features/user/store';
 import { storage, STORAGE_KEYS } from '../services';
 import { theme } from '../core/theme';
+import { APP_VERSION } from '../version';
 
 /**
  * Setting Toggle Component
@@ -305,7 +306,7 @@ export default function SettingsScreen() {
 
         {/* App Info */}
         <View style={styles.appInfo}>
-          <Text style={styles.appVersion}>LocalChat v1.0.0</Text>
+          <Text style={styles.appVersion}>LocalChat v{APP_VERSION}</Text>
           <Text style={styles.appCopyright}>© 2025 LocalChat</Text>
         </View>
       </ScrollView>

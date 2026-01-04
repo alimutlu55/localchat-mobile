@@ -2,13 +2,18 @@
  * Root Stack Navigator
  *
  * The main navigator for the application.
- * Handles authentication branching (Auth vs Main) and global modal screens.
+ * Handles consent → authentication → main app flow.
  *
  * CRITICAL: Navigation switching is controlled by auth status state machine.
  * We show loading screen during ALL transition states to prevent:
  * - Crashes from stale closures accessing null user
  * - Race conditions during logout cleanup
  * - Screen unmounting while effects are still running
+ *
+ * Flow:
+ * 1. Check consent status → If not given, show ConsentScreen
+ * 2. After consent → Show LocationPermissionScreen
+ * 3. After permissions → Show Auth flow (guest/authenticating) or App (authenticated)
  *
  * State Machine → Navigation:
  * - unknown, loading → LoadingScreen (stable, prevents unmounting)
@@ -21,12 +26,13 @@
  * - Minimum logout duration prevents flickering
  */
 
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../features/auth';
 import { RootStackParamList } from './types';
 import { AuthNavigator } from './AuthNavigator';
+import { consentService } from '../services/consent';
 
 import {
     SplashScreen,
@@ -39,7 +45,17 @@ import {
     EditProfileScreen,
     DiscoveryScreen,
     LoadingScreen,
+    ConsentScreen,
+    ConsentPreferencesScreen,
+    LocationPermissionScreen,
 } from '../screens';
+
+import {
+    AboutScreen,
+    PrivacyPolicyScreen,
+    TermsOfServiceScreen,
+    PrivacySettingsScreen,
+} from '../screens/settings';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -50,10 +66,31 @@ const Stack = createNativeStackNavigator<RootStackParamList>();
  */
 export function RootNavigator() {
     const { status, isTransitioning } = useAuth();
+    const [consentChecked, setConsentChecked] = useState(false);
+    const [hasConsent, setHasConsent] = useState(false);
+    const [needsReconsent, setNeedsReconsent] = useState(false);
+
+    // Check consent status on mount (with version check for re-consent)
+    useEffect(() => {
+        const checkConsent = async () => {
+            try {
+                // Use checkConsentStatus for version-based re-consent detection
+                const status = await consentService.checkConsentStatus();
+                setHasConsent(status.hasConsent && !status.needsReconsent);
+                setNeedsReconsent(status.needsReconsent);
+            } catch (error) {
+                // Fallback to simple check if status check fails
+                const consent = await consentService.hasConsent();
+                setHasConsent(consent);
+            }
+            setConsentChecked(true);
+        };
+        checkConsent();
+    }, []);
 
     // CRITICAL: Show loading during initial transition states ONLY
     // For 'loggingOut', we keep screens mounted to prevent map marker crashes
-    if (status === 'unknown' || status === 'loading') {
+    if (status === 'unknown' || status === 'loading' || !consentChecked) {
         return <LoadingScreen />;
     }
 
@@ -61,6 +98,9 @@ export function RootNavigator() {
     // 'guest' = not logged in
     // 'authenticating' = login/register in progress (keep auth screens visible)
     const showAuthScreens = status === 'guest' || status === 'authenticating';
+
+    // If no consent yet, show consent flow first
+    const showConsentFlow = !hasConsent && showAuthScreens;
 
     // CRITICAL: During loggingOut, keep app screens mounted but show loading overlay
     // This prevents map markers from unmounting while Fabric is recycling views
@@ -77,8 +117,33 @@ export function RootNavigator() {
                     contentStyle: { backgroundColor: '#ffffff' },
                 }}
             >
-                {showAuthScreens ? (
-                    // Auth Flow
+                {showConsentFlow ? (
+                    // Consent Flow - shown before auth on first launch
+                    <>
+                        <Stack.Screen
+                            name="Consent"
+                            component={ConsentScreen}
+                            options={{ animation: 'fade' }}
+                        />
+                        <Stack.Screen
+                            name="ConsentPreferences"
+                            component={ConsentPreferencesScreen}
+                            options={{ animation: 'slide_from_right' }}
+                        />
+                        <Stack.Screen
+                            name="LocationPermission"
+                            component={LocationPermissionScreen}
+                            options={{ animation: 'slide_from_right' }}
+                        />
+                        {/* Auth screen available after consent */}
+                        <Stack.Screen
+                            name="Auth"
+                            component={AuthNavigator}
+                            options={{ animation: 'fade' }}
+                        />
+                    </>
+                ) : showAuthScreens ? (
+                    // Auth Flow - consent already given
                     <Stack.Screen
                         name="Auth"
                         component={AuthNavigator}
@@ -132,6 +197,16 @@ export function RootNavigator() {
                         <Stack.Screen name="Settings" component={SettingsScreen} />
                         <Stack.Screen name="EditProfile" component={EditProfileScreen} />
                         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+                        {/* About & Legal screens */}
+                        <Stack.Screen name="About" component={AboutScreen} />
+                        <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
+                        <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
+                        <Stack.Screen name="PrivacySettings" component={PrivacySettingsScreen} />
+                        <Stack.Screen
+                            name="LocationPermission"
+                            component={LocationPermissionScreen}
+                            options={{ animation: 'slide_from_right' }}
+                        />
                     </>
                 )}
             </Stack.Navigator>
@@ -157,3 +232,4 @@ const styles = StyleSheet.create({
 });
 
 export default RootNavigator;
+

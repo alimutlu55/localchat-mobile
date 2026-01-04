@@ -13,6 +13,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import * as Location from 'expo-location';
 import { createLogger } from '../../../shared/utils/logger';
+import { consentService } from '../../../services/consent';
 
 const log = createLogger('UserLocation');
 
@@ -72,8 +73,19 @@ export function useUserLocation(
     try {
       setIsLoading(true);
       setError(null);
+      setPermissionDenied(false); // Reset denied state on new fetch attempt
 
-      // Request permission
+      // Check internal app consent first
+      const statusObj = await consentService.getStatus();
+      if (statusObj.hasConsent && statusObj.options?.locationConsent === false) {
+        setPermissionDenied(true);
+        setError('Location access disabled in app settings');
+        log.warn('Location consent explicitly denied in app');
+        setIsLoading(false);
+        return;
+      }
+
+      // Request OS permission
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
         setPermissionDenied(true);
@@ -108,11 +120,14 @@ export function useUserLocation(
     if (!watch) return;
 
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
+      // Check internal app consent first
+      const statusObj = await consentService.getStatus();
+      if (statusObj.hasConsent && statusObj.options?.locationConsent === false) {
         setPermissionDenied(true);
         return;
       }
+
+      const { status } = await Location.requestForegroundPermissionsAsync();
 
       watchSubscription.current = await Location.watchPositionAsync(
         {

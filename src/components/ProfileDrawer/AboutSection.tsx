@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { HelpCircle, Scale, Eye, Globe, MapPin, Languages } from 'lucide-react-native';
+import { HelpCircle, Scale, Eye, Globe, MapPin, Languages, AlertCircle } from 'lucide-react-native';
 import { Section, SettingRow } from './shared';
 
 interface AboutSectionProps {
@@ -18,6 +18,7 @@ interface AboutSectionProps {
     onLocationPress: () => void;
     onTermsPress: () => void;
     onPrivacyPolicyPress: () => void;
+    onReportProblemPress: () => void;
 }
 
 export function AboutSection({
@@ -29,12 +30,13 @@ export function AboutSection({
     onLocationPress,
     onTermsPress,
     onPrivacyPolicyPress,
+    onReportProblemPress,
 }: AboutSectionProps) {
     // Format location mode for display (with fallback)
-    const locationModeDisplay = locationMode 
+    const locationModeDisplay = locationMode
         ? locationMode.charAt(0).toUpperCase() + locationMode.slice(1)
         : 'Approximate';
-    
+
     // Format language for display
     const languageDisplay = language === 'en' ? 'English' : (language || 'EN').toUpperCase();
 
@@ -64,8 +66,13 @@ export function AboutSection({
             <Section title="ABOUT">
                 <SettingRow
                     icon={HelpCircle}
-                    label="Help Center"
+                    label="About & Help"
                     onPress={onHelpPress}
+                />
+                <SettingRow
+                    icon={AlertCircle}
+                    label="Report a Problem"
+                    onPress={onReportProblemPress}
                 />
                 <SettingRow
                     icon={Scale}

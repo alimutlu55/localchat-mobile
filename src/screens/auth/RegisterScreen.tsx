@@ -263,6 +263,18 @@ export default function RegisterScreen() {
               )}
             </TouchableOpacity>
 
+            {/* Implicit Consent Footer */}
+            <Text style={styles.consentText}>
+              By continuing, you agree to our{' '}
+              <Text style={styles.consentLink} onPress={() => navigation.navigate('TermsOfService')}>
+                Terms of Service
+              </Text>
+              {' '}and{' '}
+              <Text style={styles.consentLink} onPress={() => navigation.navigate('PrivacyPolicy')}>
+                Privacy Policy
+              </Text>
+            </Text>
+
             {/* Login Link */}
             <View style={styles.loginContainer}>
               <Text style={styles.loginText}>Already have an account?</Text>
@@ -388,6 +400,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#1f2937',
+  },
+  consentText: {
+    fontSize: 12,
+    color: '#9ca3af',
+    textAlign: 'center',
+    marginTop: 12,
+    marginBottom: 16,
+    lineHeight: 18,
+    paddingHorizontal: 12,
+  },
+  consentLink: {
+    color: '#6b7280',
+    textDecorationLine: 'underline',
   },
 });
 

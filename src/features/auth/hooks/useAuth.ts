@@ -50,6 +50,7 @@ export function useAuth() {
     const loginWithGoogle = useAuthStore((state) => state.loginWithGoogle);
     const logout = useAuthStore((state) => state.logout);
     const deleteAccount = useAuthStore((state) => state.deleteAccount);
+    const hardDeleteAccount = useAuthStore((state) => state.hardDeleteAccount);
     const error = useAuthStore((state) => state.error);
     const clearError = useAuthStore((state) => state.clearError);
 
@@ -85,6 +86,7 @@ export function useAuth() {
         loginWithGoogle,
         logout,
         deleteAccount,
+        hardDeleteAccount,
         clearError,
 
         // Profile action

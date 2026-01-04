@@ -259,10 +259,10 @@ export function useRoomDiscovery(
 
   // Auto-fetch on mount or when filters change
   useEffect(() => {
-    if (autoFetch && latitude !== 0 && longitude !== 0) {
-      // If filters changed or initial load, fetch
-      // We rely on fetchRooms to handle the actual fetching
-      // Note: We don't check hasFetchedRef here because we WANT to refetch on filter changes
+    // Enable auto-fetch even if location is (0,0) IF we are explicitly told to auto-fetch
+    // and it's not the initial state. 
+    // In many cases (0,0) is used as a fallback center when location is denied.
+    if (autoFetch) {
       fetchRooms(false);
     }
   }, [autoFetch, latitude, longitude, radius, category, fetchRooms]);

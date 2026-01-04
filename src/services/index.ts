@@ -14,6 +14,7 @@ export { blockService } from './block';
 export { settingsService } from './settings';
 export { onboardingService } from './onboarding';
 export { notificationService } from './notifications';
+export { consentService } from './consent';
 
 // Re-export constants
 export { STORAGE_KEYS, WS_EVENTS } from '../constants';

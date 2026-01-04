@@ -121,6 +121,12 @@ export interface AuthStoreActions {
     deleteAccount: () => Promise<void>;
 
     /**
+     * Hard delete user account and ALL data - irreversible
+     * Calls API, clears session, transitions to guest
+     */
+    hardDeleteAccount: () => Promise<void>;
+
+    /**
      * Clear error message
      */
     clearError: () => void;
@@ -503,6 +509,65 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
         } catch (err) {
             const message = getErrorMessage(err, 'Failed to delete account');
             log.error('Delete account failed', { error: message });
+            // Revert to previous state on failure
+            set({
+                status: currentStatus,
+                isLoading: false,
+                error: message,
+            });
+            throw err;
+        }
+    },
+
+    hardDeleteAccount: async () => {
+        const currentStatus = get().status;
+
+        // Only allow delete from authenticated state
+        if (currentStatus !== 'authenticated') {
+            log.warn('Hard delete account blocked - invalid state', { currentStatus });
+            return;
+        }
+
+        // CRITICAL: Set loggingOut FIRST
+        set({ status: 'loggingOut', isLoading: true, error: null });
+        useAppStore.getState().setAuthState('loggingOut', null);
+        log.debug('Hard delete account initiated');
+
+        const startTime = Date.now();
+
+        try {
+            // 1. Disconnect WebSocket
+            wsService.disconnect();
+
+            // 2. Small delay
+            await new Promise((resolve) => setTimeout(resolve, 50));
+
+            // 3. Call hard delete API (clears storage tokens internally)
+            await authService.hardDeleteAccount();
+
+            // 4. Clear all app stores
+            useRoomStore.getState().reset();
+            useUserStore.getState().clearUser();
+
+            // 5. Ensure minimum duration
+            const elapsed = Date.now() - startTime;
+            if (elapsed < MIN_LOGOUT_DURATION_MS) {
+                await new Promise((resolve) => setTimeout(resolve, MIN_LOGOUT_DURATION_MS - elapsed));
+            }
+
+            // 6. Transition to guest
+            set({
+                status: 'guest',
+                isAuthenticated: false,
+                isLoading: false,
+                isInitializing: false,
+                error: null,
+            });
+            useAppStore.getState().setAuthState('guest', null);
+            log.info('Account hard-deleted successfully');
+        } catch (err) {
+            const message = getErrorMessage(err, 'Failed to hard-delete account');
+            log.error('Hard delete account failed', { error: message });
             // Revert to previous state on failure
             set({
                 status: currentStatus,

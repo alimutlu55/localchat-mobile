@@ -20,7 +20,7 @@ import {
   Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Location from 'expo-location';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -44,6 +44,7 @@ import { useMyRooms } from '../hooks';
 import { useRoomQuota } from '../hooks/useRoomQuota';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'CreateRoom'>;
+type CreateRoomRouteProp = RouteProp<RootStackParamList, 'CreateRoom'>;
 
 const { width } = Dimensions.get('window');
 
@@ -90,7 +91,9 @@ const MAX_DESCRIPTION_LENGTH = 200;
 
 export default function CreateRoomScreen() {
   const navigation = useNavigation<NavigationProp>();
+  const route = useRoute<CreateRoomRouteProp>();
   const insets = useSafeAreaInsets();
+  const initialLocation = route.params?.initialLocation;
 
   // Use hooks instead of context
   const { addRoom: addCreatedRoom } = useMyRooms();
@@ -105,7 +108,7 @@ export default function CreateRoomScreen() {
   const [radiusMeters, setRadiusMeters] = useState(1000); // Default to 1km
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [maxParticipants, setMaxParticipants] = useState(100);
-  const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(initialLocation || null);
   const [isLoading, setIsLoading] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(true);
   const { quota, refreshQuota, isLimitReached } = useRoomQuota();
@@ -118,8 +121,12 @@ export default function CreateRoomScreen() {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
-          Alert.alert('Location Required', 'Please enable location to create a room.');
-          navigation.goBack();
+          // If we have an initial location (from map center), we can still show it
+          // but we prompt the user that GPS is required for accurate placement
+          if (!initialLocation) {
+            Alert.alert('Location Required', 'Precise location is required to create a room.');
+            navigation.goBack();
+          }
           return;
         }
 

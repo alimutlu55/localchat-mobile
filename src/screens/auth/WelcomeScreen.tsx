@@ -160,7 +160,7 @@ export default function WelcomeScreen() {
           />
 
           <TouchableOpacity
-            style={styles.secondaryButton}
+            style={[styles.secondaryButton, authLoading && styles.buttonDisabled]}
             onPress={handleContinueAnonymously}
             activeOpacity={0.8}
             disabled={authLoading}
@@ -191,10 +191,17 @@ export default function WelcomeScreen() {
         </View>
       </View>
 
-      {/* Footer */}
+      {/* Footer - Implicit Consent */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          By continuing, you agree to our Terms of Service and Privacy Policy
+          By continuing, you agree to our{' '}
+          <Text style={styles.footerLink} onPress={() => navigation.navigate('TermsOfService')}>
+            Terms of Service
+          </Text>
+          {' '}and{' '}
+          <Text style={styles.footerLink} onPress={() => navigation.navigate('PrivacyPolicy')}>
+            Privacy Policy
+          </Text>
         </Text>
       </View>
     </SafeAreaView>
@@ -317,6 +324,10 @@ const styles = StyleSheet.create({
     color: '#9ca3af',
     textAlign: 'center',
     lineHeight: 18,
+  },
+  footerLink: {
+    color: '#6b7280',
+    textDecorationLine: 'underline',
   },
   errorContainer: {
     marginTop: 16,

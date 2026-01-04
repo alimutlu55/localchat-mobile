@@ -31,6 +31,7 @@ import { useAuth } from '../../features/auth';
 import { useCurrentUser } from '../../features/user/store';
 import { AvatarDisplay } from '../../components/profile';
 import { theme } from '../../core/theme';
+import { APP_VERSION } from '../../version';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -209,7 +210,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* Version */}
-        <Text style={styles.version}>LocalChat v1.0.0</Text>
+        <Text style={styles.version}>LocalChat v{APP_VERSION}</Text>
       </ScrollView>
     </SafeAreaView>
   );
