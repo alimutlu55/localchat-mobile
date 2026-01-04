@@ -28,7 +28,11 @@ export type {
   ClusterMetadata,
   ClusterFeature,
   ClusterProperties,
+  SerializedRoom,
 } from './room';
+
+// Room serialization utilities
+export { serializeRoom, deserializeRoom } from './room';
 
 // Message types
 export type {

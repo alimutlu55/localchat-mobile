@@ -19,7 +19,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Location from 'expo-location';
 import { Menu, Plus, Map as MapIcon, List } from 'lucide-react-native';
 import { RootStackParamList } from '../../navigation/types';
-import { Room } from '../../types';
+import { Room, serializeRoom } from '../../types';
 import { ROOM_CONFIG } from '../../constants';
 import { useAuth } from '../../features/auth';
 import { useRoomDiscovery, useRoomOperations, useMyRooms } from '../../features/rooms/hooks';
@@ -138,10 +138,11 @@ export default function ListScreen() {
 
     const handleEnterRoom = (room: Room) => {
         // Check if user needs to join first (e.g., after being kicked)
+        const serializedRoom = serializeRoom(room);
         if (!room.hasJoined && !room.isCreator) {
-            navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: room });
+            navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: serializedRoom });
         } else {
-            navigation.navigate('ChatRoom', { roomId: room.id, initialRoom: room });
+            navigation.navigate('ChatRoom', { roomId: room.id, initialRoom: serializedRoom });
         }
     };
 
@@ -214,10 +215,11 @@ export default function ListScreen() {
                 rooms={myRooms}
                 onRoomSelect={(room) => {
                     // Check if user needs to join first (e.g., after being kicked)
+                    const serializedRoom = serializeRoom(room);
                     if (!room.hasJoined && !room.isCreator) {
-                        navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: room });
+                        navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: serializedRoom });
                     } else {
-                        navigation.navigate('ChatRoom', { roomId: room.id, initialRoom: room });
+                        navigation.navigate('ChatRoom', { roomId: room.id, initialRoom: serializedRoom });
                     }
                 }}
                 onProfilePress={() => {

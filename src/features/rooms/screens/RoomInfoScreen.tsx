@@ -32,7 +32,7 @@ import {
     UserX,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../../../navigation/types';
-import { Room } from '../../../types';
+import { Room, deserializeRoom } from '../../../types';
 import { roomService, ParticipantDTO } from '../../../services';
 import { ParticipantItem } from '../../../components/room';
 import { theme } from '../../../core/theme';
@@ -52,8 +52,12 @@ export default function RoomInfoScreen() {
     // Support both new (roomId) and legacy (room) navigation params
     const params = route.params;
     const roomId = params.roomId || params.room?.id;
-    const initialRoom = params.initialRoom || params.room;
-    const { isCreator, currentUserId, onCloseRoom, onCloseSuccess } = params;
+    // Deserialize initialRoom if it came from navigation (has string dates)
+    const initialRoom = params.initialRoom
+        ? deserializeRoom(params.initialRoom as any)
+        : params.room;
+    const { isCreator, currentUserId, onCloseRoom } = params;
+    // Note: onCloseSuccess no longer used - using EventBus 'room.closeInitiated' instead
 
     // Guard: roomId is required
     if (!roomId) {
@@ -227,11 +231,9 @@ export default function RoomInfoScreen() {
                     style: 'destructive',
                     onPress: async () => {
                         try {
-                            // If onCloseSuccess (from ChatRoom) was provided, call it
-                            // to set the closing flag and prevent duplicate alerts
-                            if (onCloseSuccess) {
-                                onCloseSuccess();
-                            }
+                            // Emit event so ChatRoomScreen knows we're closing the room
+                            // This prevents duplicate alerts when room.closed arrives
+                            eventBus.emit('room.closeInitiated', { roomId });
 
                             await roomService.closeRoom(roomId);
 

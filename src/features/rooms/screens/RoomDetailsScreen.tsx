@@ -32,7 +32,7 @@ import {
 import { RootStackParamList } from '../../../navigation/types';
 import { roomService, ParticipantDTO, messageService } from '../../../services';
 import { eventBus } from '../../../core/events';
-import { ChatMessage } from '../../../types';
+import { ChatMessage, serializeRoom, deserializeRoom } from '../../../types';
 import { useUserId } from '../../user/store';
 import { useRoom, useRoomOperations, useRoomMembership } from '../hooks';
 import { useUserLocation } from '../../discovery/hooks';
@@ -45,18 +45,6 @@ import { createLogger } from '../../../shared/utils/logger';
 import { isUserBanned, isAlreadyReported } from '../../../shared/utils/errors';
 
 const log = createLogger('RoomDetails');
-
-/**
- * Serializes a room object for safe navigation (replaces Dates with strings)
- */
-const serializeRoom = (room: any): any => {
-  if (!room) return room;
-  return {
-    ...room,
-    expiresAt: room.expiresAt instanceof Date ? room.expiresAt.toISOString() : room.expiresAt,
-    createdAt: room.createdAt instanceof Date ? room.createdAt.toISOString() : room.createdAt,
-  };
-};
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'RoomDetails'>;
 type RoomDetailsRouteProp = RouteProp<RootStackParamList, 'RoomDetails'>;
@@ -107,7 +95,10 @@ export default function RoomDetailsScreen() {
   // Support both new (roomId) and legacy (room) navigation params
   const params = route.params;
   const roomId = params.roomId || params.room?.id;
-  const initialRoom = params.initialRoom || params.room;
+  // Deserialize initialRoom if it came from navigation (has string dates)
+  const initialRoom = params.initialRoom
+    ? deserializeRoom(params.initialRoom as any)
+    : params.room;
 
   // Helpers to close modal
   const handleClose = () => navigation.goBack();
@@ -393,7 +384,7 @@ export default function RoomDetailsScreen() {
         title: room.title,
       });
     } catch (error) {
-      console.log('Share error:', error);
+      // Share cancelled or error - ignore
     }
   };
 

@@ -375,13 +375,11 @@ class RoomService {
     }
 
     // Server returns ClusterResponse. We support both direct GeoJSON and ApiResponse-wrapped
-    console.log(`[RoomService] getClusters: zoom=${zoom}, bounds=[${minLng}, ${minLat}, ${maxLng}, ${maxLat}]`);
     const response = await api.get<any>(`/rooms/clusters?${params}`);
 
     // Handle both { data: ClusterResponse } and direct ClusterResponse
     const clusterData: ClusterResponse = response.data || response;
 
-    console.log(`[RoomService] getClusters: response received, featureCount=${clusterData.features?.length ?? 0}`);
     return clusterData;
   }
 

@@ -32,7 +32,7 @@ import * as Location from 'expo-location';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Plus, Menu, Map as MapIcon, List } from 'lucide-react-native';
 import { RootStackParamList } from '../../navigation/types';
-import { Room } from '../../types';
+import { Room, serializeRoom } from '../../types';
 import { ROOM_CONFIG, MAP_CONFIG } from '../../constants';
 import { useAuth } from '../../features/auth';
 import { useRoomDiscovery, useMyRooms } from '../../features/rooms/hooks';
@@ -421,7 +421,7 @@ export default function MapScreen() {
       // If already at a good zoom level (within 1.5 levels), open immediately
       if (zoomDiff <= 1.5) {
         setSelectedRoom(room);
-        navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: room });
+        navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: serializeRoom(room) });
         return;
       }
 
@@ -443,11 +443,11 @@ export default function MapScreen() {
       // Open details after zoom completes (with buffer)
       setTimeout(() => {
         setSelectedRoom(room);
-        navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: room });
+        navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: serializeRoom(room) });
       }, duration + 150);
     } else {
       setSelectedRoom(room);
-      navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: room });
+      navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: serializeRoom(room) });
     }
   }, [navigation, setSelectedRoom, mapReady, currentZoom, calculateMapFlyDuration]);
 
@@ -534,7 +534,7 @@ export default function MapScreen() {
       if (expansionZoom > 18) {
         const firstRoom = leaves[0].properties.room;
         setSelectedRoom(firstRoom);
-        navigation.navigate('RoomDetails', { roomId: firstRoom.id, initialRoom: firstRoom });
+        navigation.navigate('RoomDetails', { roomId: firstRoom.id, initialRoom: serializeRoom(firstRoom) });
         return;
       }
     }
@@ -842,10 +842,11 @@ export default function MapScreen() {
         rooms={myRooms}
         onRoomSelect={(room) => {
           // Check if user needs to join first (e.g., after being kicked)
+          const serializedRoom = serializeRoom(room);
           if (!room.hasJoined && !room.isCreator) {
-            navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: room });
+            navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: serializedRoom });
           } else {
-            navigation.navigate('ChatRoom', { roomId: room.id, initialRoom: room });
+            navigation.navigate('ChatRoom', { roomId: room.id, initialRoom: serializedRoom });
           }
         }}
         onProfilePress={() => {

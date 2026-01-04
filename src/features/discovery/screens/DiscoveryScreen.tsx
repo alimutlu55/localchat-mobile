@@ -35,7 +35,7 @@ import { Plus, Minus, Navigation, Menu, Map as MapIcon, List, Globe } from 'luci
 import { RootStackParamList } from '../../../navigation/types';
 
 // Types
-import { Room, ClusterFeature, RoomCategory } from '../../../types';
+import { Room, ClusterFeature, RoomCategory, serializeRoom, SerializedRoom } from '../../../types';
 
 // Context
 import { useUIActions } from '../../../context';
@@ -69,17 +69,6 @@ import { calcOptimalZoomForCluster, calcAnimationDuration as calcClusterAnimatio
 
 const log = createLogger('Discovery');
 
-
-/**
- * Serializes a room object for safe navigation (replaces Dates with strings)
- */
-const serializeRoom = (room: Room): any => {
-    return {
-        ...room,
-        expiresAt: room.expiresAt instanceof Date ? room.expiresAt.toISOString() : room.expiresAt,
-        createdAt: room.createdAt instanceof Date ? room.createdAt.toISOString() : room.createdAt,
-    };
-};
 
 // =============================================================================
 // Types
@@ -328,8 +317,8 @@ export default function DiscoveryScreen() {
 
             const [lng, lat] = feature.geometry.coordinates;
 
-            // Create minimal room for navigation
-            const room: Partial<Room> = {
+            // Navigate to room details (pass partial room with expiresAt as string)
+            const partialSerializedRoom: Partial<SerializedRoom> = {
                 id: roomId,
                 title: feature.properties.title,
                 latitude: lat,
@@ -337,13 +326,15 @@ export default function DiscoveryScreen() {
                 category: feature.properties.category as Room['category'],
                 isCreator: feature.properties.isCreator,
                 hasJoined: feature.properties.hasJoined,
+                expiresAt: feature.properties.expiresAt || new Date().toISOString(),
+                createdAt: new Date().toISOString(),
             };
 
             // IMPORTANT: Set selection first so MapLibre receives selected=true
             setSelectedFeature(feature);
 
             // Navigate to room details
-            navigation.navigate('RoomDetails', { roomId, initialRoom: room as Room });
+            navigation.navigate('RoomDetails', { roomId, initialRoom: partialSerializedRoom as SerializedRoom });
 
             // Clear selection after a short delay while screen is transitioning away
             // This resets MapLibre's internal PointAnnotation state (selected=false)

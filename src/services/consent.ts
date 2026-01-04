@@ -189,7 +189,7 @@ class ConsentService {
             // Mark as synced
             localConsent.syncedToBackend = true;
             await storage.set(CONSENT_KEY, localConsent);
-            console.log('[Consent] Successfully synced to backend');
+            // Successfully synced to backend
         } catch (error) {
             // Log but don't fail - consent is stored locally
             console.error('[Consent] Failed to sync to backend:', error);

@@ -99,6 +99,13 @@ export interface RoomEvents {
     roomId: string;
     participantCount: number;
   };
+  /**
+   * Local event emitted when user initiates room close (before API call)
+   * Used for cross-screen communication without passing functions in navigation
+   */
+  'room.closeInitiated': {
+    roomId: string;
+  };
 }
 
 /**
@@ -222,7 +229,7 @@ export type EventHandler<T extends EventName> = (payload: AllEvents[T]) => void;
 
 class EventBus {
   private handlers = new Map<string, Set<EventHandler<any>>>();
-  private debugMode = __DEV__;
+  private debugMode = false; // Disabled by default - use setDebugMode(true) for verbose logging
 
   /**
    * Subscribe to an event

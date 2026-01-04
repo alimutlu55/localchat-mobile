@@ -134,9 +134,9 @@ export default function SettingsScreen() {
       'Language',
       'Select your preferred language',
       [
-        { text: 'English', onPress: () => console.log('English selected') },
-        { text: 'Türkçe', onPress: () => console.log('Turkish selected') },
-        { text: 'Español', onPress: () => console.log('Spanish selected') },
+        { text: 'English', onPress: () => { } },
+        { text: 'Türkçe', onPress: () => { } },
+        { text: 'Español', onPress: () => { } },
         { text: 'Cancel', style: 'cancel' },
       ]
     );

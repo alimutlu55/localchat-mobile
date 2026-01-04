@@ -179,4 +179,40 @@ export interface ClusterProperties {
   isCreator?: boolean;
 }
 
+// =============================================================================
+// Navigation Serialization Types
+// =============================================================================
+
+/**
+ * SerializedRoom - Room with Date fields as ISO strings
+ * Use this type for navigation params to avoid React Navigation warnings.
+ */
+export interface SerializedRoom extends Omit<Room, 'expiresAt' | 'createdAt'> {
+  expiresAt: string;
+  createdAt: string;
+}
+
+/**
+ * Serialize a Room for navigation params
+ * Converts Date objects to ISO strings
+ */
+export function serializeRoom(room: Room): SerializedRoom {
+  return {
+    ...room,
+    expiresAt: room.expiresAt instanceof Date ? room.expiresAt.toISOString() : room.expiresAt,
+    createdAt: room.createdAt instanceof Date ? room.createdAt.toISOString() : room.createdAt,
+  };
+}
+
+/**
+ * Deserialize a SerializedRoom back to Room
+ * Converts ISO strings back to Date objects
+ */
+export function deserializeRoom(serialized: SerializedRoom | Room): Room {
+  return {
+    ...serialized,
+    expiresAt: typeof serialized.expiresAt === 'string' ? new Date(serialized.expiresAt) : serialized.expiresAt,
+    createdAt: typeof serialized.createdAt === 'string' ? new Date(serialized.createdAt) : serialized.createdAt,
+  } as Room;
+}
 

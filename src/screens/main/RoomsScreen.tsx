@@ -20,7 +20,7 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MessageCircle, Plus, Users, Clock, Crown } from 'lucide-react-native';
 import { RootStackParamList } from '../../navigation/types';
 import { roomService } from '../../services';
-import { Room } from '../../types';
+import { Room, serializeRoom } from '../../types';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -74,10 +74,11 @@ export default function RoomsScreen() {
   const handleRoomPress = (room: Room) => {
     // If user hasn't joined (e.g., was kicked), show room details with join button
     // Otherwise, go directly to chat
+    const serializedRoom = serializeRoom(room);
     if (!room.hasJoined && !room.isCreator) {
-      navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: room });
+      navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: serializedRoom });
     } else {
-      navigation.navigate('ChatRoom', { roomId: room.id, initialRoom: room });
+      navigation.navigate('ChatRoom', { roomId: room.id, initialRoom: serializedRoom });
     }
   };
 

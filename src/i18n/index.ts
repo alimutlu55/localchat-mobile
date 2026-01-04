@@ -27,7 +27,7 @@ const getDeviceLanguage = (): string => {
       }
     }
   } catch (error) {
-    console.log('Could not get device language, using default');
+    // Could not get device language, using default
   }
   return 'en';
 };

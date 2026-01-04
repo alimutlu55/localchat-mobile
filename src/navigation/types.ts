@@ -10,23 +10,24 @@
  */
 
 import { NavigatorScreenParams } from '@react-navigation/native';
-import { Room } from '../types';
+import { Room, SerializedRoom } from '../types';
 
 /**
  * Room navigation params
  * 
- * NEW pattern: { roomId: string, initialRoom?: Room }
+ * NEW pattern: { roomId: string, initialRoom?: SerializedRoom }
  * LEGACY pattern: { room: Room }
  * 
- * Screens should check which fields are present at runtime.
+ * Use serializeRoom() before passing room data to navigation.
+ * Use deserializeRoom() when receiving room data from navigation.
  */
 export interface RoomNavParams {
   /** NEW: Pass roomId for data fetching from store */
   roomId?: string;
   /** Room name for display (optional) */
   roomName?: string;
-  /** NEW: Optional initial data for optimistic rendering */
-  initialRoom?: Room;
+  /** NEW: Optional initial data for optimistic rendering (use serializeRoom before passing) */
+  initialRoom?: SerializedRoom;
   /** LEGACY: Full room object (deprecated, use roomId instead) */
   room?: Room;
 }
@@ -49,8 +50,8 @@ export type RootStackParamList = {
   RoomInfo: RoomNavParams & {
     isCreator: boolean;
     currentUserId?: string;
-    onCloseRoom?: () => void;
-    onCloseSuccess?: () => void;
+    onCloseRoom?: () => void; // Legacy callback, consider migrating to EventBus
+    // Note: onCloseSuccess removed - using EventBus 'room.closeInitiated' event instead
   };
   CreateRoom: { initialLocation?: { latitude: number; longitude: number } };
   Settings: undefined;

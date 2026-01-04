@@ -276,13 +276,11 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
     async (fetchBounds: [number, number, number, number] | null, fetchZoom: number, showLoading = false, throwOnError = false) => {
       if (isFetchingRef.current) {
         log.info('Fetch already in progress, skipping');
-        console.log('[useServerClustering] Fetch already in progress, skipping');
         return;
       }
 
       if (!fetchBounds) {
         log.warn('Fetch called with null bounds, skipping');
-        console.log('[useServerClustering] Fetch called with null bounds, skipping');
         return;
       }
 
@@ -306,7 +304,7 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
         showLoading,
       });
 
-      console.log(`[useServerClustering] fetchClusters start: showLoading=${showLoading}, bounds=${JSON.stringify(fetchBounds)}, userLoc=${JSON.stringify(userLocation)}`);
+
       isFetchingRef.current = true;
       if (showLoading) {
         setIsLoading(true);
@@ -352,7 +350,7 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
           throw err;
         }
       } finally {
-        console.log('[useServerClustering] fetchClusters finally block');
+
         if (mountedRef.current) {
           setIsLoading(false);
         }

@@ -17,7 +17,7 @@ import { useBlockedUsers } from './useBlockedUsers';
 import { useMyRooms } from '../../rooms/hooks';
 import { useRoomStore } from '../../rooms/store/RoomStore';
 import { useAuth } from '../../auth';
-import { Room } from '../../../types';
+import { Room, serializeRoom } from '../../../types';
 import { storage } from '../../../services/storage';
 import { authService } from '../../../services/auth';
 import { consentService } from '../../../services/consent';
@@ -308,7 +308,7 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
   const handleRoomPress = useCallback(
     (room: Room, onClose: () => void) => {
       onClose();
-      navigation.navigate('ChatRoom', { roomId: room.id, initialRoom: room });
+      navigation.navigate('ChatRoom', { roomId: room.id, initialRoom: serializeRoom(room) });
     },
     [navigation]
   );

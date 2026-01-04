@@ -44,7 +44,7 @@ import { RootStackParamList } from '../../../navigation/types';
 import { ChatHeader, MessageInput } from '../components';
 
 // Types
-import { ChatMessage, Room } from '../../../types';
+import { ChatMessage, Room, serializeRoom, deserializeRoom } from '../../../types';
 
 // UserStore
 import { useUserId } from '../../user/store';
@@ -74,6 +74,7 @@ import {
 // Utils
 import { createLogger } from '../../../shared/utils/logger';
 import { isAlreadyReported } from '../../../shared/utils/errors';
+import { eventBus } from '../../../core/events/EventBus';
 
 const log = createLogger('ChatRoom');
 
@@ -95,7 +96,10 @@ export default function ChatRoomScreen() {
   // Support both new (roomId) and legacy (room) navigation params
   const params = route.params;
   const roomId = params.roomId || params.room?.id;
-  const initialRoom = params.initialRoom || params.room;
+  // Deserialize initialRoom if it came from navigation (has string dates)
+  const initialRoom = params.initialRoom
+    ? deserializeRoom(params.initialRoom as any)
+    : params.room;
 
   // Guard: roomId is required
   if (!roomId) {
@@ -173,7 +177,7 @@ export default function ChatRoomScreen() {
           { text: 'OK', onPress: () => navigateToHome() },
         ]);
       } else {
-        navigation.replace('RoomDetails', { roomId, initialRoom });
+        navigation.replace('RoomDetails', { roomId, initialRoom: initialRoom ? serializeRoom(initialRoom) : undefined });
       }
     },
     onRoomClosed: () => {
@@ -218,6 +222,20 @@ export default function ChatRoomScreen() {
       };
     }, [roomId])
   );
+
+  // ==========================================================================
+  // Listen for room close initiated (from RoomInfoScreen)
+  // ==========================================================================
+
+  useEffect(() => {
+    // Subscribe to a local event when user initiates room close from RoomInfoScreen
+    const unsubscribe = eventBus.on('room.closeInitiated', (payload) => {
+      if (payload.roomId === roomId) {
+        isClosingRoomRef.current = true;
+      }
+    });
+    return () => unsubscribe();
+  }, [roomId]);
 
   // ==========================================================================
   // Mark messages as read when user is at bottom
@@ -333,12 +351,10 @@ export default function ChatRoomScreen() {
   const handleRoomInfo = useCallback(() => {
     navigation.navigate('RoomInfo', {
       roomId,
-      initialRoom: room,
+      initialRoom: room ? serializeRoom(room) : undefined,
       isCreator,
       currentUserId: userId ?? undefined,
-      onCloseSuccess: () => {
-        isClosingRoomRef.current = true;
-      },
+      // Note: onCloseSuccess removed - using EventBus 'room.closeInitiated' event instead
     });
   }, [roomId, room, isCreator, userId, navigation]);
 

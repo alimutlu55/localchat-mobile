@@ -19,7 +19,8 @@
 
 import { useState, useCallback, useMemo } from 'react';
 import { CATEGORIES } from '../../../../constants';
-import { useRoomStore, selectSelectedCategory } from '../../../rooms';
+// Import directly from RoomStore to avoid require cycle with rooms/index.ts
+import { useRoomStore, selectSelectedCategory } from '../../../rooms/store/RoomStore';
 import { RoomCategory } from '../../../../types';
 import type {
     DiscoveryFilters,

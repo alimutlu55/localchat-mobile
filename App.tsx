@@ -56,7 +56,7 @@ export default function App() {
       try {
         // Setup API auth error callback - called when token refresh fails
         api.setAuthErrorCallback(async () => {
-          console.log('[App] Session expired, logging out');
+          // Session expired - logout user
           // Import and call logout from AuthStore
           const { useAuthStore } = await import('./src/features/auth');
           await useAuthStore.getState().logout();
@@ -68,7 +68,6 @@ export default function App() {
         // Check current OS location permission status
         const { getLocationPermissionStore } = await import('./src/shared/stores/LocationConsentStore');
         await getLocationPermissionStore().checkPermission();
-        console.log('[App] Location permission checked');
       } catch (error) {
         console.error('[App] Initialization error:', error);
       } finally {
@@ -82,8 +81,8 @@ export default function App() {
     const cleanupNotifications = notificationService.initialize();
 
     // Request notification permissions
-    notificationService.requestPermissions().then((granted) => {
-      console.log('[App] Notification permissions:', granted ? 'granted' : 'denied');
+    notificationService.requestPermissions().then(() => {
+      // Permissions requested
     });
 
     // Handle notification taps - navigate to the room

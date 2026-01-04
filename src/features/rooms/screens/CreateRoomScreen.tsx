@@ -37,7 +37,7 @@ import {
 } from 'lucide-react-native';
 import { RootStackParamList } from '../../../navigation/types';
 import { roomService } from '../../../services';
-import { RoomCategory } from '../../../types';
+import { RoomCategory, serializeRoom } from '../../../types';
 // import { CATEGORIES } from '../../../constants'; // Unused
 import { useRoomStore } from '../store';
 import { useMyRooms } from '../hooks';
@@ -211,7 +211,7 @@ export default function CreateRoomScreen() {
       };
 
       // Add room to context so it receives WebSocket updates
-      console.log('[CreateRoomScreen] Adding room to context before navigation');
+      // Room added to context before navigation
 
       // Refresh quota after creation to get latest used count and reset time
       refreshQuota();
@@ -220,7 +220,7 @@ export default function CreateRoomScreen() {
       addCreatedRoom(roomWithCreatorFlag);
 
       // Navigate to the new room using new roomId-based pattern
-      navigation.replace('ChatRoom', { roomId: roomWithCreatorFlag.id, initialRoom: roomWithCreatorFlag });
+      navigation.replace('ChatRoom', { roomId: roomWithCreatorFlag.id, initialRoom: serializeRoom(roomWithCreatorFlag) });
     } catch (error) {
       console.error('Failed to create room:', error);
 

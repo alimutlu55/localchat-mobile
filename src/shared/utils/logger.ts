@@ -41,8 +41,9 @@ const LOG_LEVELS: Record<LogLevel, number> = {
 };
 
 // Global configuration - can be modified at runtime
+// Default to 'error' only for clean output. Use configureLogger() or setLogLevel() to enable verbose logs.
 const config: LoggerConfig = {
-  minLevel: __DEV__ ? 'debug' : 'warn',
+  minLevel: 'error',
   showTimestamp: __DEV__,
   enabled: true,
 };

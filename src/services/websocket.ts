@@ -207,22 +207,15 @@ class WebSocketService {
     try {
       let token = await secureStorage.get(STORAGE_KEYS.AUTH_TOKEN);
       if (!token) {
-        console.warn('[WS] No auth token available');
         this.connectionState = 'disconnected';
         this.emitStateChange();
         return false;
       }
 
       // Try to refresh the token before connecting to ensure it's valid
-      // This prevents auth failures due to expired tokens
-      console.log('[WS] Refreshing token before connection...');
       const refreshed = await api.refreshAccessToken();
       if (refreshed) {
-        // Get the newly refreshed token
         token = await secureStorage.get(STORAGE_KEYS.AUTH_TOKEN);
-        console.log('[WS] Token refreshed successfully');
-      } else {
-        console.log('[WS] Token refresh failed or not needed, using existing token');
       }
 
       // Store token for auth handshake
@@ -232,20 +225,18 @@ class WebSocketService {
         this.ws = new WebSocket(API_CONFIG.WS_URL);
 
         this.ws.onopen = () => {
-          console.log('[WS] Socket opened, waiting for auth_required...');
-          // Don't mark as connected yet - wait for auth handshake
+          // Socket opened, waiting for auth_required
         };
 
         this.ws.onmessage = (event) => {
           this.handleMessage(event.data, resolve);
         };
 
-        this.ws.onerror = (error) => {
-          console.error('[WS] Error:', error);
+        this.ws.onerror = () => {
+          // Error handled by onclose
         };
 
-        this.ws.onclose = (event) => {
-          console.log('[WS] Closed:', event.code, event.reason);
+        this.ws.onclose = () => {
           this.handleDisconnect();
           if (this.connectionState === 'connecting') {
             resolve(false);
@@ -255,14 +246,12 @@ class WebSocketService {
         // Connection timeout
         setTimeout(() => {
           if (this.connectionState === 'connecting') {
-            console.error('[WS] Connection timeout');
             this.ws?.close();
             resolve(false);
           }
         }, 15000);
       });
     } catch (error) {
-      console.error('[WS] Connection error:', error);
       // Respect auto-retry state
       if (this.reconnectAttempts < this.maxReconnectAttempts) {
         this.connectionState = 'reconnecting';
@@ -295,8 +284,7 @@ class WebSocketService {
    * Resets retry counter and starts fresh connection attempt
    */
   manualReconnect(): void {
-    console.log('[WS] Manual reconnect triggered');
-    this.reconnectAttempts = 0; // Reset counter for fresh 10 attempts
+    this.reconnectAttempts = 0;
     this.connectionState = 'reconnecting';
     this.emitStateChange();
     this.connect();
@@ -311,17 +299,13 @@ class WebSocketService {
       const message = JSON.parse(data);
       const { type, payload } = message;
 
-      console.log(`[WS] Received: ${type}`);
-
       // Handle authentication flow
       switch (type) {
         case WS_EVENTS.AUTH_REQUIRED:
-          console.log('[WS] Auth required, sending credentials...');
           this.sendAuth();
           return;
 
         case WS_EVENTS.AUTH_SUCCESS:
-          console.log('[WS] Authentication successful!');
           this.connectionState = 'connected';
           this.reconnectAttempts = 0;
           this.startHeartbeat();
@@ -332,9 +316,6 @@ class WebSocketService {
           return;
 
         case WS_EVENTS.AUTH_ERROR:
-          console.error('[WS] Authentication failed:', payload);
-          // For auth_error, we set to disconnected so tests and UI can see the failure
-          // handleDisconnect will still be triggered by ws.close(), but we'll check state there
           this.connectionState = 'disconnected';
           this.emitStateChange();
           connectResolve?.(false);
@@ -362,11 +343,9 @@ class WebSocketService {
         wildcardHandlers.forEach((handler) => handler({ type, payload }));
       }
 
-      // NEW: Emit to EventBus for decoupled event handling
-      // Maps WS_EVENTS to EventBus event names
       this.emitToEventBus(type, payload);
     } catch (error) {
-      console.error('[WS] Failed to parse message:', error);
+      // Failed to parse message - ignore
     }
   }
 
@@ -375,7 +354,6 @@ class WebSocketService {
    */
   private sendAuth(): void {
     if (!this.authToken || !this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      console.error('[WS] Cannot send auth - no token or socket not open');
       return;
     }
 
@@ -405,17 +383,14 @@ class WebSocketService {
       return;
     }
 
-    // Only show 'disconnected' (with Retry button) if we've exhausted all auto-retries
-    // During auto-retry loop, show 'reconnecting' (no Retry button, just spinner)
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.connectionState = 'reconnecting';
       this.emitStateChange();
       this.scheduleReconnect();
     } else {
-      // All auto-retries exhausted - show 'disconnected' so user can manually retry
+      // All auto-retries exhausted
       this.connectionState = 'disconnected';
       this.emitStateChange();
-      console.log('[WS] All auto-reconnect attempts exhausted');
     }
   }
 
@@ -430,7 +405,6 @@ class WebSocketService {
 
     setTimeout(() => {
       this.reconnectAttempts++;
-      console.log(`[WS] Reconnecting (attempt ${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
       this.connect();
     }, delay);
   }
@@ -495,16 +469,12 @@ class WebSocketService {
   private resubscribeRooms(): void {
     const rooms = Array.from(this.subscribedRooms);
     if (rooms.length === 0) {
-      console.log('[WS] No rooms to resubscribe to');
       return;
     }
 
-    console.log(`[WS] Resubscribing to ${rooms.length} room(s):`, rooms);
-
-    // Send subscribe for each room - server's subscription is lost after restart
+    // Send subscribe for each room
     rooms.forEach((roomId) => {
       this.send(WS_EVENTS.SUBSCRIBE, { roomId });
-      console.log(`[WS] Sent subscribe for room: ${roomId}`);
     });
   }
 
@@ -532,11 +502,6 @@ class WebSocketService {
    * This decouples feature modules from the WebSocket implementation
    */
   private emitToEventBus(type: string, payload: any): void {
-    // Debug logging for message payloads
-    if (type === WS_EVENTS.MESSAGE_NEW) {
-      console.log('[WS] MESSAGE_NEW payload:', JSON.stringify(payload));
-    }
-
     switch (type) {
       // Message events
       case WS_EVENTS.MESSAGE_NEW:
@@ -633,7 +598,6 @@ class WebSocketService {
         break;
 
       case WS_EVENTS.USER_KICKED:
-        console.log('[WS] USER_KICKED payload:', JSON.stringify(payload));
         eventBus.emit('room.userKicked', {
           roomId: payload.roomId,
           kickedUserId: payload.kickedUserId,
@@ -643,7 +607,6 @@ class WebSocketService {
         break;
 
       case WS_EVENTS.USER_BANNED:
-        console.log('[WS] USER_BANNED payload:', JSON.stringify(payload));
         eventBus.emit('room.userBanned', {
           roomId: payload.roomId,
           bannedUserId: payload.bannedUserId,
@@ -712,9 +675,7 @@ class WebSocketService {
    * Subscribe to a room
    */
   subscribe(roomId: string): void {
-    // Only send if not already subscribed (idempotent)
     if (this.subscribedRooms.has(roomId)) {
-      console.log(`[WS] Already subscribed to room: ${roomId}`);
       return;
     }
 
@@ -727,7 +688,6 @@ class WebSocketService {
    * Unlike subscribe(), this always sends the message even if we think we're subscribed
    */
   forceSubscribe(roomId: string): void {
-    console.log(`[WS] Force subscribe to room: ${roomId}`);
     this.subscribedRooms.add(roomId);
     this.send(WS_EVENTS.SUBSCRIBE, { roomId });
   }
@@ -736,9 +696,7 @@ class WebSocketService {
    * Unsubscribe from a room
    */
   unsubscribe(roomId: string): void {
-    // Only send if currently subscribed (idempotent)
     if (!this.subscribedRooms.has(roomId)) {
-      console.log(`[WS] Not subscribed to room: ${roomId}`);
       return;
     }
 

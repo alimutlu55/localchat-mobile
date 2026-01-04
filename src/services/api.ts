@@ -93,12 +93,10 @@ class ApiClient {
    */
   async initialize(): Promise<void> {
     if (this.initialized) return;
-    console.log('[API] Initializing client (loading tokens)...');
     try {
       this.accessToken = await secureStorage.get(STORAGE_KEYS.AUTH_TOKEN);
-      console.log('[API] Initialization complete', { hasToken: !!this.accessToken });
     } catch (error) {
-      console.error('[API] Initialization failed', error);
+      // Silent fail - will work without cached token
     }
     this.initialized = true;
   }
@@ -154,7 +152,6 @@ class ApiClient {
     await this.initialize();
 
     const url = `${this.baseUrl}${endpoint}`;
-    console.log(`[API] ${method} ${url} - Start`);
 
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -169,7 +166,6 @@ class ApiClient {
     const controller = new AbortController();
     const timeoutId = setTimeout(
       () => {
-        console.warn(`[API] ${method} ${url} - TIMEOUT triggered (${options?.timeout ?? this.timeout}ms)`);
         controller.abort();
       },
       options?.timeout ?? this.timeout
@@ -183,15 +179,12 @@ class ApiClient {
         signal: controller.signal,
       });
 
-      console.log(`[API] ${method} ${url} - Response received (${response.status})`);
       clearTimeout(timeoutId);
 
       // Handle 401 Unauthorized - attempt token refresh
       if (response.status === 401 && !options?.skipAuth) {
-        console.log(`[API] ${method} ${url} - 401 Detected, refreshing token...`);
         const refreshed = await this.handleTokenRefresh();
         if (refreshed) {
-          console.log(`[API] ${method} ${url} - Token refreshed, retrying...`);
           // Retry the original request with new token
           headers['Authorization'] = `Bearer ${this.accessToken}`;
           const retryResponse = await fetch(url, {
@@ -201,7 +194,6 @@ class ApiClient {
           });
           return this.handleResponse<T>(retryResponse);
         }
-        console.error(`[API] ${method} ${url} - Token refresh failed`);
         // Refresh failed - clear tokens and notify
         await this.clearToken();
         this.onAuthError?.();
@@ -313,7 +305,6 @@ class ApiClient {
    */
   private async performTokenRefresh(refreshToken: string): Promise<boolean> {
     try {
-      console.log('[API] Attempting token refresh...');
       const response = await fetch(`${this.baseUrl}/auth/refresh`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -331,13 +322,11 @@ class ApiClient {
           if (newRefreshToken) {
             await secureStorage.set(STORAGE_KEYS.REFRESH_TOKEN, newRefreshToken);
           }
-          console.log('[API] Token refresh successful');
           return true;
         }
       }
-      console.warn('[API] Token refresh failed with status:', response.status);
     } catch (error) {
-      console.error('[API] Token refresh error:', error);
+      // Silent fail - will trigger re-auth
     }
     return false;
   }
