@@ -12,8 +12,7 @@
  *
  * Flow:
  * 1. Check consent status → If not given, show ConsentScreen
- * 2. After consent → Show LocationPermissionScreen
- * 3. After permissions → Show Auth flow (guest/authenticating) or App (authenticated)
+ * 2. After consent → Show Auth flow (guest/authenticating) or App (authenticated)
  *
  * State Machine → Navigation:
  * - unknown, loading → LoadingScreen (stable, prevents unmounting)
@@ -47,7 +46,6 @@ import {
     LoadingScreen,
     ConsentScreen,
     ConsentPreferencesScreen,
-    LocationPermissionScreen,
 } from '../screens';
 
 import {
@@ -130,11 +128,6 @@ export function RootNavigator() {
                             component={ConsentPreferencesScreen}
                             options={{ animation: 'slide_from_right' }}
                         />
-                        <Stack.Screen
-                            name="LocationPermission"
-                            component={LocationPermissionScreen}
-                            options={{ animation: 'slide_from_right' }}
-                        />
                         {/* Auth screen available after consent */}
                         <Stack.Screen
                             name="Auth"
@@ -202,11 +195,6 @@ export function RootNavigator() {
                         <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
                         <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
                         <Stack.Screen name="PrivacySettings" component={PrivacySettingsScreen} />
-                        <Stack.Screen
-                            name="LocationPermission"
-                            component={LocationPermissionScreen}
-                            options={{ animation: 'slide_from_right' }}
-                        />
                     </>
                 )}
             </Stack.Navigator>

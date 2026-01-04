@@ -191,9 +191,20 @@ export interface UIEvents {
 }
 
 /**
+ * Consent Events - Related to user consent preferences
+ */
+export interface ConsentEvents {
+  'consent.updated': {
+    locationConsent: boolean;
+    analyticsConsent?: boolean;
+    marketingConsent?: boolean;
+  };
+}
+
+/**
  * All events combined
  */
-export interface AllEvents extends RoomEvents, MessageEvents, TypingEvents, ConnectionEvents, UserEvents, UIEvents { }
+export interface AllEvents extends RoomEvents, MessageEvents, TypingEvents, ConnectionEvents, UserEvents, UIEvents, ConsentEvents { }
 
 /**
  * Event names as a union type

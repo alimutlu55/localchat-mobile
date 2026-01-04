@@ -1,19 +1,20 @@
 /**
  * useUserLocation Hook
  *
- * Manages user location tracking with permissions.
- * Extracted from DiscoveryScreen for reusability.
+ * Main interface for getting user's location with permission handling.
+ * Relies solely on OS-level location permission (no app-level consent).
  *
- * @example
- * ```typescript
- * const { location, isLoading, error, refresh } = useUserLocation();
- * ```
+ * Features:
+ * - Checks OS permission before fetching location
+ * - Watches for position updates
+ * - Reactive to permission changes via EventBus
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import * as Location from 'expo-location';
 import { createLogger } from '../../../shared/utils/logger';
-import { consentService } from '../../../services/consent';
+import { useLocationPermission } from '../../../shared/stores/LocationConsentStore';
+import { eventBus } from '../../../core/events/EventBus';
 
 const log = createLogger('UserLocation');
 
@@ -68,29 +69,24 @@ export function useUserLocation(
 
   const watchSubscription = useRef<Location.LocationSubscription | null>(null);
 
+  // Get permission status from store
+  const { isGranted, isChecked, checkPermission } = useLocationPermission();
+
   // Fetch location
   const fetchLocation = useCallback(async () => {
     try {
       setIsLoading(true);
       setError(null);
-      setPermissionDenied(false); // Reset denied state on new fetch attempt
+      setPermissionDenied(false);
 
-      // Check internal app consent first
-      const statusObj = await consentService.getStatus();
-      if (statusObj.hasConsent && statusObj.options?.locationConsent === false) {
+      // Check OS permission
+      const hasPermission = await checkPermission();
+
+      if (!hasPermission) {
         setPermissionDenied(true);
-        setError('Location access disabled in app settings');
-        log.warn('Location consent explicitly denied in app');
+        setError('Location permission not granted');
+        log.warn('Location permission denied by OS');
         setIsLoading(false);
-        return;
-      }
-
-      // Request OS permission
-      const { status } = await Location.requestForegroundPermissionsAsync();
-      if (status !== 'granted') {
-        setPermissionDenied(true);
-        setError('Location permission denied');
-        log.warn('Location permission denied');
         return;
       }
 
@@ -113,21 +109,19 @@ export function useUserLocation(
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [checkPermission]);
 
   // Start watching location
   const startWatching = useCallback(async () => {
     if (!watch) return;
 
     try {
-      // Check internal app consent first
-      const statusObj = await consentService.getStatus();
-      if (statusObj.hasConsent && statusObj.options?.locationConsent === false) {
+      // Check permission first
+      const hasPermission = await checkPermission();
+      if (!hasPermission) {
         setPermissionDenied(true);
         return;
       }
-
-      const { status } = await Location.requestForegroundPermissionsAsync();
 
       watchSubscription.current = await Location.watchPositionAsync(
         {
@@ -148,7 +142,7 @@ export function useUserLocation(
     } catch (err) {
       log.error('Failed to start location watch', err);
     }
-  }, [watch, timeInterval, distanceInterval]);
+  }, [watch, timeInterval, distanceInterval, checkPermission]);
 
   // Initial fetch and watch setup
   useEffect(() => {
@@ -169,6 +163,30 @@ export function useUserLocation(
       }
     };
   }, [fetchLocation, startWatching, watch]);
+
+  // Subscribe to permission changes for reactive updates
+  useEffect(() => {
+    const unsub = eventBus.on('consent.updated', (payload) => {
+      if (payload.locationConsent !== undefined) {
+        log.debug('Permission changed, re-evaluating location', { locationConsent: payload.locationConsent });
+
+        if (!payload.locationConsent) {
+          // Permission revoked - stop watching and clear location
+          if (watchSubscription.current) {
+            watchSubscription.current.remove();
+            watchSubscription.current = null;
+          }
+          setLocation(null);
+          setPermissionDenied(true);
+          setError('Location permission denied');
+        } else {
+          // Permission granted - fetch location
+          fetchLocation();
+        }
+      }
+    });
+    return unsub;
+  }, [fetchLocation]);
 
   const refresh = useCallback(async () => {
     await fetchLocation();

@@ -29,6 +29,7 @@ import { useAuth } from '../../auth/hooks/useAuth';
 import { useUserStore } from '../../user';
 import { ServerRoomMarker, ServerClusterMarker, MapHeader } from '../components';
 import { useServerClustering } from '../hooks';
+import { useLocationPermission } from '../../../shared/stores/LocationConsentStore';
 import { MapContainer, MapContainerRef, MapControlsProps } from '../containers';
 import { ConnectionBanner } from '../../../components/chat/ConnectionBanner';
 
@@ -53,6 +54,7 @@ export function MapScreen({ onSwitchToList }: MapScreenProps) {
     const { openSidebar } = useUIActions();
     const { status: authStatus } = useAuth();
     const mapContainerRef = useRef<MapContainerRef>(null);
+    const { isGranted: hasPermission } = useLocationPermission();
 
     // User info for header
     const currentUser = useUserStore((state) => state.currentUser);
@@ -163,15 +165,17 @@ export function MapScreen({ onSwitchToList }: MapScreenProps) {
             </View>
 
             {/* Location Control */}
-            <TouchableOpacity
-                style={[styles.controlButton, styles.locationButton]}
-                onPress={props.onCenterOnUser}
-            >
-                <Navigation
-                    size={20}
-                    color={props.hasUserLocation ? theme.tokens.brand.primary : theme.tokens.text.tertiary}
-                />
-            </TouchableOpacity>
+            {hasPermission && (
+                <TouchableOpacity
+                    style={[styles.controlButton, styles.locationButton]}
+                    onPress={props.onCenterOnUser}
+                >
+                    <Navigation
+                        size={20}
+                        color={props.hasUserLocation ? theme.tokens.brand.primary : theme.tokens.text.tertiary}
+                    />
+                </TouchableOpacity>
+            )}
 
             {/* World View */}
             <TouchableOpacity

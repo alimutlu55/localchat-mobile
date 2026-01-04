@@ -39,7 +39,6 @@ export type RootStackParamList = {
   // Consent flow (shown before auth on first launch)
   Consent: undefined;
   ConsentPreferences: undefined;
-  LocationPermission: undefined;
   // Auth flow
   Auth: NavigatorScreenParams<AuthStackParamList>;
   Main: NavigatorScreenParams<MainTabParamList>;

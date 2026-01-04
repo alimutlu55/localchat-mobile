@@ -25,6 +25,8 @@ interface MapControlsProps {
   onResetView: () => void;
   /** Whether user location is available */
   hasUserLocation: boolean;
+  /** Whether location permission is granted */
+  hasPermission?: boolean;
   /** Current zoom level (for conditional rendering) */
   currentZoom: number;
 }
@@ -35,6 +37,7 @@ export function MapControls({
   onCenterUser,
   onResetView,
   hasUserLocation,
+  hasPermission = true,
   currentZoom,
 }: MapControlsProps) {
   return (
@@ -59,20 +62,22 @@ export function MapControls({
       </View>
 
       {/* Center on User */}
-      <TouchableOpacity
-        style={[
-          styles.controlButton,
-          hasUserLocation && styles.controlButtonActive,
-        ]}
-        onPress={onCenterUser}
-        activeOpacity={0.7}
-      >
-        <Navigation
-          size={18}
-          color={hasUserLocation ? theme.tokens.status.info.main : theme.tokens.text.tertiary}
-          strokeWidth={1.5}
-        />
-      </TouchableOpacity>
+      {hasPermission && (
+        <TouchableOpacity
+          style={[
+            styles.controlButton,
+            hasUserLocation && styles.controlButtonActive,
+          ]}
+          onPress={onCenterUser}
+          activeOpacity={0.7}
+        >
+          <Navigation
+            size={18}
+            color={hasUserLocation ? theme.tokens.status.info.main : theme.tokens.text.tertiary}
+            strokeWidth={1.5}
+          />
+        </TouchableOpacity>
+      )}
 
       {/* Reset to World View */}
       {currentZoom > 3 && (

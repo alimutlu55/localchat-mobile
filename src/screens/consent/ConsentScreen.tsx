@@ -25,6 +25,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MapPin, MessageCircle, Shield, Clock } from 'lucide-react-native';
 import { consentService } from '../../services/consent';
+import { getLocationPermissionStore } from '../../shared/stores/LocationConsentStore';
 import { useTheme } from '../../core/theme';
 
 type NavigationProp = NativeStackNavigationProp<any>;
@@ -35,7 +36,7 @@ export default function ConsentScreen() {
 
     const handleAcceptAll = async () => {
         await consentService.acceptAll();
-        navigation.replace('LocationPermission');
+        navigation.replace('Auth', { screen: 'Welcome' });
     };
 
     const handleSetPreferences = () => {
@@ -44,7 +45,7 @@ export default function ConsentScreen() {
 
     const handleOnlyEssential = async () => {
         await consentService.acceptEssential();
-        navigation.replace('LocationPermission');
+        navigation.replace('Auth', { screen: 'Welcome' });
     };
 
     const handleViewTerms = () => {

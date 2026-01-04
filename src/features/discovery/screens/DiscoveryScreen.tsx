@@ -19,6 +19,7 @@ import {
     ActivityIndicator,
     Animated,
     Alert,
+    Linking,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -27,7 +28,6 @@ import {
     MapView,
     Camera,
 } from '@maplibre/maplibre-react-native';
-import { consentService } from '../../../services/consent';
 import { MAP_CONFIG, CATEGORIES } from '../../../constants';
 import { Plus, Minus, Navigation, Menu, Map as MapIcon, List, Globe } from 'lucide-react-native';
 
@@ -55,6 +55,7 @@ import { useMapState, useUserLocation, useServerClustering } from '../hooks';
 import { useDiscoveryViewState } from '../hooks/state/useDiscoveryViewState';
 import { useDiscoveryFilters } from '../hooks/state/useDiscoveryFilters';
 import { useMapTransitions } from '../hooks/animations/useMapTransitions';
+import { useLocationPermission, getLocationPermissionStore } from '../../../shared/stores/LocationConsentStore';
 
 // Network - ConnectionBanner is self-contained, no imports needed here
 
@@ -141,6 +142,9 @@ export default function DiscoveryScreen() {
 
     // User Location
     const { location: userLocation, isLoading: isLocationLoading, permissionDenied, refresh: refreshLocation } = useUserLocation();
+
+    // Location permission from OS (reactive via store)
+    const { isGranted: hasLocationPermission, checkPermission } = useLocationPermission();
 
 
     // Map State
@@ -453,21 +457,38 @@ export default function DiscoveryScreen() {
 
 
     const handleCreateRoom = useCallback(async () => {
-        const consentStatus = await consentService.getStatus();
-        const hasConsent = consentStatus.options?.locationConsent;
+        // Check if we already have permission
+        let hasPermission = await checkPermission();
 
-        if (!hasConsent) {
-            navigation.navigate('LocationPermission');
+        if (!hasPermission) {
+            // Request OS permission directly (shows system dialog)
+            hasPermission = await getLocationPermissionStore().requestPermission();
+        }
+
+        if (!hasPermission) {
+            // Permission denied - show alert with settings option
+            Alert.alert(
+                'Location Required',
+                'LocalChat needs location access to create rooms near you. Please enable it in Settings.',
+                [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                        text: 'Open Settings',
+                        onPress: () => Linking.openSettings()
+                    }
+                ]
+            );
             return;
         }
 
+        // Permission granted - proceed to create room
         navigation.navigate('CreateRoom', {
             initialLocation: userLocation || {
                 latitude: centerCoord[1],
                 longitude: centerCoord[0]
             }
         });
-    }, [navigation, userLocation, centerCoord]);
+    }, [navigation, userLocation, centerCoord, checkPermission]);
 
     const handleJoinRoom = useCallback(
         async (room: Room): Promise<boolean> => {
@@ -604,13 +625,15 @@ export default function DiscoveryScreen() {
                         </TouchableOpacity>
                     </View>
 
-                    <TouchableOpacity
-                        style={[styles.controlButton, userLocation && styles.controlButtonActive]}
-                        onPress={handleCenterOnUser}
-                        activeOpacity={0.7}
-                    >
-                        <Navigation size={20} color={userLocation ? '#2563eb' : '#6b7280'} />
-                    </TouchableOpacity>
+                    {hasLocationPermission && (
+                        <TouchableOpacity
+                            style={[styles.controlButton, userLocation && styles.controlButtonActive]}
+                            onPress={handleCenterOnUser}
+                            activeOpacity={0.7}
+                        >
+                            <Navigation size={20} color={userLocation ? '#2563eb' : '#6b7280'} />
+                        </TouchableOpacity>
+                    )}
 
                     {zoom > 1 && (
                         <TouchableOpacity

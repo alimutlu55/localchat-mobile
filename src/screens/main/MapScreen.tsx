@@ -53,6 +53,7 @@ import {
 
 // New architecture components
 import { MapControls } from '../../features/discovery/components';
+import { useLocationPermission } from '../../shared/stores/LocationConsentStore';
 import { createLogger } from '../../shared/utils/logger';
 
 const log = createLogger('MapScreen');
@@ -94,6 +95,7 @@ export default function MapScreen() {
   const navigation = useNavigation<NavigationProp>();
   const mapRef = useRef<MapViewRef>(null);
   const cameraRef = useRef<CameraRef>(null);
+  const { isGranted: hasPermission } = useLocationPermission();
 
   const { logout } = useAuth();
 
@@ -782,6 +784,7 @@ export default function MapScreen() {
         onCenterUser={centerOnUser}
         onResetView={handleResetView}
         hasUserLocation={!!userLocation}
+        hasPermission={hasPermission}
         currentZoom={currentZoom}
       />
 

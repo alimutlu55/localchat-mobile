@@ -24,6 +24,7 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ChevronLeft, Check, Lock, BarChart3, Bell } from 'lucide-react-native';
 import { consentService } from '../../services/consent';
+import { getLocationPermissionStore } from '../../shared/stores/LocationConsentStore';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
@@ -39,8 +40,9 @@ export default function ConsentPreferencesScreen() {
             privacyAccepted: true,
             marketingConsent: marketingEnabled,
             analyticsConsent: analyticsEnabled,
+            locationConsent: true, // Will be shown on Welcome screen
         });
-        navigation.replace('LocationPermission');
+        navigation.replace('Auth', { screen: 'Welcome' });
     };
 
     const handleBack = () => {

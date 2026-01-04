@@ -19,7 +19,6 @@ export { default as OnboardingScreen } from './auth/OnboardingScreen';
 export {
     ConsentScreen,
     ConsentPreferencesScreen,
-    LocationPermissionScreen
 } from './consent';
 
 // Main screens

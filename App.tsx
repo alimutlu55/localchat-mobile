@@ -64,6 +64,11 @@ export default function App() {
 
         // Initialize AuthStore (loads user from storage, connects WebSocket)
         await initializeAuthStore();
+
+        // Check current OS location permission status
+        const { getLocationPermissionStore } = await import('./src/shared/stores/LocationConsentStore');
+        await getLocationPermissionStore().checkPermission();
+        console.log('[App] Location permission checked');
       } catch (error) {
         console.error('[App] Initialization error:', error);
       } finally {
