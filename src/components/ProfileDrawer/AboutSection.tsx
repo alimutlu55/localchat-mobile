@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
-import { HelpCircle, Scale, Eye, Globe, MapPin, Languages, AlertCircle } from 'lucide-react-native';
+import { HelpCircle, Scale, Eye, Globe, MapPin, Languages, AlertCircle, Shield } from 'lucide-react-native';
 import { Section, SettingRow } from './shared';
 
 interface AboutSectionProps {
@@ -19,6 +19,7 @@ interface AboutSectionProps {
     onTermsPress: () => void;
     onPrivacyPolicyPress: () => void;
     onReportProblemPress: () => void;
+    onConsentPreferencesPress: () => void;
 }
 
 export function AboutSection({
@@ -31,6 +32,7 @@ export function AboutSection({
     onTermsPress,
     onPrivacyPolicyPress,
     onReportProblemPress,
+    onConsentPreferencesPress,
 }: AboutSectionProps) {
     // Format location mode for display (with fallback)
     const locationModeDisplay = locationMode
@@ -49,6 +51,11 @@ export function AboutSection({
                     label="Location Mode"
                     value={locationModeDisplay}
                     onPress={onLocationPress}
+                />
+                <SettingRow
+                    icon={Shield}
+                    label="Privacy Preferences"
+                    onPress={onConsentPreferencesPress}
                 />
             </Section>
 

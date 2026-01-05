@@ -221,7 +221,7 @@ export const styles = StyleSheet.create({
     },
     emptyState: {
         position: 'absolute',
-        bottom: 100,
+        bottom: 160, // Increased to clear view toggle (80) + ad banner (50) + spacing
         left: 20,
         right: 20,
         backgroundColor: '#ffffff',

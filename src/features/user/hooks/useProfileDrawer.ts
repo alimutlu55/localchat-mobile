@@ -169,6 +169,9 @@ interface UseProfileDrawerReturn {
   /** View consent preferences */
   handleViewConsent: (onClose: () => void) => void;
 
+  /** Navigate to consent preferences screen */
+  handleConsentPreferences: (onClose: () => void) => void;
+
   // =========================================================================
   // Data Controls
   // =========================================================================
@@ -494,6 +497,11 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
     navigation.navigate('PrivacyPolicy');
   }, [navigation]);
 
+  const handleConsentPreferences = useCallback((onClose: () => void) => {
+    onClose();
+    navigation.navigate('ConsentPreferences');
+  }, [navigation]);
+
   // =========================================================================
   // Data Controls Handlers
   // =========================================================================
@@ -597,6 +605,7 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
     handleMarketingToggle,
     handleExportData,
     handleViewConsent,
+    handleConsentPreferences,
 
     // Data controls
     handleDeleteMyRooms,

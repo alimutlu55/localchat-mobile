@@ -80,6 +80,7 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
         openHelpCenter,
         handleDeleteMyRooms,
         handleHardDeleteAccount,
+        handleConsentPreferences,
     } = useProfileDrawer();
     const insets = useSafeAreaInsets();
 
@@ -173,6 +174,7 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
                 onTermsPress={() => openTermsOfService(onClose)}
                 onPrivacyPolicyPress={() => openPrivacyPolicy(onClose)}
                 onReportProblemPress={() => setIsReportModalVisible(true)}
+                onConsentPreferencesPress={() => handleConsentPreferences(onClose)}
             />
 
             {isAnonymous ? (

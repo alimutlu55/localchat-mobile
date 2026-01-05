@@ -10,7 +10,7 @@
  * based on explicit user consent.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     View,
     Text,
@@ -22,18 +22,40 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChevronLeft, Check, Lock, BarChart3, Bell, Tv } from 'lucide-react-native';
+import { ChevronLeft, Check, Lock, BarChart3, Bell, Tv, MapPin } from 'lucide-react-native';
 import { consentService } from '../../services/consent';
 import { getLocationPermissionStore } from '../../shared/stores/LocationConsentStore';
+import { useTheme } from '../../core/theme';
 
 type NavigationProp = NativeStackNavigationProp<any>;
 
 export default function ConsentPreferencesScreen() {
     const navigation = useNavigation<NavigationProp>();
+    const theme = useTheme();
 
     const [analyticsEnabled, setAnalyticsEnabled] = useState(false);
     const [marketingEnabled, setMarketingEnabled] = useState(false);
     const [adEnabled, setAdEnabled] = useState(true); // Default to true for ad support
+    const [isLoading, setIsLoading] = useState(true);
+
+    // Load existing consent preferences on mount
+    useEffect(() => {
+        const loadPreferences = async () => {
+            try {
+                const status = await consentService.getStatus();
+                if (status.options) {
+                    setAnalyticsEnabled(status.options.analyticsConsent || false);
+                    setMarketingEnabled(status.options.marketingConsent || false);
+                    setAdEnabled(status.options.adConsent !== false); // Default to true if not set
+                }
+            } catch (error) {
+                console.error('[ConsentPreferences] Failed to load preferences:', error);
+            } finally {
+                setIsLoading(false);
+            }
+        };
+        loadPreferences();
+    }, []);
 
     const handleSave = async () => {
         await consentService.saveConsent({
@@ -44,7 +66,8 @@ export default function ConsentPreferencesScreen() {
             locationConsent: false, // Will be set after OS permission is granted
             adConsent: adEnabled,
         });
-        navigation.replace('Auth', { screen: 'Welcome' });
+        // Navigate back instead of replacing to Welcome
+        navigation.goBack();
     };
 
     const handleBack = () => {
@@ -106,39 +129,13 @@ export default function ConsentPreferencesScreen() {
                             <Check size={18} color="#22c55e" strokeWidth={3} />
                         </View>
                     </View>
-
-                    <View style={styles.preferenceItem}>
-                        <View style={styles.preferenceInfo}>
-                            <Text style={styles.preferenceTitle}>Location Processing</Text>
-                            <Text style={styles.preferenceDescription}>
-                                Real-time location is required for room discovery. When you create
-                                a room, only an approximate location (~500m offset) is stored—never your exact position.
-                            </Text>
-                        </View>
-                        <View style={styles.checkContainer}>
-                            <Check size={18} color="#22c55e" strokeWidth={3} />
-                        </View>
-                    </View>
-
-                    <View style={styles.preferenceItem}>
-                        <View style={styles.preferenceInfo}>
-                            <Text style={styles.preferenceTitle}>Google Maps</Text>
-                            <Text style={styles.preferenceDescription}>
-                                Your location is shared with Google to display the map.
-                                Subject to Google's Privacy Policy.
-                            </Text>
-                        </View>
-                        <View style={styles.checkContainer}>
-                            <Check size={18} color="#22c55e" strokeWidth={3} />
-                        </View>
-                    </View>
                 </View>
 
                 {/* Optional Section */}
                 <View style={styles.section}>
                     <Text style={styles.sectionTitle}>Optional</Text>
                     <Text style={styles.sectionDescription}>
-                        You can change these at any time in Settings → Privacy.
+                        These help improve your experience but are not required.
                     </Text>
 
                     <View style={styles.preferenceItem}>
@@ -148,8 +145,8 @@ export default function ConsentPreferencesScreen() {
                         <View style={styles.preferenceInfo}>
                             <Text style={styles.preferenceTitle}>Usage Analytics</Text>
                             <Text style={styles.preferenceDescription}>
-                                Help us improve LocalChat by sharing anonymized usage patterns
-                                like feature usage and crash reports.
+                                Help us improve LocalChat with anonymized usage data
+                                and crash reports.
                             </Text>
                         </View>
                         <Switch
@@ -167,8 +164,8 @@ export default function ConsentPreferencesScreen() {
                         <View style={styles.preferenceInfo}>
                             <Text style={styles.preferenceTitle}>Product Updates</Text>
                             <Text style={styles.preferenceDescription}>
-                                Receive occasional emails about new features, tips, and
-                                LocalChat news.
+                                Receive occasional notifications about new features
+                                and LocalChat news.
                             </Text>
                         </View>
                         <Switch
@@ -186,8 +183,7 @@ export default function ConsentPreferencesScreen() {
                         <View style={styles.preferenceInfo}>
                             <Text style={styles.preferenceTitle}>Personalized Ads</Text>
                             <Text style={styles.preferenceDescription}>
-                                Show relevant ads based on your interests. Disable for
-                                non-personalized ads only.
+                                Ads tailored to your interests. Turn off for generic ads.
                             </Text>
                         </View>
                         <Switch
@@ -212,11 +208,11 @@ export default function ConsentPreferencesScreen() {
             {/* Save Button */}
             <View style={styles.buttonContainer}>
                 <TouchableOpacity
-                    style={styles.saveButton}
+                    style={[styles.saveButton, { backgroundColor: theme.tokens.brand.primary }]}
                     onPress={handleSave}
                     activeOpacity={0.8}
                 >
-                    <Text style={styles.saveButtonText}>Confirm & Continue</Text>
+                    <Text style={[styles.saveButtonText, { color: theme.tokens.text.onPrimary }]}>Confirm & Continue</Text>
                 </TouchableOpacity>
             </View>
         </SafeAreaView>
@@ -317,6 +313,13 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         alignItems: 'center',
     },
+    optionalBadge: {
+        fontSize: 12,
+        fontWeight: '500',
+        color: '#6b7280',
+        paddingHorizontal: 8,
+        paddingVertical: 4,
+    },
     legalNote: {
         backgroundColor: '#f9fafb',
         borderRadius: 8,
@@ -334,7 +337,6 @@ const styles = StyleSheet.create({
         paddingBottom: 24,
     },
     saveButton: {
-        backgroundColor: '#111827',
         paddingVertical: 16,
         borderRadius: 30,
         alignItems: 'center',
@@ -342,6 +344,5 @@ const styles = StyleSheet.create({
     saveButtonText: {
         fontSize: 16,
         fontWeight: '600',
-        color: '#ffffff',
     },
 });
