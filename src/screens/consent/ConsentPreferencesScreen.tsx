@@ -22,7 +22,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChevronLeft, Check, Lock, BarChart3, Bell } from 'lucide-react-native';
+import { ChevronLeft, Check, Lock, BarChart3, Bell, Tv } from 'lucide-react-native';
 import { consentService } from '../../services/consent';
 import { getLocationPermissionStore } from '../../shared/stores/LocationConsentStore';
 
@@ -33,6 +33,7 @@ export default function ConsentPreferencesScreen() {
 
     const [analyticsEnabled, setAnalyticsEnabled] = useState(false);
     const [marketingEnabled, setMarketingEnabled] = useState(false);
+    const [adEnabled, setAdEnabled] = useState(true); // Default to true for ad support
 
     const handleSave = async () => {
         await consentService.saveConsent({
@@ -40,7 +41,8 @@ export default function ConsentPreferencesScreen() {
             privacyAccepted: true,
             marketingConsent: marketingEnabled,
             analyticsConsent: analyticsEnabled,
-            locationConsent: true, // Will be shown on Welcome screen
+            locationConsent: false, // Will be set after OS permission is granted
+            adConsent: adEnabled,
         });
         navigation.replace('Auth', { screen: 'Welcome' });
     };
@@ -172,6 +174,25 @@ export default function ConsentPreferencesScreen() {
                         <Switch
                             value={marketingEnabled}
                             onValueChange={setMarketingEnabled}
+                            trackColor={{ false: '#d1d5db', true: '#6366F1' }}
+                            thumbColor="#ffffff"
+                        />
+                    </View>
+
+                    <View style={styles.preferenceItem}>
+                        <View style={styles.iconContainer}>
+                            <Tv size={20} color="#6366F1" />
+                        </View>
+                        <View style={styles.preferenceInfo}>
+                            <Text style={styles.preferenceTitle}>Personalized Ads</Text>
+                            <Text style={styles.preferenceDescription}>
+                                Show relevant ads based on your interests. Disable for
+                                non-personalized ads only.
+                            </Text>
+                        </View>
+                        <Switch
+                            value={adEnabled}
+                            onValueChange={setAdEnabled}
                             trackColor={{ false: '#d1d5db', true: '#6366F1' }}
                             thumbColor="#ffffff"
                         />

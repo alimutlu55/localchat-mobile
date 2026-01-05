@@ -17,6 +17,7 @@ export interface ConsentOptions {
     marketingConsent: boolean;
     analyticsConsent: boolean;
     locationConsent: boolean;
+    adConsent: boolean;
 }
 
 export interface ConsentStatus {
@@ -43,6 +44,7 @@ interface BackendConsentStatus {
     marketingConsent: boolean;
     analyticsConsent: boolean;
     locationConsent: boolean;
+    adConsent: boolean;
 }
 
 interface BackendConsentResponse {
@@ -100,6 +102,7 @@ class ConsentService {
                     marketingConsent: backendStatus.marketingConsent,
                     analyticsConsent: backendStatus.analyticsConsent,
                     locationConsent: backendStatus.locationConsent,
+                    adConsent: backendStatus.adConsent ?? backendStatus.analyticsConsent,
                 } : null,
                 timestamp: localConsent?.timestamp || null,
             };
@@ -137,6 +140,7 @@ class ConsentService {
             marketingConsent: true,
             analyticsConsent: true,
             locationConsent: true,
+            adConsent: true,
         });
     }
 
@@ -150,6 +154,7 @@ class ConsentService {
             marketingConsent: false,
             analyticsConsent: false,
             locationConsent: false,
+            adConsent: false,
         });
     }
 

@@ -27,7 +27,7 @@ export const AdBanner: React.FC<AdBannerProps> = ({
     size = 'ANCHORED_ADAPTIVE_BANNER',
     refreshInterval = 45000 // 45 seconds default for balance between revenue and UX
 }) => {
-    const { canShowAds, isLoading: isConsentLoading } = useAdConsent();
+    const { canShowAds, hasPersonalizationConsent, isLoading: isConsentLoading } = useAdConsent();
     const [isAdLoaded, setIsAdLoaded] = useState(false);
     const [adError, setAdError] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
@@ -89,7 +89,8 @@ export const AdBanner: React.FC<AdBannerProps> = ({
                 unitId={adUnitId}
                 size={adSize}
                 requestOptions={{
-                    requestNonPersonalizedAdsOnly: !canShowAds,
+                    // Non-personalized ads when user hasn't given full personalization consent
+                    requestNonPersonalizedAdsOnly: !hasPersonalizationConsent,
                 }}
                 onAdLoaded={() => {
                     setIsAdLoaded(true);
