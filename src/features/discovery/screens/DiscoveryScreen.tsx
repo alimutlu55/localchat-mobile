@@ -63,6 +63,9 @@ import { useLocationPermission, getLocationPermissionStore } from '../../../shar
 import { HUDDLE_MAP_STYLE } from '../../../styles/mapStyle';
 import { styles } from './DiscoveryScreen.styles';
 
+// Ads
+import { AdBanner, useInterstitialAd } from '../../ads';
+
 // Utils
 import { createLogger } from '../../../shared/utils/logger';
 import { calcOptimalZoomForCluster, calcAnimationDuration as calcClusterAnimationDuration } from '../../../utils/clustering';
@@ -98,6 +101,13 @@ export default function DiscoveryScreen() {
     // ==========================================================================
 
     const { status: authStatus } = useAuth();
+
+    // Trigger early preloading of interstitial ads
+    useInterstitialAd();
+
+    // Preload interstitial ad so it's ready when user joins a room
+    // This ensures the ad is loaded before they navigate to RoomDetails
+    const { showAd: showInterstitialAd } = useInterstitialAd();
 
     // Global Filter State
     const selectedCategory = useRoomStore(selectSelectedCategory);
@@ -280,6 +290,9 @@ export default function DiscoveryScreen() {
     }, []);
 
     // Wrapper for joinRoom to match expected signature
+    // NOTE: Interstitial ads are NOT shown here because this path is called from
+    // RoomListView which has a confirmation Modal. iOS cannot present two modals
+    // at once. Interstitials are only shown from RoomDetailsScreen path.
     const joinRoom = async (room: Room): Promise<boolean> => {
         // Use user location if available, otherwise fallback to map center
         const effectiveLocation = userLocation || {
@@ -702,6 +715,11 @@ export default function DiscoveryScreen() {
                     </TouchableOpacity>
                 </View>
             </SafeAreaView>
+
+            {/* Ad Banner - Above view toggle */}
+            <View style={styles.adBannerContainer}>
+                <AdBanner />
+            </View>
 
             {/* View Toggle */}
             <View style={styles.viewToggleContainer}>

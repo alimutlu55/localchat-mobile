@@ -266,12 +266,11 @@ export const MapContainer = React.forwardRef<MapContainerRef, MapContainerProps>
                 <MapViewComponent
                     ref={mapRef as any}
                     style={styles.map}
-                    styleURL={mapStyle}
+                    mapStyle={mapStyle}
                     onRegionDidChange={handleRegionChange}
                     attributionEnabled={false}
                     logoEnabled={false}
                     compassEnabled={false}
-                    scaleBarEnabled={false}
                 >
                     <CameraComponent
                         ref={cameraRef as any}

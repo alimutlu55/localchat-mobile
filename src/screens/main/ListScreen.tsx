@@ -129,7 +129,7 @@ export default function ListScreen() {
     // Note: User's rooms are fetched automatically by RoomContext when user logs in
 
     const handleCreateRoom = () => {
-        navigation.navigate('CreateRoom');
+        navigation.navigate('CreateRoom', {});
     };
 
     const handleJoinRoom = async (room: Room): Promise<boolean> => {

@@ -86,7 +86,7 @@ export default function RoomsScreen() {
    * Navigate to create room
    */
   const handleCreateRoom = () => {
-    navigation.navigate('CreateRoom');
+    navigation.navigate('CreateRoom', {});
   };
 
   /**

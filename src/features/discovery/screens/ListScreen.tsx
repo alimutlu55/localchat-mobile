@@ -55,12 +55,12 @@ export function ListScreen({ onSwitchToMap }: ListScreenProps) {
         // Navigate to RoomDetails first where user can join/enter
         navigation.navigate('RoomDetails', {
             roomId: room.id,
-            room: serializeRoom(room),
+            initialRoom: serializeRoom(room),
         });
     }, [navigation]);
 
     const handleCreateRoom = useCallback(() => {
-        navigation.navigate('CreateRoom');
+        navigation.navigate('CreateRoom', {});
     }, [navigation]);
 
     const handleProfilePress = useCallback(() => {

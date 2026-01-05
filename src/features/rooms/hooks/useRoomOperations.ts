@@ -20,6 +20,7 @@ import {
     AppError,
     isConflictError,
 } from '../../../shared/utils/errors';
+import { useInterstitialAd } from '../../ads/hooks/useInterstitialAd';
 import { createLogger } from '../../../shared/utils/logger';
 
 const log = createLogger('RoomOperations');
@@ -72,6 +73,8 @@ export function useRoomOperations(): UseRoomOperationsReturn {
     const removeJoinedRoom = useRoomStore((s) => s.removeJoinedRoom);
     const startOp = useRoomStore((s) => s.startOperation);
     const stopOp = useRoomStore((s) => s.stopOperation);
+
+    const { showAd: showInterstitialAd } = useInterstitialAd();
 
     // Store state for status checks
     const joiningIds = useRoomStore((s) => s.joiningRoomIds);
@@ -133,6 +136,11 @@ export function useRoomOperations(): UseRoomOperationsReturn {
                 }
 
                 log.info('Join successful - finished', { roomId });
+
+                // Centralized Ad Logic: Show interstitial ad (if eligible)
+                // This blocks returning until the ad is closed or skipped.
+                await showInterstitialAd(room.category);
+
                 return { success: true, data: finalRoom };
             } catch (error: any) {
                 log.error('Join failed', { roomId, error });

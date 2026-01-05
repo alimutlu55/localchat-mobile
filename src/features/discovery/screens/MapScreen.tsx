@@ -73,7 +73,7 @@ export function MapScreen({ onSwitchToList }: MapScreenProps) {
     const handleRoomPress = useCallback((room: Room) => {
         navigation.navigate('RoomDetails', {
             roomId: room.id,
-            room: serializeRoom(room),
+            initialRoom: serializeRoom(room),
         });
     }, [navigation]);
 
@@ -83,7 +83,7 @@ export function MapScreen({ onSwitchToList }: MapScreenProps) {
     }, []);
 
     const handleCreateRoom = useCallback(() => {
-        navigation.navigate('CreateRoom');
+        navigation.navigate('CreateRoom', {});
     }, [navigation]);
 
     const handleRefresh = useCallback(async () => {

@@ -131,7 +131,7 @@ export const styles = StyleSheet.create({
     },
     eventsCounter: {
         position: 'absolute',
-        bottom: 115,
+        bottom: 180, // High enough to clear toggle and ad
         left: 16,
         backgroundColor: 'rgba(255, 255, 255, 0.9)',
         paddingHorizontal: 16,
@@ -180,7 +180,7 @@ export const styles = StyleSheet.create({
     },
     viewToggleContainer: {
         position: 'absolute',
-        bottom: 32,
+        bottom: 80, // Shifted up to clear AdBanner
         left: 0,
         right: 0,
         alignItems: 'center',
@@ -252,8 +252,18 @@ export const styles = StyleSheet.create({
         borderRadius: 12,
     },
     createButtonText: {
-        fontSize: 14,
-        fontWeight: '600',
         color: '#ffffff',
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    adBannerContainer: {
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        backgroundColor: '#f3f4f6',
+        borderTopWidth: 1,
+        borderTopColor: '#e5e7eb',
+        zIndex: 100,
     },
 });

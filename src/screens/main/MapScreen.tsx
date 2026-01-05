@@ -611,7 +611,7 @@ export default function MapScreen() {
    * Navigate to create room
    */
   const handleCreateRoom = () => {
-    navigation.navigate('CreateRoom');
+    navigation.navigate('CreateRoom', {});
   };
 
   if (isLoading) {

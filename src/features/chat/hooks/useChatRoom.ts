@@ -34,6 +34,9 @@ import { useChatInput, UseChatInputReturn } from './useChatInput';
 // Types
 // =============================================================================
 
+/** Options for useChatRoom hook */
+export type UseChatRoomOptions = UseChatMessagesOptions;
+
 export interface UseChatRoomReturn {
     /** Message-related state and actions */
     messages: UseChatMessagesReturn;

@@ -39,6 +39,7 @@ import { api } from './src/services';
 import { wsService } from './src/services';
 import { notificationService } from './src/services';
 import { RootStackParamList } from './src/navigation/types';
+import mobileAds from 'react-native-google-mobile-ads';
 
 // Initialize i18n
 import './src/i18n';
@@ -64,6 +65,11 @@ export default function App() {
 
         // Initialize AuthStore (loads user from storage, connects WebSocket)
         await initializeAuthStore();
+
+        // Standard AdMob initialization - though useAdConsent handles it with UMP Logic
+        if (__DEV__) {
+          await mobileAds().initialize();
+        }
 
         // Check current OS location permission status
         const { getLocationPermissionStore } = await import('./src/shared/stores/LocationConsentStore');
