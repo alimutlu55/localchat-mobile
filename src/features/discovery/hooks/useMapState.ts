@@ -97,6 +97,11 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
   const cameraRef = useRef<CameraRef>(null);
   // Track if hook is mounted to prevent native calls during unmount
   const isMountedRef = useRef(true);
+  // Track the target zoom during animations to prevent unexpected behavior
+  // when user interacts during an ongoing animation
+  const targetZoomRef = useRef<number | null>(null);
+  // Track if a programmatic animation is in progress
+  const isAnimatingRef = useRef(false);
 
   // State
   const [isMapReady, setIsMapReady] = useState(false);
@@ -256,6 +261,49 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
     [zoom]
   );
 
+  /**
+   * Stops any in-progress animation by setting camera to current position with no animation.
+   * Returns the base zoom level to use for the next action (either the target zoom if
+   * we were animating, or the current camera zoom).
+   */
+  const stopAnimationAndGetBaseZoom = useCallback(async (): Promise<number> => {
+    if (!mapRef.current || !cameraRef.current) return zoom;
+
+    try {
+      // If animation is in progress and we have a target, use the current camera position
+      // but calculate from the intended target to prevent "arc animation" zoom reversal
+      if (isAnimatingRef.current && targetZoomRef.current !== null) {
+        const baseZoom = targetZoomRef.current;
+        log.debug('Stopping animation, using target zoom as base', { targetZoom: baseZoom });
+
+        // Get current center to stop the camera at its current position
+        const currentCenter = await mapRef.current.getCenter();
+        const currentZoom = await mapRef.current.getZoom();
+
+        // Stop animation by setting camera to current position with 0 duration
+        cameraRef.current.setCamera({
+          centerCoordinate: currentCenter as [number, number],
+          zoomLevel: currentZoom,
+          animationDuration: 0,
+        });
+
+        // Clear animation tracking
+        isAnimatingRef.current = false;
+        targetZoomRef.current = null;
+
+        // Use the target zoom as the base for the next action
+        // This prevents the zoom from "jumping back" during arc animations
+        return baseZoom;
+      }
+
+      // Not animating, just get current zoom
+      return await mapRef.current.getZoom();
+    } catch (error) {
+      log.error('Error stopping animation', error);
+      return zoom;
+    }
+  }, [zoom]);
+
   // ==========================================================================
   // Camera Controls
   // ==========================================================================
@@ -264,10 +312,12 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
     if (!isMapReady || !cameraRef.current || !mapRef.current) return;
 
     try {
-      // Get the ACTUAL current zoom from the camera, not the potentially stale state
-      // This prevents zoom reversal when clicking during an ongoing animation
-      const currentZoom = await mapRef.current.getZoom();
-      const newZoom = Math.min(Math.round(currentZoom) + 1, maxZoom);
+      // Stop any in-progress animation and get the appropriate base zoom
+      // This prevents unexpected zoom direction when clicking during flyTo arc animations
+      const baseZoom = await stopAnimationAndGetBaseZoom();
+      const newZoom = Math.min(Math.round(baseZoom) + 1, maxZoom);
+
+      log.debug('ZoomIn', { baseZoom: Math.round(baseZoom), newZoom });
 
       setZoom(newZoom);
       cameraRef.current.setCamera({
@@ -278,16 +328,18 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
     } catch (error) {
       log.error('Error in zoomIn', error);
     }
-  }, [isMapReady, maxZoom]);
+  }, [isMapReady, maxZoom, stopAnimationAndGetBaseZoom]);
 
   const zoomOut = useCallback(async () => {
     if (!isMapReady || !cameraRef.current || !mapRef.current) return;
 
     try {
-      // Get the ACTUAL current zoom from the camera, not the potentially stale state
-      // This prevents zoom reversal when clicking during an ongoing animation
-      const currentZoom = await mapRef.current.getZoom();
-      const newZoom = Math.max(Math.round(currentZoom) - 1, minZoom);
+      // Stop any in-progress animation and get the appropriate base zoom
+      // This prevents unexpected zoom direction when clicking during flyTo arc animations
+      const baseZoom = await stopAnimationAndGetBaseZoom();
+      const newZoom = Math.max(Math.round(baseZoom) - 1, minZoom);
+
+      log.debug('ZoomOut', { baseZoom: Math.round(baseZoom), newZoom });
 
       setZoom(newZoom);
       cameraRef.current.setCamera({
@@ -298,7 +350,7 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
     } catch (error) {
       log.error('Error in zoomOut', error);
     }
-  }, [isMapReady, minZoom]);
+  }, [isMapReady, minZoom, stopAnimationAndGetBaseZoom]);
 
   const flyTo = useCallback(
     (coordinate: MapCoordinate, targetZoom?: number) => {
@@ -307,6 +359,10 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
       const finalZoom = targetZoom ?? zoom;
       const duration = calculateFlyDuration(finalZoom);
 
+      // Track animation state so user interactions can interrupt appropriately
+      isAnimatingRef.current = true;
+      targetZoomRef.current = finalZoom;
+
       setZoom(finalZoom);
       cameraRef.current.setCamera({
         centerCoordinate: [coordinate.longitude, coordinate.latitude],
@@ -314,6 +370,12 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
         animationDuration: duration,
         animationMode: 'flyTo',
       });
+
+      // Clear animation tracking after animation completes
+      setTimeout(() => {
+        isAnimatingRef.current = false;
+        targetZoomRef.current = null;
+      }, duration);
     },
     [isMapReady, zoom, calculateFlyDuration]
   );
@@ -325,6 +387,10 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
       const finalZoom = targetZoom ?? 14;
       const duration = calculateFlyDuration(finalZoom);
 
+      // Track animation state so user interactions can interrupt appropriately
+      isAnimatingRef.current = true;
+      targetZoomRef.current = finalZoom;
+
       setZoom(finalZoom);
       cameraRef.current.setCamera({
         centerCoordinate: [coordinate.longitude, coordinate.latitude],
@@ -332,6 +398,12 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
         animationDuration: duration,
         animationMode: 'flyTo',
       });
+
+      // Clear animation tracking after animation completes
+      setTimeout(() => {
+        isAnimatingRef.current = false;
+        targetZoomRef.current = null;
+      }, duration);
     },
     [isMapReady, calculateFlyDuration]
   );
@@ -342,6 +414,10 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
     const targetZoom = 1;
     const duration = calculateFlyDuration(targetZoom);
 
+    // Track animation state so user interactions can interrupt appropriately
+    isAnimatingRef.current = true;
+    targetZoomRef.current = targetZoom;
+
     setZoom(targetZoom);
     cameraRef.current.setCamera({
       centerCoordinate: [0, 20],
@@ -349,6 +425,12 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
       animationDuration: duration,
       animationMode: 'flyTo',
     });
+
+    // Clear animation tracking after animation completes
+    setTimeout(() => {
+      isAnimatingRef.current = false;
+      targetZoomRef.current = null;
+    }, duration);
   }, [isMapReady, calculateFlyDuration]);
 
   return {
