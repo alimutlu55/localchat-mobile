@@ -180,10 +180,9 @@ export default function MapScreen() {
   // Create a single GeoJSON FeatureCollection for all room circles
   // REMOVED isMapMoving check - circles now stay visible during map movement
   // Skip rendering during animations to prevent UI thread blocking
-  const shouldRenderMarkers = mapReady && !isAnimatingRef.current;
-  
   const circlesGeoJSON = useMemo(() => {
-    if (!mapReady || currentZoom < 10 || !shouldRenderMarkers) {
+    const shouldRender = mapReady && !isAnimatingRef.current;
+    if (!mapReady || currentZoom < 10 || !shouldRender) {
       return {
         type: 'FeatureCollection' as const,
         features: [],
@@ -218,7 +217,7 @@ export default function MapScreen() {
       type: 'FeatureCollection' as const,
       features: circleFeatures,
     };
-  }, [features, currentZoom, mapReady, shouldRenderMarkers]);
+  }, [features, currentZoom, mapReady]);
 
   /**
    * Fetch nearby rooms using context
@@ -659,7 +658,9 @@ export default function MapScreen() {
         maxLat + latPadding
       ];
 
-      // IMMEDIATELY update state with target values so features render
+      // IMPORTANT: Update state immediately (not debounced) so features render instantly
+      // This is intentional to provide immediate visual feedback during cluster expansion
+      // The debounced setter is only used for user-initiated viewport changes
       setBounds(targetBounds);
       setCurrentZoom(optimalZoom);
 
@@ -793,7 +794,7 @@ export default function MapScreen() {
         {/* Room Markers and Clusters - using MarkerView for stability */}
         {/* Key on feature set hash to force atomic remount and prevent native index crash */}
         {/* Skip rendering during animations to prevent UI thread blocking */}
-        {shouldRenderMarkers && features.length > 0 && <React.Fragment key={`markers-${features.length}-${features.map(f => isCluster(f) ? f.properties.cluster_id : f.properties.eventId).join(',')}`}>
+        {mapReady && !isAnimatingRef.current && features.length > 0 && <React.Fragment key={`markers-${features.length}-${features.map(f => isCluster(f) ? f.properties.cluster_id : f.properties.eventId).join(',')}`}>
           {features.map((feature: MapFeature) => {
             const [lng, lat] = feature.geometry.coordinates;
 
