@@ -267,7 +267,7 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
    * we were animating, or the current camera zoom).
    */
   const stopAnimationAndGetBaseZoom = useCallback(async (): Promise<number> => {
-    if (!mapRef.current || !cameraRef.current) return zoom;
+    if (!mapRef.current || !cameraRef.current || !isMountedRef.current) return zoom;
 
     try {
       // If animation is in progress and we have a target, use the current camera position
@@ -278,7 +278,20 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
 
         // Get current center to stop the camera at its current position
         const currentCenter = await mapRef.current.getCenter();
+        
+        // Re-check refs after async operation - component could have unmounted
+        if (!mapRef.current || !cameraRef.current || !isMountedRef.current) {
+          log.debug('Refs became null during stopAnimation, aborting');
+          return zoom;
+        }
+        
         const currentZoom = await mapRef.current.getZoom();
+
+        // Re-check refs again after second async operation
+        if (!cameraRef.current || !isMountedRef.current) {
+          log.debug('Camera ref became null before setCamera, aborting');
+          return zoom;
+        }
 
         // Stop animation by setting camera to current position with 0 duration
         cameraRef.current.setCamera({
@@ -297,7 +310,15 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
       }
 
       // Not animating, just get current zoom
-      return await mapRef.current.getZoom();
+      const currentZoom = await mapRef.current.getZoom();
+      
+      // Re-check if component is still mounted after async operation
+      if (!isMountedRef.current) {
+        log.debug('Component unmounted during getZoom, returning fallback');
+        return zoom;
+      }
+      
+      return currentZoom;
     } catch (error) {
       log.error('Error stopping animation', error);
       return zoom;
@@ -309,12 +330,19 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
   // ==========================================================================
 
   const zoomIn = useCallback(async () => {
-    if (!isMapReady || !cameraRef.current || !mapRef.current) return;
+    if (!isMapReady || !cameraRef.current || !mapRef.current || !isMountedRef.current) return;
 
     try {
       // Stop any in-progress animation and get the appropriate base zoom
       // This prevents unexpected zoom direction when clicking during flyTo arc animations
       const baseZoom = await stopAnimationAndGetBaseZoom();
+      
+      // Re-check refs after async operation - component could have unmounted or refs cleared
+      if (!cameraRef.current || !isMountedRef.current) {
+        log.debug('Refs became null after stopAnimationAndGetBaseZoom in zoomIn, aborting');
+        return;
+      }
+      
       const newZoom = Math.min(Math.round(baseZoom) + 1, maxZoom);
 
       log.debug('ZoomIn', { baseZoom: Math.round(baseZoom), newZoom });
@@ -331,12 +359,19 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
   }, [isMapReady, maxZoom, stopAnimationAndGetBaseZoom]);
 
   const zoomOut = useCallback(async () => {
-    if (!isMapReady || !cameraRef.current || !mapRef.current) return;
+    if (!isMapReady || !cameraRef.current || !mapRef.current || !isMountedRef.current) return;
 
     try {
       // Stop any in-progress animation and get the appropriate base zoom
       // This prevents unexpected zoom direction when clicking during flyTo arc animations
       const baseZoom = await stopAnimationAndGetBaseZoom();
+      
+      // Re-check refs after async operation - component could have unmounted or refs cleared
+      if (!cameraRef.current || !isMountedRef.current) {
+        log.debug('Refs became null after stopAnimationAndGetBaseZoom in zoomOut, aborting');
+        return;
+      }
+      
       const newZoom = Math.max(Math.round(baseZoom) - 1, minZoom);
 
       log.debug('ZoomOut', { baseZoom: Math.round(baseZoom), newZoom });
