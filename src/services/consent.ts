@@ -220,11 +220,8 @@ class ConsentService {
     /**
      * Update consent preferences (for Settings screen)
      */
-    async updatePreferences(
-        analyticsConsent?: boolean,
-        locationConsent?: boolean,
-        personalizedAdsConsent?: boolean
-    ): Promise<void> {
+    async updatePreferences(updates: Partial<ConsentOptions>): Promise<void> {
+        const { analyticsConsent, locationConsent, personalizedAdsConsent } = updates;
         const localConsent = await storage.get<StoredConsent>(CONSENT_KEY);
         if (!localConsent) {
             throw new Error('No consent record found');

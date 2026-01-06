@@ -175,8 +175,8 @@ class AuthService {
     const response = await api.post<{ data: AuthResponse & { isNewUser?: boolean } }>('/auth/anonymous', request, { skipAuth: true });
     await this.handleAuthResponse(response.data);
 
-    // If display name provided and this is a new user, update profile
-    if (displayName && response.data.isNewUser) {
+    // If display name provided, update profile (ensure it's applied even for returning users)
+    if (displayName) {
       await this.updateProfile({ displayName });
     }
 

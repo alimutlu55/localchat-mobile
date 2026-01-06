@@ -70,7 +70,7 @@ export default function PrivacySettingsScreen() {
         const status = await consentService.getStatus();
         if (status.options) {
           setAnalyticsConsent(status.options.analyticsConsent);
-          setMarketingConsent(status.options.marketingConsent);
+          setMarketingConsent(status.options.personalizedAdsConsent);
         }
       } catch (error) {
         console.error('Failed to load consent preferences:', error);
@@ -141,7 +141,7 @@ export default function PrivacySettingsScreen() {
   // Consent handlers - GDPR/KVKK
   const handleAnalyticsToggle = async (value: boolean) => {
     try {
-      await consentService.updatePreferences(undefined, value);
+      await consentService.updatePreferences({ analyticsConsent: value });
       setAnalyticsConsent(value);
       if (!value) {
         Alert.alert(
@@ -158,7 +158,7 @@ export default function PrivacySettingsScreen() {
 
   const handleMarketingToggle = async (value: boolean) => {
     try {
-      await consentService.updatePreferences(value, undefined);
+      await consentService.updatePreferences({ personalizedAdsConsent: value });
       setMarketingConsent(value);
       if (!value) {
         Alert.alert(

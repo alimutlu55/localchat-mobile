@@ -443,7 +443,7 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
         const status = await consentService.getStatus();
         if (status.options) {
           setAnalyticsConsent(status.options.analyticsConsent);
-          setMarketingConsent(status.options.marketingConsent);
+          setMarketingConsent(status.options.personalizedAdsConsent);
         }
       } catch (error) {
         log.warn('Failed to load consent preferences', error);
@@ -454,7 +454,7 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
 
   const handleAnalyticsToggle = useCallback(async (value: boolean) => {
     try {
-      await consentService.updatePreferences(undefined, value);
+      await consentService.updatePreferences({ analyticsConsent: value });
       setAnalyticsConsent(value);
     } catch (error) {
       log.error('Failed to update analytics consent', error);
@@ -464,7 +464,7 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
 
   const handleMarketingToggle = useCallback(async (value: boolean) => {
     try {
-      await consentService.updatePreferences(value, undefined);
+      await consentService.updatePreferences({ personalizedAdsConsent: value });
       setMarketingConsent(value);
     } catch (error) {
       log.error('Failed to update marketing consent', error);

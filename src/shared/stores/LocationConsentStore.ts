@@ -96,7 +96,7 @@ export const useLocationPermissionStore = create<LocationPermissionStore>()(
                 // Sync consent decision to backend for GDPR tracking
                 try {
                     const { consentService } = await import('../../services/consent');
-                    await consentService.updatePreferences(undefined, undefined, isGranted);
+                    await consentService.updatePreferences({ locationConsent: isGranted });
                     log.info('Location consent synced to backend', { isGranted });
                 } catch (syncError) {
                     log.warn('Failed to sync location consent to backend', syncError);
