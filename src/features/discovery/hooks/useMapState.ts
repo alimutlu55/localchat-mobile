@@ -249,9 +249,9 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
   const calculateFlyDuration = useCallback(
     (targetZoom: number): number => {
       const zoomDiff = Math.abs(targetZoom - zoom);
-      // Slower, smoother animation for zoom-out transitions
-      const duration = 1.2 + zoomDiff * 0.3;
-      return Math.min(duration, 4.0) * 1000; // 4 second max for smooth world view transition
+      // Faster, snappier animation for zoom transitions
+      const duration = 0.8 + zoomDiff * 0.15;
+      return Math.min(duration, 3.0) * 1000; // 3 second max for faster world view transition
     },
     [zoom]
   );
@@ -292,7 +292,7 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
       setZoom(newZoom);
       cameraRef.current.setCamera({
         zoomLevel: newZoom,
-        animationDuration: 200,
+        animationDuration: 150,
         animationMode: 'easeTo',
       });
     } catch (error) {
