@@ -102,6 +102,27 @@ jest.mock('@react-native-community/netinfo', () => ({
     }),
 }));
 
+// Mock @maplibre/maplibre-react-native
+jest.mock('@maplibre/maplibre-react-native', () => {
+    const React = require('react');
+    const { View } = require('react-native');
+    
+    return {
+        MapView: React.forwardRef((props, ref) => 
+            React.createElement(View, { testID: 'map-view', ...props })
+        ),
+        Camera: React.forwardRef((props, ref) => 
+            React.createElement(View, { testID: 'camera', ...props })
+        ),
+        PointAnnotation: (props) => 
+            React.createElement(View, { testID: 'point-annotation', ...props }),
+        CircleLayer: (props) => 
+            React.createElement(View, { testID: 'circle-layer', ...props }),
+        ShapeSource: (props) => 
+            React.createElement(View, { testID: 'shape-source', ...props }),
+    };
+});
+
 // Mock react-native-reanimated
 jest.mock('react-native-reanimated', () => {
     const Reanimated = require('react-native-reanimated/mock');
