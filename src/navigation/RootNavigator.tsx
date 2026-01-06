@@ -26,7 +26,7 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, StyleSheet } from 'react-native';
+import { View, StyleSheet, ActivityIndicator } from 'react-native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { useAuth } from '../features/auth';
 import { RootStackParamList } from './types';
@@ -43,7 +43,6 @@ import {
     SettingsScreen,
     EditProfileScreen,
     DiscoveryScreen,
-    LoadingScreen,
     ConsentScreen,
     ConsentPreferencesScreen,
 } from '../screens';
@@ -86,10 +85,11 @@ export function RootNavigator() {
         checkConsent();
     }, []);
 
-    // CRITICAL: Show loading during initial transition states ONLY
-    // For 'loggingOut', we keep screens mounted to prevent map marker crashes
+    // CRITICAL: During initial states, splash screen is visible
+    // No need to render a separate loading screen
+    // The app will simply not mount the navigator until ready
     if (status === 'unknown' || status === 'loading' || !consentChecked) {
-        return <LoadingScreen />;
+        return null; // Splash screen remains visible
     }
 
     // Determine if we should show auth screens
@@ -203,10 +203,12 @@ export function RootNavigator() {
                 )}
             </Stack.Navigator>
 
-            {/* Loading overlay during logout - keeps screens mounted */}
+            {/* Overlay during logout - keeps screens mounted */}
             {showLoadingOverlay && (
                 <View style={styles.loadingOverlay}>
-                    <LoadingScreen />
+                    <View style={styles.logoutIndicator}>
+                        <ActivityIndicator size="large" color="#FF6410" />
+                    </View>
                 </View>
             )}
         </View>
@@ -220,6 +222,19 @@ const styles = StyleSheet.create({
     loadingOverlay: {
         ...StyleSheet.absoluteFillObject,
         zIndex: 9999,
+        backgroundColor: 'rgba(0, 0, 0, 0.3)',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    logoutIndicator: {
+        backgroundColor: '#ffffff',
+        padding: 24,
+        borderRadius: 16,
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 2 },
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+        elevation: 5,
     },
 });
 

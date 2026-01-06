@@ -11,11 +11,11 @@ import {
     Text,
     StyleSheet,
     Animated,
-    Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MapPin } from 'lucide-react-native';
+import { AppIcon } from '../components/ui/AppIcon';
 
 export default function LoadingScreen() {
     // Animations
@@ -75,10 +75,7 @@ export default function LoadingScreen() {
                         ]}
                     >
                         <Animated.View style={{ transform: [{ scale: pulseAnim }] }}>
-                            <Image
-                                source={require('../../assets/icon.png')}
-                                style={{ width: 96, height: 96, borderRadius: 24 }}
-                            />
+                            <AppIcon size={96} rounded={true} />
                         </Animated.View>
                         <View style={styles.pinBadge}>
                             <MapPin size={16} color="#ffffff" />

@@ -2,18 +2,12 @@ import React, { useEffect, useRef, memo } from 'react';
 import { View, Text, StyleSheet, Animated, Easing, Image } from 'react-native';
 import { Lock } from 'lucide-react-native';
 import { Room, RoomCategory } from '../../../types';
+import { ASSETS } from '../../../constants/assets';
 
 /**
  * Grouping categories into Families to use shared pin design per family.
  */
-const FAMILY_PINS = {
-    PULSE: require('../../../../assets/room-pin-pulse.png'),
-    SPIRIT: require('../../../../assets/room-pin-spirit.png'),
-    FLOW: require('../../../../assets/room-pin-flow.png'),
-    PLAY: require('../../../../assets/room-pin-play.png'),
-    FOOD: require('../../../../assets/room-pin-food.png'),
-    GENERAL: require('../../../../assets/room-pin-general.png'),
-};
+const FAMILY_PINS = ASSETS.ROOM_PINS;
 
 const CATEGORY_TO_FAMILY: Record<string, keyof typeof FAMILY_PINS> = {
     // New Formal IDs
@@ -48,7 +42,7 @@ const CATEGORY_TO_FAMILY: Record<string, keyof typeof FAMILY_PINS> = {
     NEIGHBORHOOD: 'GENERAL',
 };
 
-const DEFAULT_PIN = require('../../../../assets/room-pin-general.png');
+const DEFAULT_PIN = ASSETS.ROOM_PINS.GENERAL;
 
 interface BubbleProps {
     room: Room;

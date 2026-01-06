@@ -9,7 +9,6 @@ import {
   Platform,
   ActivityIndicator,
   Animated,
-  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -19,6 +18,7 @@ import * as Haptics from 'expo-haptics';
 import { AuthStackParamList } from '../../navigation/types';
 import { useAuth } from '../../features/auth';
 import { onboardingService } from '../../services/onboarding';
+import { AppIcon } from '../../components/ui/AppIcon';
 
 type NavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Login'>;
 type LoginRouteProp = RouteProp<AuthStackParamList, 'Login'>;
@@ -119,7 +119,7 @@ export default function LoginScreen() {
         >
           {/* Logo */}
           <View style={styles.logoContainer}>
-            <Image source={require('../../../assets/icon.png')} style={{ width: 64, height: 64, borderRadius: 16 }} />
+            <AppIcon size={64} rounded={true} />
           </View>
 
           <Text style={styles.title}>Enter your password</Text>

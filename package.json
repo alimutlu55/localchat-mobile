@@ -60,6 +60,7 @@
     "expo-location": "~19.0.8",
     "expo-notifications": "~0.32.15",
     "expo-secure-store": "^15.0.8",
+    "expo-splash-screen": "^31.0.13",
     "expo-status-bar": "~3.0.9",
     "expo-web-browser": "~15.0.3",
     "i18next": "^25.7.3",

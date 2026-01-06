@@ -6,7 +6,7 @@
  */
 
 import React, { useState, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Linking, Image } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -18,6 +18,7 @@ import { storage } from '../../services/storage';
 import { useAuth } from '../../features/auth';
 import { GoogleSignInButton } from '../../components/auth';
 import { getLocationPermissionStore } from '../../shared/stores/LocationConsentStore';
+import { AppIcon } from '../../components/ui/AppIcon';
 
 type NavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Welcome'>;
 
@@ -147,7 +148,7 @@ export default function WelcomeScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <View style={styles.logoContainer}>
-            <Image source={require('../../../assets/icon.png')} style={{ width: 64, height: 64, borderRadius: 16 }} />
+            <AppIcon size={64} rounded={true} />
           </View>
           <Text style={styles.title}>BubbleUp</Text>
           <ActivityIndicator size="large" color="#FF6410" style={styles.loader} />
@@ -165,7 +166,7 @@ export default function WelcomeScreen() {
         {/* Logo & Branding */}
         <View style={styles.header}>
           <View style={styles.logoContainer}>
-            <Image source={require('../../../assets/icon.png')} style={{ width: 64, height: 64, borderRadius: 16 }} />
+            <AppIcon size={64} rounded={true} />
           </View>
           <Text style={styles.title}>Welcome to BubbleUp</Text>
           <Text style={styles.subtitle}>

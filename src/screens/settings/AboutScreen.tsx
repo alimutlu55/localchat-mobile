@@ -21,7 +21,6 @@ import {
     Alert,
     Share,
     Platform,
-    Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -44,6 +43,7 @@ import {
 // Note: Clipboard functionality removed to avoid extra dependency
 import { theme } from '../../core/theme';
 import { APP_VERSION } from '../../version';
+import { AppIcon } from '../../components/ui/AppIcon';
 
 // App version info (synced with app.json)
 const BUILD_NUMBER = '1';
@@ -158,7 +158,7 @@ export default function AboutScreen() {
                     onPress={handleShowVersion}
                     activeOpacity={0.8}
                 >
-                    <Image source={require('../../../assets/icon.png')} style={{ width: 64, height: 64, borderRadius: 16 }} />
+                    <AppIcon size={64} rounded={true} />
                     <Text style={styles.appName}>BubbleUp</Text>
                     <Text style={styles.appTagline}>Moments that matter</Text>
                     <View style={styles.versionBadge}>

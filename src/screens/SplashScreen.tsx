@@ -16,7 +16,6 @@ import {
   TouchableOpacity,
   Animated,
   Dimensions,
-  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -24,6 +23,7 @@ import { MapPin } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
+import { AppIcon } from '../components/ui/AppIcon';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
@@ -116,10 +116,7 @@ export default function SplashScreen() {
               },
             ]}
           >
-            <Image
-              source={require('../../assets/icon.png')}
-              style={{ width: 96, height: 96, borderRadius: 24 }}
-            />
+            <AppIcon size={128} rounded={true} />
             <View style={styles.pinBadge}>
               <MapPin size={16} color="#ffffff" />
             </View>
@@ -215,7 +212,7 @@ const styles = StyleSheet.create({
   },
   logoContainer: {
     position: 'relative',
-    marginBottom: 24,
+    marginBottom: 32,
   },
   logoGradient: {
     width: 96,
@@ -253,7 +250,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   subtitle: {
-    fontSize: 18,
+    fontSize: 14,
     color: '#6b7280',
   },
   badge: {
