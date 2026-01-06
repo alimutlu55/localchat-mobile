@@ -50,7 +50,6 @@ export default function ConsentScreen() {
 
             // 3. Trigger OS Location permission immediately after legal consent
             // This is the optimized sequence requested by the user
-            console.log('[ConsentScreen] Requesting OS location permission...');
             await getLocationPermissionStore().requestPermission();
 
             // Note: SessionManager and RootNavigator will reactively move the user 

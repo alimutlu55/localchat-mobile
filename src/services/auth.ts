@@ -191,7 +191,6 @@ class AuthService {
    */
   async tryRestoreAnonymousSession(): Promise<{ user: User | null; isNewUser: boolean }> {
     const deviceId = await this.getDeviceId();
-    console.log('[Auth] Attempting to restore anonymous session for device:', deviceId.substring(0, 8) + '...');
 
     const request: AnonymousLoginRequest = {
       deviceId,
@@ -204,7 +203,6 @@ class AuthService {
       await this.handleAuthResponse(response.data);
 
       const isNewUser = response.data.isNewUser ?? true;
-      console.log('[Auth] Session restore result:', { isNewUser, userId: this.currentUser?.id });
 
       return {
         user: this.currentUser,

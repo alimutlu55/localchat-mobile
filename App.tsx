@@ -60,11 +60,9 @@ export default function App() {
     // Initialize auth store and setup API error callback
     const initialize = async () => {
       const startTime = Date.now();
-      console.log('[App] 🚀 Starting initialization...');
 
       try {
         // Setup API auth error callback - called when token refresh fails
-        console.log('[App] ⚙️ Setting up API error callback...');
         api.setAuthErrorCallback(async () => {
           // Session expired - logout user
           // Import and call logout from AuthStore
@@ -73,35 +71,20 @@ export default function App() {
         });
 
         // Initialize AuthStore (loads user from storage, connects WebSocket)
-        console.log('[App] 🔐 Initializing AuthStore...');
-        const authStart = Date.now();
         await initializeAuthStore();
-        console.log(`[App] ✅ AuthStore initialized in ${Date.now() - authStart}ms`);
 
         // Initialize SessionManager (coordinates auth + consent atomically)
-        console.log('[App] 🔄 Initializing SessionManager...');
-        const sessionStart = Date.now();
-        const sessionResult = await sessionManager.initialize();
-        console.log(`[App] ✅ SessionManager initialized in ${Date.now() - sessionStart}ms`, {
-          status: sessionResult.state.status,
-          wasRestored: sessionResult.wasRestored,
-        });
+        await sessionManager.initialize();
 
         // Check current OS location permission status
-        console.log('[App] 📍 Checking location permissions...');
-        const permStart = Date.now();
         const { getLocationPermissionStore } = await import('./src/shared/stores/LocationConsentStore');
         await getLocationPermissionStore().checkPermission();
-        console.log(`[App] ✅ Permissions checked in ${Date.now() - permStart}ms`);
       } catch (error) {
         console.error('[App] ❌ Initialization error:', error);
       } finally {
-        const totalTime = Date.now() - startTime;
-        console.log(`[App] 🎉 Initialization complete in ${totalTime}ms`);
         setIsInitializing(false);
         // Hide splash screen after initialization
         await SplashScreen.hideAsync();
-        console.log('[App] 👋 Splash screen hidden');
       }
     };
 

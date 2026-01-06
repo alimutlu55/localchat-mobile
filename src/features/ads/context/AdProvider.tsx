@@ -76,7 +76,6 @@ export const AdProvider: React.FC<{ children: React.ReactNode }> = ({ children }
         try {
             const consentInfo = await AdsConsent.requestInfoUpdate();
             if (consentInfo.isConsentFormAvailable && consentInfo.status === AdsConsentStatus.REQUIRED) {
-                console.log('[AdProvider] Showing consent form...');
                 await AdsConsent.loadAndShowConsentFormIfRequired();
                 await checkConsent(); // Refresh state after form interaction
             }
@@ -91,13 +90,11 @@ export const AdProvider: React.FC<{ children: React.ReactNode }> = ({ children }
 
         // Listen for consent status changes (atomic session status)
         const unsubscribeSession = eventBus.on('session.consentChanged', () => {
-            console.log('[AdProvider] session.consentChanged event received, refreshing...');
             checkConsent();
         });
 
         // Listen for specific consent updates (granular options)
         const unsubscribeConsent = eventBus.on('consent.updated', () => {
-            console.log('[AdProvider] consent.updated event received, refreshing...');
             checkConsent();
         });
 

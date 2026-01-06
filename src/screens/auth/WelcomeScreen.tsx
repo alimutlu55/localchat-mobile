@@ -97,7 +97,6 @@ export default function WelcomeScreen() {
 
       if (!isNewUser && user) {
         // Success! User is restored and RootNavigator will take them to the app
-        console.log('[WelcomeScreen] Existing anonymous user restored, skipping onboarding');
         return;
       }
 
