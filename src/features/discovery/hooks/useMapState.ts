@@ -260,29 +260,45 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
   // Camera Controls
   // ==========================================================================
 
-  const zoomIn = useCallback(() => {
-    if (!isMapReady || !cameraRef.current) return;
+  const zoomIn = useCallback(async () => {
+    if (!isMapReady || !cameraRef.current || !mapRef.current) return;
 
-    const newZoom = Math.min(zoom + 1, maxZoom);
-    setZoom(newZoom);
-    cameraRef.current.setCamera({
-      zoomLevel: newZoom,
-      animationDuration: 200,
-      animationMode: 'easeTo',
-    });
-  }, [zoom, isMapReady, maxZoom]);
+    try {
+      // Get the ACTUAL current zoom from the camera, not the potentially stale state
+      // This prevents zoom reversal when clicking during an ongoing animation
+      const currentZoom = await mapRef.current.getZoom();
+      const newZoom = Math.min(Math.round(currentZoom) + 1, maxZoom);
 
-  const zoomOut = useCallback(() => {
-    if (!isMapReady || !cameraRef.current) return;
+      setZoom(newZoom);
+      cameraRef.current.setCamera({
+        zoomLevel: newZoom,
+        animationDuration: 200,
+        animationMode: 'easeTo',
+      });
+    } catch (error) {
+      log.error('Error in zoomIn', error);
+    }
+  }, [isMapReady, maxZoom]);
 
-    const newZoom = Math.max(zoom - 1, minZoom);
-    setZoom(newZoom);
-    cameraRef.current.setCamera({
-      zoomLevel: newZoom,
-      animationDuration: 200,
-      animationMode: 'easeTo',
-    });
-  }, [zoom, isMapReady, minZoom]);
+  const zoomOut = useCallback(async () => {
+    if (!isMapReady || !cameraRef.current || !mapRef.current) return;
+
+    try {
+      // Get the ACTUAL current zoom from the camera, not the potentially stale state
+      // This prevents zoom reversal when clicking during an ongoing animation
+      const currentZoom = await mapRef.current.getZoom();
+      const newZoom = Math.max(Math.round(currentZoom) - 1, minZoom);
+
+      setZoom(newZoom);
+      cameraRef.current.setCamera({
+        zoomLevel: newZoom,
+        animationDuration: 200,
+        animationMode: 'easeTo',
+      });
+    } catch (error) {
+      log.error('Error in zoomOut', error);
+    }
+  }, [isMapReady, minZoom]);
 
   const flyTo = useCallback(
     (coordinate: MapCoordinate, targetZoom?: number) => {
