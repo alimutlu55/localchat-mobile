@@ -98,15 +98,27 @@ export const tokens = {
         disabledText: palette.slate[500],
     },
 
-    // Categories
+    // Categories (Mapped to Harmonized Families)
     categories: {
-        food: palette.orange[500],
-        events: palette.amber[500],
-        sports: palette.emerald[500],
-        traffic: palette.blue[500],
-        neighborhood: palette.rose[500],
-        lostFound: palette.rose[400],
-        emergency: palette.red[500],
+        // Pulse Family
+        trafficTransit: palette.pulse,
+        safetyHazards: palette.pulse,
+        lostFound: palette.pulse,
+        // Spirit Family
+        eventsFestivals: palette.spirit,
+        socialMeetups: palette.spirit,
+        atmosphereMusic: palette.spirit,
+        // Flow Family
+        sightseeingGems: palette.flow,
+        newsIntel: palette.flow,
+        retailWait: palette.flow,
+        // Play Family
+        sportsFitness: palette.play,
+        dealsPopups: palette.play,
+        marketsFinds: palette.play,
+        play: palette.orange[400],
+        // Essential
+        foodDining: palette.orange[500],
         general: palette.slate[500],
     },
 };

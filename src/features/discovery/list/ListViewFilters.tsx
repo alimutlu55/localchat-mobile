@@ -20,8 +20,11 @@ import { theme } from '../../../core/theme';
 // Constants
 // =============================================================================
 
-// Build category filter options: ['All', 'Food & Dining', 'Events', ...]
-const CATEGORY_FILTERS = ['All', ...CATEGORIES.map(cat => cat.label)];
+// Build category filter options
+const CATEGORY_FILTERS = [
+    { label: 'All', emoji: '' },
+    ...CATEGORIES.map(cat => ({ label: cat.label, emoji: cat.emoji }))
+];
 
 // Sort options
 const SORT_OPTIONS = ['nearest', 'most-active', 'expiring-soon', 'newest'] as const;
@@ -50,10 +53,12 @@ export interface ListViewFiltersProps {
  */
 const CategoryChip = memo(function CategoryChip({
     label,
+    emoji,
     isSelected,
     onPress,
 }: {
     label: string;
+    emoji?: string;
     isSelected: boolean;
     onPress: () => void;
 }) {
@@ -66,7 +71,7 @@ const CategoryChip = memo(function CategoryChip({
             <Text
                 style={[styles.categoryChipText, isSelected && styles.categoryChipTextSelected]}
             >
-                {label}
+                {emoji && `${emoji} `}{label}
             </Text>
         </TouchableOpacity>
     );
@@ -141,12 +146,13 @@ export const ListViewFilters = memo(function ListViewFilters({
                     showsHorizontalScrollIndicator={false}
                     contentContainerStyle={styles.categoriesContent}
                 >
-                    {CATEGORY_FILTERS.map((category) => (
+                    {CATEGORY_FILTERS.map((cat) => (
                         <CategoryChip
-                            key={category}
-                            label={category}
-                            isSelected={selectedCategory === category}
-                            onPress={() => handleCategoryPress(category)}
+                            key={cat.label}
+                            label={cat.label}
+                            emoji={cat.emoji}
+                            isSelected={selectedCategory === cat.label}
+                            onPress={() => handleCategoryPress(cat.label)}
                         />
                     ))}
                 </ScrollView>

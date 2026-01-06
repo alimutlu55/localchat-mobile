@@ -12,7 +12,7 @@
  * - OptimizedMarkers: Memoized map markers (client-side clustering)
  * - ServerClusterMarkers: Markers for server-side clustering
  * - MapCluster: Cluster visualization component
- * - RoomPin: Individual room marker
+ * - Bubble: Individual room marker
  */
 
 export { MapControls } from './MapControls';
@@ -23,5 +23,5 @@ export { CategoryFilter } from './CategoryFilter';
 export { RoomMarker, ClusterMarker } from './OptimizedMarkers';
 export { ServerRoomMarker, ServerClusterMarker } from './ServerClusterMarkers';
 export { MapCluster } from './MapCluster';
-export { RoomPin } from './RoomPin';
+export { Bubble } from './Bubble';
 

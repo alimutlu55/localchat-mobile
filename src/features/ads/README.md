@@ -1,6 +1,6 @@
 # Ads Feature Module
 
-Google AdMob integration for LocalChat.
+Google AdMob integration for BubbleUp.
 
 ## Quick Start
 

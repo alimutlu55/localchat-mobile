@@ -15,11 +15,12 @@ import {
     KeyboardAvoidingView,
     Platform,
     ActivityIndicator,
+    Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { MessageCircle, X, User } from 'lucide-react-native';
+import { X, User } from 'lucide-react-native';
 import { AuthStackParamList } from '../../navigation/types';
 import { useAuth } from '../../features/auth';
 import { onboardingService } from '../../services/onboarding';
@@ -112,9 +113,7 @@ export default function EmailEntryScreen() {
                 <View style={styles.content}>
                     {/* Logo */}
                     <View style={styles.logoContainer}>
-                        <View style={styles.logoCircle}>
-                            <MessageCircle size={32} color="#FF6410" />
-                        </View>
+                        <Image source={require('../../../assets/icon.png')} style={{ width: 64, height: 64, borderRadius: 16 }} />
                     </View>
 
                     {/* Title */}

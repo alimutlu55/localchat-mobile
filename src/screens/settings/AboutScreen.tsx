@@ -21,6 +21,7 @@ import {
     Alert,
     Share,
     Platform,
+    Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -107,7 +108,7 @@ export default function AboutScreen() {
      * Show version info (useful for bug reports)
      */
     const handleShowVersion = () => {
-        const versionString = `LocalChat v${APP_VERSION} (${BUILD_NUMBER})\nPlatform: ${Platform.OS}`;
+        const versionString = `BubbleUp v${APP_VERSION} (${BUILD_NUMBER})\nPlatform: ${Platform.OS}`;
         Alert.alert('Version Info', versionString, [{ text: 'OK' }]);
     };
 
@@ -124,8 +125,8 @@ export default function AboutScreen() {
     const handleShareApp = async () => {
         try {
             await Share.share({
-                message: 'Check out LocalChat - Connect with people nearby! https://localchat.app',
-                title: 'LocalChat',
+                message: 'Check out BubbleUp - Connect with people nearby! https://bubbleup.app',
+                title: 'BubbleUp',
             });
         } catch (error) {
             console.error('Error sharing:', error);
@@ -157,11 +158,9 @@ export default function AboutScreen() {
                     onPress={handleShowVersion}
                     activeOpacity={0.8}
                 >
-                    <View style={styles.appLogo}>
-                        <MessageCircle size={32} color="#fff" />
-                    </View>
-                    <Text style={styles.appName}>LocalChat</Text>
-                    <Text style={styles.appTagline}>Connect with people nearby</Text>
+                    <Image source={require('../../../assets/icon.png')} style={{ width: 64, height: 64, borderRadius: 16 }} />
+                    <Text style={styles.appName}>BubbleUp</Text>
+                    <Text style={styles.appTagline}>Moments that matter</Text>
                     <View style={styles.versionBadge}>
                         <Text style={styles.versionText}>v{APP_VERSION}</Text>
                         <Info size={12} color={theme.tokens.text.tertiary} style={styles.copyIcon} />
@@ -213,7 +212,7 @@ export default function AboutScreen() {
                         <LinkItem
                             icon={<FileText size={20} color={theme.tokens.text.secondary} />}
                             label="Terms of Service"
-                            description="Rules for using LocalChat"
+                            description="Rules for using BubbleUp"
                             onPress={() => navigation.navigate('TermsOfService' as never)}
                         />
                     </View>
@@ -269,14 +268,14 @@ export default function AboutScreen() {
                         activeOpacity={0.8}
                     >
                         <Heart size={18} color="#fff" />
-                        <Text style={styles.shareButtonText}>Share LocalChat</Text>
+                        <Text style={styles.shareButtonText}>Share BubbleUp</Text>
                     </TouchableOpacity>
                 </View>
 
                 {/* Footer */}
                 <View style={styles.footer}>
                     <Text style={styles.footerText}>Made with ❤️ for local communities</Text>
-                    <Text style={styles.copyright}>© 2025 LocalChat. All rights reserved.</Text>
+                    <Text style={styles.copyright}>© 2025 BubbleUp. All rights reserved.</Text>
                 </View>
             </ScrollView>
         </SafeAreaView>

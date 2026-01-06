@@ -63,5 +63,10 @@ export const palette = {
     blue: {
         50: '#eff6ff',
         500: '#3b82f6',
-    }
+    },
+    // Harmonized Category Families (Soft/Muted)
+    pulse: '#E8D4FF',      // Soft Lavender
+    spirit: '#D4E0FF',     // Misty Periwinkle
+    flow: '#D4F0FF',       // Gentle Sky
+    play: '#D4FFE8',       // Pale Seafoam
 };

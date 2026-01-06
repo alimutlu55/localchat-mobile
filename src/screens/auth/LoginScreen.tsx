@@ -9,11 +9,12 @@ import {
   Platform,
   ActivityIndicator,
   Animated,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ArrowLeft, Lock, Eye, EyeOff, AlertCircle, MessageCircle } from 'lucide-react-native';
+import { ArrowLeft, Lock, Eye, EyeOff, AlertCircle } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { AuthStackParamList } from '../../navigation/types';
 import { useAuth } from '../../features/auth';
@@ -118,9 +119,7 @@ export default function LoginScreen() {
         >
           {/* Logo */}
           <View style={styles.logoContainer}>
-            <View style={styles.logoCircle}>
-              <MessageCircle size={32} color="#FF6410" />
-            </View>
+            <Image source={require('../../../assets/icon.png')} style={{ width: 64, height: 64, borderRadius: 16 }} />
           </View>
 
           <Text style={styles.title}>Enter your password</Text>

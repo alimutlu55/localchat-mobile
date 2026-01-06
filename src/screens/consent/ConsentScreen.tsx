@@ -4,7 +4,7 @@
  * Premium consent screen designed for trust and minimal cognitive load.
  * Leads with reassurance, uses scannable guarantees, and reduces decision friction.
  * 
- * GDPR/KVKK-compliant - accurately reflects LocalChat's data practices:
+ * GDPR/KVKK-compliant - accurately reflects BubbleUp's data practices:
  * - Location: Randomized on device before sending to backend
  * - Rooms: Expire and become inaccessible (soft deleted)
  * - Device ID: For anonymous consent tracking and session security

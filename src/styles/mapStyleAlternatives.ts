@@ -1,7 +1,7 @@
 /**
  * Alternative Map Styles
  * 
- * Multiple reliable tile server options for Huddle mobile app.
+ * Multiple reliable tile server options for BubbleUp mobile app.
  * Use these if the primary style has issues.
  */
 

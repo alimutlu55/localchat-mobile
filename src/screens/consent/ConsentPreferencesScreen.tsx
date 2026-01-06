@@ -98,7 +98,7 @@ export default function ConsentPreferencesScreen() {
                         <Text style={styles.sectionTitle}>Essential (Required)</Text>
                     </View>
                     <Text style={styles.sectionDescription}>
-                        Required for LocalChat to function. These cannot be disabled.
+                        Required for BubbleUp to function. These cannot be disabled.
                     </Text>
 
                     <View style={styles.preferenceItem}>
@@ -131,7 +131,7 @@ export default function ConsentPreferencesScreen() {
                         <View style={styles.preferenceInfo}>
                             <Text style={styles.preferenceTitle}>Basic Ads</Text>
                             <Text style={styles.preferenceDescription}>
-                                Non-personalized ads help keep LocalChat free.
+                                Non-personalized ads help keep BubbleUp free.
                                 No personal data is used for targeting.
                             </Text>
                         </View>
@@ -173,7 +173,7 @@ export default function ConsentPreferencesScreen() {
                         <View style={styles.preferenceInfo}>
                             <Text style={styles.preferenceTitle}>Usage Analytics</Text>
                             <Text style={styles.preferenceDescription}>
-                                Help us improve LocalChat with anonymized usage data.
+                                Help us improve BubbleUp with anonymized usage data.
                             </Text>
                         </View>
                         <Switch

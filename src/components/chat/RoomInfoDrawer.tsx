@@ -128,8 +128,8 @@ export function RoomInfoDrawer({
     const handleShare = async () => {
         try {
             await Share.share({
-                message: `Join "${room.title}" on LocalChat! Nearby rooms for local conversations.`,
-                url: 'https://localchat.app', // Fallback URL
+                message: `Join "${room.title}" on BubbleUp! Nearby rooms for local conversations.`,
+                url: 'https://bubbleup.app', // Fallback URL
             });
         } catch (error) {
             console.error('Error sharing room:', error);

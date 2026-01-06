@@ -477,7 +477,7 @@ export default function DiscoveryScreen() {
             // Permission denied - show alert with settings option
             Alert.alert(
                 'Location Required',
-                'LocalChat needs location access to create rooms near you. Please enable it in Settings.',
+                'BubbleUp needs location access to create rooms near you. Please enable it in Settings.',
                 [
                     { text: 'Cancel', style: 'cancel' },
                     {
@@ -719,7 +719,7 @@ export default function DiscoveryScreen() {
                         <Menu size={24} color="#374151" />
                     </TouchableOpacity>
 
-                    <Text style={styles.headerTitle}>Huddle</Text>
+                    <Text style={styles.headerTitle}>BubbleUp</Text>
 
                     <TouchableOpacity
                         style={styles.headerCreateButton}

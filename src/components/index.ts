@@ -1,7 +1,7 @@
 /**
  * Component Exports
  * 
- * NOTE: Map/Discovery components (RoomPin, MapCluster, RoomListView, OptimizedMarkers)
+ * NOTE: Map/Discovery components (Bubble, MapCluster, RoomListView, OptimizedMarkers)
  * have been moved to features/discovery/components and should be imported from there.
  * 
  * Room-specific components (BannedUsersModal, CategoryChips, etc.)
@@ -25,4 +25,4 @@ export { Sidebar } from './Sidebar';
 export { ProfileDrawer } from './ProfileDrawer';
 
 // Legacy exports - Import from features/discovery/components instead
-export { RoomPin, MapCluster, RoomListView } from '../features/discovery/components';
+export { Bubble, MapCluster, RoomListView } from '../features/discovery/components';

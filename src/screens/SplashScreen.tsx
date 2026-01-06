@@ -16,10 +16,11 @@ import {
   TouchableOpacity,
   Animated,
   Dimensions,
+  Image,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
-import { MessageCircle, MapPin } from 'lucide-react-native';
+import { MapPin } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
@@ -115,12 +116,10 @@ export default function SplashScreen() {
               },
             ]}
           >
-            <LinearGradient
-              colors={['#FF6410', '#e11d48']}
-              style={styles.logoGradient}
-            >
-              <MessageCircle size={48} color="#ffffff" strokeWidth={2} />
-            </LinearGradient>
+            <Image
+              source={require('../../assets/icon.png')}
+              style={{ width: 96, height: 96, borderRadius: 24 }}
+            />
             <View style={styles.pinBadge}>
               <MapPin size={16} color="#ffffff" />
             </View>
@@ -133,8 +132,8 @@ export default function SplashScreen() {
               { opacity: fadeAnim },
             ]}
           >
-            <Text style={styles.title}>Huddle</Text>
-            <Text style={styles.subtitle}>Chat with people around you</Text>
+            <Text style={styles.title}>BubbleUp</Text>
+            <Text style={styles.subtitle}>Moments that matter</Text>
           </Animated.View>
 
           {/* No signup badge */}

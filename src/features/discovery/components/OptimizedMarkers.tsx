@@ -9,7 +9,7 @@
 import React, { memo } from 'react';
 import { View, TouchableOpacity, StyleSheet } from 'react-native';
 import { MarkerView } from '@maplibre/maplibre-react-native';
-import { RoomPin } from './RoomPin';
+import { Bubble } from './Bubble';
 import { MapCluster } from './MapCluster';
 import { Room } from '../../../types';
 import { ClusterFeature } from '../../../utils/mapClustering';
@@ -47,7 +47,7 @@ export const RoomMarker = memo(function RoomMarker({
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       >
         <View style={styles.markerContainer}>
-          <RoomPin room={room} isSelected={isSelected} />
+          <Bubble room={room} isSelected={isSelected} />
         </View>
       </TouchableOpacity>
     </MarkerView>

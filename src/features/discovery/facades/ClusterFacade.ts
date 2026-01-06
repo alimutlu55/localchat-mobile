@@ -16,37 +16,13 @@ import { Room, ClusterFeature } from '../../../types';
 import { useRoomStore } from '../../rooms/store';
 import { isPointInBounds } from '../../../utils/geo';
 import type { IClusterFacade } from '../types/discovery.contracts';
+import { getCategoryEmoji } from '../../../constants';
 
 // =============================================================================
 // Constants
 // =============================================================================
 
-/**
- * Category emoji fallback map
- * Matches CreateRoomScreen.tsx CATEGORY_OPTIONS
- */
-const CATEGORY_EMOJI_MAP: Record<string, string> = {
-    TRAFFIC: '🚗',
-    EVENTS: '🎉',
-    EMERGENCY: '🚨',
-    LOST_FOUND: '🔍',
-    SPORTS: '⚽',
-    FOOD: '🍕',
-    NEIGHBORHOOD: '🏘️',
-    GENERAL: '💬',
-};
 
-// =============================================================================
-// Helper Functions
-// =============================================================================
-
-/**
- * Get category emoji for a given category
- */
-function getCategoryEmoji(category?: string): string {
-    if (!category) return '💬';
-    return CATEGORY_EMOJI_MAP[category.toUpperCase()] || '💬';
-}
 
 // =============================================================================
 // Singleton Facade Implementation

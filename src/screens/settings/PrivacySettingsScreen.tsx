@@ -356,7 +356,7 @@ export default function PrivacySettingsScreen() {
             <View style={styles.settingContent}>
               <Text style={styles.settingLabel}>Usage Analytics</Text>
               <Text style={styles.settingDescription}>
-                Help improve LocalChat with anonymized usage data
+                Help improve BubbleUp with anonymized usage data
               </Text>
             </View>
             <Switch

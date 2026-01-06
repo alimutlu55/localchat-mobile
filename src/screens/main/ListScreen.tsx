@@ -166,7 +166,7 @@ export default function ListScreen() {
                     </TouchableOpacity>
 
                     {/* Center: Title */}
-                    <Text style={styles.headerTitle}>Huddle</Text>
+                    <Text style={styles.headerTitle}>BubbleUp</Text>
 
                     {/* Right: Create Room */}
                     <TouchableOpacity

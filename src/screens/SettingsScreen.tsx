@@ -306,8 +306,8 @@ export default function SettingsScreen() {
 
         {/* App Info */}
         <View style={styles.appInfo}>
-          <Text style={styles.appVersion}>LocalChat v{APP_VERSION}</Text>
-          <Text style={styles.appCopyright}>© 2025 LocalChat</Text>
+          <Text style={styles.appVersion}>BubbleUp v{APP_VERSION}</Text>
+          <Text style={styles.appCopyright}>© 2025 BubbleUp</Text>
         </View>
       </ScrollView>
     </SafeAreaView>

@@ -1,5 +1,5 @@
 /**
- * Room Types for LocalChat Mobile
+ * Room Types for BubbleUp Mobile
  *
  * These types mirror the backend DTOs and provide type safety
  * throughout the application.
@@ -38,13 +38,19 @@ export interface Room {
  * Room Category - matches backend RoomCategory enum
  */
 export type RoomCategory =
-  | 'TRAFFIC'
-  | 'EVENTS'
-  | 'EMERGENCY'
+  | 'TRAFFIC_TRANSIT'
+  | 'EVENTS_FESTIVALS'
+  | 'SAFETY_HAZARDS'
   | 'LOST_FOUND'
-  | 'SPORTS'
-  | 'FOOD'
-  | 'NEIGHBORHOOD'
+  | 'SPORTS_FITNESS'
+  | 'FOOD_DINING'
+  | 'SOCIAL_MEETUPS'
+  | 'ATMOSPHERE_MUSIC'
+  | 'SIGHTSEEING_GEMS'
+  | 'NEWS_INTEL'
+  | 'RETAIL_WAIT'
+  | 'DEALS_POPUPS'
+  | 'MARKETS_FINDS'
   | 'GENERAL';
 
 /**

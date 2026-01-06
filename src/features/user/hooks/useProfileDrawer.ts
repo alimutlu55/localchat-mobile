@@ -28,9 +28,9 @@ const log = createLogger('useProfileDrawer');
 
 // Legal URLs - should be moved to constants in production
 const LEGAL_URLS = {
-  termsOfService: 'https://localchat.app/terms',
-  privacyPolicy: 'https://localchat.app/privacy',
-  helpCenter: 'https://localchat.app/help',
+  termsOfService: 'https://bubbleup.app/terms',
+  privacyPolicy: 'https://bubbleup.app/privacy',
+  helpCenter: 'https://bubbleup.app/help',
 };
 
 /**

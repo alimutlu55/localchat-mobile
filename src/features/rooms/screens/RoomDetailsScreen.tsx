@@ -38,6 +38,7 @@ import { roomService, ParticipantDTO, messageService } from '../../../services';
 import { eventBus } from '../../../core/events';
 import { theme } from '../../../core/theme';
 import { ChatMessage, serializeRoom, deserializeRoom, Room } from '../../../types';
+import { CATEGORIES } from '../../../constants';
 import { useUserId } from '../../user/store';
 import { useRoom, useRoomOperations, useRoomMembership } from '../hooks';
 import { useUserLocation } from '../../discovery/hooks';
@@ -386,7 +387,7 @@ export default function RoomDetailsScreen() {
   const handleShare = async () => {
     try {
       await Share.share({
-        message: `Join "${room.title}" on LocalChat!\nhttps://localchat.app/room/${roomId}`,
+        message: `Join "${room.title}" on BubbleUp!\nhttps://bubbleup.app/room/${roomId}`,
         title: room.title,
       });
     } catch (error) {
@@ -419,7 +420,10 @@ export default function RoomDetailsScreen() {
       >
         {/* Room Info */}
         <View style={styles.roomHeaderSection}>
-          <View style={styles.roomEmoji}>
+          <View style={[
+            styles.roomEmoji,
+            { backgroundColor: CATEGORIES.find(c => c.id === room.category)?.color || theme.tokens.action.secondary.default }
+          ]}>
             <Text style={styles.emojiText}>{room.emoji}</Text>
           </View>
           <Text style={styles.roomTitle}>{room.title}</Text>

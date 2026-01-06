@@ -13,7 +13,7 @@
     "retry": "Retry"
   },
   "auth": {
-    "welcome": "Welcome to LocalChat",
+    "welcome": "Welcome to BubbleUp",
     "welcomeSubtitle": "Connect with people nearby. Share moments, ask questions, make friends.",
     "continueAnonymous": "Continue Anonymously",
     "signInWithEmail": "Sign in with Email",
@@ -110,4 +110,3 @@
     "somethingWentWrong": "Something went wrong. Please try again."
   }
 }
-

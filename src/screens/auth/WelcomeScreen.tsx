@@ -6,11 +6,11 @@
  */
 
 import React, { useState, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Linking } from 'react-native';
+import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Linking, Image } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { MessageCircle, Mail, User } from 'lucide-react-native';
+import { Mail, User } from 'lucide-react-native';
 import * as Location from 'expo-location';
 import { AuthStackParamList } from '../../navigation/types';
 import { onboardingService } from '../../services/onboarding';
@@ -58,7 +58,7 @@ export default function WelcomeScreen() {
             // User set to "Never" - show alert directing to Settings
             Alert.alert(
               'Location Access Required',
-              'LocalChat connects you with people nearby. Your location helps discover and create local rooms.\n\nPlease enable location access in Settings.',
+              'BubbleUp connects you with people nearby. Your location helps discover and create local rooms.\n\nPlease enable location access in Settings.',
               [
                 { text: 'Not Now', style: 'cancel' },
                 { text: 'Open Settings', onPress: () => Linking.openSettings() }
@@ -147,9 +147,9 @@ export default function WelcomeScreen() {
       <SafeAreaView style={styles.container}>
         <View style={styles.loadingContainer}>
           <View style={styles.logoContainer}>
-            <MessageCircle size={48} color="#FF6410" strokeWidth={2} />
+            <Image source={require('../../../assets/icon.png')} style={{ width: 64, height: 64, borderRadius: 16 }} />
           </View>
-          <Text style={styles.title}>LocalChat</Text>
+          <Text style={styles.title}>BubbleUp</Text>
           <ActivityIndicator size="large" color="#FF6410" style={styles.loader} />
           <Text style={styles.loadingText}>
             {isDirectLoginLoading ? 'Signing you in...' : 'Loading...'}
@@ -165,13 +165,11 @@ export default function WelcomeScreen() {
         {/* Logo & Branding */}
         <View style={styles.header}>
           <View style={styles.logoContainer}>
-            <View style={styles.logoCircle}>
-              <MessageCircle size={32} color="#FF6410" />
-            </View>
+            <Image source={require('../../../assets/icon.png')} style={{ width: 64, height: 64, borderRadius: 16 }} />
           </View>
-          <Text style={styles.title}>Welcome to LocalChat</Text>
+          <Text style={styles.title}>Welcome to BubbleUp</Text>
           <Text style={styles.subtitle}>
-            Connect with people nearby.{'\n'}Share moments, ask questions, make friends.
+            Moments that matter.{'\n'}Connect with people nearby.
           </Text>
         </View>
 

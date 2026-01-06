@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "LocalChat",
+    "name": "BubbleUp",
     "slug": "localchat-mobile",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -21,9 +21,9 @@
         "googleMapsApiKey": "YOUR_GOOGLE_MAPS_API_KEY"
       },
       "infoPlist": {
-        "NSLocationWhenInUseUsageDescription": "LocalChat connects you with people nearby. Your location helps discover and create local rooms.",
-        "NSLocationAlwaysUsageDescription": "LocalChat uses your location to notify you about nearby rooms and keep you connected with your community.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "LocalChat connects you with people nearby. Your location helps discover and create local rooms."
+        "NSLocationWhenInUseUsageDescription": "BubbleUp connects you with people nearby. Your location helps discover and create local rooms.",
+        "NSLocationAlwaysUsageDescription": "BubbleUp uses your location to notify you about nearby rooms and keep you connected with your community.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "BubbleUp connects you with people nearby. Your location helps discover and create local rooms."
       }
     },
     "android": {
@@ -49,7 +49,7 @@
       [
         "expo-location",
         {
-          "locationAlwaysAndWhenInUsePermission": "Allow LocalChat to use your location to discover nearby rooms."
+          "locationAlwaysAndWhenInUsePermission": "Allow BubbleUp to use your location to discover nearby rooms."
         }
       ],
       [
@@ -58,7 +58,15 @@
           "androidAppId": "ca-app-pub-3940256099942544~3347511713",
           "iosAppId": "ca-app-pub-3940256099942544~1458002511"
         }
-      ]
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#FF6410"
+        }
+      ],
+      "@maplibre/maplibre-react-native"
     ]
   }
 }

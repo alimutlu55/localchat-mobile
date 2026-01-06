@@ -8,26 +8,12 @@
 import React, { memo } from 'react';
 import { TouchableOpacity, StyleSheet } from 'react-native';
 import { PointAnnotation } from '@maplibre/maplibre-react-native';
-import { RoomPin } from './RoomPin';
+import { Bubble } from './Bubble';
 import { MapCluster } from './MapCluster';
 import { Room, ClusterFeature } from '../../../types';
+import { getCategoryEmoji } from '../../../constants';
 
-// Category to emoji fallback map (matches CreateRoomScreen.tsx CATEGORY_OPTIONS)
-const CATEGORY_EMOJI_MAP: Record<string, string> = {
-  TRAFFIC: '🚗',
-  EVENTS: '🎉',
-  EMERGENCY: '🚨',
-  LOST_FOUND: '🔍',
-  SPORTS: '⚽',
-  FOOD: '🍕',
-  NEIGHBORHOOD: '🏘️',
-  GENERAL: '💬',
-};
 
-function getCategoryEmoji(category?: string): string {
-  if (!category) return '💬';
-  return CATEGORY_EMOJI_MAP[category.toUpperCase()] || '💬';
-}
 
 /**
  * Server Room Marker Component
@@ -59,7 +45,7 @@ export const ServerRoomMarker = memo(function ServerRoomMarker({
     return null;
   }
 
-  // Memoize room object to prevent unnecessary RoomPin re-renders
+  // Memoize room object to prevent unnecessary Bubble re-renders
   const roomForPin = React.useMemo((): Partial<Room> => ({
     id: properties.roomId,
     title: properties.title || '',
@@ -98,7 +84,7 @@ export const ServerRoomMarker = memo(function ServerRoomMarker({
         onPress={() => onPress(feature)}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       >
-        <RoomPin room={roomForPin as Room} isSelected={isSelected} />
+        <Bubble room={roomForPin as Room} isSelected={isSelected} />
       </TouchableOpacity>
     </PointAnnotation>
   );

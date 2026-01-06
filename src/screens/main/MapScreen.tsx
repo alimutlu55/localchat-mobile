@@ -38,7 +38,7 @@ import { useAuth } from '../../features/auth';
 import { useRoomDiscovery, useMyRooms } from '../../features/rooms/hooks';
 import { Sidebar } from '../../components/Sidebar';
 import { ProfileDrawer } from '../../components/ProfileDrawer';
-import { RoomPin, MapCluster } from '../../features/discovery/components';
+import { Bubble, MapCluster } from '../../features/discovery/components';
 import {
   createClusterIndex,
   getClustersForBounds,
@@ -745,7 +745,7 @@ export default function MapScreen() {
                   activeOpacity={0.8}
                 >
                   <View style={styles.pinMarkerContainer}>
-                    <RoomPin room={room} isSelected={selectedRoom?.id === room.id} />
+                    <Bubble room={room} isSelected={selectedRoom?.id === room.id} />
                   </View>
                 </TouchableOpacity>
               </MarkerView>
@@ -765,7 +765,7 @@ export default function MapScreen() {
             <Menu size={20} color="#374151" strokeWidth={1.5} />
           </TouchableOpacity>
 
-          <Text style={styles.headerTitle}>Huddle</Text>
+          <Text style={styles.headerTitle}>BubbleUp</Text>
 
           <TouchableOpacity
             style={styles.headerCreateButton}

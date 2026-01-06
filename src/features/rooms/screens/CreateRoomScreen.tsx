@@ -38,7 +38,7 @@ import {
 import { RootStackParamList } from '../../../navigation/types';
 import { roomService } from '../../../services';
 import { RoomCategory, serializeRoom } from '../../../types';
-// import { CATEGORIES } from '../../../constants'; // Unused
+import { CATEGORIES } from '../../../constants';
 import { useRoomStore } from '../store';
 import { useMyRooms } from '../hooks';
 import { useRoomQuota } from '../hooks/useRoomQuota';
@@ -51,16 +51,7 @@ const { width } = Dimensions.get('window');
 /**
  * Category option data (matching backend RoomCategory enum)
  */
-const CATEGORY_OPTIONS = [
-  { emoji: '🍕', label: 'Food & Dining', id: 'FOOD' as RoomCategory },
-  { emoji: '🎉', label: 'Events', id: 'EVENTS' as RoomCategory },
-  { emoji: '⚽', label: 'Sports', id: 'SPORTS' as RoomCategory },
-  { emoji: '🚗', label: 'Traffic', id: 'TRAFFIC' as RoomCategory },
-  { emoji: '🏘️', label: 'Neighborhood', id: 'NEIGHBORHOOD' as RoomCategory },
-  { emoji: '🔍', label: 'Lost & Found', id: 'LOST_FOUND' as RoomCategory },
-  { emoji: '🚨', label: 'Emergency', id: 'EMERGENCY' as RoomCategory },
-  { emoji: '💬', label: 'General', id: 'GENERAL' as RoomCategory },
-];
+// CATEGORY_OPTIONS removed in favor of centralized CATEGORIES from constants
 
 /**
  * Duration option data (matching web)
@@ -188,8 +179,8 @@ export default function CreateRoomScreen() {
     setIsLoading(true);
 
     try {
-      const selectedCategory = CATEGORY_OPTIONS.find(c => c.label === categoryLabel);
-      const categoryId = selectedCategory?.id || 'GENERAL';
+      const selectedCategory = CATEGORIES.find(c => c.label === categoryLabel);
+      const categoryId = selectedCategory?.id || 'FOOD_DINING';
       const durationId = DURATION_OPTIONS.find(d => d.value === durationValue)?.id || '3h';
 
       const room = await roomService.createRoom({
@@ -323,33 +314,41 @@ export default function CreateRoomScreen() {
             <Text style={styles.label}>
               Category <Text style={{ color: '#ef4444' }}>*</Text>
             </Text>
-            <View style={styles.categoryGrid}>
-              {CATEGORY_OPTIONS.map((cat) => (
-                <TouchableOpacity
-                  key={cat.label}
-                  onPress={() => setCategoryLabel(cat.label)}
-                  activeOpacity={0.7}
-                >
-                  {categoryLabel === cat.label ? (
-                    <LinearGradient
-                      colors={['#FF6410', '#f43f5e']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.categoryChip}
+            <View style={styles.categoryScrollContainer}>
+              <ScrollView
+                style={styles.categoryScrollView}
+                showsVerticalScrollIndicator={true}
+                nestedScrollEnabled={true}
+              >
+                <View style={styles.categoryGrid}>
+                  {CATEGORIES.map((cat) => (
+                    <TouchableOpacity
+                      key={cat.id}
+                      onPress={() => setCategoryLabel(cat.label)}
+                      activeOpacity={0.7}
                     >
-                      <Text style={[styles.categoryText, { color: '#fff' }]}>
-                        {cat.emoji} {cat.label}
-                      </Text>
-                    </LinearGradient>
-                  ) : (
-                    <View style={[styles.categoryChip, styles.categoryChipInactive]}>
-                      <Text style={styles.categoryText}>
-                        {cat.emoji} {cat.label}
-                      </Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              ))}
+                      {categoryLabel === cat.label ? (
+                        <LinearGradient
+                          colors={['#FF6410', '#f43f5e']}
+                          start={{ x: 0, y: 0 }}
+                          end={{ x: 1, y: 0 }}
+                          style={styles.categoryChip}
+                        >
+                          <Text style={[styles.categoryText, { color: '#fff' }]}>
+                            {cat.emoji} {cat.label}
+                          </Text>
+                        </LinearGradient>
+                      ) : (
+                        <View style={[styles.categoryChip, styles.categoryChipInactive]}>
+                          <Text style={styles.categoryText}>
+                            {cat.emoji} {cat.label}
+                          </Text>
+                        </View>
+                      )}
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              </ScrollView>
             </View>
           </View>
 
@@ -644,15 +643,27 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#94a3b8',
   },
+  categoryScrollContainer: {
+    maxHeight: 145, // Limits to ~3 lines of chips
+    backgroundColor: '#f8fafc',
+    borderRadius: 16,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: '#f1f5f9',
+  },
+  categoryScrollView: {
+    flexGrow: 0,
+  },
   categoryGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 8,
+    gap: 6,
+    paddingBottom: 4, // Minor padding for scroll breathing room
   },
   categoryChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 20,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -660,7 +671,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f1f5f9',
   },
   categoryText: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '500',
     color: '#64748b',
   },

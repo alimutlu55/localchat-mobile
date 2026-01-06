@@ -1,7 +1,7 @@
 /**
  * Application Constants
  *
- * Centralized configuration for the LocalChat mobile app.
+ * Centralized configuration for the BubbleUp mobile app.
  * Environment-specific values should be loaded from env variables in production.
  */
 import { theme } from '../core/theme';
@@ -195,13 +195,53 @@ export const WS_EVENTS = {
  * Matches backend RoomCategory enum exactly
  */
 export const CATEGORIES = [
-  { id: 'FOOD', emoji: '🍕', label: 'Food & Dining', color: theme.tokens.categories.food },
-  { id: 'EVENTS', emoji: '🎉', label: 'Events & Gatherings', color: theme.tokens.categories.events },
-  { id: 'SPORTS', emoji: '⚽', label: 'Sports & Recreation', color: theme.tokens.categories.sports },
-  { id: 'TRAFFIC', emoji: '🚗', label: 'Traffic & Transit', color: theme.tokens.categories.traffic },
-  { id: 'NEIGHBORHOOD', emoji: '🏘️', label: 'Neighborhood', color: theme.tokens.categories.neighborhood },
+  // Pulse Family
   { id: 'LOST_FOUND', emoji: '🔍', label: 'Lost & Found', color: theme.tokens.categories.lostFound },
-  { id: 'EMERGENCY', emoji: '🚨', label: 'Emergency & Safety', color: theme.tokens.categories.emergency },
+  { id: 'TRAFFIC_TRANSIT', emoji: '🚦', label: 'Traffic & Transit', color: theme.tokens.categories.trafficTransit },
+  { id: 'SAFETY_HAZARDS', emoji: '🚨', label: 'Safety & Hazards', color: theme.tokens.categories.safetyHazards },
+
+  // Spirit Family
+  { id: 'SOCIAL_MEETUPS', emoji: '👋', label: 'Social & Meetups', color: theme.tokens.categories.socialMeetups },
+  { id: 'ATMOSPHERE_MUSIC', emoji: '✨', label: 'Atmosphere & Music', color: theme.tokens.categories.atmosphereMusic },
+  { id: 'EVENTS_FESTIVALS', emoji: '🎉', label: 'Events & Festivals', color: theme.tokens.categories.eventsFestivals },
+
+  // Flow Family
+  { id: 'SIGHTSEEING_GEMS', emoji: '📸', label: 'Hidden Gems & Sightseeing', color: theme.tokens.categories.sightseeingGems },
+  { id: 'NEWS_INTEL', emoji: '🎙️', label: 'News & Intel', color: theme.tokens.categories.newsIntel },
+  { id: 'RETAIL_WAIT', emoji: '🛍️', label: 'Wait times & Retail', color: theme.tokens.categories.retailWait },
+
+  // Play Family
+  { id: 'SPORTS_FITNESS', emoji: '⚽', label: 'Sports & Fitness', color: theme.tokens.categories.sportsFitness },
+  { id: 'DEALS_POPUPS', emoji: '🏷️', label: 'Deals & Pop-ups', color: theme.tokens.categories.dealsPopups },
+  { id: 'MARKETS_FINDS', emoji: '🧺', label: 'Markets & Finds', color: theme.tokens.categories.marketsFinds },
+
+  // Essential
+  { id: 'FOOD_DINING', emoji: '🍕', label: 'Food & Dining', color: theme.tokens.categories.foodDining },
   { id: 'GENERAL', emoji: '💬', label: 'General', color: theme.tokens.categories.general },
 ] as const;
 
+/**
+ * Get emoji for a category ID with fallback
+ */
+export function getCategoryEmoji(categoryId?: string): string {
+  if (!categoryId) return '💬';
+  const id = categoryId.toUpperCase();
+  // Handle legacy mapping
+  if (id === 'NEIGHBORHOOD') return '💬';
+
+  const category = CATEGORIES.find(c => c.id === id);
+  return category?.emoji || '💬';
+}
+
+/**
+ * Get color for a category ID with fallback
+ */
+export function getCategoryColor(categoryId?: string): string {
+  if (!categoryId) return theme.tokens.categories.general;
+  const id = categoryId.toUpperCase();
+  // Handle legacy mapping
+  if (id === 'NEIGHBORHOOD') return theme.tokens.categories.general;
+
+  const category = CATEGORIES.find(c => c.id === id);
+  return category?.color || theme.tokens.categories.general;
+}

@@ -1,7 +1,7 @@
 /**
  * Privacy Policy Screen
  *
- * Displays the privacy policy for LocalChat.
+ * Displays the privacy policy for BubbleUp.
  * Content is 100% accurate based on codebase investigation.
  */
 
@@ -66,7 +66,7 @@ export default function PrivacyPolicyScreen() {
                 {/* Introduction */}
                 <View style={styles.introCard}>
                     <Text style={styles.introText}>
-                        Your privacy is important to us. This Privacy Policy explains how LocalChat
+                        Your privacy is important to us. This Privacy Policy explains how BubbleUp
                         collects, uses, and protects your information when you use our location-based
                         chat application.
                     </Text>
@@ -149,7 +149,7 @@ export default function PrivacyPolicyScreen() {
                 {/* 2. How We Use Your Information */}
                 <PolicySection title="2. How We Use Your Information">
                     <Text style={styles.paragraph}>
-                        We use your information exclusively to provide and improve LocalChat:
+                        We use your information exclusively to provide and improve BubbleUp:
                     </Text>
                     <Text style={styles.bulletItem}>
                         • <Text style={styles.bold}>Room Discovery</Text> - Show you chat rooms near your location
@@ -288,7 +288,7 @@ export default function PrivacyPolicyScreen() {
                 {/* 7. Children's Privacy */}
                 <PolicySection title="7. Children's Privacy">
                     <Text style={styles.paragraph}>
-                        LocalChat is not intended for users under 13 years of age. We do not knowingly
+                        BubbleUp is not intended for users under 13 years of age. We do not knowingly
                         collect information from children under 13. If you believe a child under 13 has
                         provided us with personal information, please contact us immediately.
                     </Text>
@@ -380,7 +380,7 @@ export default function PrivacyPolicyScreen() {
                 <PolicySection title="10. How to Withdraw Consent">
                     <Text style={styles.bulletItem}>
                         • <Text style={styles.bold}>Location</Text> - Go to your device Settings {'>'}
-                        {' '}LocalChat {'>'} Location
+                        {' '}BubbleUp {'>'} Location
                     </Text>
                     <Text style={styles.bulletItem}>
                         • <Text style={styles.bold}>Notifications</Text> - In-app Settings or device Settings
@@ -413,7 +413,7 @@ export default function PrivacyPolicyScreen() {
                 {/* Footer */}
                 <View style={styles.footer}>
                     <Text style={styles.footerText}>
-                        By using LocalChat, you agree to this Privacy Policy.
+                        By using BubbleUp, you agree to this Privacy Policy.
                     </Text>
                 </View>
             </ScrollView>

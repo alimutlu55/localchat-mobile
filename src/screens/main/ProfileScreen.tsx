@@ -210,7 +210,7 @@ export default function ProfileScreen() {
         </View>
 
         {/* Version */}
-        <Text style={styles.version}>LocalChat v{APP_VERSION}</Text>
+        <Text style={styles.version}>BubbleUp v{APP_VERSION}</Text>
       </ScrollView>
     </SafeAreaView>
   );

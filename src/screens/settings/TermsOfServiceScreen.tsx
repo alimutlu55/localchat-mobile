@@ -1,7 +1,7 @@
 /**
  * Terms of Service Screen
  *
- * Displays the terms of service for LocalChat.
+ * Displays the terms of service for BubbleUp.
  * Content is 100% accurate based on codebase investigation.
  */
 
@@ -66,8 +66,8 @@ export default function TermsOfServiceScreen() {
                 {/* Introduction */}
                 <View style={styles.introCard}>
                     <Text style={styles.introText}>
-                        Welcome to LocalChat! These Terms of Service govern your use of our
-                        location-based ephemeral chat application. By using LocalChat, you
+                        Welcome to BubbleUp! These Terms of Service govern your use of our
+                        location-based ephemeral chat application. By using BubbleUp, you
                         agree to these terms.
                     </Text>
                     <View style={styles.dateRow}>
@@ -83,7 +83,7 @@ export default function TermsOfServiceScreen() {
                 {/* 1. Acceptance of Terms */}
                 <TermsSection title="1. Acceptance of Terms">
                     <Text style={styles.paragraph}>
-                        By downloading, installing, or using LocalChat, you agree to be bound
+                        By downloading, installing, or using BubbleUp, you agree to be bound
                         by these Terms of Service and our Privacy Policy. If you do not agree,
                         please do not use the app.
                     </Text>
@@ -92,7 +92,7 @@ export default function TermsOfServiceScreen() {
                 {/* 2. Eligibility */}
                 <TermsSection title="2. Eligibility">
                     <Text style={styles.paragraph}>
-                        To use LocalChat, you must:
+                        To use BubbleUp, you must:
                     </Text>
                     <Text style={styles.bulletItem}>
                         • Be at least <Text style={styles.bold}>13 years of age</Text>
@@ -112,7 +112,7 @@ export default function TermsOfServiceScreen() {
                 <TermsSection title="3. Account Types">
                     <Text style={styles.subheading}>Anonymous Accounts</Text>
                     <Text style={styles.bulletItem}>
-                        • You can use LocalChat without registering by using a device-linked
+                        • You can use BubbleUp without registering by using a device-linked
                         anonymous account
                     </Text>
                     <Text style={styles.bulletItem}>
@@ -134,8 +134,8 @@ export default function TermsOfServiceScreen() {
                     </Text>
                 </TermsSection>
 
-                {/* 4. How LocalChat Works */}
-                <TermsSection title="4. How LocalChat Works">
+                {/* 4. How BubbleUp Works */}
+                <TermsSection title="4. How BubbleUp Works">
                     <Text style={styles.subheading}>Location-Based Discovery</Text>
                     <Text style={styles.bulletItem}>
                         • Rooms are tied to geographic locations
@@ -169,7 +169,7 @@ export default function TermsOfServiceScreen() {
                 {/* 5. Acceptable Use */}
                 <TermsSection title="5. Acceptable Use">
                     <Text style={styles.paragraph}>
-                        You agree to use LocalChat responsibly. You must <Text style={styles.bold}>NOT</Text>:
+                        You agree to use BubbleUp responsibly. You must <Text style={styles.bold}>NOT</Text>:
                     </Text>
                     <Text style={styles.bulletItem}>
                         • Post illegal, harmful, threatening, or abusive content
@@ -229,7 +229,7 @@ export default function TermsOfServiceScreen() {
                 {/* 7. Content Ownership */}
                 <TermsSection title="7. Content Ownership">
                     <Text style={styles.paragraph}>
-                        You retain ownership of content you post. By posting, you grant LocalChat
+                        You retain ownership of content you post. By posting, you grant BubbleUp
                         a license to display and distribute your content within the app during the
                         room's lifetime. When the room expires, your content is deleted.
                     </Text>
@@ -264,7 +264,7 @@ export default function TermsOfServiceScreen() {
                         • Engage in harmful or abusive behavior
                     </Text>
                     <Text style={styles.bulletItem}>
-                        • Create legal risk for LocalChat
+                        • Create legal risk for BubbleUp
                     </Text>
                     <Text style={styles.paragraph}>
                         You may delete your account at any time through Settings. Account
@@ -275,7 +275,7 @@ export default function TermsOfServiceScreen() {
                 {/* 10. Disclaimers */}
                 <TermsSection title="10. Disclaimers">
                     <Text style={styles.paragraph}>
-                        LocalChat is provided "as is" without warranties. We do not guarantee:
+                        BubbleUp is provided "as is" without warranties. We do not guarantee:
                     </Text>
                     <Text style={styles.bulletItem}>
                         • Uninterrupted or error-free service
@@ -289,7 +289,7 @@ export default function TermsOfServiceScreen() {
                     <View style={styles.warningBox}>
                         <Text style={styles.warningText}>
                             ⚠️ <Text style={styles.bold}>Safety Warning:</Text> Exercise caution
-                            when meeting people from online platforms in person. LocalChat is not
+                            when meeting people from online platforms in person. BubbleUp is not
                             responsible for offline interactions.
                         </Text>
                     </View>
@@ -298,7 +298,7 @@ export default function TermsOfServiceScreen() {
                 {/* 11. Limitation of Liability */}
                 <TermsSection title="11. Limitation of Liability">
                     <Text style={styles.paragraph}>
-                        To the maximum extent permitted by law, LocalChat shall not be liable
+                        To the maximum extent permitted by law, BubbleUp shall not be liable
                         for any indirect, incidental, special, or consequential damages, including:
                     </Text>
                     <Text style={styles.bulletItem}>
@@ -330,7 +330,7 @@ export default function TermsOfServiceScreen() {
                         • Cooperate with law enforcement when required
                     </Text>
                     <Text style={styles.paragraph}>
-                        Users are responsible for all content they post. LocalChat acts as a
+                        Users are responsible for all content they post. BubbleUp acts as a
                         platform provider, not a publisher of user content.
                     </Text>
                 </TermsSection>
@@ -354,7 +354,7 @@ export default function TermsOfServiceScreen() {
                 {/* 14. Indemnification */}
                 <TermsSection title="14. Indemnification">
                     <Text style={styles.paragraph}>
-                        You agree to defend, indemnify, and hold harmless LocalChat and its
+                        You agree to defend, indemnify, and hold harmless BubbleUp and its
                         operators from any claims, damages, or expenses arising from:
                     </Text>
                     <Text style={styles.bulletItem}>
@@ -414,7 +414,7 @@ export default function TermsOfServiceScreen() {
                 {/* Footer */}
                 <View style={styles.footer}>
                     <Text style={styles.footerText}>
-                        By using LocalChat, you acknowledge that you have read, understood,
+                        By using BubbleUp, you acknowledge that you have read, understood,
                         and agree to these Terms of Service.
                     </Text>
                 </View>

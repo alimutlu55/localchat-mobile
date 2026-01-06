@@ -43,6 +43,7 @@ import { theme } from '../../core/theme';
 import { ChatMessage } from '../../types';
 import { AvatarDisplay } from '../profile';
 import { useRealtimeProfile } from '../../features/user/hooks/useRealtimeProfile';
+import { getCategoryColor } from '../../constants';
 
 interface MessageBubbleProps {
   message: ChatMessage;
@@ -182,11 +183,11 @@ export function MessageBubble({
 
   const getAvatarColor = (name: string) => {
     const colors = [
-      theme.tokens.categories.food,
-      theme.tokens.categories.events,
-      theme.tokens.categories.sports,
-      theme.tokens.categories.traffic,
-      theme.tokens.categories.neighborhood,
+      getCategoryColor('FOOD_DINING'),
+      getCategoryColor('EVENTS_FESTIVALS'),
+      getCategoryColor('SPORTS_FITNESS'),
+      getCategoryColor('TRAFFIC_TRANSIT'),
+      getCategoryColor('GENERAL'),
     ];
     let hash = 0;
     for (let i = 0; i < name.length; i++) {

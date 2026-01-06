@@ -164,8 +164,8 @@ export default function RoomInfoScreen() {
     const handleShare = async () => {
         try {
             await Share.share({
-                message: `Join "${room?.title || 'this room'}" on LocalChat! Nearby rooms for local conversations.`,
-                url: 'https://localchat.app',
+                message: `Join "${room?.title || 'this room'}" on BubbleUp! Nearby rooms for local conversations.`,
+                url: 'https://bubbleup.app',
             });
         } catch (error) {
             console.error('Error sharing room:', error);

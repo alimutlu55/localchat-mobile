@@ -40,7 +40,7 @@ export function CategoryChips({
           ]}
           onPress={() => onSelectCategory(null)}
         >
-          <Text style={styles.chipEmoji}>🌐</Text>
+          <Text style={styles.chipEmoji}>👥</Text>
           <Text
             style={[
               styles.chipText,

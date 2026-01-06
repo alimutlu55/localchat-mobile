@@ -1,5 +1,5 @@
 /**
- * Message Types for LocalChat Mobile
+ * Message Types for BubbleUp Mobile
  */
 
 /**

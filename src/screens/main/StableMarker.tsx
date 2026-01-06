@@ -2,7 +2,7 @@ import React, { memo, useRef, useEffect, useState } from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Marker } from 'react-native-maps';
 import { Room } from '../../types';
-import { RoomPin } from '../../features/discovery/components/RoomPin';
+import { Bubble } from '../../features/discovery/components/Bubble';
 
 interface StableMarkerProps {
     room: Room;
@@ -100,7 +100,7 @@ const StableMarker = ({
                 tappable={true}
             >
                 <View pointerEvents="none" style={styles.pinMarkerContainer}>
-                    <RoomPin
+                    <Bubble
                         room={room}
                         isSelected={isSelected}
                     />

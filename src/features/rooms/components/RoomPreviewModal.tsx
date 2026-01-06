@@ -48,8 +48,8 @@ export function RoomPreviewModal({
     const handleShare = async () => {
         try {
             await Share.share({
-                message: `Check out "${room.title}" on LocalChat! Nearby conversations happening now.`,
-                url: 'https://localchat.app',
+                message: `Check out "${room.title}" on BubbleUp! Nearby conversations happening now.`,
+                url: 'https://bubbleup.app',
             });
         } catch (error) {
             console.error('Error sharing room:', error);

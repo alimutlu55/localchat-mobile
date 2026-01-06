@@ -1,5 +1,5 @@
 /**
- * Optimized Custom Map Style for Huddle
+ * Optimized Custom Map Style for BubbleUp
  * 
  * A clean, subtle map style using reliable tile sources.
  * Features:
@@ -12,7 +12,7 @@
 
 export const HUDDLE_MAP_STYLE = {
   version: 8,
-  name: 'Huddle Map Style',
+  name: 'BubbleUp Map Style',
   sources: {
     'carto-raster': {
       type: 'raster',

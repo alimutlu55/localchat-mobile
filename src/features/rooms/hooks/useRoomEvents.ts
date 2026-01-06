@@ -17,6 +17,7 @@ import { wsService, roomService } from '../../../services';
 import { useRoomStore } from '../store/RoomStore';
 import { Room } from '../../../types';
 import { createLogger } from '../../../shared/utils/logger';
+import { getCategoryEmoji } from '../../../constants';
 
 const log = createLogger('RoomEvents');
 
@@ -25,26 +26,7 @@ const processedKickEvents = new Set<string>();
 const processedBanEvents = new Set<string>();
 const EVENT_DEDUP_TTL = 5000;
 
-// Category to emoji fallback map (used when backend doesn't provide categoryIcon)
-// Synced with CATEGORY_OPTIONS in CreateRoomScreen.tsx
-const CATEGORY_EMOJI_MAP: Record<string, string> = {
-    TRAFFIC: '🚗',
-    EVENTS: '🎉',
-    EMERGENCY: '🚨',
-    LOST_FOUND: '🔍',
-    SPORTS: '⚽',
-    FOOD: '🍕',
-    NEIGHBORHOOD: '🏘️',
-    GENERAL: '💬',
-};
 
-/**
- * Get emoji for a category with fallback to default
- */
-function getCategoryEmoji(category?: string): string {
-    if (!category) return '💬';
-    return CATEGORY_EMOJI_MAP[category.toUpperCase()] || '💬';
-}
 
 /**
  * Global hook to handle room events

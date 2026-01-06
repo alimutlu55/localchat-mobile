@@ -1,5 +1,5 @@
 /**
- * User Types for LocalChat Mobile
+ * User Types for BubbleUp Mobile
  */
 
 /**

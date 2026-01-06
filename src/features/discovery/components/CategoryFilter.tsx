@@ -35,8 +35,11 @@ export interface CategoryFilterProps {
     onValueChange?: (category: string) => void;
 }
 
-// Build filter options: ['All', 'Food & Dining', 'Events', ...]
-const CATEGORY_FILTERS = ['All', ...CATEGORIES.map(cat => cat.label)];
+// Build filter options
+const CATEGORY_FILTERS = [
+    { label: 'All', emoji: '' },
+    ...CATEGORIES.map(cat => ({ label: cat.label, emoji: cat.emoji }))
+];
 
 // =============================================================================
 // CategoryChip
@@ -44,12 +47,14 @@ const CATEGORY_FILTERS = ['All', ...CATEGORIES.map(cat => cat.label)];
 
 interface CategoryChipProps {
     label: string;
+    emoji?: string;
     isSelected: boolean;
     onPress: () => void;
 }
 
 const CategoryChip = memo(function CategoryChip({
     label,
+    emoji,
     isSelected,
     onPress,
 }: CategoryChipProps) {
@@ -60,7 +65,7 @@ const CategoryChip = memo(function CategoryChip({
             activeOpacity={0.7}
         >
             <Text style={[styles.chipText, isSelected && styles.chipTextSelected]}>
-                {label}
+                {emoji && `${emoji} `}{label}
             </Text>
         </TouchableOpacity>
     );
@@ -95,12 +100,13 @@ export function CategoryFilter({
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.scrollContent}
             >
-                {CATEGORY_FILTERS.map((category) => (
+                {CATEGORY_FILTERS.map((cat) => (
                     <CategoryChip
-                        key={category}
-                        label={category}
-                        isSelected={selectedCategory === category}
-                        onPress={() => handleChange(category)}
+                        key={cat.label}
+                        label={cat.label}
+                        emoji={cat.emoji}
+                        isSelected={selectedCategory === cat.label}
+                        onPress={() => handleChange(cat.label)}
                     />
                 ))}
             </ScrollView>
