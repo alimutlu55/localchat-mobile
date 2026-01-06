@@ -30,6 +30,7 @@ import { NavigationContainer, NavigationContainerRef } from '@react-navigation/n
 import { UIProvider } from './src/context';
 import { RoomStoreProvider } from './src/features/rooms';
 import { UserStoreProvider } from './src/features/user';
+import { AdProvider } from './src/features/ads/context/AdProvider';
 import { initializeAuthStore } from './src/features/auth';
 import { RootNavigator } from './src/navigation';
 import { GlobalDrawers } from './src/components/GlobalDrawers';
@@ -39,7 +40,6 @@ import { api } from './src/services';
 import { wsService } from './src/services';
 import { notificationService } from './src/services';
 import { RootStackParamList } from './src/navigation/types';
-import mobileAds from 'react-native-google-mobile-ads';
 
 // Initialize i18n
 import './src/i18n';
@@ -66,10 +66,6 @@ export default function App() {
         // Initialize AuthStore (loads user from storage, connects WebSocket)
         await initializeAuthStore();
 
-        // Standard AdMob initialization - though useAdConsent handles it with UMP Logic
-        if (__DEV__) {
-          await mobileAds().initialize();
-        }
 
         // Check current OS location permission status
         const { getLocationPermissionStore } = await import('./src/shared/stores/LocationConsentStore');
@@ -132,12 +128,15 @@ export default function App() {
             {/* UserStoreProvider handles WebSocket subscriptions for user data */}
             <UserStoreProvider>
               <UIProvider>
-                {/* RoomStoreProvider initializes Zustand store and WebSocket handlers */}
-                <RoomStoreProvider>
-                  <StatusBar style="dark" />
-                  <RootNavigator />
-                  <GlobalDrawers />
-                </RoomStoreProvider>
+                {/* AdProvider handles consent and initialization centrally */}
+                <AdProvider>
+                  {/* RoomStoreProvider initializes Zustand store and WebSocket handlers */}
+                  <RoomStoreProvider>
+                    <StatusBar style="dark" />
+                    <RootNavigator />
+                    <GlobalDrawers />
+                  </RoomStoreProvider>
+                </AdProvider>
               </UIProvider>
             </UserStoreProvider>
           </NavigationContainer>

@@ -16,6 +16,7 @@ import {
   Alert,
   Share,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -28,11 +29,15 @@ import {
   Lock,
   Flag,
   Share2,
+  MoreVertical,
+  Award,
+  ChevronRight,
 } from 'lucide-react-native';
 import { RootStackParamList } from '../../../navigation/types';
 import { roomService, ParticipantDTO, messageService } from '../../../services';
 import { eventBus } from '../../../core/events';
-import { ChatMessage, serializeRoom, deserializeRoom } from '../../../types';
+import { theme } from '../../../core/theme';
+import { ChatMessage, serializeRoom, deserializeRoom, Room } from '../../../types';
 import { useUserId } from '../../user/store';
 import { useRoom, useRoomOperations, useRoomMembership } from '../hooks';
 import { useUserLocation } from '../../discovery/hooks';
@@ -41,6 +46,7 @@ import { BannedUsersModal } from '../components';
 import { ParticipantItem } from '../../../components/room';
 import { ReportModal, ReportReason } from '../../../components/chat/ReportModal';
 import { AvatarDisplay } from '../../../components/profile';
+import { AdBanner } from '../../ads';
 import { createLogger } from '../../../shared/utils/logger';
 import { isUserBanned, isAlreadyReported } from '../../../shared/utils/errors';
 
@@ -487,7 +493,21 @@ export default function RoomDetailsScreen() {
       </ScrollView>
 
       {/* Footer Button - Fixed at bottom safe area */}
-      <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+      <BannedUsersModal
+        roomId={roomId}
+        isOpen={showBannedUsersModal}
+        onClose={() => setShowBannedUsersModal(false)}
+      />
+
+      <ReportModal
+        isOpen={reportConfig.isOpen}
+        onClose={() => setReportConfig(prev => ({ ...prev, isOpen: false }))}
+        onSubmit={handleSubmitReport}
+        targetType={reportConfig.targetType}
+        targetName={room.title}
+      />
+
+      <View style={styles.footer}>
         <TouchableOpacity
           style={[
             styles.mainButton,
@@ -507,19 +527,10 @@ export default function RoomDetailsScreen() {
         </TouchableOpacity>
       </View>
 
-      <BannedUsersModal
-        roomId={roomId}
-        isOpen={showBannedUsersModal}
-        onClose={() => setShowBannedUsersModal(false)}
-      />
-
-      <ReportModal
-        isOpen={reportConfig.isOpen}
-        onClose={() => setReportConfig(prev => ({ ...prev, isOpen: false }))}
-        onSubmit={handleSubmitReport}
-        targetType={reportConfig.targetType}
-        targetName={room.title}
-      />
+      {/* Grounded Bottom Ad Banner - Below the action button */}
+      <View style={[styles.adBannerContainer, { paddingBottom: insets.bottom }]}>
+        <AdBanner height={50} transparent={false} />
+      </View>
     </View>
   );
 }
@@ -542,7 +553,7 @@ const styles = StyleSheet.create({
   headerTitle: {
     fontSize: 17,
     fontWeight: '600',
-    color: '#1f2937',
+    color: theme.tokens.text.primary,
   },
   headerRightPlaceholder: {
     width: 40,
@@ -551,7 +562,7 @@ const styles = StyleSheet.create({
     width: 40,
     height: 40,
     borderRadius: 20,
-    backgroundColor: '#f3f4f6',
+    backgroundColor: theme.tokens.bg.subtle,
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -560,6 +571,7 @@ const styles = StyleSheet.create({
   },
   contentContainer: {
     padding: 20,
+    paddingBottom: 140, // Extra space to clear the button and ad banner
   },
   roomHeaderSection: {
     alignItems: 'center',
@@ -570,7 +582,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 24,
-    backgroundColor: '#fff7ed',
+    backgroundColor: theme.tokens.action.secondary.default,
     justifyContent: 'center',
     alignItems: 'center',
     marginBottom: 16,
@@ -579,16 +591,16 @@ const styles = StyleSheet.create({
     fontSize: 40,
   },
   roomTitle: {
-    fontSize: 24,
+    fontSize: 22, // Dialed back from 28
     fontWeight: '700',
-    color: '#1f2937',
+    color: theme.tokens.text.primary,
     textAlign: 'center',
     marginBottom: 8,
     paddingHorizontal: 16,
   },
   roomDescription: {
     fontSize: 16,
-    color: '#6b7280',
+    color: theme.tokens.text.secondary,
     textAlign: 'center',
     marginBottom: 16,
     lineHeight: 22,
@@ -603,24 +615,24 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   statText: {
-    color: '#6b7280',
-    fontSize: 14,
+    color: theme.tokens.text.secondary,
+    fontSize: 13, // Dialed back from 15
     fontWeight: '500',
   },
   sectionTitle: {
-    fontSize: 18,
+    fontSize: 17, // Dialed back from 20
     fontWeight: '600',
-    color: '#1f2937',
-    marginBottom: 16,
+    color: theme.tokens.text.primary,
+    marginBottom: 8,
   },
   actionSection: {
-    marginBottom: 32,
+    marginBottom: 20,
   },
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
     marginBottom: 16,
-    backgroundColor: '#f9fafb',
+    backgroundColor: theme.tokens.bg.subtle,
     padding: 12,
     borderRadius: 16,
   },
@@ -636,17 +648,17 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   actionLabel: {
-    fontSize: 16,
+    fontSize: 15, // Dialed back from 17
     fontWeight: '600',
-    color: '#1f2937',
+    color: theme.tokens.text.primary,
     marginBottom: 2,
   },
   actionSub: {
-    fontSize: 13,
-    color: '#6b7280',
+    fontSize: 12, // Dialed back from 14
+    color: theme.tokens.text.secondary,
   },
   participantsSection: {
-    marginBottom: 40,
+    marginBottom: 20,
   },
   participantItem: {
     flexDirection: 'row',
@@ -665,37 +677,37 @@ const styles = StyleSheet.create({
   participantName: {
     fontSize: 16,
     fontWeight: '500',
-    color: '#374151',
+    color: theme.tokens.text.primary,
   },
   participantRole: {
     fontSize: 13,
-    color: '#9ca3af',
+    color: theme.tokens.text.tertiary,
   },
   footer: {
     padding: 16,
     borderTopWidth: 1,
-    borderTopColor: '#f3f4f6',
-    backgroundColor: '#ffffff',
+    borderTopColor: theme.tokens.border.subtle,
+    backgroundColor: theme.tokens.bg.surface,
   },
   mainButton: {
-    backgroundColor: '#FF6410',
-    borderRadius: 16,
-    paddingVertical: 18,
+    backgroundColor: theme.tokens.brand.primary,
+    borderRadius: 14,
+    paddingVertical: 14,
     alignItems: 'center',
-    shadowColor: '#FF6410',
+    shadowColor: theme.tokens.brand.primary,
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.2,
     shadowRadius: 8,
     elevation: 4,
   },
   enterButton: {
-    backgroundColor: '#22c55e',
-    shadowColor: '#22c55e',
+    backgroundColor: theme.tokens.status.success.main,
+    shadowColor: theme.tokens.status.success.main,
   },
   mainButtonText: {
-    color: '#ffffff',
-    fontSize: 18,
-    fontWeight: '700',
+    color: theme.tokens.text.onPrimary,
+    fontSize: 16,
+    fontWeight: '600',
   },
   // Error Styles
   errorContent: {
@@ -705,11 +717,11 @@ const styles = StyleSheet.create({
   errorTitle: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#ef4444',
+    color: theme.tokens.text.error,
   },
   errorText: {
     marginTop: 8,
-    color: '#6b7280',
+    color: theme.tokens.text.secondary,
     textAlign: 'center',
   },
   loadingContent: {
@@ -718,6 +730,11 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   loadingText: {
-    color: '#6b7280',
-  }
+    color: theme.tokens.text.secondary,
+  },
+  adBannerContainer: {
+    backgroundColor: theme.tokens.bg.canvas,
+    borderTopWidth: 1,
+    borderTopColor: theme.tokens.border.subtle,
+  },
 });

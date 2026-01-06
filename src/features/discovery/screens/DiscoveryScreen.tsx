@@ -20,8 +20,9 @@ import {
     Animated,
     Alert,
     Linking,
+    InteractionManager,
 } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
@@ -60,6 +61,7 @@ import { useLocationPermission, getLocationPermissionStore } from '../../../shar
 // Network - ConnectionBanner is self-contained, no imports needed here
 
 // Styles
+import { theme } from '../../../core/theme';
 import { HUDDLE_MAP_STYLE } from '../../../styles/mapStyle';
 import { styles } from './DiscoveryScreen.styles';
 
@@ -95,6 +97,8 @@ export default function DiscoveryScreen() {
         shouldRenderMap,
         listOpacity,
     } = useDiscoveryViewState({ initialMode: 'map' });
+
+    const insets = useSafeAreaInsets();
 
     // ==========================================================================
     // Auth Status & Logout Protection
@@ -546,150 +550,161 @@ export default function DiscoveryScreen() {
 
     return (
         <View style={styles.container}>
-            {/* Map View - Hidden during logout to prevent Fabric crashes */}
-            <Animated.View
-                style={[
-                    styles.mapContainer,
-                    {
-                        opacity: listOpacity.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
-                        ...(authStatus === 'loggingOut' && { opacity: 0 })
-                    },
-                ]}
-                pointerEvents={viewMode === 'list' || authStatus === 'loggingOut' ? 'none' : 'auto'}
-            >
-                {shouldRenderMap && (
-                    <MapView
-                        ref={mapRef}
-                        style={styles.map}
-                        mapStyle={HUDDLE_MAP_STYLE}
-                        logoEnabled={false}
-                        attributionEnabled={true}
-                        attributionPosition={{ bottom: 8, right: 8 }}
-                        onDidFinishLoadingMap={handleMapReady}
-                        onRegionWillChange={handleRegionWillChange}
-                        onRegionDidChange={handleRegionDidChange}
+            {/* Content Area (Map/List) */}
+            <View style={{ flex: 1 }}>
+                {/* Map View - Hidden during logout to prevent Fabric crashes */}
+                <Animated.View
+                    style={[
+                        styles.mapContainer,
+                        {
+                            opacity: listOpacity.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
+                            ...(authStatus === 'loggingOut' && { opacity: 0 })
+                        },
+                    ]}
+                    pointerEvents={viewMode === 'list' || authStatus === 'loggingOut' ? 'none' : 'auto'}
+                >
+                    {shouldRenderMap && (
+                        <MapView
+                            ref={mapRef}
+                            style={styles.map}
+                            mapStyle={HUDDLE_MAP_STYLE}
+                            logoEnabled={false}
+                            attributionEnabled={true}
+                            attributionPosition={{ bottom: 8, right: 8 }}
+                            onDidFinishLoadingMap={handleMapReady}
+                            onRegionWillChange={handleRegionWillChange}
+                            onRegionDidChange={handleRegionDidChange}
+                        >
+                            <Camera
+                                ref={cameraRef}
+                                defaultSettings={{
+                                    centerCoordinate: centerCoord,
+                                    zoomLevel: zoom,
+                                }}
+                                minZoomLevel={1}
+                                maxZoomLevel={12}
+                            />
+
+
+                            {/* User Location Indicator (decomposed component) */}
+                            <MapViewLocation
+                                location={userLocation}
+                                isMapStable={isMapStable}
+                            />
+                            {/* Server-Side Room & Cluster Markers (decomposed component) */}
+                            <MapViewMarkers
+                                features={serverFeatures}
+                                canRenderMarkers={canRenderMarkers}
+                                selectedFeature={selectedFeature}
+                                onRoomPress={handleServerRoomPress}
+                                onClusterPress={handleServerClusterPress}
+                                onDeselect={handleMarkerDeselect}
+                            />
+                        </MapView>
+                    )}
+
+                    {/* Map Loading Overlay - Fades out when map is ready */}
+                    <Animated.View
+                        style={[
+                            styles.mapLoadingOverlay,
+                            { opacity: mapOverlayOpacity },
+                        ]}
+                        pointerEvents={isMapStable ? 'none' : 'auto'}
                     >
-                        <Camera
-                            ref={cameraRef}
-                            defaultSettings={{
-                                centerCoordinate: centerCoord,
-                                zoomLevel: zoom,
-                            }}
-                            minZoomLevel={1}
-                            maxZoomLevel={12}
-                        />
-
-
-                        {/* User Location Indicator (decomposed component) */}
-                        <MapViewLocation
-                            location={userLocation}
-                            isMapStable={isMapStable}
-                        />
-                        {/* Server-Side Room & Cluster Markers (decomposed component) */}
-                        <MapViewMarkers
-                            features={serverFeatures}
-                            canRenderMarkers={canRenderMarkers}
-                            selectedFeature={selectedFeature}
-                            onRoomPress={handleServerRoomPress}
-                            onClusterPress={handleServerClusterPress}
-                            onDeselect={handleMarkerDeselect}
-                        />
-                    </MapView>
-                )}
-
-                {/* Map Loading Overlay - Fades out when map is ready */}
-                <Animated.View
-                    style={[
-                        styles.mapLoadingOverlay,
-                        { opacity: mapOverlayOpacity },
-                    ]}
-                    pointerEvents={isMapStable ? 'none' : 'auto'}
-                >
-                    <View style={styles.mapLoadingContent}>
-                        <ActivityIndicator size="large" color="#FF6410" />
-                        <Text style={styles.mapLoadingText}>Loading map...</Text>
-                    </View>
-                </Animated.View>
-
-                {/* Map Controls - Only show when map is stable */}
-                <Animated.View
-                    style={[
-                        styles.mapControls,
-                        { opacity: markersOpacity }
-                    ]}
-                    pointerEvents={isMapStable ? 'auto' : 'none'}
-                >
-                    <View style={styles.zoomCard}>
-                        <TouchableOpacity style={styles.zoomButton} onPress={zoomIn} activeOpacity={0.7}>
-                            <Plus size={20} color="#374151" />
-                        </TouchableOpacity>
-                        <View style={styles.zoomDivider} />
-                        <TouchableOpacity style={styles.zoomButton} onPress={zoomOut} activeOpacity={0.7}>
-                            <Minus size={20} color="#374151" />
-                        </TouchableOpacity>
-                    </View>
-
-                    {hasLocationPermission && (
-                        <TouchableOpacity
-                            style={[styles.controlButton, userLocation && styles.controlButtonActive]}
-                            onPress={handleCenterOnUser}
-                            activeOpacity={0.7}
-                        >
-                            <Navigation size={20} color={userLocation ? '#2563eb' : '#6b7280'} />
-                        </TouchableOpacity>
-                    )}
-
-                    {zoom > 1 && (
-                        <TouchableOpacity
-                            style={styles.controlButton}
-                            onPress={() => {
-                                const animDuration = calculateFlyDuration(1);
-                                prefetchForWorldView(animDuration);
-                                resetToWorldView();
-                            }}
-                            activeOpacity={0.7}
-                        >
-                            <Globe size={20} color="#FF6410" />
-                        </TouchableOpacity>
-                    )}
-                </Animated.View>
-
-                {/* Events Counter - Fade in with markers */}
-                <Animated.View style={[styles.eventsCounter, { opacity: markersOpacity }]}>
-                    <Text style={styles.eventsCounterText}>
-                        {totalEventsInView} {totalEventsInView === 1 ? 'event' : 'events'} in view
-                    </Text>
-                </Animated.View>
-
-                {/* Empty State - Only show if looking at user's area, it's empty, and map is NOT moving */}
-                {serverFeatures.length === 0 && !isLoadingClusters && isMapStable && isUserInView && !isMapMoving && (
-                    <Animated.View style={[styles.emptyState, { opacity: markersOpacity }]}>
-                        <Text style={styles.emptyTitle}>No rooms nearby</Text>
-                        <Text style={styles.emptyText}>Be the first to start a conversation!</Text>
-                        <TouchableOpacity style={styles.createButton} onPress={handleCreateRoom}>
-                            <Text style={styles.createButtonText}>Create Room</Text>
-                        </TouchableOpacity>
+                        <View style={styles.mapLoadingContent}>
+                            <ActivityIndicator size="large" color="#FF6410" />
+                            <Text style={styles.mapLoadingText}>Loading map...</Text>
+                        </View>
                     </Animated.View>
-                )}
-            </Animated.View>
 
-            {/* List View */}
-            <Animated.View
-                style={[styles.listContainer, { opacity: listOpacity }]}
-                pointerEvents={viewMode === 'map' ? 'none' : 'auto'}
-            >
-                <RoomListView
-                    rooms={discoveredRooms}
-                    isLoading={isDiscoveryLoading}
-                    isLoadingMore={isDiscoveryLoadingMore}
-                    hasMore={hasMoreRooms}
-                    onLoadMore={loadMoreRooms}
-                    onJoinRoom={handleJoinRoom}
-                    onEnterRoom={handleEnterRoom}
-                    onCreateRoom={handleCreateRoom}
-                    userLocation={userLocation}
-                />
-            </Animated.View>
+                    {/* Map Controls - Only show when map is stable */}
+                    <Animated.View
+                        style={[
+                            styles.mapControls,
+                            { opacity: markersOpacity }
+                        ]}
+                        pointerEvents={isMapStable ? 'auto' : 'none'}
+                    >
+                        <View style={styles.zoomCard}>
+                            <TouchableOpacity style={styles.zoomButton} onPress={zoomIn} activeOpacity={0.7}>
+                                <Plus size={20} color="#374151" />
+                            </TouchableOpacity>
+                            <View style={styles.zoomDivider} />
+                            <TouchableOpacity style={styles.zoomButton} onPress={zoomOut} activeOpacity={0.7}>
+                                <Minus size={20} color="#374151" />
+                            </TouchableOpacity>
+                        </View>
+
+                        {hasLocationPermission && (
+                            <TouchableOpacity
+                                style={[styles.controlButton, userLocation && styles.controlButtonActive]}
+                                onPress={handleCenterOnUser}
+                                activeOpacity={0.7}
+                            >
+                                <Navigation size={20} color={userLocation ? '#2563eb' : '#6b7280'} />
+                            </TouchableOpacity>
+                        )}
+
+                        {zoom > 1 && (
+                            <TouchableOpacity
+                                style={styles.controlButton}
+                                onPress={() => {
+                                    const animDuration = calculateFlyDuration(1);
+                                    prefetchForWorldView(animDuration);
+                                    resetToWorldView();
+                                }}
+                                activeOpacity={0.7}
+                            >
+                                <Globe size={20} color="#FF6410" />
+                            </TouchableOpacity>
+                        )}
+                    </Animated.View>
+
+                    {/* Events Counter - Fade in with markers */}
+                    <Animated.View style={[styles.eventsCounter, { opacity: markersOpacity }]}>
+                        <Text style={styles.eventsCounterText}>
+                            {totalEventsInView} {totalEventsInView === 1 ? 'event' : 'events'} in view
+                        </Text>
+                    </Animated.View>
+
+                    {/* Empty State - Only show if looking at user's area, it's empty, and map is NOT moving */}
+                    {serverFeatures.length === 0 && !isLoadingClusters && isMapStable && isUserInView && !isMapMoving && (
+                        <Animated.View style={[styles.emptyState, { opacity: markersOpacity }]}>
+                            <Text style={styles.emptyTitle}>No rooms nearby</Text>
+                            <Text style={styles.emptyText}>Be the first to start a conversation!</Text>
+                            <TouchableOpacity style={styles.createButton} onPress={handleCreateRoom}>
+                                <Text style={styles.createButtonText}>Create Room</Text>
+                            </TouchableOpacity>
+                        </Animated.View>
+                    )}
+                </Animated.View>
+
+                {/* List View */}
+                <Animated.View
+                    style={[styles.listContainer, { opacity: listOpacity }]}
+                    pointerEvents={viewMode === 'map' ? 'none' : 'auto'}
+                >
+                    <RoomListView
+                        rooms={discoveredRooms}
+                        isLoading={isDiscoveryLoading}
+                        isLoadingMore={isDiscoveryLoadingMore}
+                        hasMore={hasMoreRooms}
+                        onLoadMore={loadMoreRooms}
+                        onJoinRoom={handleJoinRoom}
+                        onEnterRoom={handleEnterRoom}
+                        onCreateRoom={handleCreateRoom}
+                        userLocation={userLocation}
+                    />
+                </Animated.View>
+            </View>
+
+            {/* Ad Banner - Footer placement respects Safe Area and has dedicated space */}
+            <View style={[
+                styles.adBannerContainer,
+                { paddingBottom: insets.bottom }
+            ]}>
+                <AdBanner transparent={false} />
+            </View>
 
             {/* Header with Connection Banner on top */}
             <SafeAreaView style={styles.header} edges={['top']}>
@@ -716,31 +731,20 @@ export default function DiscoveryScreen() {
                 </View>
             </SafeAreaView>
 
-            {/* Ad Banner - Above view toggle */}
-            <View style={styles.adBannerContainer}>
-                <AdBanner />
-            </View>
-
             {/* View Toggle */}
-            <View style={styles.viewToggleContainer}>
+            <View style={styles.viewToggleContainer} pointerEvents="box-none">
                 <View style={styles.viewToggle}>
                     <TouchableOpacity
                         style={[styles.viewToggleButton, viewMode === 'map' && styles.viewToggleButtonActive]}
                         onPress={() => setViewMode('map')}
                     >
                         <MapIcon size={18} color={viewMode === 'map' ? '#ffffff' : '#6b7280'} />
-                        <Text style={viewMode === 'map' ? styles.viewToggleTextActive : styles.viewToggleText}>
-                            Map
-                        </Text>
                     </TouchableOpacity>
                     <TouchableOpacity
                         style={[styles.viewToggleButton, viewMode === 'list' && styles.viewToggleButtonActive]}
                         onPress={() => setViewMode('list')}
                     >
                         <List size={18} color={viewMode === 'list' ? '#ffffff' : '#6b7280'} />
-                        <Text style={viewMode === 'list' ? styles.viewToggleTextActive : styles.viewToggleText}>
-                            List
-                        </Text>
                     </TouchableOpacity>
                 </View>
             </View>

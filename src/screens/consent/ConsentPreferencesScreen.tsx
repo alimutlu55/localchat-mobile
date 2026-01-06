@@ -22,7 +22,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { ChevronLeft, Check, Lock, BarChart3, Bell, Tv, MapPin } from 'lucide-react-native';
+import { ChevronLeft, Check, Lock, BarChart3, Tv } from 'lucide-react-native';
 import { consentService } from '../../services/consent';
 import { getLocationPermissionStore } from '../../shared/stores/LocationConsentStore';
 import { useTheme } from '../../core/theme';
@@ -34,8 +34,7 @@ export default function ConsentPreferencesScreen() {
     const theme = useTheme();
 
     const [analyticsEnabled, setAnalyticsEnabled] = useState(false);
-    const [marketingEnabled, setMarketingEnabled] = useState(false);
-    const [adEnabled, setAdEnabled] = useState(true); // Default to true for ad support
+    const [adEnabled, setAdEnabled] = useState(false); // Personalized ads, default to false
     const [isLoading, setIsLoading] = useState(true);
 
     // Load existing consent preferences on mount
@@ -45,8 +44,7 @@ export default function ConsentPreferencesScreen() {
                 const status = await consentService.getStatus();
                 if (status.options) {
                     setAnalyticsEnabled(status.options.analyticsConsent || false);
-                    setMarketingEnabled(status.options.marketingConsent || false);
-                    setAdEnabled(status.options.adConsent !== false); // Default to true if not set
+                    setAdEnabled(status.options.personalizedAdsConsent || false);
                 }
             } catch (error) {
                 console.error('[ConsentPreferences] Failed to load preferences:', error);
@@ -61,10 +59,9 @@ export default function ConsentPreferencesScreen() {
         await consentService.saveConsent({
             tosAccepted: true,
             privacyAccepted: true,
-            marketingConsent: marketingEnabled,
             analyticsConsent: analyticsEnabled,
             locationConsent: false, // Will be set after OS permission is granted
-            adConsent: adEnabled,
+            personalizedAdsConsent: adEnabled,
         });
         // Navigate back instead of replacing to Welcome
         navigation.goBack();
@@ -129,6 +126,19 @@ export default function ConsentPreferencesScreen() {
                             <Check size={18} color="#22c55e" strokeWidth={3} />
                         </View>
                     </View>
+
+                    <View style={styles.preferenceItem}>
+                        <View style={styles.preferenceInfo}>
+                            <Text style={styles.preferenceTitle}>Basic Ads</Text>
+                            <Text style={styles.preferenceDescription}>
+                                Non-personalized ads help keep LocalChat free.
+                                No personal data is used for targeting.
+                            </Text>
+                        </View>
+                        <View style={styles.checkContainer}>
+                            <Check size={18} color="#22c55e" strokeWidth={3} />
+                        </View>
+                    </View>
                 </View>
 
                 {/* Optional Section */}
@@ -137,44 +147,6 @@ export default function ConsentPreferencesScreen() {
                     <Text style={styles.sectionDescription}>
                         These help improve your experience but are not required.
                     </Text>
-
-                    <View style={styles.preferenceItem}>
-                        <View style={styles.iconContainer}>
-                            <BarChart3 size={20} color="#6366F1" />
-                        </View>
-                        <View style={styles.preferenceInfo}>
-                            <Text style={styles.preferenceTitle}>Usage Analytics</Text>
-                            <Text style={styles.preferenceDescription}>
-                                Help us improve LocalChat with anonymized usage data
-                                and crash reports.
-                            </Text>
-                        </View>
-                        <Switch
-                            value={analyticsEnabled}
-                            onValueChange={setAnalyticsEnabled}
-                            trackColor={{ false: '#d1d5db', true: '#6366F1' }}
-                            thumbColor="#ffffff"
-                        />
-                    </View>
-
-                    <View style={styles.preferenceItem}>
-                        <View style={styles.iconContainer}>
-                            <Bell size={20} color="#6366F1" />
-                        </View>
-                        <View style={styles.preferenceInfo}>
-                            <Text style={styles.preferenceTitle}>Product Updates</Text>
-                            <Text style={styles.preferenceDescription}>
-                                Receive occasional notifications about new features
-                                and LocalChat news.
-                            </Text>
-                        </View>
-                        <Switch
-                            value={marketingEnabled}
-                            onValueChange={setMarketingEnabled}
-                            trackColor={{ false: '#d1d5db', true: '#6366F1' }}
-                            thumbColor="#ffffff"
-                        />
-                    </View>
 
                     <View style={styles.preferenceItem}>
                         <View style={styles.iconContainer}>
@@ -189,6 +161,24 @@ export default function ConsentPreferencesScreen() {
                         <Switch
                             value={adEnabled}
                             onValueChange={setAdEnabled}
+                            trackColor={{ false: '#d1d5db', true: '#6366F1' }}
+                            thumbColor="#ffffff"
+                        />
+                    </View>
+
+                    <View style={styles.preferenceItem}>
+                        <View style={styles.iconContainer}>
+                            <BarChart3 size={20} color="#6366F1" />
+                        </View>
+                        <View style={styles.preferenceInfo}>
+                            <Text style={styles.preferenceTitle}>Usage Analytics</Text>
+                            <Text style={styles.preferenceDescription}>
+                                Help us improve LocalChat with anonymized usage data.
+                            </Text>
+                        </View>
+                        <Switch
+                            value={analyticsEnabled}
+                            onValueChange={setAnalyticsEnabled}
                             trackColor={{ false: '#d1d5db', true: '#6366F1' }}
                             thumbColor="#ffffff"
                         />

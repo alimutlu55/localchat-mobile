@@ -424,7 +424,7 @@ export function RoomListView({
     // if (isLoading) { ... }
 
     return (
-        <View style={[styles.container, { paddingBottom: insets.bottom }]}>
+        <View style={styles.container}>
             {/* Header */}
             <View style={styles.header}>
                 <View style={styles.headerTop}>

@@ -1,9 +1,10 @@
-import { StyleSheet } from 'react-native';
+import { StyleSheet, Dimensions, Platform } from 'react-native';
+import { theme } from '../../../core/theme';
 
 export const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: '#f3f4f6',
+        backgroundColor: 'transparent',
     },
     loadingContainer: {
         flex: 1,
@@ -41,7 +42,7 @@ export const styles = StyleSheet.create({
     listContainer: {
         ...StyleSheet.absoluteFillObject,
         paddingTop: 100,
-        backgroundColor: '#f9fafb',
+        backgroundColor: theme.tokens.bg.canvas,
     },
     header: {
         position: 'absolute',
@@ -131,24 +132,15 @@ export const styles = StyleSheet.create({
     },
     eventsCounter: {
         position: 'absolute',
-        bottom: 180, // High enough to clear toggle and ad
-        left: 16,
-        backgroundColor: 'rgba(255, 255, 255, 0.9)',
-        paddingHorizontal: 16,
-        paddingVertical: 10,
-        borderRadius: 20,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.1,
-        shadowRadius: 6,
-        elevation: 3,
-        borderWidth: 1,
-        borderColor: 'rgba(229, 231, 235, 0.5)',
+        top: 140, // Increased to definitely clear the header/insets
+        left: 20,
+        zIndex: 10,
     },
     eventsCounterText: {
-        fontSize: 13,
-        color: '#4b5563',
-        fontWeight: '500',
+        fontSize: 12,
+        color: '#4b5563', // Softer slate grey
+        fontWeight: '400', // Regular weight for smoothness
+        opacity: 0.6, // Restored to a more subtle transparency
     },
     userLocationMarkerContainer: {
         width: 80,
@@ -180,7 +172,7 @@ export const styles = StyleSheet.create({
     },
     viewToggleContainer: {
         position: 'absolute',
-        bottom: 80, // Shifted up to clear AdBanner
+        bottom: 130, // Increased from 110px to ensure 20px+ gap from ad banner (Google policy compliance)
         left: 0,
         right: 0,
         alignItems: 'center',
@@ -189,26 +181,31 @@ export const styles = StyleSheet.create({
     viewToggle: {
         flexDirection: 'row',
         backgroundColor: '#ffffff',
-        borderRadius: 16,
-        padding: 8,
+        borderRadius: 24,
+        padding: 4,
+        // Sharper, more visible shadow for compact look
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 4 },
-        shadowOpacity: 0.15,
-        shadowRadius: 12,
+        shadowOffset: { width: 0, height: 8 },
+        shadowOpacity: 0.22,
+        shadowRadius: 16,
         elevation: 8,
         borderWidth: 1,
-        borderColor: '#e5e7eb',
+        borderColor: '#e5e7eb', // Solid border for better definition
     },
     viewToggleButton: {
-        flexDirection: 'row',
+        width: 38,
+        height: 38,
+        borderRadius: 19,
         alignItems: 'center',
-        paddingVertical: 8,
-        paddingHorizontal: 16,
-        borderRadius: 12,
-        gap: 6,
+        justifyContent: 'center',
     },
     viewToggleButtonActive: {
         backgroundColor: '#FF6410',
+        // Feedback shadow
+        shadowColor: '#FF6410',
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 8,
     },
     viewToggleText: {
         fontSize: 14,
@@ -221,7 +218,7 @@ export const styles = StyleSheet.create({
     },
     emptyState: {
         position: 'absolute',
-        bottom: 160, // Increased to clear view toggle (80) + ad banner (50) + spacing
+        bottom: 186, // Adjusted to maintain spacing above view toggle (was 166px)
         left: 20,
         right: 20,
         backgroundColor: '#ffffff',
@@ -257,13 +254,8 @@ export const styles = StyleSheet.create({
         fontWeight: 'bold',
     },
     adBannerContainer: {
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        backgroundColor: '#f3f4f6',
-        borderTopWidth: 1,
-        borderTopColor: '#e5e7eb',
-        zIndex: 100,
+        // Removed absolute positioning to create a dedicated footer space
+        // No background or border to keep it seamless with the content
+        zIndex: 50,
     },
 });

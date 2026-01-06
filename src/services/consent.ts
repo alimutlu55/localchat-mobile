@@ -14,10 +14,9 @@ const CONSENT_VERSION = '1.0';
 export interface ConsentOptions {
     tosAccepted: boolean;
     privacyAccepted: boolean;
-    marketingConsent: boolean;
     analyticsConsent: boolean;
     locationConsent: boolean;
-    adConsent: boolean;
+    personalizedAdsConsent: boolean; // Basic ads are always on, this is for personalization
 }
 
 export interface ConsentStatus {
@@ -41,10 +40,9 @@ interface BackendConsentStatus {
     needsReconsent: boolean;
     tosAccepted: boolean;
     privacyAccepted: boolean;
-    marketingConsent: boolean;
     analyticsConsent: boolean;
     locationConsent: boolean;
-    adConsent: boolean;
+    personalizedAdsConsent: boolean;
 }
 
 interface BackendConsentResponse {
@@ -99,10 +97,9 @@ class ConsentService {
                 options: backendStatus.hasConsent ? {
                     tosAccepted: backendStatus.tosAccepted,
                     privacyAccepted: backendStatus.privacyAccepted,
-                    marketingConsent: backendStatus.marketingConsent,
                     analyticsConsent: backendStatus.analyticsConsent,
                     locationConsent: backendStatus.locationConsent,
-                    adConsent: backendStatus.adConsent ?? backendStatus.analyticsConsent,
+                    personalizedAdsConsent: backendStatus.personalizedAdsConsent ?? false,
                 } : null,
                 timestamp: localConsent?.timestamp || null,
             };
@@ -137,10 +134,9 @@ class ConsentService {
         await this.saveConsent({
             tosAccepted: true,
             privacyAccepted: true,
-            marketingConsent: true,
-            analyticsConsent: true,
-            locationConsent: true,
-            adConsent: true,
+            analyticsConsent: false,
+            locationConsent: false,
+            personalizedAdsConsent: false,
         });
     }
 
@@ -151,10 +147,9 @@ class ConsentService {
         await this.saveConsent({
             tosAccepted: true,
             privacyAccepted: true,
-            marketingConsent: false,
             analyticsConsent: false,
             locationConsent: false,
-            adConsent: false,
+            personalizedAdsConsent: false,
         });
     }
 
@@ -183,9 +178,9 @@ class ConsentService {
                     deviceId,
                     tosAccepted: options.tosAccepted,
                     privacyAccepted: options.privacyAccepted,
-                    marketingConsent: options.marketingConsent,
                     analyticsConsent: options.analyticsConsent,
                     locationConsent: options.locationConsent,
+                    personalizedAdsConsent: options.personalizedAdsConsent,
                     consentVersion: CONSENT_VERSION,
                 },
                 { skipAuth: true }
@@ -205,9 +200,9 @@ class ConsentService {
      * Update consent preferences (for Settings screen)
      */
     async updatePreferences(
-        marketingConsent?: boolean,
         analyticsConsent?: boolean,
-        locationConsent?: boolean
+        locationConsent?: boolean,
+        personalizedAdsConsent?: boolean
     ): Promise<void> {
         const localConsent = await storage.get<StoredConsent>(CONSENT_KEY);
         if (!localConsent) {
@@ -216,9 +211,9 @@ class ConsentService {
 
         const updatedOptions: ConsentOptions = {
             ...localConsent.options,
-            ...(marketingConsent !== undefined && { marketingConsent }),
             ...(analyticsConsent !== undefined && { analyticsConsent }),
             ...(locationConsent !== undefined && { locationConsent }),
+            ...(personalizedAdsConsent !== undefined && { personalizedAdsConsent }),
         };
 
         const deviceId = await this.getDeviceId();
@@ -238,9 +233,9 @@ class ConsentService {
                 '/consent/preferences',
                 {
                     deviceId,
-                    marketingConsent,
                     analyticsConsent,
                     locationConsent,
+                    personalizedAdsConsent,
                 },
                 { skipAuth: true }
             );
