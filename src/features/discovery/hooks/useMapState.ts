@@ -389,7 +389,7 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
 
   const flyTo = useCallback(
     (coordinate: MapCoordinate, targetZoom?: number) => {
-      if (!isMapReady || !cameraRef.current) return;
+      if (!isMapReady || !cameraRef.current || !isMountedRef.current) return;
 
       const finalZoom = targetZoom ?? zoom;
       const duration = calculateFlyDuration(finalZoom);
@@ -408,8 +408,10 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
 
       // Clear animation tracking after animation completes
       setTimeout(() => {
-        isAnimatingRef.current = false;
-        targetZoomRef.current = null;
+        if (isMountedRef.current) {
+          isAnimatingRef.current = false;
+          targetZoomRef.current = null;
+        }
       }, duration);
     },
     [isMapReady, zoom, calculateFlyDuration]
@@ -417,7 +419,7 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
 
   const centerOn = useCallback(
     (coordinate: MapCoordinate, targetZoom?: number) => {
-      if (!isMapReady || !cameraRef.current) return;
+      if (!isMapReady || !cameraRef.current || !isMountedRef.current) return;
 
       const finalZoom = targetZoom ?? 14;
       const duration = calculateFlyDuration(finalZoom);
@@ -436,15 +438,17 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
 
       // Clear animation tracking after animation completes
       setTimeout(() => {
-        isAnimatingRef.current = false;
-        targetZoomRef.current = null;
+        if (isMountedRef.current) {
+          isAnimatingRef.current = false;
+          targetZoomRef.current = null;
+        }
       }, duration);
     },
     [isMapReady, calculateFlyDuration]
   );
 
   const resetToWorldView = useCallback(() => {
-    if (!isMapReady || !cameraRef.current) return;
+    if (!isMapReady || !cameraRef.current || !isMountedRef.current) return;
 
     const targetZoom = 1;
     const duration = calculateFlyDuration(targetZoom);
@@ -463,8 +467,10 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
 
     // Clear animation tracking after animation completes
     setTimeout(() => {
-      isAnimatingRef.current = false;
-      targetZoomRef.current = null;
+      if (isMountedRef.current) {
+        isAnimatingRef.current = false;
+        targetZoomRef.current = null;
+      }
     }, duration);
   }, [isMapReady, calculateFlyDuration]);
 
