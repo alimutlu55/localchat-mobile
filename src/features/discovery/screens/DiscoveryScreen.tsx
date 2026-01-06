@@ -66,7 +66,7 @@ import { HUDDLE_MAP_STYLE } from '../../../styles/mapStyle';
 import { styles } from './DiscoveryScreen.styles';
 
 // Ads
-import { AdBanner, useInterstitialAd } from '../../ads';
+import { AdBanner, useInterstitialAd, useAds } from '../../ads';
 
 // Utils
 import { createLogger } from '../../../shared/utils/logger';
@@ -129,6 +129,18 @@ export default function DiscoveryScreen() {
     } else if (authStatus !== 'loggingOut' && isLoggingOutRef.current) {
         isLoggingOutRef.current = false;
     }
+
+    // ==========================================================================
+    // Ad Consent Flow (Sequential)
+    // ==========================================================================
+    const { showConsentFormIfRequired } = useAds();
+
+    useEffect(() => {
+        // Defer ad consent form until map is shown to the user
+        // This is part of the "Low Friction" onboarding experience
+        log.info('Discovery Screen focused, checking if ad consent form is required');
+        showConsentFormIfRequired();
+    }, [showConsentFormIfRequired]);
 
     // ==========================================================================
     // Map Initialization & Smooth Transitions (decomposed hook)

@@ -95,6 +95,8 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
   // Refs
   const mapRef = useRef<MapViewRef>(null);
   const cameraRef = useRef<CameraRef>(null);
+  // Track if hook is mounted to prevent native calls during unmount
+  const isMountedRef = useRef(true);
 
   // State
   const [isMapReady, setIsMapReady] = useState(false);
@@ -102,6 +104,14 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
   const [isMapMoving, setIsMapMoving] = useState(false);
   const [zoom, setZoom] = useState(defaultZoom);
   const hasPerformedInitialJump = useRef(false);
+
+  // Cleanup: mark as unmounted to prevent native calls during unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   // Helper to calculate bounds from a coordinate
   const calculateInitialBounds = (coord: MapCoordinate): [number, number, number, number] => {
@@ -168,7 +178,9 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
   }, []);
 
   const handleRegionDidChange = useCallback(async () => {
-    if (!mapRef.current) return;
+    // Safety check: ensure ref exists AND hook is still mounted
+    // This prevents "Invalid react tag" crash when map is unmounting
+    if (!mapRef.current || !isMountedRef.current) return;
 
     try {
       const [newZoom, visibleBounds, center] = await Promise.all([

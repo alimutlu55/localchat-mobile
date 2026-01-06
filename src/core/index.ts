@@ -3,8 +3,10 @@
  *
  * Core application infrastructure:
  * - EventBus: Central event management
- * - (Future) Repositories: Data access layer
+ * - Session: Unified session management
+ * - Theme: Design tokens and theme utilities
  */
 
 export * from './events';
+export * from './session';
 export * from './theme';

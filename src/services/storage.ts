@@ -170,33 +170,47 @@ export const secureStorage = {
 
 /**
  * Device storage for device-specific identifiers
+ * Uses SecureStore to persist device ID across app reinstalls (iOS Keychain)
  */
-const DEVICE_ID_KEY = '@localchat/device_id';
+const DEVICE_ID_SECURE_KEY = 'localchat_device_id';
+const DEVICE_ID_LEGACY_KEY = '@localchat/device_id';
 
 export const deviceStorage = {
   /**
-   * Get device ID, generating one if it doesn't exist
+   * Get device ID, generating one if it doesn't exist.
+   * Uses SecureStore for persistence across reinstalls on iOS.
+   * Includes migration from legacy AsyncStorage key.
    */
   async getDeviceId(): Promise<string> {
-    const existing = await storage.get<string>(DEVICE_ID_KEY);
+    // 1. Check SecureStore first (persists across reinstalls)
+    let existing = await secureStorage.get(DEVICE_ID_SECURE_KEY);
     if (existing) return existing;
 
-    // Generate new UUID
+    // 2. Check legacy AsyncStorage key and migrate
+    const legacyId = await storage.get<string>(DEVICE_ID_LEGACY_KEY);
+    if (legacyId) {
+      // Migrate to SecureStore
+      await secureStorage.set(DEVICE_ID_SECURE_KEY, legacyId);
+      await storage.remove(DEVICE_ID_LEGACY_KEY);
+      return legacyId;
+    }
+
+    // 3. Generate new UUID
     const newId = 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
       const r = Math.random() * 16 | 0;
       const v = c === 'x' ? r : (r & 0x3 | 0x8);
       return v.toString(16);
     });
 
-    await storage.set(DEVICE_ID_KEY, newId);
+    await secureStorage.set(DEVICE_ID_SECURE_KEY, newId);
     return newId;
   },
 
   /**
-   * Set device ID
+   * Set device ID (for migration purposes)
    */
   async setDeviceId(deviceId: string): Promise<boolean> {
-    return storage.set(DEVICE_ID_KEY, deviceId);
+    return secureStorage.set(DEVICE_ID_SECURE_KEY, deviceId);
   },
 };
 

@@ -53,6 +53,7 @@ export function useAuth() {
     const hardDeleteAccount = useAuthStore((state) => state.hardDeleteAccount);
     const error = useAuthStore((state) => state.error);
     const clearError = useAuthStore((state) => state.clearError);
+    const tryRestoreAnonymousSession = useAuthStore((state) => state.tryRestoreAnonymousSession);
 
     // Deprecated state - kept for backward compatibility
     const isInitializing = useAuthStore((state) => state.isInitializing);
@@ -88,6 +89,7 @@ export function useAuth() {
         deleteAccount,
         hardDeleteAccount,
         clearError,
+        tryRestoreAnonymousSession,
 
         // Profile action
         updateProfile,

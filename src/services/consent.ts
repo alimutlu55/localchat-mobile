@@ -7,6 +7,7 @@
 
 import { storage, deviceStorage } from './storage';
 import { api, ApiResponse } from './api';
+import { eventBus } from '../core/events';
 
 const CONSENT_KEY = '@localchat/consent';
 const CONSENT_VERSION = '1.0';
@@ -76,11 +77,25 @@ class ConsentService {
 
     /**
      * Check consent status with backend (for re-consent detection)
+     * CRITICAL: Local consent must exist. If missing (reinstall), force re-consent.
      */
     async checkConsentStatus(): Promise<ConsentStatus> {
         const localConsent = await storage.get<StoredConsent>(CONSENT_KEY);
 
-        // Try backend first for accurate version check
+        // CRITICAL: If no local consent, this is a reinstall or first launch
+        // ALWAYS require consent regardless of backend status
+        if (!localConsent) {
+            console.log('[Consent] No local consent found - requiring consent (reinstall or first launch)');
+            return {
+                hasConsent: false,
+                version: null,
+                needsReconsent: true,
+                options: null,
+                timestamp: null,
+            };
+        }
+
+        // Local consent exists, verify with backend for version check
         try {
             const deviceId = await this.getDeviceId();
             const response = await api.get<ApiResponse<BackendConsentStatus>>(
@@ -90,32 +105,25 @@ class ConsentService {
 
             const backendStatus = response.data;
 
+            // Use backend status but ensure local version matches
+            const localVersionValid = localConsent.version === CONSENT_VERSION;
+
             return {
-                hasConsent: backendStatus.hasConsent,
-                version: backendStatus.consentVersion,
-                needsReconsent: backendStatus.needsReconsent,
-                options: backendStatus.hasConsent ? {
+                hasConsent: backendStatus.hasConsent && localVersionValid,
+                version: localConsent.version,
+                needsReconsent: backendStatus.needsReconsent || !localVersionValid,
+                options: localVersionValid ? {
                     tosAccepted: backendStatus.tosAccepted,
                     privacyAccepted: backendStatus.privacyAccepted,
                     analyticsConsent: backendStatus.analyticsConsent,
                     locationConsent: backendStatus.locationConsent,
                     personalizedAdsConsent: backendStatus.personalizedAdsConsent ?? false,
                 } : null,
-                timestamp: localConsent?.timestamp || null,
+                timestamp: localConsent.timestamp,
             };
         } catch (error) {
             // Fallback to local storage if backend unavailable
             console.warn('[Consent] Backend check failed, using local storage:', error);
-
-            if (!localConsent) {
-                return {
-                    hasConsent: false,
-                    version: null,
-                    needsReconsent: true,
-                    options: null,
-                    timestamp: null,
-                };
-            }
 
             return {
                 hasConsent: localConsent.version === CONSENT_VERSION,
@@ -169,6 +177,19 @@ class ConsentService {
             syncedToBackend: false,
         };
         await storage.set(CONSENT_KEY, localConsent);
+
+        // Emit events for listeners (e.g. SessionManager, Map, Ads)
+        eventBus.emit('session.consentChanged', {
+            hasConsent: true,
+            needsReconsent: false,
+            version: CONSENT_VERSION
+        });
+
+        eventBus.emit('consent.updated', {
+            locationConsent: options.locationConsent,
+            analyticsConsent: options.analyticsConsent,
+            marketingConsent: options.personalizedAdsConsent,
+        });
 
         // Sync to backend (async, don't block UI)
         try {
@@ -226,6 +247,19 @@ class ConsentService {
             syncedToBackend: false,
         };
         await storage.set(CONSENT_KEY, updated);
+
+        // Emit events
+        eventBus.emit('session.consentChanged', {
+            hasConsent: updatedOptions.tosAccepted && updatedOptions.privacyAccepted,
+            needsReconsent: false,
+            version: CONSENT_VERSION
+        });
+
+        eventBus.emit('consent.updated', {
+            locationConsent: updatedOptions.locationConsent,
+            analyticsConsent: updatedOptions.analyticsConsent,
+            marketingConsent: updatedOptions.personalizedAdsConsent,
+        });
 
         // Sync to backend
         try {

@@ -23,7 +23,8 @@
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "BubbleUp connects you with people nearby. Your location helps discover and create local rooms.",
         "NSLocationAlwaysUsageDescription": "BubbleUp uses your location to notify you about nearby rooms and keep you connected with your community.",
-        "NSLocationAlwaysAndWhenInUseUsageDescription": "BubbleUp connects you with people nearby. Your location helps discover and create local rooms."
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "BubbleUp connects you with people nearby. Your location helps discover and create local rooms.",
+        "NSUserTrackingUsageDescription": "This identifier will be used to deliver personalized ads to you."
       }
     },
     "android": {

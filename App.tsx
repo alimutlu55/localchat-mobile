@@ -36,6 +36,7 @@ import { RoomStoreProvider } from './src/features/rooms';
 import { UserStoreProvider } from './src/features/user';
 import { AdProvider } from './src/features/ads/context/AdProvider';
 import { initializeAuthStore } from './src/features/auth';
+import { sessionManager } from './src/core/session';
 import { RootNavigator } from './src/navigation';
 import { GlobalDrawers } from './src/components/GlobalDrawers';
 import { LoadingScreen } from './src/screens';
@@ -77,6 +78,14 @@ export default function App() {
         await initializeAuthStore();
         console.log(`[App] ✅ AuthStore initialized in ${Date.now() - authStart}ms`);
 
+        // Initialize SessionManager (coordinates auth + consent atomically)
+        console.log('[App] 🔄 Initializing SessionManager...');
+        const sessionStart = Date.now();
+        const sessionResult = await sessionManager.initialize();
+        console.log(`[App] ✅ SessionManager initialized in ${Date.now() - sessionStart}ms`, {
+          status: sessionResult.state.status,
+          wasRestored: sessionResult.wasRestored,
+        });
 
         // Check current OS location permission status
         console.log('[App] 📍 Checking location permissions...');

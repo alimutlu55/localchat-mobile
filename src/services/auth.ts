@@ -7,7 +7,7 @@
 
 import { Platform } from 'react-native';
 import { STORAGE_KEYS } from '../constants';
-import { storage, secureStorage } from './storage';
+import { storage, secureStorage, deviceStorage } from './storage';
 import { api, ApiError } from './api';
 import {
   User,
@@ -98,14 +98,21 @@ class AuthService {
 
   /**
    * Get or create device ID
+   * Uses centralized deviceStorage to ensure consistency across all services.
+   * Includes migration from legacy 'device_id' key.
    */
   private async getDeviceId(): Promise<string> {
-    let deviceId = await storage.get<string>('device_id');
-    if (!deviceId) {
-      deviceId = this.generateDeviceId();
-      await storage.set('device_id', deviceId);
+    // Check for legacy device_id key and migrate if needed
+    const legacyDeviceId = await storage.get<string>('device_id');
+    if (legacyDeviceId) {
+      // Migrate to unified key
+      await deviceStorage.setDeviceId(legacyDeviceId);
+      await storage.remove('device_id');
+      return legacyDeviceId;
     }
-    return deviceId;
+
+    // Use centralized deviceStorage (single source of truth)
+    return deviceStorage.getDeviceId();
   }
 
   /**
@@ -174,6 +181,39 @@ class AuthService {
     }
 
     return this.currentUser!;
+  }
+
+  /**
+   * Try to restore an existing anonymous session by device ID.
+   * Used after reinstall when device ID persists but tokens are cleared.
+   * 
+   * @returns User if existing account found, null if new device
+   */
+  async tryRestoreAnonymousSession(): Promise<{ user: User | null; isNewUser: boolean }> {
+    const deviceId = await this.getDeviceId();
+    console.log('[Auth] Attempting to restore anonymous session for device:', deviceId.substring(0, 8) + '...');
+
+    const request: AnonymousLoginRequest = {
+      deviceId,
+      devicePlatform: this.getDevicePlatform(),
+      appVersion: APP_VERSION,
+    };
+
+    try {
+      const response = await api.post<{ data: AuthResponse & { isNewUser?: boolean } }>('/auth/anonymous', request, { skipAuth: true });
+      await this.handleAuthResponse(response.data);
+
+      const isNewUser = response.data.isNewUser ?? true;
+      console.log('[Auth] Session restore result:', { isNewUser, userId: this.currentUser?.id });
+
+      return {
+        user: this.currentUser,
+        isNewUser,
+      };
+    } catch (error) {
+      console.error('[Auth] Failed to restore anonymous session:', error);
+      return { user: null, isNewUser: true };
+    }
   }
 
   /**

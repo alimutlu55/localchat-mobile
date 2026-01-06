@@ -99,10 +99,12 @@ export interface AuthStoreActions {
      */
     register: (email: string, password: string, displayName: string) => Promise<void>;
 
-    /**
-     * Login anonymously
-     */
     loginAnonymous: (displayName?: string) => Promise<void>;
+
+    /**
+     * Try to restore an existing anonymous session
+     */
+    tryRestoreAnonymousSession: () => Promise<{ user: User | null; isNewUser: boolean }>;
 
     /**
      * Login with Google OAuth
@@ -253,6 +255,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
                 isInitializing: false,
             });
             useAppStore.getState().setAuthState('authenticated', user.id);
+            eventBus.emit('session.authChanged', { isAuthenticated: true, user });
             log.debug('Login successful', { userId: user.id });
         } catch (err) {
             const message = getErrorMessage(err, 'Login failed');
@@ -298,6 +301,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
                 isInitializing: false,
             });
             useAppStore.getState().setAuthState('authenticated', user.id);
+            eventBus.emit('session.authChanged', { isAuthenticated: true, user });
             log.debug('Registration successful', { userId: user.id });
         } catch (err) {
             const message = getErrorMessage(err, 'Registration failed');
@@ -310,6 +314,64 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             });
             useAppStore.getState().setAuthState('guest', null);
             throw err;
+        }
+    },
+
+    tryRestoreAnonymousSession: async () => {
+        const currentStatus = get().status;
+
+        // Only allow restoration if in a neutral state
+        if (currentStatus === 'authenticated' || currentStatus === 'authenticating' || currentStatus === 'loggingOut') {
+            log.warn('Session restore blocked - invalid state', { currentStatus });
+            return { user: get().user || null, isNewUser: false };
+        }
+
+        set({ status: 'authenticating', isLoading: true, error: null });
+        useAppStore.getState().setAuthState('authenticating', null);
+
+        try {
+            log.debug('Anonymous session restoration attempt');
+
+            // Call auth service
+            const result = await authService.tryRestoreAnonymousSession();
+
+            if (result.user && !result.isNewUser) {
+                // Existing user restored!
+                useUserStore.getState().setUser(result.user);
+                await wsService.connect();
+
+                set({
+                    status: 'authenticated',
+                    isAuthenticated: true,
+                    isLoading: false,
+                    isInitializing: false,
+                    user: result.user
+                });
+                useAppStore.getState().setAuthState('authenticated', result.user.id);
+                eventBus.emit('session.authChanged', { isAuthenticated: true, user: result.user });
+                log.debug('Anonymous session restoration successful', { userId: result.user.id });
+            } else {
+                // No existing user found, or it's a new device
+                set({
+                    status: 'guest',
+                    isLoading: false,
+                    isAuthenticated: false,
+                });
+                useAppStore.getState().setAuthState('guest', null);
+                log.debug('No anonymous session found to restore');
+            }
+
+            return result;
+        } catch (err) {
+            const message = getErrorMessage(err, 'Session restoration failed');
+            log.warn('Anonymous session restoration error', { reason: message });
+            set({
+                status: 'guest',
+                error: message,
+                isLoading: false,
+                isAuthenticated: false,
+            });
+            return { user: null, isNewUser: true };
         }
     },
 
@@ -344,6 +406,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
                 isInitializing: false,
             });
             useAppStore.getState().setAuthState('authenticated', user.id);
+            eventBus.emit('session.authChanged', { isAuthenticated: true, user });
             log.debug('Anonymous login successful', { userId: user.id });
         } catch (err) {
             const message = getErrorMessage(err, 'Anonymous login failed');
@@ -390,6 +453,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
                 isInitializing: false,
             });
             useAppStore.getState().setAuthState('authenticated', user.id);
+            eventBus.emit('session.authChanged', { isAuthenticated: true, user });
             log.debug('Google login successful', { userId: user.id });
         } catch (err) {
             const message = getErrorMessage(err, 'Google login failed');
@@ -443,6 +507,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
                 error: null,
             });
             useAppStore.getState().setAuthState('guest', null);
+            eventBus.emit('session.authChanged', { isAuthenticated: false, user: null });
             log.debug('Logout successful - transitioned to guest state');
         } catch (err) {
             log.error('Logout cleanup failed', { err });

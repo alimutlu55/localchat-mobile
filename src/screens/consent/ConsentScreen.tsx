@@ -11,19 +11,22 @@
  * - Location is optional: Users can browse global rooms without sharing location
  */
 
-import React from 'react';
+import * as React from 'react';
 import {
     View,
     Text,
     StyleSheet,
     TouchableOpacity,
     StatusBar,
+    ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Check, Info } from 'lucide-react-native';
 import { consentService } from '../../services/consent';
+import { useAuth } from '../../features/auth/hooks/useAuth';
+import { getLocationPermissionStore } from '../../shared/stores/LocationConsentStore';
 import { useTheme } from '../../core/theme';
 
 type NavigationProp = NativeStackNavigationProp<any>;
@@ -32,10 +35,33 @@ export default function ConsentScreen() {
     const navigation = useNavigation<NavigationProp>();
     const theme = useTheme();
     const insets = useSafeAreaInsets();
+    const { logout } = useAuth();
+    const [isSubmitting, setIsSubmitting] = React.useState(false);
 
     const handleContinue = async () => {
-        await consentService.acceptAll();
-        navigation.replace('Auth', { screen: 'Welcome' });
+        setIsSubmitting(true);
+        try {
+            // 1. Force logout any stale session (e.g. from iOS Keychain persistence)
+            // This ensures we land on the Welcome screen as a guest, as requested.
+            await logout();
+
+            // 2. Accept all consents (ToS, Privacy)
+            await consentService.acceptAll();
+
+            // 3. Trigger OS Location permission immediately after legal consent
+            // This is the optimized sequence requested by the user
+            console.log('[ConsentScreen] Requesting OS location permission...');
+            await getLocationPermissionStore().requestPermission();
+
+            // Note: SessionManager and RootNavigator will reactively move the user 
+            // to the WelcomeScreen once consentService.acceptAll() completes.
+        } catch (error) {
+            console.error('[ConsentScreen] Error during continuation:', error);
+            // Fallback: attempt manual navigation if state sync fails
+            navigation.replace('Auth', { screen: 'Welcome' });
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const handlePrivacySettings = () => {
@@ -110,13 +136,22 @@ export default function ConsentScreen() {
             {/* Actions - Reduced Friction */}
             <View style={[styles.actionsContainer, { paddingBottom: Math.max(insets.bottom, 24) }]}>
                 <TouchableOpacity
-                    style={[styles.continueButton, { backgroundColor: theme.tokens.brand.primary }]}
+                    style={[
+                        styles.continueButton,
+                        { backgroundColor: theme.tokens.brand.primary },
+                        isSubmitting && { opacity: 0.8 }
+                    ]}
                     onPress={handleContinue}
                     activeOpacity={0.8}
+                    disabled={isSubmitting}
                 >
-                    <Text style={[styles.continueButtonText, { color: theme.tokens.text.onPrimary }]}>
-                        Continue
-                    </Text>
+                    {isSubmitting ? (
+                        <ActivityIndicator color={theme.tokens.text.onPrimary} />
+                    ) : (
+                        <Text style={[styles.continueButtonText, { color: theme.tokens.text.onPrimary }]}>
+                            Continue
+                        </Text>
+                    )}
                 </TouchableOpacity>
 
                 <TouchableOpacity

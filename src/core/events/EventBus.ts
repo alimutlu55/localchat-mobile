@@ -209,9 +209,37 @@ export interface ConsentEvents {
 }
 
 /**
+ * Session Events - Related to session lifecycle
+ */
+export interface SessionEvents {
+  'session.ready': {
+    state: {
+      status: string;
+      deviceId: string | null;
+      user: any | null;
+    };
+  };
+  'session.authChanged': {
+    isAuthenticated: boolean;
+    user: any | null;
+  };
+  'session.consentChanged': {
+    hasConsent: boolean;
+    needsReconsent: boolean;
+    version: string | null;
+  };
+  'session.reset': {
+    state: {
+      status: string;
+      deviceId: string | null;
+    };
+  };
+}
+
+/**
  * All events combined
  */
-export interface AllEvents extends RoomEvents, MessageEvents, TypingEvents, ConnectionEvents, UserEvents, UIEvents, ConsentEvents { }
+export interface AllEvents extends RoomEvents, MessageEvents, TypingEvents, ConnectionEvents, UserEvents, UIEvents, ConsentEvents, SessionEvents { }
 
 /**
  * Event names as a union type

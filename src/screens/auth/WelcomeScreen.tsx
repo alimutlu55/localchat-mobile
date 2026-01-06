@@ -24,7 +24,7 @@ type NavigationProp = NativeStackNavigationProp<AuthStackParamList, 'Welcome'>;
 
 export default function WelcomeScreen() {
   const navigation = useNavigation<NavigationProp>();
-  const { loginAnonymous, isLoading: authLoading, error, clearError } = useAuth();
+  const { loginAnonymous, tryRestoreAnonymousSession, isLoading: authLoading, error, clearError } = useAuth();
 
   // Start as false to avoid showing loading state when arriving from logout
   // The loading state was causing a flicker during the logout → welcome transition
@@ -78,67 +78,38 @@ export default function WelcomeScreen() {
     }, [])
   );
 
-  /**
-   * Perform direct anonymous login for returning devices.
-   * Backend will recognize the deviceId and return the existing anonymous user.
-   * If no anonymous user exists (e.g., user previously signed in with email),
-   * backend will create a new one with the provided random display name.
-   */
-  const performDirectAnonymousLogin = async () => {
-    // Clear any stale errors before attempting login
-    clearError();
-    setIsDirectLoginLoading(true);
 
-    // Track start time to ensure minimum loading duration
-    // This gives users confidence that we genuinely tried to connect
-    const startTime = Date.now();
-    const MIN_LOADING_DURATION = 1500; // 1.5 seconds minimum
-
-    try {
-      // Generate a random name for new anonymous users
-      // If user already has an anonymous account, backend ignores this
-      const randomName = `User${Math.floor(Math.random() * 10000)}`;
-      await loginAnonymous(randomName);
-      // Ensure device is marked as onboarded for future visits
-      await onboardingService.markDeviceOnboarded();
-      // Navigation will be handled by RootNavigator based on auth state
-    } catch (error) {
-      console.error('[WelcomeScreen] Direct anonymous login failed:', error);
-
-      // Ensure minimum loading time so user feels we genuinely tried
-      const elapsed = Date.now() - startTime;
-      if (elapsed < MIN_LOADING_DURATION) {
-        await new Promise((resolve) => setTimeout(resolve, MIN_LOADING_DURATION - elapsed));
-      }
-
-      // Fall back to showing welcome screen with error
-      setIsDirectLoginLoading(false);
-      setIsCheckingDevice(false);
-      // Error message is now set in AuthStore via useAuth.error
-      // It will be displayed in the UI below
-    }
-  };
 
   /**
    * Handle "Continue Anonymously" button press.
-   * For onboarded devices, performs direct login (no need for display name).
-   * For new devices, goes through full onboarding flow.
+   * Always checks backend first to see if an existing anonymous account exists for this device.
+   * If found, restores it silently. If not, proceeds to display name entry.
    */
   const handleContinueAnonymously = async () => {
-    const isDeviceOnboarded = await onboardingService.isDeviceOnboarded();
-    // Also check for existing device_id as fallback
-    const existingDeviceId = await storage.get<string>('device_id');
+    // Clear any stale errors
+    clearError();
+    setIsDirectLoginLoading(true);
 
-    if (isDeviceOnboarded || existingDeviceId) {
-      // Device already onboarded - perform direct login
-      if (!isDeviceOnboarded && existingDeviceId) {
-        // Migration case - mark as onboarded
-        await onboardingService.markDeviceOnboarded();
+    try {
+      // 1. Always attempt backend restoration first
+      // This is the source of truth and works after reinstalls
+      const { user, isNewUser } = await tryRestoreAnonymousSession();
+
+      if (!isNewUser && user) {
+        // Success! User is restored and RootNavigator will take them to the app
+        console.log('[WelcomeScreen] Existing anonymous user restored, skipping onboarding');
+        return;
       }
-      await performDirectAnonymousLogin();
-    } else {
-      // First time - go through full onboarding flow
+
+      // 2. No existing user - take to display name entry
+      console.log('[WelcomeScreen] No existing session found, showing onboarding');
       navigation.navigate('AnonymousLogin');
+    } catch (error) {
+      console.error('[WelcomeScreen] Failed to handle anonymous continuation:', error);
+      // Fallback: take to display name entry anyway
+      navigation.navigate('AnonymousLogin');
+    } finally {
+      setIsDirectLoginLoading(false);
     }
   };
 

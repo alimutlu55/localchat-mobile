@@ -95,6 +95,8 @@ export default function MapScreen() {
   const navigation = useNavigation<NavigationProp>();
   const mapRef = useRef<MapViewRef>(null);
   const cameraRef = useRef<CameraRef>(null);
+  // Track if component is mounted to prevent native calls during unmount
+  const isMountedRef = useRef(true);
   const { isGranted: hasPermission } = useLocationPermission();
 
   const { logout } = useAuth();
@@ -295,7 +297,9 @@ export default function MapScreen() {
    * Handle region change - updates viewport for clustering
    */
   const handleRegionDidChange = useCallback(async () => {
-    if (!mapRef.current) return;
+    // Safety check: ensure ref exists AND component is still mounted
+    // This prevents "Invalid react tag" crash when map is unmounting
+    if (!mapRef.current || !isMountedRef.current) return;
 
     try {
       const zoom = await mapRef.current.getZoom();
@@ -455,7 +459,8 @@ export default function MapScreen() {
    * Force viewport refresh - directly updates bounds/zoom from current map state
    */
   const forceViewportRefresh = useCallback(async () => {
-    if (!mapRef.current) return;
+    // Safety check: ensure ref exists AND component is still mounted
+    if (!mapRef.current || !isMountedRef.current) return;
 
     try {
       const zoom = await mapRef.current.getZoom();
@@ -475,6 +480,14 @@ export default function MapScreen() {
     } catch (error) {
       log.error('Error forcing viewport refresh', error);
     }
+  }, []);
+
+  // Cleanup: mark as unmounted to prevent native calls during unmount
+  useEffect(() => {
+    isMountedRef.current = true;
+    return () => {
+      isMountedRef.current = false;
+    };
   }, []);
 
   /**

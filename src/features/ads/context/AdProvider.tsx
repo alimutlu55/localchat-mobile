@@ -1,12 +1,14 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import mobileAds, { AdsConsent, AdsConsentStatus } from 'react-native-google-mobile-ads';
 import { consentService } from '../../../services/consent';
+import { eventBus } from '../../../core/events';
 
 interface AdContextType {
     canShowAds: boolean;
     hasPersonalizationConsent: boolean;
     isLoading: boolean;
     refresh: () => Promise<void>;
+    showConsentFormIfRequired: () => Promise<void>;
 }
 
 const AdContext = createContext<AdContextType | undefined>(undefined);
@@ -30,10 +32,10 @@ export const AdProvider: React.FC<{ children: React.ReactNode }> = ({ children }
             // 2. Request UMP consent info update for GDPR regions
             const consentInfo = await AdsConsent.requestInfoUpdate();
 
-            // 3. Show the consent form if required (e.g. GDPR region or first time)
-            if (consentInfo.isConsentFormAvailable && consentInfo.status === AdsConsentStatus.REQUIRED) {
-                await AdsConsent.loadAndShowConsentFormIfRequired();
-            }
+            // 3. Show the consent form if required (DEFERRED to manual trigger)
+            // if (consentInfo.isConsentFormAvailable && consentInfo.status === AdsConsentStatus.REQUIRED) {
+            //     await AdsConsent.loadAndShowConsentFormIfRequired();
+            // }
 
             // 4. Get the updated status after potential form interaction
             const updatedConsentInfo = await AdsConsent.requestInfoUpdate();
@@ -70,15 +72,47 @@ export const AdProvider: React.FC<{ children: React.ReactNode }> = ({ children }
         }
     }, []);
 
+    const showConsentFormIfRequired = useCallback(async () => {
+        try {
+            const consentInfo = await AdsConsent.requestInfoUpdate();
+            if (consentInfo.isConsentFormAvailable && consentInfo.status === AdsConsentStatus.REQUIRED) {
+                console.log('[AdProvider] Showing consent form...');
+                await AdsConsent.loadAndShowConsentFormIfRequired();
+                await checkConsent(); // Refresh state after form interaction
+            }
+        } catch (error) {
+            console.error('[AdProvider] Error showing consent form:', error);
+        }
+    }, [checkConsent]);
+
     useEffect(() => {
+        // Initial check on mount
         checkConsent();
+
+        // Listen for consent status changes (atomic session status)
+        const unsubscribeSession = eventBus.on('session.consentChanged', () => {
+            console.log('[AdProvider] session.consentChanged event received, refreshing...');
+            checkConsent();
+        });
+
+        // Listen for specific consent updates (granular options)
+        const unsubscribeConsent = eventBus.on('consent.updated', () => {
+            console.log('[AdProvider] consent.updated event received, refreshing...');
+            checkConsent();
+        });
+
+        return () => {
+            unsubscribeSession();
+            unsubscribeConsent();
+        };
     }, [checkConsent]);
 
     const value = {
         canShowAds,
         hasPersonalizationConsent,
         isLoading,
-        refresh: checkConsent
+        refresh: checkConsent,
+        showConsentFormIfRequired
     };
 
     return (
