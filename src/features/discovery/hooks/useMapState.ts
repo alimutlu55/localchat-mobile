@@ -288,8 +288,9 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
         const currentZoom = await mapRef.current.getZoom();
 
         // Re-check refs again after second async operation
-        if (!cameraRef.current || !isMountedRef.current) {
-          log.debug('Camera ref became null before setCamera, aborting');
+        // Both mapRef and cameraRef needed: cameraRef for setCamera, mapRef for consistency
+        if (!mapRef.current || !cameraRef.current || !isMountedRef.current) {
+          log.debug('Refs became null before setCamera, aborting');
           return zoom;
         }
 
