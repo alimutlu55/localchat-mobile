@@ -50,6 +50,7 @@ import {
   ClusterFeature,
   EventFeature
 } from '../../utils/mapClustering';
+import { debounce } from '../../utils/performance';
 
 // New architecture components
 import { MapControls } from '../../features/discovery/components';
@@ -97,6 +98,11 @@ export default function MapScreen() {
   const cameraRef = useRef<CameraRef>(null);
   // Track if component is mounted to prevent native calls during unmount
   const isMountedRef = useRef(true);
+  // Animation state tracking to prevent overlapping animations
+  const isAnimatingRef = useRef(false);
+  const animationTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  // RAF throttling for control buttons
+  const rafIdRef = useRef<number | null>(null);
   const { isGranted: hasPermission } = useLocationPermission();
 
   const { logout } = useAuth();
@@ -156,6 +162,15 @@ export default function MapScreen() {
   // Use activeRooms for clustering (only non-expired, non-closed)
   const clusterIndex = useMemo(() => createClusterIndex(activeRooms), [activeRooms]);
 
+  // Debounced viewport state setter to batch clustering recalculations
+  const debouncedSetViewport = useMemo(
+    () => debounce((zoom: number, bounds: [number, number, number, number]) => {
+      setCurrentZoom(zoom);
+      setBounds(bounds);
+    }, 150), // 150ms debounce
+    []
+  );
+
   // Get clusters/features for current viewport
   // getClustersForBounds already uses expanded bounds internally for stability
   const features = useMemo(() => {
@@ -164,8 +179,11 @@ export default function MapScreen() {
 
   // Create a single GeoJSON FeatureCollection for all room circles
   // REMOVED isMapMoving check - circles now stay visible during map movement
+  // Skip rendering during animations to prevent UI thread blocking
+  const shouldRenderMarkers = mapReady && !isAnimatingRef.current;
+  
   const circlesGeoJSON = useMemo(() => {
-    if (!mapReady || currentZoom < 10) {
+    if (!mapReady || currentZoom < 10 || !shouldRenderMarkers) {
       return {
         type: 'FeatureCollection' as const,
         features: [],
@@ -200,7 +218,7 @@ export default function MapScreen() {
       type: 'FeatureCollection' as const,
       features: circleFeatures,
     };
-  }, [features, currentZoom, mapReady]);
+  }, [features, currentZoom, mapReady, shouldRenderMarkers]);
 
   /**
    * Fetch nearby rooms using context
@@ -294,7 +312,7 @@ export default function MapScreen() {
   }, []);
 
   /**
-   * Handle region change - updates viewport for clustering
+   * Handle region change - updates viewport for clustering with debouncing
    */
   const handleRegionDidChange = useCallback(async () => {
     // Safety check: ensure ref exists AND component is still mounted
@@ -311,18 +329,18 @@ export default function MapScreen() {
           visibleBounds[1][0], visibleBounds[1][1],
           visibleBounds[0][0], visibleBounds[0][1]
         ];
-        setBounds(newBounds);
+        
+        // Use debounced setter to batch clustering recalculations
+        debouncedSetViewport(Math.round(zoom), newBounds);
       }
 
       if (center) {
         setCenterCoord(center as [number, number]);
       }
-
-      setCurrentZoom(Math.round(zoom));
     } catch (error) {
       log.error('Error getting map state', error);
     }
-  }, []);
+  }, [debouncedSetViewport]);
 
   /**
    * Calculate total events in view (summing cluster counts)
@@ -366,32 +384,76 @@ export default function MapScreen() {
   }, [userLocation, mapReady, calculateMapFlyDuration]);
 
   /**
-   * Zoom in with smooth animation
+   * Zoom in with smooth animation and animation state tracking
    */
   const handleZoomIn = useCallback(() => {
-    if (!mapReady || !cameraRef.current) return;
+    if (!mapReady || !cameraRef.current || isAnimatingRef.current) return;
 
+    isAnimatingRef.current = true;
     const newZoom = Math.min(currentZoom + 1, 12);
+    
     cameraRef.current.setCamera({
       zoomLevel: newZoom,
       animationDuration: 500,
       animationMode: 'easeTo',
     });
+
+    if (animationTimeoutRef.current) {
+      clearTimeout(animationTimeoutRef.current);
+    }
+
+    animationTimeoutRef.current = setTimeout(() => {
+      isAnimatingRef.current = false;
+    }, 500);
   }, [currentZoom, mapReady]);
 
   /**
-   * Zoom out with smooth animation
+   * Zoom out with smooth animation and animation state tracking
    */
   const handleZoomOut = useCallback(() => {
-    if (!mapReady || !cameraRef.current) return;
+    if (!mapReady || !cameraRef.current || isAnimatingRef.current) return;
 
+    isAnimatingRef.current = true;
     const newZoom = Math.max(currentZoom - 1, 1);
+    
     cameraRef.current.setCamera({
       zoomLevel: newZoom,
       animationDuration: 500,
       animationMode: 'easeTo',
     });
+
+    if (animationTimeoutRef.current) {
+      clearTimeout(animationTimeoutRef.current);
+    }
+
+    animationTimeoutRef.current = setTimeout(() => {
+      isAnimatingRef.current = false;
+    }, 500);
   }, [currentZoom, mapReady]);
+
+  /**
+   * RAF-throttled zoom in handler for control buttons
+   */
+  const throttledZoomIn = useCallback(() => {
+    if (rafIdRef.current !== null) return; // Already queued
+
+    rafIdRef.current = requestAnimationFrame(() => {
+      handleZoomIn();
+      rafIdRef.current = null;
+    });
+  }, [handleZoomIn]);
+
+  /**
+   * RAF-throttled zoom out handler for control buttons
+   */
+  const throttledZoomOut = useCallback(() => {
+    if (rafIdRef.current !== null) return; // Already queued
+
+    rafIdRef.current = requestAnimationFrame(() => {
+      handleZoomOut();
+      rafIdRef.current = null;
+    });
+  }, [handleZoomOut]);
 
   /**
    * Reset to world view with smooth fly animation
@@ -487,6 +549,13 @@ export default function MapScreen() {
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
+      // Clean up animation timeouts and RAF requests
+      if (animationTimeoutRef.current) {
+        clearTimeout(animationTimeoutRef.current);
+      }
+      if (rafIdRef.current !== null) {
+        cancelAnimationFrame(rafIdRef.current);
+      }
     };
   }, []);
 
@@ -536,7 +605,7 @@ export default function MapScreen() {
    */
   const handleClusterPress = useCallback((cluster: ClusterFeature) => {
     log.debug('Cluster pressed', { clusterId: cluster.properties.cluster_id });
-    if (!mapReady || !cameraRef.current) return;
+    if (!mapReady || !cameraRef.current || isAnimatingRef.current) return;
 
     const [lng, lat] = cluster.geometry.coordinates;
     const leaves = getClusterLeaves(clusterIndex, cluster.properties.cluster_id, Infinity);
@@ -551,6 +620,8 @@ export default function MapScreen() {
         return;
       }
     }
+
+    isAnimatingRef.current = true;
 
     if (leaves.length > 0) {
       // Calculate bounds of all points in cluster
@@ -592,16 +663,26 @@ export default function MapScreen() {
       setBounds(targetBounds);
       setCurrentZoom(optimalZoom);
 
+      const animationDuration = 1200;
+
       // Fit to bounds with proper edge padding
       cameraRef.current.fitBounds(
         [maxLng + lngPadding, maxLat + latPadding], // NE corner
         [minLng - lngPadding, minLat - latPadding], // SW corner
         edgePadding, // Padding in pixels
-        1200 // Animation duration
+        animationDuration // Animation duration
       );
 
+      if (animationTimeoutRef.current) {
+        clearTimeout(animationTimeoutRef.current);
+      }
+
+      animationTimeoutRef.current = setTimeout(() => {
+        isAnimatingRef.current = false;
+      }, animationDuration + 100);
+
       // Refresh viewport after animation to get accurate values
-      setTimeout(forceViewportRefresh, 1400);
+      setTimeout(forceViewportRefresh, animationDuration + 200);
     } else {
       // Fallback - fly to cluster location
       const expansionZoom = getClusterExpansionZoom(clusterIndex, cluster.properties.cluster_id);
@@ -614,6 +695,14 @@ export default function MapScreen() {
         animationDuration: duration,
         animationMode: 'flyTo',
       });
+
+      if (animationTimeoutRef.current) {
+        clearTimeout(animationTimeoutRef.current);
+      }
+
+      animationTimeoutRef.current = setTimeout(() => {
+        isAnimatingRef.current = false;
+      }, duration + 100);
 
       // Force viewport refresh after animation
       setTimeout(forceViewportRefresh, duration + 200);
@@ -703,7 +792,8 @@ export default function MapScreen() {
 
         {/* Room Markers and Clusters - using MarkerView for stability */}
         {/* Key on feature set hash to force atomic remount and prevent native index crash */}
-        {mapReady && features.length > 0 && <React.Fragment key={`markers-${features.length}-${features.map(f => isCluster(f) ? f.properties.cluster_id : f.properties.eventId).join(',')}`}>
+        {/* Skip rendering during animations to prevent UI thread blocking */}
+        {shouldRenderMarkers && features.length > 0 && <React.Fragment key={`markers-${features.length}-${features.map(f => isCluster(f) ? f.properties.cluster_id : f.properties.eventId).join(',')}`}>
           {features.map((feature: MapFeature) => {
             const [lng, lat] = feature.geometry.coordinates;
 
@@ -792,8 +882,8 @@ export default function MapScreen() {
 
       {/* Map Controls - Using extracted component */}
       <MapControls
-        onZoomIn={handleZoomIn}
-        onZoomOut={handleZoomOut}
+        onZoomIn={throttledZoomIn}
+        onZoomOut={throttledZoomOut}
         onCenterUser={centerOnUser}
         onResetView={handleResetView}
         hasUserLocation={!!userLocation}
