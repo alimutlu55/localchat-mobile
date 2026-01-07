@@ -5,7 +5,7 @@
  * Uses decomposed components for search, filters, and room items.
  */
 
-import React, { useState, useMemo, useCallback, memo, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, memo, useEffect, useRef } from 'react';
 import {
     View,
     Text,
@@ -23,9 +23,8 @@ import {
     ArrowUp,
 } from 'lucide-react-native';
 import { Room } from '../../../types';
-import { useMyRooms, useRoomDiscovery, useRoomStore, selectSelectedCategory } from '../../rooms';
+import { useMyRooms, useRoomStore, selectSelectedCategory } from '../../rooms';
 import { CATEGORIES } from '../../../constants';
-import { calculateDistance } from '../../../utils/format';
 import { theme } from '../../../core/theme';
 import { roomService } from '../../../services/room';
 
@@ -53,21 +52,21 @@ interface RoomListViewProps {
 /**
  * Room List Item Wrapper - connects to RoomContext
  * Uses the decomposed ListViewItem component
+ * NOTE: isJoined is now passed from parent to avoid hook-per-item performance issue
  */
 function RoomListItemWrapper({
     room,
     onJoin,
     onEnterRoom,
     userLocation,
+    isJoined,
 }: {
     room: Room;
     onJoin?: (room: Room) => void;
     onEnterRoom?: (room: Room) => void;
     userLocation?: { latitude: number; longitude: number; lat?: number; lng?: number } | null;
+    isJoined: boolean;
 }) {
-    const { isJoined } = useMyRooms();
-    const hasJoined = isJoined(room.id);
-
     // Convert userLocation to format expected by ListViewItem
     const normalizedLocation = userLocation ? {
         latitude: userLocation.latitude,
@@ -77,7 +76,7 @@ function RoomListItemWrapper({
     return (
         <ListViewItem
             room={room}
-            hasJoined={hasJoined}
+            hasJoined={isJoined}
             onJoin={onJoin}
             onEnter={onEnterRoom}
             userLocation={normalizedLocation}
@@ -137,9 +136,9 @@ const EmptyState = memo(function EmptyState({
 
 /**
  * Main RoomListView Component
- * NOT memoized to ensure context updates trigger re-renders
+ * Memoized to prevent unnecessary re-renders during map movement
  */
-export function RoomListView({
+export const RoomListView = memo(function RoomListView({
     rooms,
     isLoading = false,
     isLoadingMore: isLoadingMoreProp,
@@ -171,6 +170,17 @@ export function RoomListView({
     const [showScrollTop, setShowScrollTop] = useState(false);
     const scrollButtonTranslateY = React.useRef(new Animated.Value(-100)).current;
     const scrollButtonOpacity = React.useRef(new Animated.Value(0)).current; // Start invisible
+    const lastFirstRoomIdRef = useRef<string | null>(null);
+
+    // Deferred rendering - prevents initial lag by showing loading state first
+    const [isReady, setIsReady] = useState(false);
+    useEffect(() => {
+        // Defer heavy computation until after first paint
+        const timer = requestAnimationFrame(() => {
+            setIsReady(true);
+        });
+        return () => cancelAnimationFrame(timer);
+    }, []);
 
     const handleScroll = useCallback((event: any) => {
         const offsetY = event.nativeEvent.contentOffset.y;
@@ -220,47 +230,47 @@ export function RoomListView({
         }
     }, [selectedCategory]);
 
+    // Auto-scroll to top when rooms update from a fresh fetch (detected via first room ID change)
+    useEffect(() => {
+        if (rooms.length > 0) {
+            const firstRoomId = rooms[0].id;
+
+            // If the first room ID changed, it's a new list (not pagination)
+            if (firstRoomId !== lastFirstRoomIdRef.current) {
+                // Scroll to top with a tiny delay to allow content to layout
+                const timer = setTimeout(() => {
+                    flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
+                }, 100);
+
+                lastFirstRoomIdRef.current = firstRoomId;
+                return () => clearTimeout(timer);
+            }
+        } else {
+            lastFirstRoomIdRef.current = null;
+        }
+    }, [rooms]);
+
     // Subscribe to myRooms to force re-render when join/leave state changes
-    const { rooms: myRooms } = useMyRooms();
+    // isJoined is extracted once here and passed to items (not called per-item)
+    const { rooms: myRooms, isJoined } = useMyRooms();
 
-    // Use pagination from props or fallback to internal hook
-    const { isLoadingMore: isLoadingMoreInternal, hasMore: hasMoreInternal, loadMore: loadMoreInternal } = useRoomDiscovery({
-        latitude: userLocationProp?.latitude || 0,
-        longitude: userLocationProp?.longitude || 0,
-        autoFetch: false,
-    });
-
-    // Use prop values if provided, otherwise use internal
-    const isLoadingMore = isLoadingMoreProp ?? isLoadingMoreInternal;
-    const hasMoreRooms = hasMoreProp ?? hasMoreInternal;
-    const loadMoreRooms = onLoadMore ?? loadMoreInternal;
+    // Use prop values provided by DiscoveryScreen
+    const isLoadingMore = isLoadingMoreProp || false;
+    const hasMoreRooms = hasMoreProp || false;
+    const loadMoreRooms = onLoadMore || (() => { });
 
     // Use passed user location or null
     const userLocation = userLocationProp;
 
-    // Helper to get room distance (calculate if not provided)
+    // Get room distance - use backend-calculated value directly
+    // Backend calculates distance relative to user location when fetching
     const getRoomDistance = useCallback((room: Room): number | null => {
-        // If we don't have user location, we shouldn't show/use distances relative to yourself
-        if (!userLocation) {
-            return null;
-        }
-
-        // Only use pre-calculated distance if it's a valid positive value
+        // Return backend-calculated distance if available
         if (room.distance !== undefined && room.distance > 0) {
             return room.distance;
         }
-        // Calculate distance from user location if room has coordinates
-        if (room.latitude !== undefined && room.longitude !== undefined) {
-            return calculateDistance(
-                userLocation.lat || userLocation.latitude,
-                userLocation.lng || userLocation.longitude,
-                room.latitude,
-                room.longitude
-            );
-        }
-
         return null;
-    }, [userLocation]);
+    }, []);
 
     // Backend search effect - debounced
     React.useEffect(() => {
@@ -339,37 +349,6 @@ export function RoomListView({
         return filtered;
     }, [rooms, searchResults, searchQuery, selectedCategory, sortBy, getRoomDistance]);
 
-    // Group rooms by distance
-    const groupedRooms = useMemo(() => {
-        if (!userLocation) {
-            // If no user location, just show one group
-            return [{ title: 'Rooms in view', rooms: filteredRooms }];
-        }
-
-        const groups: { title: string; rooms: Room[] }[] = [
-            { title: 'Nearby (< 500m)', rooms: [] },
-            { title: 'Close (< 1km)', rooms: [] },
-            { title: 'Medium (< 5km)', rooms: [] },
-            { title: 'Far (> 5km)', rooms: [] },
-        ];
-
-        filteredRooms.forEach((room) => {
-            const distance = getRoomDistance(room);
-            if (distance === null) {
-                groups[3].rooms.push(room);
-            } else if (distance < 500) {
-                groups[0].rooms.push(room);
-            } else if (distance < 1000) {
-                groups[1].rooms.push(room);
-            } else if (distance < 5000) {
-                groups[2].rooms.push(room);
-            } else {
-                groups[3].rooms.push(room);
-            }
-        });
-
-        return groups.filter((group) => group.rooms.length > 0);
-    }, [filteredRooms, getRoomDistance, userLocation]);
 
     const handleClearSearch = useCallback(() => {
         setSearchQuery('');
@@ -409,16 +388,45 @@ export function RoomListView({
     }, [isLoadingMore, hasMoreRooms, searchQuery, loadMoreRooms]);
 
     // Memoize flattened list data for FlatList
+    // Optimized in Phase 8 to avoid nested loops on every re-render
     const flattenedData = useMemo(() => {
+        if (filteredRooms.length === 0) return [];
+
         const flattened: ({ type: 'header'; title: string } | { type: 'room'; room: Room })[] = [];
-        groupedRooms.forEach(group => {
-            flattened.push({ type: 'header', title: group.title });
-            group.rooms.forEach(room => {
-                flattened.push({ type: 'room', room });
-            });
+
+        // Directly flatten based on distance groups to avoid multiple passes
+        const nearby: Room[] = [];
+        const close: Room[] = [];
+        const medium: Room[] = [];
+        const far: Room[] = [];
+
+        filteredRooms.forEach(room => {
+            const dist = getRoomDistance(room);
+            if (dist === null || dist >= 5000) far.push(room);
+            else if (dist < 500) nearby.push(room);
+            else if (dist < 1000) close.push(room);
+            else medium.push(room);
         });
+
+        if (nearby.length > 0) {
+            flattened.push({ type: 'header', title: 'Nearby (< 500m)' });
+            nearby.forEach(r => flattened.push({ type: 'room', room: r }));
+        }
+        if (close.length > 0) {
+            flattened.push({ type: 'header', title: 'Close (< 1km)' });
+            close.forEach(r => flattened.push({ type: 'room', room: r }));
+        }
+        if (medium.length > 0) {
+            flattened.push({ type: 'header', title: 'Medium (< 5km)' });
+            medium.forEach(r => flattened.push({ type: 'room', room: r }));
+        }
+        if (far.length > 0) {
+            flattened.push({ type: 'header', title: userLocation ? 'Far (> 5km)' : 'Rooms in view' });
+            far.forEach(r => flattened.push({ type: 'room', room: r }));
+        }
+
         return flattened;
-    }, [groupedRooms]);
+    }, [filteredRooms, getRoomDistance, userLocation]);
 
     // Remove early return for isLoading to keep header/filters mounted
     // if (isLoading) { ... }
@@ -456,7 +464,7 @@ export function RoomListView({
             />
 
             {/* Room List Content */}
-            {isLoading ? (
+            {!isReady || (isLoading && filteredRooms.length === 0) ? (
                 <View style={styles.loadingContainer}>
                     <ActivityIndicator size="large" color={theme.tokens.brand.primary} />
                     <Text style={styles.loadingText}>Loading rooms...</Text>
@@ -485,6 +493,7 @@ export function RoomListView({
                                 onJoin={handleRoomPress}
                                 onEnterRoom={onEnterRoom}
                                 userLocation={userLocation}
+                                isJoined={isJoined(item.room.id)}
                             />
                         );
                     }}
@@ -593,7 +602,6 @@ export function RoomListView({
             </Modal>
         </View>
     );
-}
-
+});
 
 export default RoomListView;

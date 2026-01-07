@@ -530,6 +530,12 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
         setZoom(zoomLevel);
       }
 
+      // CRITICAL: Update centerCoord state immediately so if map unmounts during animation,
+      // it will remount at the TARGET position, not the interrupted mid-animation position
+      if (centerCoordinate) {
+        setCenterCoord(centerCoordinate);
+      }
+
       if (animationDuration > 0) {
         isAnimatingRef.current = true;
       }

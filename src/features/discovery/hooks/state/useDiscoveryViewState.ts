@@ -72,8 +72,6 @@ export function useDiscoveryViewState(
 
     // Handle view mode changes with animation
     useEffect(() => {
-        setIsTransitioning(true);
-
         Animated.timing(listOpacity, {
             toValue: mode === 'list' ? 1 : 0,
             duration: transitionDuration,
@@ -82,10 +80,7 @@ export function useDiscoveryViewState(
             setIsTransitioning(false);
         });
 
-        if (mode === 'map') {
-            // Immediately render map when switching to map mode
-            setShouldRenderMap(true);
-        } else {
+        if (mode === 'list') {
             // Keep map for transition duration, then unmount to save resources
             const timer = setTimeout(() => {
                 setShouldRenderMap(false);
@@ -97,6 +92,11 @@ export function useDiscoveryViewState(
     // Set mode with validation
     const setMode = useCallback((newMode: DiscoveryViewMode) => {
         if (newMode !== mode) {
+            setIsTransitioning(true);
+            if (newMode === 'map') {
+                // Immediately render map when switching to map mode (Synchronous for low latency)
+                setShouldRenderMap(true);
+            }
             setModeInternal(newMode);
         }
     }, [mode]);

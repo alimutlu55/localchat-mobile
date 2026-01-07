@@ -43,7 +43,7 @@ import { useUIActions } from '../../../context';
 
 // Features
 import { useAuth } from '../../auth/hooks/useAuth';
-import { useRoomOperations, useMyRooms, useRoomDiscovery, useRoomStore, selectSelectedCategory } from '../../rooms';
+import { useRoomOperations, useMyRooms, useRoomStore, selectSelectedCategory } from '../../rooms';
 
 // Components
 import { ConnectionBanner } from '../../../components/chat/ConnectionBanner';
@@ -52,7 +52,7 @@ import { MapViewLocation } from '../map/MapViewLocation';
 import RoomListView from '../components/RoomListView';
 
 // Hooks
-import { useMapState, useUserLocation, useServerClustering } from '../hooks';
+import { useMapState, useUserLocation, useServerClustering, useViewportRooms } from '../hooks';
 import { useDiscoveryViewState } from '../hooks/state/useDiscoveryViewState';
 import { useDiscoveryFilters } from '../hooks/state/useDiscoveryFilters';
 import { useMapTransitions } from '../hooks/animations/useMapTransitions';
@@ -261,7 +261,8 @@ export default function DiscoveryScreen() {
     const { join } = useRoomOperations();
 
     // ==========================================================================
-    // List View: Proximity-based room discovery with pagination
+    // List View: Viewport-synchronized room discovery with pagination
+    // Uses the same viewport as the map for consistent view synchronization
     // ==========================================================================
     const {
         rooms: discoveredRooms,
@@ -269,22 +270,16 @@ export default function DiscoveryScreen() {
         isLoadingMore: isDiscoveryLoadingMore,
         hasMore: hasMoreRooms,
         loadMore: loadMoreRooms,
-        refresh: refreshDiscovery,
-    } = useRoomDiscovery({
-        latitude: userLocation?.latitude ?? centerCoord[1],
-        longitude: userLocation?.longitude ?? centerCoord[0],
-        autoFetch: viewMode === 'list', // Enable auto-fetch even without userLocation (uses map center)
-        category: categoryFilter as RoomCategory | undefined, // Pass global filter to list discovery
+        refetch: refreshDiscovery,
+        prefetch: prefetchListRooms,
+    } = useViewportRooms({
+        bounds: bounds as [number, number, number, number],
+        userLocation: userLocation ?? undefined,
+        zoom, // Pass current zoom to detect cluster merges/splits
+        category: categoryFilter as RoomCategory | undefined,
+        enabled: isMapReady && hasBoundsInitialized, // Sync active regardless of view mode
+        pageSize: 20,
     });
-
-    // Refresh discovery when switching to list view
-    useEffect(() => {
-        if (viewMode === 'list') {
-            refreshDiscovery();
-        }
-        // Refresh when category changes is handled by useRoomDiscovery internal useEffect
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [viewMode, userLocation?.latitude, userLocation?.longitude, centerCoord[1], centerCoord[0]]);
 
 
     // Check if user's location is currently within map bounds
@@ -440,6 +435,7 @@ export default function DiscoveryScreen() {
 
                 // Prefetch data - will show markers 300ms before animation ends
                 prefetchForLocation(centerLng, centerLat, finalTargetZoom, animDuration);
+                prefetchListRooms(centerLng, centerLat, finalTargetZoom, animDuration);
 
                 animateCamera({
                     centerCoordinate: [centerLng, centerLat],
@@ -464,6 +460,7 @@ export default function DiscoveryScreen() {
 
                 // Prefetch data - will show markers 300ms before animation ends
                 prefetchForLocation(lng, lat, targetZoom, animDuration);
+                prefetchListRooms(lng, lat, targetZoom, animDuration);
 
                 animateCamera({
                     centerCoordinate: [lng, lat],
@@ -537,6 +534,7 @@ export default function DiscoveryScreen() {
 
             // Prefetch data - will show markers 300ms before animation ends
             prefetchForLocation(userLocation.longitude, userLocation.latitude, targetZoom, animDuration);
+            prefetchListRooms(userLocation.longitude, userLocation.latitude, targetZoom, animDuration);
 
             centerOn(userLocation, targetZoom);
         }
@@ -682,6 +680,7 @@ export default function DiscoveryScreen() {
                                 onPress={() => {
                                     const animDuration = calculateFlyDuration(1);
                                     prefetchForWorldView(animDuration);
+                                    prefetchListRooms(0, 0, 1, animDuration); // Global prefetch for list
                                     resetToWorldView();
                                 }}
                                 activeOpacity={0.7}

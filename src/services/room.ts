@@ -424,6 +424,67 @@ class RoomService {
   }
 
   /**
+   * Get rooms within a viewport (bounding box) for synchronized map/list views.
+   * Returns paginated rooms ordered by distance from user location.
+   * 
+   * @param minLng Western boundary longitude
+   * @param minLat Southern boundary latitude
+   * @param maxLng Eastern boundary longitude
+   * @param maxLat Northern boundary latitude
+   * @param userLat User's latitude for distance calculation
+   * @param userLng User's longitude for distance calculation
+   * @param category Optional category filter
+   * @param page Page number (0-indexed)
+   * @param pageSize Number of rooms per page
+   * @returns Paginated room results
+   */
+  async getViewportRooms(
+    minLng: number,
+    minLat: number,
+    maxLng: number,
+    maxLat: number,
+    userLat?: number,
+    userLng?: number,
+    category?: string,
+    page: number = 0,
+    pageSize: number = 20
+  ): Promise<{ rooms: Room[]; hasNext: boolean; totalElements: number }> {
+    const params = new URLSearchParams({
+      minLng: minLng.toString(),
+      minLat: minLat.toString(),
+      maxLng: maxLng.toString(),
+      maxLat: maxLat.toString(),
+      page: page.toString(),
+      pageSize: pageSize.toString(),
+    });
+
+    if (userLat !== undefined && userLng !== undefined) {
+      params.append('userLat', userLat.toString());
+      params.append('userLng', userLng.toString());
+    }
+
+    if (category) {
+      params.append('category', category);
+    }
+
+    const response = await api.get<{
+      data: {
+        content: RoomDTO[];
+        page: number;
+        pageSize: number;
+        totalElements: number;
+        hasNext: boolean;
+      }
+    }>(`/rooms/viewport?${params}`);
+
+    return {
+      rooms: response.data.content.map(transformRoom),
+      hasNext: response.data.hasNext,
+      totalElements: response.data.totalElements,
+    };
+  }
+
+  /**
    * Get user's room creation quota
    */
   async getQuota(): Promise<RoomQuota> {

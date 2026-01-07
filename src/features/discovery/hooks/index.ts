@@ -52,8 +52,9 @@ export type { UseMapDiscoveryOptions, UseMapDiscoveryReturn, MapBounds } from '.
 export { useMapControls } from './useMapControls';
 export type { UseMapControlsOptions, UseMapControlsReturn, MapViewportState } from './useMapControls';
 
-export { useViewportRoomDiscovery } from './useViewportRoomDiscovery';
-export type { UseViewportRoomDiscoveryOptions, UseViewportRoomDiscoveryReturn } from './useViewportRoomDiscovery';
+
+export { useViewportRooms } from './useViewportRooms';
+export type { UseViewportRoomsOptions, UseViewportRoomsReturn } from './useViewportRooms';
 
 // =============================================================================
 // DECOMPOSED HOOKS (Phase 2)
