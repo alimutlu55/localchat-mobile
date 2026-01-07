@@ -76,6 +76,13 @@ export interface UseMapStateReturn {
   centerOn: (coordinate: MapCoordinate, targetZoom?: number) => void;
   /** Reset to world view */
   resetToWorldView: () => void;
+  /** Animate camera to a new state with full tracking */
+  animateCamera: (config: {
+    centerCoordinate?: [number, number];
+    zoomLevel?: number;
+    animationDuration?: number;
+    animationMode?: 'flyTo' | 'easeTo' | 'moveTo';
+  }) => void;
   /** Calculate fly animation duration based on zoom difference */
   calculateFlyDuration: (targetZoom: number) => number;
 }
@@ -205,11 +212,13 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
       if (!mapRef.current || !isMountedRef.current) return;
 
       try {
+        const perfStart = Date.now();
         const [newZoom, visibleBounds, center] = await Promise.all([
           mapRef.current.getZoom(),
           mapRef.current.getVisibleBounds(),
           mapRef.current.getCenter(),
         ]);
+        const nativeCallTime = Date.now() - perfStart;
 
         if (visibleBounds && visibleBounds.length === 2 && center) {
           // MapLibre inconsistency: getCenter returns [lng, lat] but getVisibleBounds 
@@ -217,6 +226,20 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
           // We detect this by checking which component matches the center.
           const [[v1_0, v1_1], [v2_0, v2_1]] = visibleBounds;
           const [cLng, cLat] = center as [number, number];
+
+          // DEFENSIVE: Deep validation of center coordinates.
+          // Native bridge can sometimes return malformed arrays or NaN during rapid movements.
+          const isValidCenter = center &&
+            Array.isArray(center) &&
+            center.length === 2 &&
+            typeof cLng === 'number' && !isNaN(cLng) && isFinite(cLng) &&
+            typeof cLat === 'number' && !isNaN(cLat) && isFinite(cLat);
+
+          if (!isValidCenter) {
+            log.warn('Ignored invalid map center from native bridge', { center });
+            setIsMapMoving(false);
+            return;
+          }
 
           // Normalization: Determine which index is Lng vs Lat
           // We know centerLng is between minLng and maxLng
@@ -238,15 +261,43 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
           }
 
           setBounds([minLng, minLat, maxLng, maxLat]);
+          setCenterCoord([cLng, cLat]);
 
-          if (center) {
-            setCenterCoord(center as [number, number]);
+          // State synchronization logic
+          const actualZoom = newZoom ?? zoomRef.current;
+          const currentTargetZoom = targetZoomRef.current;
+
+          // CRITICAL: Rounding protection and hysteresis.
+          // MapLibre generates frequent native region change events with sub-pixel differences.
+          // We only update React state if the zoom change is significant (> 0.1) or if we are not animating.
+          // This prevents "jitter" and heavy bridge congestion during/after animations.
+          const diff = Math.abs(actualZoom - zoomRef.current);
+          const isSignificantChange = diff > 0.1;
+
+          if (isSignificantChange && !isAnimatingRef.current) {
+            const roundedZoom = Math.round(actualZoom);
+            setZoom(roundedZoom);
+            zoomRef.current = roundedZoom;
+            if (nativeCallTime > 100) {
+              log.warn('High map bridge latency detected', { nativeCallTime });
+            }
+            log.debug('Zoom state updated (significant change)', {
+              delta: diff.toFixed(3),
+              newZoom: roundedZoom,
+              nativeCallMs: nativeCallTime
+            });
+          } else if (currentTargetZoom !== null) {
+            // If we are animating, ensure UI reflects the target zoom
+            setZoom(Math.round(currentTargetZoom));
+            zoomRef.current = Math.round(currentTargetZoom);
+            log.debug('Zoom state synced to target during animation', { target: currentTargetZoom });
+          } else if (!isSignificantChange && !isAnimatingRef.current) {
+            log.debug('Zoom update rejected (jitter)', {
+              delta: diff.toFixed(4),
+              nativeCallMs: nativeCallTime
+            });
           }
 
-          const roundedZoom = Math.round(newZoom);
-          setZoom(roundedZoom);
-          // Sync ref with actual map state
-          zoomRef.current = roundedZoom;
           setIsMapMoving(false);
 
           // Mark bounds as initialized after first real update from map
@@ -254,15 +305,13 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
             setHasBoundsInitialized(true);
             log.debug('Bounds initialized from map', { bounds: [minLng, minLat, maxLng, maxLat], isFirstArgLat });
           }
-        } else if (center) {
-          setCenterCoord(center as [number, number]);
-          const roundedZoom = Math.round(newZoom);
-          setZoom(roundedZoom);
-          zoomRef.current = roundedZoom;
-          setIsMapMoving(false);
-        }
 
-        log.debug('Region changed', { zoom: Math.round(newZoom) });
+          log.debug('Region changed', {
+            isAnimating: isAnimatingRef.current,
+            zoom: actualZoom.toFixed(2),
+            nativeCallMs: nativeCallTime
+          });
+        }
       } catch (error) {
         log.error('Error getting map state', error);
         setIsMapMoving(false);
@@ -327,11 +376,12 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
       animationMode: 'easeTo',
     });
 
-    // Clear cooldown after animation completes
+    // PROTECTION: Enforce 500ms cooldown between zoom actions to prevent
+    // UI thread congestion and native MapLibre crashes from rapid successive calls.
     setTimeout(() => {
       isZoomCooldownRef.current = false;
       targetZoomRef.current = null;
-    }, 250);
+    }, 500);
   }, [isMapReady, maxZoom]);
 
   const zoomOut = useCallback(() => {
@@ -372,11 +422,12 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
       animationMode: 'easeTo',
     });
 
-    // Clear cooldown after animation completes
+    // PROTECTION: Enforce 500ms cooldown between zoom actions to prevent
+    // UI thread congestion and native MapLibre crashes from rapid successive calls.
     setTimeout(() => {
       isZoomCooldownRef.current = false;
       targetZoomRef.current = null;
-    }, 200);
+    }, 500);
   }, [isMapReady, minZoom]);
 
   const flyTo = useCallback(
@@ -457,8 +508,48 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
     setTimeout(() => {
       isAnimatingRef.current = false;
       targetZoomRef.current = null;
-    }, duration);
+    }, duration + 100);
   }, [isMapReady, calculateFlyDuration]);
+
+  const animateCamera = useCallback(
+    (config: {
+      centerCoordinate?: [number, number];
+      zoomLevel?: number;
+      animationDuration?: number;
+      animationMode?: 'flyTo' | 'easeTo' | 'moveTo';
+    }) => {
+      if (!isMapReady || !cameraRef.current) return;
+
+      const { centerCoordinate, zoomLevel, animationDuration = 0, animationMode = 'easeTo' } = config;
+
+      log.debug('animateCamera', { centerCoordinate, zoomLevel, animationDuration, animationMode });
+
+      if (zoomLevel !== undefined) {
+        targetZoomRef.current = zoomLevel;
+        zoomRef.current = zoomLevel;
+        setZoom(zoomLevel);
+      }
+
+      if (animationDuration > 0) {
+        isAnimatingRef.current = true;
+      }
+
+      cameraRef.current.setCamera({
+        centerCoordinate,
+        zoomLevel,
+        animationDuration,
+        animationMode,
+      });
+
+      if (animationDuration > 0) {
+        setTimeout(() => {
+          isAnimatingRef.current = false;
+          targetZoomRef.current = null;
+        }, animationDuration + 150); // Small buffer for native completion
+      }
+    },
+    [isMapReady]
+  );
 
   return {
     mapRef,
@@ -477,6 +568,7 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
     flyTo,
     centerOn,
     resetToWorldView,
+    animateCamera,
     calculateFlyDuration,
   };
 }

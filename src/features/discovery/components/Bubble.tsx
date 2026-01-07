@@ -138,8 +138,6 @@ export const Bubble = memo(({ room, isSelected }: BubbleProps) => {
                 }]}>
                     {room.isFull ? (
                         <Lock size={pinSize * 0.24} color="#fff" />
-                    ) : room.emoji ? (
-                        <Text style={{ fontSize: pinSize * 0.26 }}>{room.emoji}</Text>
                     ) : (
                         <View style={[styles.defaultCircle, { width: pinSize * 0.24, height: pinSize * 0.24 }]} />
                     )}
@@ -149,7 +147,7 @@ export const Bubble = memo(({ room, isSelected }: BubbleProps) => {
                 {!room.isFull && room.participantCount > 0 && (
                     <View style={[styles.participantPill, { top: pinSize * 0.06, right: pinSize * 0.06 }]}>
                         <Text style={styles.participantText}>
-                            {room.participantCount > 99 ? '99+' : room.participantCount}
+                            👤 {room.participantCount > 99 ? '99+' : room.participantCount}
                         </Text>
                     </View>
                 )}
@@ -200,22 +198,22 @@ const styles = StyleSheet.create({
         position: 'absolute',
         backgroundColor: '#ffffff',
         borderRadius: 12,
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        minWidth: 22,
+        paddingHorizontal: 4,
+        paddingVertical: 1,
+        minWidth: 18,
         alignItems: 'center',
         justifyContent: 'center',
         shadowColor: '#000',
-        shadowOffset: { width: 0, height: 2 },
-        shadowOpacity: 0.15,
-        shadowRadius: 3,
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
         elevation: 4,
         borderWidth: 1,
         borderColor: '#f1f5f9',
     },
     participantText: {
-        fontSize: 12,
-        fontWeight: '600',
+        fontSize: 9,
+        fontWeight: '700',
         color: '#475569',
     },
     newBadge: {

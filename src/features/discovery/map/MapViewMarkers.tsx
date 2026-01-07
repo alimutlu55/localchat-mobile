@@ -61,14 +61,21 @@ export const MapViewMarkers = memo(function MapViewMarkers({
         return null;
     }
 
+    // DEFENSIVE PATTERN: Contiguous Child Rendering
+    // We filter the features BEFORE mapping to ensure the native bridge receives
+    // a clean, contiguous array of view components. Returning 'null' from within 
+    // a .map() can sometimes lead to 'nil' insertion crashes in MLRNMapView.
+    const validFeatures = features.filter(f => {
+        if (f.properties.cluster) {
+            return f.properties.clusterId != null;
+        }
+        return !!f.properties.roomId;
+    });
+
     return (
         <>
-            {features.map((feature) => {
+            {validFeatures.map((feature) => {
                 if (feature.properties.cluster) {
-                    // Cluster marker
-                    if (feature.properties.clusterId == null) {
-                        return null;
-                    }
                     return (
                         <ServerClusterMarker
                             key={`server-cluster-${feature.properties.clusterId}`}
@@ -79,10 +86,6 @@ export const MapViewMarkers = memo(function MapViewMarkers({
                     );
                 }
 
-                // Individual room marker
-                if (!feature.properties.roomId) {
-                    return null;
-                }
                 return (
                     <ServerRoomMarker
                         key={`server-room-${feature.properties.roomId}`}

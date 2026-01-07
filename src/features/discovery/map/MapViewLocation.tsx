@@ -58,8 +58,8 @@ export const MapViewLocation = memo(function MapViewLocation({
         return () => clearInterval(interval);
     }, [pulseInterval]);
 
-    // Don't render if no location
-    if (!location) {
+    // Don't render if no location or invalid coordinates
+    if (!location || isNaN(location.latitude) || isNaN(location.longitude) || !isFinite(location.latitude) || !isFinite(location.longitude)) {
         return null;
     }
 

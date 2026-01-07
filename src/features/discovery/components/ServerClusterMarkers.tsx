@@ -41,7 +41,7 @@ export const ServerRoomMarker = memo(function ServerRoomMarker({
 
   const [lng, lat] = geometry.coordinates;
 
-  if (lng == null || lat == null) {
+  if (lng == null || lat == null || isNaN(lng) || isNaN(lat) || !isFinite(lng) || !isFinite(lat)) {
     return null;
   }
 
@@ -131,7 +131,7 @@ export const ServerClusterMarker = memo(function ServerClusterMarker({
 
   const [lng, lat] = geometry.coordinates;
 
-  if (lng == null || lat == null) {
+  if (lng == null || lat == null || isNaN(lng) || isNaN(lat) || !isFinite(lng) || !isFinite(lat)) {
     return null;
   }
 

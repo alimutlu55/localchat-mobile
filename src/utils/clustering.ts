@@ -75,8 +75,12 @@ export function calcOptimalZoomForCluster(
     boundsSpan: number,
     currentZoom: number
 ): number {
+    // If no span (rooms at same coordinate), don't jump too far
+    // This protects against "fast zooming" into a single point
+    // ZERO-SPAN PROTECTION: If bounds have no span (single point cluster),
+    // we jump 6 zoom levels to expand quickly while staying within the 1-12 limit.
     if (boundsSpan <= 0) {
-        return Math.min(currentZoom + 3, MAX_CLUSTERING_ZOOM);
+        return Math.min(currentZoom + 6, MAX_CLUSTERING_ZOOM);
     }
 
     // We want eps to be about 1/3 of bounds span to get meaningful splits
@@ -85,7 +89,10 @@ export function calcOptimalZoomForCluster(
     for (let z = currentZoom + 1; z <= MAX_CLUSTERING_ZOOM; z++) {
         const eps = EPS_BY_ZOOM[z] ?? 0.001;
         if (eps <= targetEps) {
-            return z;
+            // AGGRESSIVE ZOOM LIMIT: We limit the jump to 6 levels per click.
+            // This prevents the map from zooming in too deep (e.g. into building roofs)
+            // in one go, maintaining context while still being fast.
+            return Math.min(Math.max(z, currentZoom + 1), currentZoom + 6, MAX_CLUSTERING_ZOOM);
         }
     }
 

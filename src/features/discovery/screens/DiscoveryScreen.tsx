@@ -47,7 +47,7 @@ import { useRoomOperations, useMyRooms, useRoomDiscovery, useRoomStore, selectSe
 
 // Components
 import { ConnectionBanner } from '../../../components/chat/ConnectionBanner';
-import { MapViewMarkers } from '../map/MapViewMarkers';
+import { ServerRoomMarker, ServerClusterMarker } from '../components';
 import { MapViewLocation } from '../map/MapViewLocation';
 import RoomListView from '../components/RoomListView';
 
@@ -179,6 +179,7 @@ export default function DiscoveryScreen() {
         zoomOut,
         centerOn,
         resetToWorldView,
+        animateCamera,
         calculateFlyDuration,
     } = useMapState({
         defaultCenter: userLocation || undefined,
@@ -440,7 +441,7 @@ export default function DiscoveryScreen() {
                 // Prefetch data - will show markers 300ms before animation ends
                 prefetchForLocation(centerLng, centerLat, finalTargetZoom, animDuration);
 
-                cameraRef.current.setCamera({
+                animateCamera({
                     centerCoordinate: [centerLng, centerLat],
                     zoomLevel: finalTargetZoom,
                     animationDuration: animDuration,
@@ -464,7 +465,7 @@ export default function DiscoveryScreen() {
                 // Prefetch data - will show markers 300ms before animation ends
                 prefetchForLocation(lng, lat, targetZoom, animDuration);
 
-                cameraRef.current.setCamera({
+                animateCamera({
                     centerCoordinate: [lng, lat],
                     zoomLevel: targetZoom,
                     animationDuration: animDuration,
@@ -472,7 +473,7 @@ export default function DiscoveryScreen() {
                 });
             }
         },
-        [isMapReady, cameraRef, prefetchForLocation]
+        [isMapReady, animateCamera, prefetchForLocation]
     );
 
 
@@ -598,20 +599,38 @@ export default function DiscoveryScreen() {
                             />
 
 
-                            {/* User Location Indicator (decomposed component) */}
-                            <MapViewLocation
-                                location={userLocation}
-                                isMapStable={isMapStable}
-                            />
-                            {/* Server-Side Room & Cluster Markers (decomposed component) */}
-                            <MapViewMarkers
-                                features={serverFeatures}
-                                canRenderMarkers={canRenderMarkers}
-                                selectedFeature={selectedFeature}
-                                onRoomPress={handleServerRoomPress}
-                                onClusterPress={handleServerClusterPress}
-                                onDeselect={handleMarkerDeselect}
-                            />
+                            {/* User Location Indicator - Guard with location check */}
+                            {userLocation && (
+                                <MapViewLocation
+                                    location={userLocation}
+                                    isMapStable={isMapStable}
+                                />
+                            )}
+
+                            {/* Server-Side Markers - Flattened rendering to prevent Fragment-related native crashes */}
+                            {canRenderMarkers && serverFeatures
+                                .filter(f => f.properties.cluster ? f.properties.clusterId != null : !!f.properties.roomId)
+                                .map((feature) => {
+                                    if (feature.properties.cluster) {
+                                        return (
+                                            <ServerClusterMarker
+                                                key={`server-cluster-${feature.properties.clusterId}`}
+                                                feature={feature}
+                                                onPress={handleServerClusterPress}
+                                                onDeselect={handleMarkerDeselect}
+                                            />
+                                        );
+                                    }
+                                    return (
+                                        <ServerRoomMarker
+                                            key={`server-room-${feature.properties.roomId}`}
+                                            feature={feature}
+                                            isSelected={selectedFeature?.properties.roomId === feature.properties.roomId}
+                                            onPress={handleServerRoomPress}
+                                            onDeselect={handleMarkerDeselect}
+                                        />
+                                    );
+                                })}
                         </MapView>
                     )}
 
