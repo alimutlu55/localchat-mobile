@@ -311,20 +311,25 @@ export const RoomListView = memo(function RoomListView({
 
         // Category filter (apply to both search results and regular rooms)
         if (selectedCategory !== 'All') {
-            const query = selectedCategory.toLowerCase().trim();
-            filtered = filtered.filter((room) => {
-                const roomCat = room.category?.toLowerCase() || '';
-                // Check if it matches label OR ID of the selected category
-                const categoryConfig = CATEGORIES.find(cat =>
-                    cat.label.toLowerCase() === query ||
-                    cat.id.toLowerCase() === query
-                );
+            // selectedCategory is a LABEL (e.g., "Traffic & Transit")
+            // room.category is an ID from backend (e.g., "TRAFFIC_TRANSIT")
+            const categoryConfig = CATEGORIES.find(cat =>
+                cat.label === selectedCategory
+            );
 
-                if (!categoryConfig) return false;
-
-                return roomCat === categoryConfig.id.toLowerCase() ||
-                    roomCat === categoryConfig.label.toLowerCase();
-            });
+            if (categoryConfig) {
+                const targetId = categoryConfig.id.toUpperCase();
+                filtered = filtered.filter((room) => {
+                    const roomCat = room.category?.toUpperCase() || '';
+                    return roomCat === targetId;
+                });
+            } else {
+                // Fallback: if no config found, try direct match
+                filtered = filtered.filter((room) => {
+                    const roomCat = room.category?.toUpperCase() || '';
+                    return roomCat === selectedCategory.toUpperCase();
+                });
+            }
         }
 
         // Sort
