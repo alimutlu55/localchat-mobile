@@ -145,9 +145,9 @@ export const MapContainer = React.forwardRef<MapContainerRef, MapContainerProps>
         // Event Handlers
         // ==========================================================================
 
-        const handleRegionChange = useCallback(async (event: any) => {
-            // Delegate to the hook's handler
-            await handleRegionDidChange();
+        const handleRegionChange = useCallback((event: any) => {
+            // Delegate to the hook's handler (debounced internally)
+            handleRegionDidChange();
         }, [handleRegionDidChange]);
 
         const handleCenterOnUser = useCallback(() => {

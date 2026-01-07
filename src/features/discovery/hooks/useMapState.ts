@@ -64,8 +64,8 @@ export interface UseMapStateReturn {
   handleMapReady: () => void;
   /** Call when region will change (pan/zoom start) */
   handleRegionWillChange: () => void;
-  /** Call when region finishes changing */
-  handleRegionDidChange: () => Promise<void>;
+  /** Call when region finishes changing (debounced internally) */
+  handleRegionDidChange: () => void;
   /** Zoom in by one level */
   zoomIn: () => void;
   /** Zoom out by one level */
@@ -102,6 +102,12 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
   const targetZoomRef = useRef<number | null>(null);
   // Track if a programmatic animation is in progress
   const isAnimatingRef = useRef(false);
+  // Synchronous zoom tracking - always reflects intended zoom level
+  const zoomRef = useRef(defaultZoom);
+  // Cooldown to prevent rapid successive zoom calls that cause UI freeze
+  const isZoomCooldownRef = useRef(false);
+  // Debounce timer for handleRegionDidChange to prevent excessive native calls
+  const regionChangeTimerRef = useRef<NodeJS.Timeout | null>(null);
 
   // State
   const [isMapReady, setIsMapReady] = useState(false);
@@ -115,6 +121,10 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
+      // Clear any pending timers
+      if (regionChangeTimerRef.current) {
+        clearTimeout(regionChangeTimerRef.current);
+      }
     };
   }, []);
 
@@ -182,69 +192,82 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
     setIsMapMoving(true);
   }, []);
 
-  const handleRegionDidChange = useCallback(async () => {
-    // Safety check: ensure ref exists AND hook is still mounted
-    // This prevents "Invalid react tag" crash when map is unmounting
-    if (!mapRef.current || !isMountedRef.current) return;
+  const handleRegionDidChange = useCallback(() => {
+    // Clear any pending timer to debounce rapid calls
+    if (regionChangeTimerRef.current) {
+      clearTimeout(regionChangeTimerRef.current);
+    }
 
-    try {
-      const [newZoom, visibleBounds, center] = await Promise.all([
-        mapRef.current.getZoom(),
-        mapRef.current.getVisibleBounds(),
-        mapRef.current.getCenter(),
-      ]);
+    // Debounce: wait 100ms before processing to avoid excessive native calls during animation
+    regionChangeTimerRef.current = setTimeout(async () => {
+      // Safety check: ensure ref exists AND hook is still mounted
+      // This prevents "Invalid react tag" crash when map is unmounting
+      if (!mapRef.current || !isMountedRef.current) return;
 
-      if (visibleBounds && visibleBounds.length === 2 && center) {
-        // MapLibre inconsistency: getCenter returns [lng, lat] but getVisibleBounds 
-        // sometimes returns [lat, lng] on certain platforms/versions.
-        // We detect this by checking which component matches the center.
-        const [[v1_0, v1_1], [v2_0, v2_1]] = visibleBounds;
-        const [cLng, cLat] = center as [number, number];
+      try {
+        const [newZoom, visibleBounds, center] = await Promise.all([
+          mapRef.current.getZoom(),
+          mapRef.current.getVisibleBounds(),
+          mapRef.current.getCenter(),
+        ]);
 
-        // Normalization: Determine which index is Lng vs Lat
-        // We know centerLng is between minLng and maxLng
-        const isFirstArgLat = Math.abs(v1_0 - cLat) < Math.abs(v1_0 - cLng);
+        if (visibleBounds && visibleBounds.length === 2 && center) {
+          // MapLibre inconsistency: getCenter returns [lng, lat] but getVisibleBounds 
+          // sometimes returns [lat, lng] on certain platforms/versions.
+          // We detect this by checking which component matches the center.
+          const [[v1_0, v1_1], [v2_0, v2_1]] = visibleBounds;
+          const [cLng, cLat] = center as [number, number];
 
-        let minLng, maxLng, minLat, maxLat;
-        if (isFirstArgLat) {
-          // visibleBounds is [[lat, lng], [lat, lng]]
-          minLng = Math.min(v1_1, v2_1);
-          maxLng = Math.max(v1_1, v2_1);
-          minLat = Math.min(v1_0, v2_0);
-          maxLat = Math.max(v1_0, v2_0);
-        } else {
-          // visibleBounds is [[lng, lat], [lng, lat]]
-          minLng = Math.min(v1_0, v2_0);
-          maxLng = Math.max(v1_0, v2_0);
-          minLat = Math.min(v1_1, v2_1);
-          maxLat = Math.max(v1_1, v2_1);
-        }
+          // Normalization: Determine which index is Lng vs Lat
+          // We know centerLng is between minLng and maxLng
+          const isFirstArgLat = Math.abs(v1_0 - cLat) < Math.abs(v1_0 - cLng);
 
-        setBounds([minLng, minLat, maxLng, maxLat]);
+          let minLng, maxLng, minLat, maxLat;
+          if (isFirstArgLat) {
+            // visibleBounds is [[lat, lng], [lat, lng]]
+            minLng = Math.min(v1_1, v2_1);
+            maxLng = Math.max(v1_1, v2_1);
+            minLat = Math.min(v1_0, v2_0);
+            maxLat = Math.max(v1_0, v2_0);
+          } else {
+            // visibleBounds is [[lng, lat], [lng, lat]]
+            minLng = Math.min(v1_0, v2_0);
+            maxLng = Math.max(v1_0, v2_0);
+            minLat = Math.min(v1_1, v2_1);
+            maxLat = Math.max(v1_1, v2_1);
+          }
 
-        if (center) {
+          setBounds([minLng, minLat, maxLng, maxLat]);
+
+          if (center) {
+            setCenterCoord(center as [number, number]);
+          }
+
+          const roundedZoom = Math.round(newZoom);
+          setZoom(roundedZoom);
+          // Sync ref with actual map state
+          zoomRef.current = roundedZoom;
+          setIsMapMoving(false);
+
+          // Mark bounds as initialized after first real update from map
+          if (!hasBoundsInitialized) {
+            setHasBoundsInitialized(true);
+            log.debug('Bounds initialized from map', { bounds: [minLng, minLat, maxLng, maxLat], isFirstArgLat });
+          }
+        } else if (center) {
           setCenterCoord(center as [number, number]);
+          const roundedZoom = Math.round(newZoom);
+          setZoom(roundedZoom);
+          zoomRef.current = roundedZoom;
+          setIsMapMoving(false);
         }
 
-        setZoom(Math.round(newZoom));
-        setIsMapMoving(false);
-
-        // Mark bounds as initialized after first real update from map
-        if (!hasBoundsInitialized) {
-          setHasBoundsInitialized(true);
-          log.debug('Bounds initialized from map', { bounds: [minLng, minLat, maxLng, maxLat], isFirstArgLat });
-        }
-      } else if (center) {
-        setCenterCoord(center as [number, number]);
-        setZoom(Math.round(newZoom));
+        log.debug('Region changed', { zoom: Math.round(newZoom) });
+      } catch (error) {
+        log.error('Error getting map state', error);
         setIsMapMoving(false);
       }
-
-      log.debug('Region changed', { zoom: Math.round(newZoom) });
-    } catch (error) {
-      log.error('Error getting map state', error);
-      setIsMapMoving(false);
-    }
+    }, 100); // 100ms debounce
   }, [hasBoundsInitialized]);
 
   // ==========================================================================
@@ -253,104 +276,108 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
 
   const calculateFlyDuration = useCallback(
     (targetZoom: number): number => {
-      const zoomDiff = Math.abs(targetZoom - zoom);
+      const zoomDiff = Math.abs(targetZoom - zoomRef.current);
       // Faster, snappier animation for zoom transitions
       const duration = 0.8 + zoomDiff * 0.15;
       return Math.min(duration, 3.0) * 1000; // 3 second max for faster world view transition
     },
-    [zoom]
+    [] // No dependencies - uses ref
   );
-
-  /**
-   * Stops any in-progress animation by setting camera to current position with no animation.
-   * Returns the base zoom level to use for the next action (either the target zoom if
-   * we were animating, or the current camera zoom).
-   */
-  const stopAnimationAndGetBaseZoom = useCallback(async (): Promise<number> => {
-    if (!mapRef.current || !cameraRef.current) return zoom;
-
-    try {
-      // If animation is in progress and we have a target, use the current camera position
-      // but calculate from the intended target to prevent "arc animation" zoom reversal
-      if (isAnimatingRef.current && targetZoomRef.current !== null) {
-        const baseZoom = targetZoomRef.current;
-        log.debug('Stopping animation, using target zoom as base', { targetZoom: baseZoom });
-
-        // Get current center to stop the camera at its current position
-        const currentCenter = await mapRef.current.getCenter();
-        const currentZoom = await mapRef.current.getZoom();
-
-        // Stop animation by setting camera to current position with 0 duration
-        cameraRef.current.setCamera({
-          centerCoordinate: currentCenter as [number, number],
-          zoomLevel: currentZoom,
-          animationDuration: 0,
-        });
-
-        // Clear animation tracking
-        isAnimatingRef.current = false;
-        targetZoomRef.current = null;
-
-        // Use the target zoom as the base for the next action
-        // This prevents the zoom from "jumping back" during arc animations
-        return baseZoom;
-      }
-
-      // Not animating, just get current zoom
-      return await mapRef.current.getZoom();
-    } catch (error) {
-      log.error('Error stopping animation', error);
-      return zoom;
-    }
-  }, [zoom]);
 
   // ==========================================================================
   // Camera Controls
   // ==========================================================================
 
-  const zoomIn = useCallback(async () => {
-    if (!isMapReady || !cameraRef.current || !mapRef.current) return;
+  const zoomIn = useCallback(() => {
+    if (!isMapReady || !cameraRef.current) return;
 
-    try {
-      // Stop any in-progress animation and get the appropriate base zoom
-      // This prevents unexpected zoom direction when clicking during flyTo arc animations
-      const baseZoom = await stopAnimationAndGetBaseZoom();
-      const newZoom = Math.min(Math.round(baseZoom) + 1, maxZoom);
-
-      log.debug('ZoomIn', { baseZoom: Math.round(baseZoom), newZoom });
-
-      setZoom(newZoom);
-      cameraRef.current.setCamera({
-        zoomLevel: newZoom,
-        animationDuration: 200,
-        animationMode: 'easeTo',
-      });
-    } catch (error) {
-      log.error('Error in zoomIn', error);
+    // Cooldown guard: prevent rapid successive calls that cause UI freeze
+    if (isZoomCooldownRef.current) {
+      log.debug('ZoomIn blocked by cooldown');
+      return;
     }
-  }, [isMapReady, maxZoom, stopAnimationAndGetBaseZoom]);
 
-  const zoomOut = useCallback(async () => {
-    if (!isMapReady || !cameraRef.current || !mapRef.current) return;
+    // Use synchronous ref-based zoom tracking instead of async native calls
+    // This prevents blocking the UI thread during rapid clicks
+    const baseZoom = targetZoomRef.current ?? zoomRef.current;
+    const newZoom = Math.min(Math.round(baseZoom) + 1, maxZoom);
 
-    try {
-      // Stop any in-progress animation and get the appropriate base zoom
-      // This prevents unexpected zoom direction when clicking during flyTo arc animations
-      const baseZoom = await stopAnimationAndGetBaseZoom();
-      const newZoom = Math.max(Math.round(baseZoom) - 1, minZoom);
-
-      log.debug('ZoomOut', { baseZoom: Math.round(baseZoom), newZoom });
-
-      setZoom(newZoom);
-      cameraRef.current.setCamera({
-        zoomLevel: newZoom,
-        animationDuration: 150,
-        animationMode: 'easeTo',
-      });
-    } catch (error) {
-      log.error('Error in zoomOut', error);
+    if (newZoom === Math.round(baseZoom)) {
+      log.debug('ZoomIn at max zoom, ignoring');
+      return;
     }
-  }, [isMapReady, minZoom, stopAnimationAndGetBaseZoom]);
+
+    log.debug('ZoomIn', { baseZoom: Math.round(baseZoom), newZoom });
+
+    // Update refs synchronously for immediate feedback
+    targetZoomRef.current = newZoom;
+    zoomRef.current = newZoom;
+    isZoomCooldownRef.current = true;
+
+    // Cancel any in-progress animation tracking
+    isAnimatingRef.current = false;
+
+    // Update state for UI
+    setZoom(newZoom);
+
+    // Animate camera
+    cameraRef.current.setCamera({
+      zoomLevel: newZoom,
+      animationDuration: 200,
+      animationMode: 'easeTo',
+    });
+
+    // Clear cooldown after animation completes
+    setTimeout(() => {
+      isZoomCooldownRef.current = false;
+      targetZoomRef.current = null;
+    }, 250);
+  }, [isMapReady, maxZoom]);
+
+  const zoomOut = useCallback(() => {
+    if (!isMapReady || !cameraRef.current) return;
+
+    // Cooldown guard: prevent rapid successive calls that cause UI freeze
+    if (isZoomCooldownRef.current) {
+      log.debug('ZoomOut blocked by cooldown');
+      return;
+    }
+
+    // Use synchronous ref-based zoom tracking instead of async native calls
+    const baseZoom = targetZoomRef.current ?? zoomRef.current;
+    const newZoom = Math.max(Math.round(baseZoom) - 1, minZoom);
+
+    if (newZoom === Math.round(baseZoom)) {
+      log.debug('ZoomOut at min zoom, ignoring');
+      return;
+    }
+
+    log.debug('ZoomOut', { baseZoom: Math.round(baseZoom), newZoom });
+
+    // Update refs synchronously for immediate feedback
+    targetZoomRef.current = newZoom;
+    zoomRef.current = newZoom;
+    isZoomCooldownRef.current = true;
+
+    // Cancel any in-progress animation tracking
+    isAnimatingRef.current = false;
+
+    // Update state for UI
+    setZoom(newZoom);
+
+    // Animate camera
+    cameraRef.current.setCamera({
+      zoomLevel: newZoom,
+      animationDuration: 150,
+      animationMode: 'easeTo',
+    });
+
+    // Clear cooldown after animation completes
+    setTimeout(() => {
+      isZoomCooldownRef.current = false;
+      targetZoomRef.current = null;
+    }, 200);
+  }, [isMapReady, minZoom]);
 
   const flyTo = useCallback(
     (coordinate: MapCoordinate, targetZoom?: number) => {
