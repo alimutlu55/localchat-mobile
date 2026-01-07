@@ -141,6 +141,7 @@ export const styles = StyleSheet.create({
     },
     roomListContent: {
         padding: 16,
+        paddingBottom: 60, // Extra padding for toggle button at bottom
     },
     group: {
         marginBottom: 24,
@@ -285,6 +286,14 @@ export const styles = StyleSheet.create({
     scrollTopButtonContainer: {
         position: 'absolute',
         top: 190, // Positioned closer to categories (was 200)
+        left: 0,
+        right: 0,
+        alignItems: 'center',
+        zIndex: 50,
+    },
+    scrollTopButtonInList: {
+        position: 'absolute',
+        top: 4, // Just below the top of the list container
         left: 0,
         right: 0,
         alignItems: 'center',

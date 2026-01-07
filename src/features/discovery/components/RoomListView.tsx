@@ -501,83 +501,85 @@ export const RoomListView = memo(function RoomListView({
                     onCreateRoom={onCreateRoom}
                 />
             ) : (
-                <FlatList
-                    ref={flatListRef}
-                    data={flattenedData}
-                    keyExtractor={(item, index) => item.type === 'header' ? `header-${item.title}` : `room-${item.room.id}`}
-                    extraData={myRooms}
-                    onScroll={handleScroll}
-                    scrollEventThrottle={16}
-                    renderItem={({ item }) => {
-                        if (item.type === 'header') {
-                            return <Text style={styles.groupTitle}>{item.title}</Text>;
-                        }
-                        return (
-                            <RoomListItemWrapper
-                                room={item.room}
-                                onJoin={handleRoomPress}
-                                onEnterRoom={onEnterRoom}
-                                userLocation={userLocation}
-                                isJoined={isJoined(item.room.id)}
-                            />
-                        );
-                    }}
-                    ListFooterComponent={() => (
-                        <>
-                            {/* Loading more indicator */}
-                            {isLoadingMore && (
-                                <View style={styles.loadingMoreContainer}>
-                                    <ActivityIndicator size="small" color={theme.tokens.brand.primary} />
-                                    <Text style={styles.loadingMoreText}>Loading more rooms...</Text>
-                                </View>
-                            )}
+                <View style={{ flex: 1 }}>
+                    <FlatList
+                        ref={flatListRef}
+                        data={flattenedData}
+                        keyExtractor={(item, index) => item.type === 'header' ? `header-${item.title}` : `room-${item.room.id}`}
+                        extraData={myRooms}
+                        onScroll={handleScroll}
+                        scrollEventThrottle={16}
+                        renderItem={({ item }) => {
+                            if (item.type === 'header') {
+                                return <Text style={styles.groupTitle}>{item.title}</Text>;
+                            }
+                            return (
+                                <RoomListItemWrapper
+                                    room={item.room}
+                                    onJoin={handleRoomPress}
+                                    onEnterRoom={onEnterRoom}
+                                    userLocation={userLocation}
+                                    isJoined={isJoined(item.room.id)}
+                                />
+                            );
+                        }}
+                        ListFooterComponent={() => (
+                            <>
+                                {/* Loading more indicator */}
+                                {isLoadingMore && (
+                                    <View style={styles.loadingMoreContainer}>
+                                        <ActivityIndicator size="small" color={theme.tokens.brand.primary} />
+                                        <Text style={styles.loadingMoreText}>Loading more rooms...</Text>
+                                    </View>
+                                )}
 
-                            {/* End of list message */}
-                            {!isLoadingMore && !hasMoreRooms && !searchQuery && filteredRooms.length > 0 && (
-                                <View style={styles.endOfListContainer}>
-                                    <Text style={styles.endOfListText}>
-                                        ✓ All nearby rooms loaded
-                                    </Text>
-                                </View>
-                            )}
+                                {/* End of list message */}
+                                {!isLoadingMore && !hasMoreRooms && !searchQuery && filteredRooms.length > 0 && (
+                                    <View style={styles.endOfListContainer}>
+                                        <Text style={styles.endOfListText}>
+                                            ✓ All nearby rooms loaded
+                                        </Text>
+                                    </View>
+                                )}
 
-                            {/* Room count */}
-                            <Text style={styles.footer}>
-                                {filteredRooms.length} {filteredRooms.length === 1 ? 'room' : 'rooms'} found
-                            </Text>
-                        </>
-                    )}
-                    onEndReached={handleLoadMore}
-                    onEndReachedThreshold={0.5}
-                    contentContainerStyle={styles.roomListContent}
-                    showsVerticalScrollIndicator={false}
-                    removeClippedSubviews={true}
-                    maxToRenderPerBatch={10}
-                    updateCellsBatchingPeriod={50}
-                    windowSize={21}
-                    initialNumToRender={10}
-                />
+                                {/* Room count */}
+                                <Text style={styles.footer}>
+                                    {filteredRooms.length} {filteredRooms.length === 1 ? 'room' : 'rooms'} found
+                                </Text>
+                            </>
+                        )}
+                        onEndReached={handleLoadMore}
+                        onEndReachedThreshold={0.5}
+                        contentContainerStyle={styles.roomListContent}
+                        showsVerticalScrollIndicator={false}
+                        removeClippedSubviews={true}
+                        maxToRenderPerBatch={10}
+                        updateCellsBatchingPeriod={50}
+                        windowSize={21}
+                        initialNumToRender={10}
+                    />
+
+                    {/* Scroll to Top Button - positioned relative to list container */}
+                    <Animated.View
+                        style={[
+                            styles.scrollTopButtonInList,
+                            {
+                                transform: [{ translateY: scrollButtonTranslateY }],
+                                opacity: scrollButtonOpacity
+                            }
+                        ]}
+                        pointerEvents={showScrollTop ? 'auto' : 'none'}
+                    >
+                        <TouchableOpacity
+                            style={styles.scrollTopButton}
+                            onPress={scrollToTop}
+                            activeOpacity={0.8}
+                        >
+                            <ArrowUp size={20} color={theme.tokens.text.secondary} strokeWidth={2.5} />
+                        </TouchableOpacity>
+                    </Animated.View>
+                </View>
             )}
-
-            {/* Scroll to Top Button */}
-            <Animated.View
-                style={[
-                    styles.scrollTopButtonContainer,
-                    {
-                        transform: [{ translateY: scrollButtonTranslateY }],
-                        opacity: scrollButtonOpacity
-                    }
-                ]}
-                pointerEvents={showScrollTop ? 'auto' : 'none'}
-            >
-                <TouchableOpacity
-                    style={styles.scrollTopButton}
-                    onPress={scrollToTop}
-                    activeOpacity={0.8}
-                >
-                    <ArrowUp size={20} color={theme.tokens.text.secondary} strokeWidth={2.5} />
-                </TouchableOpacity>
-            </Animated.View>
             {/* Join Confirmation Modal */}
             <Modal
                 visible={joinPendingRoom !== null}
