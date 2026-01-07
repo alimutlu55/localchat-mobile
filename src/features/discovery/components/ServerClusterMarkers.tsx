@@ -8,12 +8,14 @@
 import React, { memo } from 'react';
 import { TouchableOpacity, StyleSheet } from 'react-native';
 import { PointAnnotation } from '@maplibre/maplibre-react-native';
-import { Bubble } from './Bubble';
+import { Bubble, MiniRoomCard } from './index';
 import { MapCluster } from './MapCluster';
 import { Room, ClusterFeature } from '../../../types';
 import { getCategoryEmoji } from '../../../constants';
 
-
+// Set this to true to use the new informative BubbleCard, 
+// or false to use the traditional teardrop Bubble.
+const USE_CARD_STYLE = true;
 
 /**
  * Server Room Marker Component
@@ -84,7 +86,11 @@ export const ServerRoomMarker = memo(function ServerRoomMarker({
         onPress={() => onPress(feature)}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       >
-        <Bubble room={roomForPin as Room} isSelected={isSelected} />
+        {USE_CARD_STYLE ? (
+          <MiniRoomCard room={roomForPin as Room} isSelected={isSelected} />
+        ) : (
+          <Bubble room={roomForPin as Room} isSelected={isSelected} />
+        )}
       </TouchableOpacity>
     </PointAnnotation>
   );

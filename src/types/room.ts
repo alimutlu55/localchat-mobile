@@ -183,6 +183,7 @@ export interface ClusterProperties {
   isExpiringSoon?: boolean;
   hasJoined?: boolean;
   isCreator?: boolean;
+  timeRemaining?: string;
 }
 
 // =============================================================================

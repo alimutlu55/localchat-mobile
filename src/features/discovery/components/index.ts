@@ -24,4 +24,5 @@ export { RoomMarker, ClusterMarker } from './OptimizedMarkers';
 export { ServerRoomMarker, ServerClusterMarker } from './ServerClusterMarkers';
 export { MapCluster } from './MapCluster';
 export { Bubble } from './Bubble';
+export { MiniRoomCard } from './MiniRoomCard';
 

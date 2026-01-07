@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, memo } from 'react';
-import { View, Text, StyleSheet, Animated, Easing, Image } from 'react-native';
+import { View, Text, StyleSheet, Animated, Image } from 'react-native';
 import { Lock } from 'lucide-react-native';
 import { Room, RoomCategory } from '../../../types';
 import { ASSETS } from '../../../constants/assets';
@@ -10,7 +10,6 @@ import { ASSETS } from '../../../constants/assets';
 const FAMILY_PINS = ASSETS.ROOM_PINS;
 
 const CATEGORY_TO_FAMILY: Record<string, keyof typeof FAMILY_PINS> = {
-    // New Formal IDs
     TRAFFIC_TRANSIT: 'PULSE',
     SAFETY_HAZARDS: 'PULSE',
     LOST_FOUND: 'PULSE',
@@ -25,8 +24,6 @@ const CATEGORY_TO_FAMILY: Record<string, keyof typeof FAMILY_PINS> = {
     MARKETS_FINDS: 'PLAY',
     FOOD_DINING: 'FOOD',
     GENERAL: 'GENERAL',
-
-    // Legacy IDs (Backward Compatibility)
     TRAFFIC: 'PULSE',
     EMERGENCY: 'PULSE',
     SOCIAL: 'SPIRIT',
@@ -51,9 +48,7 @@ interface BubbleProps {
 
 export const Bubble = memo(({ room, isSelected }: BubbleProps) => {
     const scaleAnim = useRef(new Animated.Value(isSelected ? 1.15 : 1)).current;
-    const pulseAnim = useRef(new Animated.Value(0)).current;
 
-    // Selection animation
     useEffect(() => {
         Animated.spring(scaleAnim, {
             toValue: isSelected ? 1.15 : 1,
@@ -63,62 +58,14 @@ export const Bubble = memo(({ room, isSelected }: BubbleProps) => {
         }).start();
     }, [isSelected, scaleAnim]);
 
-    // Live pulse animation for high activity
-    useEffect(() => {
-        if (room.isHighActivity) {
-            const animation = Animated.loop(
-                Animated.timing(pulseAnim, {
-                    toValue: 1,
-                    duration: 2500,
-                    easing: Easing.out(Easing.ease),
-                    useNativeDriver: true,
-                })
-            );
-            animation.start();
-            return () => animation.stop();
-        }
-    }, [room.isHighActivity, pulseAnim]);
+    const pinSize = 80;
 
-    const getPinSize = () => 80;
-
-    const pinSize = getPinSize();
-
-    // Select the asset based on the room's family (case-insensitive)
     const categoryKey = (room.category?.toUpperCase() || 'FOOD_DINING') as RoomCategory;
     const familyKey = CATEGORY_TO_FAMILY[categoryKey] || 'FOOD';
     const pinImageSource = FAMILY_PINS[familyKey] || DEFAULT_PIN;
 
-    // Optional: Tint for special status (like "Full"), 
-    // though you might prefer specific PNGs for these too!
-    const tintColor = room.isFull ? '#94a3b8' : undefined;
-
     return (
         <Animated.View style={[styles.container, { transform: [{ scale: scaleAnim }] }]}>
-            {/* Live Radar Pulse */}
-            {room.isHighActivity && (
-                <Animated.View
-                    style={[
-                        styles.pulseRing,
-                        {
-                            width: pinSize * 1.4,
-                            height: pinSize * 1.4,
-                            borderRadius: pinSize,
-                            borderColor: '#00E5FF',
-                            opacity: pulseAnim.interpolate({
-                                inputRange: [0, 1],
-                                outputRange: [0.6, 0],
-                            }),
-                            transform: [{
-                                scale: pulseAnim.interpolate({
-                                    inputRange: [0, 1],
-                                    outputRange: [0.8, 1.4],
-                                })
-                            }],
-                        },
-                    ]}
-                />
-            )}
-
             <View style={styles.bubbleContainer}>
                 {/* Custom Pin Image Background mapping to Category */}
                 <Image
@@ -169,17 +116,11 @@ const styles = StyleSheet.create({
         justifyContent: 'center',
         padding: 5,
     },
-    pulseRing: {
-        position: 'absolute',
-        borderWidth: 2,
-        zIndex: -1,
-    },
     bubbleContainer: {
         alignItems: 'center',
         justifyContent: 'center',
     },
     pinImage: {
-        // Shadow for the PNG
         shadowColor: '#000',
         shadowOffset: { width: 0, height: 4 },
         shadowOpacity: 0.25,
@@ -235,7 +176,3 @@ const styles = StyleSheet.create({
         letterSpacing: 0.8,
     },
 });
-
-
-
-
