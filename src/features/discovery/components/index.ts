@@ -26,3 +26,10 @@ export { MapCluster } from './MapCluster';
 export { Bubble } from './Bubble';
 export { MiniRoomCard } from './MiniRoomCard';
 
+// Phase 3 Decomposed Components
+export { DiscoveryHeader } from './DiscoveryHeader';
+export { DiscoveryMapControls } from './DiscoveryMapControls';
+export { DiscoveryViewToggle } from './DiscoveryViewToggle';
+export { DiscoveryOverlay } from './DiscoveryOverlay';
+export { DiscoveryMap } from './DiscoveryMap';
+

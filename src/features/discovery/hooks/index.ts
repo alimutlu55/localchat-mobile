@@ -56,6 +56,8 @@ export type { UseMapControlsOptions, UseMapControlsReturn, MapViewportState } fr
 export { useViewportRooms } from './useViewportRooms';
 export type { UseViewportRoomsOptions, UseViewportRoomsReturn } from './useViewportRooms';
 
+export { useUnifiedDiscovery } from './useUnifiedDiscovery';
+
 // =============================================================================
 // DECOMPOSED HOOKS (Phase 2)
 // =============================================================================

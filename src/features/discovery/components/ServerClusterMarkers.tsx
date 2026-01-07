@@ -87,7 +87,6 @@ export const ServerRoomMarker = memo(function ServerRoomMarker({
         ]}
         activeOpacity={0.85}
         onPress={() => onPress(feature)}
-        hitSlop={{ top: 15, bottom: 20, left: 20, right: 20 }}
       >
         {USE_CARD_STYLE ? (
           <MiniRoomCard room={roomForPin as Room} isSelected={isSelected} />
@@ -155,7 +154,6 @@ export const ServerClusterMarker = memo(function ServerClusterMarker({
       <TouchableOpacity
         activeOpacity={0.9}
         onPress={() => onPress(feature)}
-        hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
       >
         <MapCluster count={properties.pointCount || 0} />
       </TouchableOpacity>

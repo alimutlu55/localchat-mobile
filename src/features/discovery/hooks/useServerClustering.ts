@@ -237,7 +237,6 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
         // Emit event to notify other components (like RoomListView) that map data has changed
         log.debug('Emitting discovery.clusteringCompleted', {
           zoom: fetchZoom,
-          featureCount: response.features.length,
           totalRooms: response.metadata.totalRooms,
           bounds: fetchBounds.map(b => b.toFixed(4))
         });
@@ -389,7 +388,10 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
     const forceRefetch = forceNextFetchRef.current;
     if (forceRefetch) forceNextFetchRef.current = false;
 
-    const shouldFetch = isFirstLoad || zoomChanged || panChanged || forceRefetch;
+    // Detect if user location just became available (critical for visibility radius rooms)
+    const locationBecameAvailable = !lastFetchBoundsRef.current && userLocation !== null;
+
+    const shouldFetch = isFirstLoad || zoomChanged || panChanged || forceRefetch || locationBecameAvailable;
     const prefetchInProgress = isPrefetchingRef.current || prefetchTimerRef.current !== null;
 
     if (!shouldFetch || prefetchInProgress) return;
@@ -400,7 +402,7 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
     }, delay);
 
     return () => { if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current); };
-  }, [bounds, zoom, enabled, isMapReady, fetchClusters]);
+  }, [bounds, zoom, enabled, isMapReady, userLocation, fetchClusters]);
 
   useEffect(() => {
     if (!enabled || !isMapReady) return;

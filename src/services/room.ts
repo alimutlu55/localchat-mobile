@@ -363,6 +363,7 @@ class RoomService {
       zoom: zoom.toString(),
     });
 
+
     if (category) {
       params.append('category', category);
     }
@@ -373,6 +374,8 @@ class RoomService {
       params.append('userLat', userLat.toString());
       params.append('userLng', userLng.toString());
     }
+
+    // Pass screen metrics for precise visible area clustering
 
     // Server returns ClusterResponse. We support both direct GeoJSON and ApiResponse-wrapped
     const response = await api.get<any>(`/rooms/clusters?${params}`);

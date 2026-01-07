@@ -22,6 +22,7 @@
  */
 
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { Dimensions } from 'react-native';
 import { MapViewRef, CameraRef } from '@maplibre/maplibre-react-native';
 import { createLogger } from '../../../shared/utils/logger';
 
@@ -50,7 +51,7 @@ export interface UseMapStateReturn {
   cameraRef: React.RefObject<CameraRef | null>;
   /** Current zoom level */
   zoom: number;
-  /** Current visible bounds [west, south, east, north] */
+  /** Map bounds expanded by 10% (for fetching) */
   bounds: [number, number, number, number];
   /** Current center coordinate [lng, lat] */
   centerCoord: [number, number];
@@ -220,59 +221,62 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
         ]);
         const nativeCallTime = Date.now() - perfStart;
 
-        if (visibleBounds && visibleBounds.length === 2 && center) {
-          // MapLibre inconsistency: getCenter returns [lng, lat] but getVisibleBounds 
-          // sometimes returns [lat, lng] on certain platforms/versions.
-          // We detect this by checking which component matches the center.
-          const [[v1_0, v1_1], [v2_0, v2_1]] = visibleBounds;
-          const [cLng, cLat] = center as [number, number];
+        // Ensure we have valid data from native bridge
+        const isValidVisibleBounds = visibleBounds && Array.isArray(visibleBounds) && visibleBounds.length >= 2;
+        const [cLng, cLat] = center as [number, number];
+        const isValidCenter = center &&
+          Array.isArray(center) &&
+          center.length === 2 &&
+          typeof cLng === 'number' && !isNaN(cLng) && isFinite(cLng) &&
+          typeof cLat === 'number' && !isNaN(cLat) && isFinite(cLat);
 
-          // DEFENSIVE: Deep validation of center coordinates.
-          // Native bridge can sometimes return malformed arrays or NaN during rapid movements.
-          const isValidCenter = center &&
-            Array.isArray(center) &&
-            center.length === 2 &&
-            typeof cLng === 'number' && !isNaN(cLng) && isFinite(cLng) &&
-            typeof cLat === 'number' && !isNaN(cLat) && isFinite(cLat);
-
-          if (!isValidCenter) {
-            log.warn('Ignored invalid map center from native bridge', { center });
-            setIsMapMoving(false);
-            return;
-          }
-
-          // Normalization: Determine which index is Lng vs Lat
-          // The native bridge can sometimes return [[lat, lng], [lat, lng]] or [[lng, lat], [lng, lat]].
-          // We use the center coordinate (which is reliably [lng, lat]) to determine the order.
-
+        if (isValidVisibleBounds && isValidCenter) {
+          // Flatten points to find absolutes, but we still need to know swap status
           // Interpretation 1: Index 0 is Longitude, Index 1 is Latitude (Standard)
-          const interpret1ContainsLat = Math.min(v1_1, v2_1) <= cLat && cLat <= Math.max(v1_1, v2_1);
-          const interpret1ContainsLng = Math.min(v1_0, v2_0) <= cLng && cLng <= Math.max(v1_0, v2_0);
+          const allV0 = visibleBounds.map(p => p[0]);
+          const allV1 = visibleBounds.map(p => p[1]);
 
-          // Interpretation 2: Index 0 is Latitude, Index 1 is Longitude (Swapped)
-          const interpret2ContainsLat = Math.min(v1_0, v2_0) <= cLat && cLat <= Math.max(v1_0, v2_0);
-          const interpret2ContainsLng = Math.min(v1_1, v2_1) <= cLng && cLng <= Math.max(v1_1, v2_1);
+          const minV0 = Math.min(...allV0);
+          const maxV0 = Math.max(...allV0);
+          const minV1 = Math.min(...allV1);
+          const maxV1 = Math.max(...allV1);
 
-          // If standard is correct, or if both are somehow ambiguous, prefer standard
+          // Detection: Check which dimension contains the center latitude
+          const interpret1ContainsLat = minV1 <= cLat && cLat <= maxV1;
+          const interpret2ContainsLat = minV0 <= cLat && cLat <= maxV0;
+
           let minLng, maxLng, minLat, maxLat;
-          const isSwapped = interpret2ContainsLat && interpret2ContainsLng && !interpret1ContainsLat;
 
-          if (isSwapped) {
-            // Swapped order detected: v1_0 is Lat, v1_1 is Lng
-            log.debug('Coordinate swap detected from native bridge, normalizing');
-            minLng = Math.min(v1_1, v2_1);
-            maxLng = Math.max(v1_1, v2_1);
-            minLat = Math.min(v1_0, v2_0);
-            maxLat = Math.max(v1_0, v2_0);
+          // Determine coordinate order (MapLibre sometimes returns [lat, lng] on iOS)
+          if (interpret2ContainsLat && !interpret1ContainsLat) {
+            // Swapped order: V0 is Latitude, V1 is Longitude
+            minLng = minV1;
+            maxLng = maxV1;
+            minLat = minV0;
+            maxLat = maxV0;
           } else {
-            // Assume standard order: v1_0 is Lng, v1_1 is Lat
-            minLng = Math.min(v1_0, v2_0);
-            maxLng = Math.max(v1_0, v2_0);
-            minLat = Math.min(v1_1, v2_1);
-            maxLat = Math.max(v1_1, v2_1);
+            // Standard order: V0 is Longitude, V1 is Latitude
+            minLng = minV0;
+            maxLng = maxV0;
+            minLat = minV1;
+            maxLat = maxV1;
           }
 
-          setBounds([minLng, minLat, maxLng, maxLat]);
+          // Buffer expansion: 10% padding per side to ensure markers aren't missed 
+          // at the edges of the screen, even during fast panning or on tall displays.
+          // This ensures "whole screen size" coverage as requested by the user.
+
+          const latPadding = (maxLat - minLat) * 0.10;
+          const lngPadding = (maxLng - minLng) * 0.10;
+
+          const finalBounds: [number, number, number, number] = [
+            minLng - lngPadding,
+            minLat - latPadding,
+            maxLng + lngPadding,
+            maxLat + latPadding
+          ];
+
+          setBounds(finalBounds);
           setCenterCoord([cLng, cLat]);
 
           // State synchronization logic
@@ -315,7 +319,10 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
           // Mark bounds as initialized after first real update from map
           if (!hasBoundsInitialized) {
             setHasBoundsInitialized(true);
-            log.debug('Bounds initialized from map', { bounds: [minLng, minLat, maxLng, maxLat].map(b => b.toFixed(4)), isSwapped });
+            log.debug('Bounds initialized from map', {
+              bounds: finalBounds.map(b => b.toFixed(4)),
+              pointsReceived: visibleBounds.length
+            });
           }
 
           log.debug('Region changed', {
@@ -568,6 +575,7 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
     },
     [isMapReady]
   );
+
 
   return {
     mapRef,
