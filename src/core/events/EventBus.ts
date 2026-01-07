@@ -237,9 +237,21 @@ export interface SessionEvents {
 }
 
 /**
+ * Discovery Events - Related to room discovery and clustering
+ */
+export interface DiscoveryEvents {
+  'discovery.clusteringCompleted': {
+    bounds: [number, number, number, number];
+    zoom: number;
+    category?: string;
+    totalRooms?: number;
+  };
+}
+
+/**
  * All events combined
  */
-export interface AllEvents extends RoomEvents, MessageEvents, TypingEvents, ConnectionEvents, UserEvents, UIEvents, ConsentEvents, SessionEvents { }
+export interface AllEvents extends RoomEvents, MessageEvents, TypingEvents, ConnectionEvents, UserEvents, UIEvents, ConsentEvents, SessionEvents, DiscoveryEvents { }
 
 /**
  * Event names as a union type

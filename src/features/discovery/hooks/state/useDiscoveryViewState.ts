@@ -60,9 +60,17 @@ export function useDiscoveryViewState(
         mapUnmountDelay = 300,
     } = options;
 
-    // View mode state
-    const [mode, setModeInternal] = useState<DiscoveryViewMode>(initialMode);
-    const [isTransitioning, setIsTransitioning] = useState(false);
+    // View mode state - consolidated to minimize re-renders
+    const [state, setState] = useState<{
+        mode: DiscoveryViewMode;
+        isTransitioning: boolean;
+    }>({
+        mode: initialMode,
+        isTransitioning: false,
+    });
+
+    const mode = state.mode;
+    const isTransitioning = state.isTransitioning;
 
     // Map rendering state - unmount for performance when in list mode
     const [shouldRenderMap, setShouldRenderMap] = useState(initialMode === 'map');
@@ -77,7 +85,7 @@ export function useDiscoveryViewState(
             duration: transitionDuration,
             useNativeDriver: true,
         }).start(() => {
-            setIsTransitioning(false);
+            setState(current => ({ ...current, isTransitioning: false }));
         });
 
         if (mode === 'list') {
@@ -91,19 +99,28 @@ export function useDiscoveryViewState(
 
     // Set mode with validation
     const setMode = useCallback((newMode: DiscoveryViewMode) => {
-        if (newMode !== mode) {
-            setIsTransitioning(true);
+        setState(current => {
+            if (newMode === current.mode) return current;
+
+            // Side effect: update map mounting state
             if (newMode === 'map') {
-                // Immediately render map when switching to map mode (Synchronous for low latency)
                 setShouldRenderMap(true);
             }
-            setModeInternal(newMode);
-        }
-    }, [mode]);
+
+            return {
+                mode: newMode,
+                isTransitioning: true
+            };
+        });
+    }, []);
 
     // Toggle between map and list
     const toggleMode = useCallback(() => {
-        setModeInternal(current => current === 'map' ? 'list' : 'map');
+        setState(current => ({
+            ...current,
+            mode: current.mode === 'map' ? 'list' : 'map',
+            isTransitioning: true
+        }));
     }, []);
 
     return {

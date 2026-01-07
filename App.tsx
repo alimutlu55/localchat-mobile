@@ -49,6 +49,12 @@ import { RootStackParamList } from './src/navigation/types';
 // Initialize i18n
 import './src/i18n';
 
+// Set log level to error by default
+import { setLogLevel } from './src/shared/utils/logger';
+if (__DEV__) {
+  setLogLevel('error');
+}
+
 /**
  * Main App Component
  */

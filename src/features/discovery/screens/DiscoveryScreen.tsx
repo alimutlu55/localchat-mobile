@@ -241,7 +241,7 @@ export default function DiscoveryScreen() {
         zoom,
         enabled: isMapReady && hasBoundsInitialized,
         isMapReady: isMapReady && hasBoundsInitialized,
-        category: undefined, // Filter only applies to List view (not map)
+        category: categoryFilter as string | undefined, // Apply selected category to markers
         userLocation, // For visibility filtering - nearby rooms only visible within radius
     });
     // ConnectionBanner is now self-contained - no manual state needed here
@@ -271,11 +271,8 @@ export default function DiscoveryScreen() {
         hasMore: hasMoreRooms,
         loadMore: loadMoreRooms,
         refetch: refreshDiscovery,
-        prefetch: prefetchListRooms,
     } = useViewportRooms({
-        bounds: bounds as [number, number, number, number],
         userLocation: userLocation ?? undefined,
-        zoom, // Pass current zoom to detect cluster merges/splits
         category: categoryFilter as RoomCategory | undefined,
         enabled: isMapReady && hasBoundsInitialized, // Sync active regardless of view mode
         pageSize: 20,
@@ -435,7 +432,6 @@ export default function DiscoveryScreen() {
 
                 // Prefetch data - will show markers 300ms before animation ends
                 prefetchForLocation(centerLng, centerLat, finalTargetZoom, animDuration);
-                prefetchListRooms(centerLng, centerLat, finalTargetZoom, animDuration);
 
                 animateCamera({
                     centerCoordinate: [centerLng, centerLat],
@@ -460,7 +456,6 @@ export default function DiscoveryScreen() {
 
                 // Prefetch data - will show markers 300ms before animation ends
                 prefetchForLocation(lng, lat, targetZoom, animDuration);
-                prefetchListRooms(lng, lat, targetZoom, animDuration);
 
                 animateCamera({
                     centerCoordinate: [lng, lat],
@@ -534,7 +529,6 @@ export default function DiscoveryScreen() {
 
             // Prefetch data - will show markers 300ms before animation ends
             prefetchForLocation(userLocation.longitude, userLocation.latitude, targetZoom, animDuration);
-            prefetchListRooms(userLocation.longitude, userLocation.latitude, targetZoom, animDuration);
 
             centerOn(userLocation, targetZoom);
         }
@@ -680,7 +674,6 @@ export default function DiscoveryScreen() {
                                 onPress={() => {
                                     const animDuration = calculateFlyDuration(1);
                                     prefetchForWorldView(animDuration);
-                                    prefetchListRooms(0, 0, 1, animDuration); // Global prefetch for list
                                     resetToWorldView();
                                 }}
                                 activeOpacity={0.7}
@@ -724,6 +717,8 @@ export default function DiscoveryScreen() {
                         onEnterRoom={handleEnterRoom}
                         onCreateRoom={handleCreateRoom}
                         userLocation={userLocation}
+                        mode={viewMode}
+                        isTransitioning={isViewTransitioning}
                     />
                 </Animated.View>
             </View>

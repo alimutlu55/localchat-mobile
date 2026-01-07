@@ -142,7 +142,16 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
     });
 
     const merged = mergePendingRooms(hydrated);
-    return filterExcludedRooms(merged);
+    const filtered = filterExcludedRooms(merged);
+
+    // Stable sort is CRITICAL for native Mapbox stability.
+    // Without it, frequent re-orderings cause NSRangeException during rapid panning
+    // because React and Native view hierarchies get out of sync.
+    return [...filtered].sort((a, b) => {
+      const idA = a.properties.cluster ? `c-${a.properties.clusterId}` : `r-${a.properties.roomId}`;
+      const idB = b.properties.cluster ? `c-${b.properties.clusterId}` : `r-${b.properties.roomId}`;
+      return idA.localeCompare(idB);
+    });
   }, [rawFeatures, joinedRoomIds, createdRoomIds, hiddenRoomIds, pendingRoomIds, storeRooms]);
 
   const lastFetchBoundsRef = useRef<[number, number, number, number] | null>(null);
@@ -195,15 +204,6 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
       if (isFetchingRef.current || !fetchBounds) return;
 
       const [minLng, minLat, maxLng, maxLat] = fetchBounds;
-      const lngSpan = maxLng - minLng;
-      const latSpan = maxLat - minLat;
-      const expandedBounds: [number, number, number, number] = [
-        Math.max(-180, minLng - lngSpan * 0.5),
-        Math.max(-85, minLat - latSpan * 0.5),
-        Math.min(180, maxLng + lngSpan * 0.5),
-        Math.min(85, maxLat + latSpan * 0.5),
-      ];
-
       isFetchingRef.current = true;
       if (showLoading) setIsLoading(true);
       setError(null);
@@ -211,7 +211,7 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
       try {
         const perfStart = Date.now();
         const response: ClusterResponse = await roomService.getClusters(
-          expandedBounds[0], expandedBounds[1], expandedBounds[2], expandedBounds[3],
+          minLng, minLat, maxLng, maxLat,
           Math.floor(fetchZoom), category, userLocation?.latitude, userLocation?.longitude
         );
         const networkMs = Date.now() - perfStart;
@@ -226,12 +226,27 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
         // Network telemetry moved to debug to keep console clean for production.
         log.debug('Clusters fetched', {
           count: response.features.length,
+          totalRooms: response.metadata.totalRooms, // Total rooms across all clusters
           networkMs,
           backendMs: response.metadata.processingTimeMs,
           zoom: fetchZoom
         });
 
         reconcilePendingRooms(response.features);
+
+        // Emit event to notify other components (like RoomListView) that map data has changed
+        log.debug('Emitting discovery.clusteringCompleted', {
+          zoom: fetchZoom,
+          featureCount: response.features.length,
+          totalRooms: response.metadata.totalRooms,
+          bounds: fetchBounds.map(b => b.toFixed(4))
+        });
+        eventBus.emit('discovery.clusteringCompleted', {
+          bounds: fetchBounds,
+          zoom: fetchZoom,
+          category,
+          totalRooms: response.metadata.totalRooms // Pass total rooms for metadata sync
+        });
       } catch (err) {
         log.error('Fetch failed', err);
         if (mountedRef.current) setError(err instanceof Error ? err.message : 'Fetch failed');
@@ -293,6 +308,13 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
           setRawFeatures(response.features);
           setMetadata(response.metadata);
           reconcilePendingRooms(response.features);
+
+          // Emit event to notify other components (like RoomListView) that map data has changed
+          eventBus.emit('discovery.clusteringCompleted', {
+            bounds: targetBounds,
+            zoom: targetZoom,
+            category
+          });
           isPrefetchingRef.current = false;
           prefetchTimerRef.current = null;
         }, markerAppearOffset);
@@ -327,6 +349,13 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
         setRawFeatures(response.features);
         setMetadata(response.metadata);
         reconcilePendingRooms(response.features);
+
+        // Emit event to notify other components (like RoomListView) that map data has changed
+        eventBus.emit('discovery.clusteringCompleted', {
+          bounds: targetBounds,
+          zoom: targetZoom,
+          category
+        });
 
         setTimeout(() => { isPrefetchingRef.current = false; }, animationDuration + 100);
       } catch (err) {

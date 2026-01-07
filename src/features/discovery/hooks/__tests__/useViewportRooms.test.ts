@@ -6,9 +6,10 @@
  */
 
 import { renderHook, act, waitFor } from '@testing-library/react-native';
-import { useViewportRooms } from '../useViewportRooms';
+import { useViewportRooms, UseViewportRoomsReturn } from '../useViewportRooms';
 import { roomService } from '../../../../services';
 import { useRoomStore } from '../../../../features/rooms/store';
+import { eventBus } from '../../../../core/events';
 import { Room } from '../../../../types';
 
 // Mock roomService
@@ -46,6 +47,27 @@ jest.mock('../../../../shared/utils/logger', () => ({
     }),
 }));
 
+// Mock EventBus
+jest.mock('../../../../core/events', () => {
+    const listeners: Record<string, Function[]> = {};
+    return {
+        eventBus: {
+            on: jest.fn((event, cb) => {
+                if (!listeners[event]) listeners[event] = [];
+                listeners[event].push(cb);
+                return () => {
+                    listeners[event] = listeners[event].filter(l => l !== cb);
+                };
+            }),
+            emit: jest.fn((event, payload) => {
+                if (listeners[event]) {
+                    listeners[event].forEach(cb => cb(payload));
+                }
+            }),
+        },
+    };
+});
+
 describe('useViewportRooms', () => {
     const mockBounds: [number, number, number, number] = [10, 50, 11, 51];
     const mockUserLocation = { latitude: 50.5, longitude: 10.5 };
@@ -64,9 +86,12 @@ describe('useViewportRooms', () => {
         creatorId: 'creator-1',
         createdAt: new Date(),
         lastActivityAt: new Date(),
-        hasJoined: false,
         isCreator: false,
-    } as Room);
+        emoji: '🏠',
+        distance: 100,
+        expiresAt: new Date().toISOString(),
+        timeRemaining: '1h',
+    } as unknown as Room);
 
     beforeEach(() => {
         jest.clearAllMocks();
@@ -267,7 +292,7 @@ describe('useViewportRooms', () => {
                 totalElements: 0,
             });
 
-            const { result, rerender } = renderHook(
+            const { result, rerender } = renderHook<UseViewportRoomsReturn, { bounds: [number, number, number, number] }>(
                 ({ bounds }) =>
                     useViewportRooms({
                         bounds,
@@ -287,9 +312,16 @@ describe('useViewportRooms', () => {
                 expect(roomService.getViewportRooms).toHaveBeenCalledTimes(1);
             });
 
-            // Change bounds significantly (move viewport by 50%)
+            // Change bounds significantly via EventBus
             const newBounds: [number, number, number, number] = [10.5, 50.5, 11.5, 51.5];
-            rerender({ bounds: newBounds });
+
+            await act(async () => {
+                eventBus.emit('discovery.clusteringCompleted', {
+                    bounds: newBounds,
+                    zoom: 12,
+                    category: 'GENERAL'
+                });
+            });
 
             await act(async () => {
                 jest.advanceTimersByTime(300);
@@ -300,14 +332,14 @@ describe('useViewportRooms', () => {
             });
         });
 
-        it('should debounce rapid bounds changes', async () => {
+        it('should fetch immediately on each event emission (no internal double-debounce)', async () => {
             (roomService.getViewportRooms as jest.Mock).mockResolvedValue({
                 rooms: [],
                 hasNext: false,
                 totalElements: 0,
             });
 
-            const { rerender } = renderHook(
+            const { result } = renderHook<UseViewportRoomsReturn, { bounds: [number, number, number, number] }>(
                 ({ bounds }) =>
                     useViewportRooms({
                         bounds,
@@ -318,28 +350,39 @@ describe('useViewportRooms', () => {
                 }
             );
 
-            // Rapid bounds changes (simulating map panning)
-            for (let i = 0; i < 5; i++) {
-                const newBounds: [number, number, number, number] = [
-                    10 + i * 0.5,
-                    50 + i * 0.5,
-                    11 + i * 0.5,
-                    51 + i * 0.5,
-                ];
-                rerender({ bounds: newBounds });
+            // Initial fetch
+            await waitFor(() => {
+                expect(result.current.isLoading).toBe(false);
+            });
+            expect(roomService.getViewportRooms).toHaveBeenCalledTimes(1);
 
-                await act(async () => {
-                    jest.advanceTimersByTime(100); // Less than debounce time
-                });
-            }
+            // Two distinct stable clustering events
+            const newBounds1: [number, number, number, number] = [10.1, 50.1, 11.1, 51.1];
+            const newBounds2: [number, number, number, number] = [10.2, 50.2, 11.2, 51.2];
 
-            // Complete the debounce
             await act(async () => {
-                jest.advanceTimersByTime(300);
+                eventBus.emit('discovery.clusteringCompleted', {
+                    bounds: newBounds1,
+                    zoom: 12,
+                    category: 'GENERAL'
+                });
             });
 
-            // Should only fetch twice at most (initial + last debounced)
-            expect(roomService.getViewportRooms).toHaveBeenCalledTimes(2);
+            await waitFor(() => {
+                expect(roomService.getViewportRooms).toHaveBeenCalledTimes(2);
+            });
+
+            await act(async () => {
+                eventBus.emit('discovery.clusteringCompleted', {
+                    bounds: newBounds2,
+                    zoom: 12,
+                    category: 'GENERAL'
+                });
+            });
+
+            await waitFor(() => {
+                expect(roomService.getViewportRooms).toHaveBeenCalledTimes(3);
+            });
         });
     });
 
@@ -383,7 +426,7 @@ describe('useViewportRooms', () => {
                 totalElements: 0,
             });
 
-            const { rerender } = renderHook(
+            const { rerender } = renderHook<UseViewportRoomsReturn, { category: string | undefined }>(
                 ({ category }) =>
                     useViewportRooms({
                         bounds: mockBounds,

@@ -34,7 +34,10 @@ import { ListViewFilters, type ListViewSortOption } from '../list/ListViewFilter
 import { ListViewItem } from '../list/ListViewItem';
 
 // Styles
+import { createLogger } from '../../../shared/utils/logger';
 import { styles } from './RoomListView.styles';
+
+const log = createLogger('RoomListView');
 
 
 interface RoomListViewProps {
@@ -47,14 +50,16 @@ interface RoomListViewProps {
     onEnterRoom?: (room: Room) => void;
     onCreateRoom?: () => void;
     userLocation?: { latitude: number; longitude: number; lat?: number; lng?: number } | null;
+    mode: 'map' | 'list';
+    isTransitioning: boolean;
 }
 
 /**
  * Room List Item Wrapper - connects to RoomContext
  * Uses the decomposed ListViewItem component
- * NOTE: isJoined is now passed from parent to avoid hook-per-item performance issue
+ * Memoized to prevent unnecessary re-renders during list updates
  */
-function RoomListItemWrapper({
+const RoomListItemWrapper = memo(function RoomListItemWrapper({
     room,
     onJoin,
     onEnterRoom,
@@ -82,7 +87,7 @@ function RoomListItemWrapper({
             userLocation={normalizedLocation}
         />
     );
-}
+});
 
 // RoomListItem is now provided by ListViewItem component
 
@@ -148,6 +153,8 @@ export const RoomListView = memo(function RoomListView({
     onEnterRoom,
     onCreateRoom,
     userLocation: userLocationProp,
+    mode,
+    isTransitioning,
 }: RoomListViewProps) {
     const insets = useSafeAreaInsets();
     const [searchQuery, setSearchQuery] = useState('');
@@ -171,15 +178,17 @@ export const RoomListView = memo(function RoomListView({
     const scrollButtonTranslateY = React.useRef(new Animated.Value(-100)).current;
     const scrollButtonOpacity = React.useRef(new Animated.Value(0)).current; // Start invisible
     const lastFirstRoomIdRef = useRef<string | null>(null);
+    // Mode tracking to detect when the list is opened
+    const lastModeRef = useRef(mode);
 
     // Deferred rendering - prevents initial lag by showing loading state first
     const [isReady, setIsReady] = useState(false);
     useEffect(() => {
-        // Defer heavy computation until after first paint
-        const timer = requestAnimationFrame(() => {
+        // Use a small delay to allow the switch animation to start smoothly
+        const timer = setTimeout(() => {
             setIsReady(true);
-        });
-        return () => cancelAnimationFrame(timer);
+        }, 100);
+        return () => clearTimeout(timer);
     }, []);
 
     const handleScroll = useCallback((event: any) => {
@@ -230,25 +239,37 @@ export const RoomListView = memo(function RoomListView({
         }
     }, [selectedCategory]);
 
-    // Auto-scroll to top when rooms update from a fresh fetch (detected via first room ID change)
+    // Auto-scroll to top when rooms update from a fresh fetch or when list is opened
+    // satisfies the requirement: "and everytime list room is updated, and user opens up the list it should start from beginning of the list"
     useEffect(() => {
-        if (rooms.length > 0) {
-            const firstRoomId = rooms[0].id;
+        // We only care about scrolling when in list mode
+        if (mode === 'list') {
+            const firstRoomId = rooms[0]?.id;
+            const modeChanged = lastModeRef.current !== 'list';
+            const dataChanged = firstRoomId !== lastFirstRoomIdRef.current;
 
-            // If the first room ID changed, it's a new list (not pagination)
-            if (firstRoomId !== lastFirstRoomIdRef.current) {
-                // Scroll to top with a tiny delay to allow content to layout
+            // Trigger scroll if:
+            // 1. User just switched to list mode
+            // 2. Data updated and the first room is different
+            if ((modeChanged || dataChanged) && rooms.length > 0) {
+                log.debug('Auto-scrolling to top', { modeChanged, dataChanged });
+
+                // Use a tiny delay to allow the switch animation and layout to settle
+                // Transitioning check ensures we don't scroll mid-animation
                 const timer = setTimeout(() => {
-                    flatListRef.current?.scrollToOffset({ offset: 0, animated: true });
-                }, 100);
+                    if (flatListRef.current) {
+                        flatListRef.current.scrollToOffset({ offset: 0, animated: !modeChanged });
+                    }
+                }, modeChanged ? 50 : 150);
 
                 lastFirstRoomIdRef.current = firstRoomId;
+                lastModeRef.current = 'list';
                 return () => clearTimeout(timer);
             }
-        } else {
-            lastFirstRoomIdRef.current = null;
         }
-    }, [rooms]);
+
+        lastModeRef.current = mode;
+    }, [rooms, mode]); // Triggered on both room data and mode changes
 
     // Subscribe to myRooms to force re-render when join/leave state changes
     // isJoined is extracted once here and passed to items (not called per-item)
@@ -393,9 +414,8 @@ export const RoomListView = memo(function RoomListView({
     }, [isLoadingMore, hasMoreRooms, searchQuery, loadMoreRooms]);
 
     // Memoize flattened list data for FlatList
-    // Optimized in Phase 8 to avoid nested loops on every re-render
     const flattenedData = useMemo(() => {
-        if (filteredRooms.length === 0) return [];
+        if (!isReady || filteredRooms.length === 0) return [];
 
         const flattened: ({ type: 'header'; title: string } | { type: 'room'; room: Room })[] = [];
 
