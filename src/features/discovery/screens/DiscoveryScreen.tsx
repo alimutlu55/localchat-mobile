@@ -411,9 +411,14 @@ export default function DiscoveryScreen() {
                 const optimalZoom = calcOptimalZoomForCluster(boundsSpan, currentActualZoom);
 
                 // ALWAYS progress enough to split the cluster
-                // Use at least optimalZoom + 1 to guarantee eps is small enough
-                // And always at least 2 zoom levels for visual feedback
-                const targetZoom = Math.min(Math.max(currentActualZoom + 2, optimalZoom + 1), 12);
+                // When at very low zoom levels (world view), allow larger jumps to ensure
+                // clusters actually expand to individual rooms.
+                // - At zoom 1-4: use optimalZoom directly for aggressive expansion
+                // - At zoom 5+: use at least currentZoom + 2 for visual feedback
+                const minProgressZoom = currentActualZoom < 5
+                    ? optimalZoom  // From world view: jump directly to optimal
+                    : Math.max(currentActualZoom + 2, optimalZoom);
+                const targetZoom = Math.min(minProgressZoom, 12);
 
                 // Calculate center of expansion bounds
                 const centerLng = (minLng + maxLng) / 2;

@@ -89,10 +89,10 @@ export function calcOptimalZoomForCluster(
     for (let z = currentZoom + 1; z <= MAX_CLUSTERING_ZOOM; z++) {
         const eps = EPS_BY_ZOOM[z] ?? 0.001;
         if (eps <= targetEps) {
-            // AGGRESSIVE ZOOM LIMIT: We limit the jump to 6 levels per click.
-            // This prevents the map from zooming in too deep (e.g. into building roofs)
-            // in one go, maintaining context while still being fast.
-            return Math.min(Math.max(z, currentZoom + 1), currentZoom + 6, MAX_CLUSTERING_ZOOM);
+            // AGGRESSIVE ZOOM LIMIT: We limit the jump to 10 levels per click.
+            // This allows adequate expansion from world view (zoom 1) to room-level
+            // (zoom 11+) in a single click, preventing the need for double-clicking.
+            return Math.min(Math.max(z, currentZoom + 1), currentZoom + 10, MAX_CLUSTERING_ZOOM);
         }
     }
 
