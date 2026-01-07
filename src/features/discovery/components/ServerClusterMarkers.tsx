@@ -76,15 +76,18 @@ export const ServerRoomMarker = memo(function ServerRoomMarker({
       key={`server-room-${properties.roomId}`}
       id={`server-room-${properties.roomId}`}
       coordinate={[lng, lat]}
-      anchor={{ x: 0.5, y: 0.5 }}
+      anchor={{ x: 0.5, y: 1 }}
       selected={isSelected}
       onDeselected={onDeselect}
     >
       <TouchableOpacity
-        style={styles.markerContainer}
-        activeOpacity={0.9}
+        style={[
+          styles.markerContainer,
+          isSelected && styles.selectedMarker
+        ]}
+        activeOpacity={0.85}
         onPress={() => onPress(feature)}
-        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        hitSlop={{ top: 15, bottom: 20, left: 20, right: 20 }}
       >
         {USE_CARD_STYLE ? (
           <MiniRoomCard room={roomForPin as Room} isSelected={isSelected} />
@@ -171,5 +174,8 @@ const styles = StyleSheet.create({
   markerContainer: {
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  selectedMarker: {
+    zIndex: 100, // Ensure selected marker is above others
   },
 });
