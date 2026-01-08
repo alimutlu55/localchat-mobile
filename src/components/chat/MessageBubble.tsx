@@ -269,15 +269,14 @@ export function MessageBubble({
                       message.reactions && message.reactions.length > 0 && { marginBottom: 12 },
                     ]}
                   >
-                    <View style={styles.bubbleContentRow}>
+                    <View style={styles.bubbleInner}>
                       <Text style={[styles.messageText, styles.messageTextOwn]}>
                         {message.content}
+                        <Text style={{ opacity: 0 }}>{'\u00A0'}{'\u00A0'}{'\u00A0'}{'\u00A0'}{'\u00A0'}{'\u00A0'}{'\u00A0'}{'\u00A0'}{'\u00A0'}{'\u00A0'}{'\u00A0'}{'\u00A0'}</Text>
                       </Text>
-                      <View style={styles.ownMessageMeta}>
+                      <View style={styles.ownMessageMetaAbsolute}>
                         {message.status === 'failed' ? (
-                          <>
-                            <AlertCircle size={14} color={theme.tokens.text.onPrimary} />
-                          </>
+                          <AlertCircle size={14} color={theme.tokens.text.onPrimary} />
                         ) : (
                           <>
                             <Text style={styles.messageTimeOwn}>
@@ -335,18 +334,23 @@ export function MessageBubble({
                     style={[
                       styles.bubble,
                       message.reactions && message.reactions.length > 0 && { marginBottom: 12 },
+                      styles.bubbleIncoming
                     ]}
                     onPress={handlePress}
                     onLongPress={handleLongPress}
                     activeOpacity={0.8}
                   >
-                    <Text style={styles.messageText}>
-                      {message.content}
-                      {'  '}
-                      <Text style={styles.messageTimeInside}>
-                        {formatTime(message.timestamp)}
+                    <View style={styles.bubbleInner}>
+                      <Text style={styles.messageText}>
+                        {message.content}
+                        <Text style={{ opacity: 0 }}>{'\u00A0'}{'\u00A0'}{'\u00A0'}{'\u00A0'}{'\u00A0'}{'\u00A0'}{'\u00A0'}{'\u00A0'}{'\u00A0'}{'\u00A0'}</Text>
                       </Text>
-                    </Text>
+                      <View style={styles.messageMetaAbsolute}>
+                        <Text style={styles.messageTimeInside}>
+                          {formatTime(message.timestamp)}
+                        </Text>
+                      </View>
+                    </View>
                   </TouchableOpacity>
                 </View>
                 {message.reactions && message.reactions.length > 0 && (
@@ -629,14 +633,24 @@ const styles = StyleSheet.create({
   },
   bubbleInner: {
     flexDirection: 'column',
+    position: 'relative',
   },
-  bubbleContentRow: {
+  bubbleIncoming: {
+    backgroundColor: theme.tokens.bg.surface,
+    borderRadius: 10,
+  },
+  ownMessageMetaAbsolute: {
+    position: 'absolute',
+    bottom: 4,
+    right: 8,
     flexDirection: 'row',
-    alignItems: 'flex-end',
-    justifyContent: 'space-between',
+    alignItems: 'center',
+    gap: 4,
   },
-  timestampSpacer: {
-    fontSize: 12,
+  messageMetaAbsolute: {
+    position: 'absolute',
+    bottom: 4,
+    right: 8,
   },
   reactionsContainer: {
     flexDirection: 'row',
