@@ -17,9 +17,6 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.localchat.mobile",
-      "config": {
-        "googleMapsApiKey": "YOUR_GOOGLE_MAPS_API_KEY"
-      },
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "BubbleUp connects you with people nearby. Your location helps discover and create local rooms.",
         "NSLocationAlwaysUsageDescription": "BubbleUp uses your location to notify you about nearby rooms and keep you connected with your community.",
@@ -33,11 +30,6 @@
         "backgroundColor": "#ffffff"
       },
       "package": "com.localchat.mobile",
-      "config": {
-        "googleMaps": {
-          "apiKey": "YOUR_GOOGLE_MAPS_API_KEY"
-        }
-      },
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION"

@@ -11,14 +11,14 @@ import { theme } from '../core/theme';
  */
 export const API_CONFIG = {
   // Base URL for REST API
-  BASE_URL: __DEV__
+  BASE_URL: process.env.EXPO_PUBLIC_API_URL || (__DEV__
     ? 'http://localhost:8080/api/v1'
-    : 'https://api.localchat.app/api/v1',
+    : 'https://api.localchat.app/api/v1'),
 
   // WebSocket URL
-  WS_URL: __DEV__
+  WS_URL: process.env.EXPO_PUBLIC_WS_URL || (__DEV__
     ? 'ws://localhost:8080/ws'
-    : 'wss://api.localchat.app/ws',
+    : 'wss://api.localchat.app/ws'),
 
   // Request timeout in milliseconds
   TIMEOUT: 30000,
