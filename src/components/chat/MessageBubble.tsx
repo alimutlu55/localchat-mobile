@@ -272,7 +272,7 @@ export function MessageBubble({
                     <View style={styles.bubbleInner}>
                       <Text style={[styles.messageText, styles.messageTextOwn]}>
                         {message.content}
-                        <Text style={{ opacity: 0 }}>{'\u00A0'}{'\u00A0'}{'\u00A0'}{'\u00A0'}{'\u00A0'}{'\u00A0'}{'\u00A0'}{'\u00A0'}{'\u00A0'}{'\u00A0'}{'\u00A0'}{'\u00A0'}</Text>
+                        <View style={{ width: 68, height: 1 }} />
                       </Text>
                       <View style={styles.ownMessageMetaAbsolute}>
                         {message.status === 'failed' ? (
@@ -343,7 +343,7 @@ export function MessageBubble({
                     <View style={styles.bubbleInner}>
                       <Text style={styles.messageText}>
                         {message.content}
-                        <Text style={{ opacity: 0 }}>{'\u00A0'}{'\u00A0'}{'\u00A0'}{'\u00A0'}{'\u00A0'}{'\u00A0'}{'\u00A0'}{'\u00A0'}{'\u00A0'}{'\u00A0'}</Text>
+                        <View style={{ width: 55, height: 1 }} />
                       </Text>
                       <View style={styles.messageMetaAbsolute}>
                         <Text style={styles.messageTimeInside}>
@@ -628,9 +628,6 @@ const styles = StyleSheet.create({
   messageTextOwn: {
     color: theme.tokens.text.onPrimary,
   },
-  bubbleContent: {
-    paddingBottom: 4,
-  },
   bubbleInner: {
     flexDirection: 'column',
     position: 'relative',
@@ -641,7 +638,7 @@ const styles = StyleSheet.create({
   },
   ownMessageMetaAbsolute: {
     position: 'absolute',
-    bottom: 4,
+    bottom: 2,
     right: 8,
     flexDirection: 'row',
     alignItems: 'center',
@@ -649,8 +646,16 @@ const styles = StyleSheet.create({
   },
   messageMetaAbsolute: {
     position: 'absolute',
-    bottom: 4,
+    bottom: 2,
     right: 8,
+  },
+  messageTimeOwn: {
+    fontSize: 11,
+    color: 'rgba(255, 255, 255, 0.7)',
+  },
+  messageTimeInside: {
+    fontSize: 11,
+    color: theme.tokens.text.tertiary,
   },
   reactionsContainer: {
     flexDirection: 'row',
@@ -712,24 +717,6 @@ const styles = StyleSheet.create({
   },
   reactionCountActiveIncoming: {
     color: theme.tokens.text.secondary,
-  },
-  ownMessageMeta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginLeft: 8,
-    flexShrink: 0,
-  },
-  messageTimeOwn: {
-    fontSize: 11,
-    color: 'rgba(255, 255, 255, 0.8)',
-    flexShrink: 0,
-  },
-  messageTimeInside: {
-    fontSize: 11,
-    color: theme.tokens.text.tertiary,
-    marginLeft: 8,
-    flexShrink: 0,
   },
   overlayInner: {
     width: '85%',
