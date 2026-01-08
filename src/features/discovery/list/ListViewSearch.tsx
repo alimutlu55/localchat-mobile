@@ -5,13 +5,14 @@
  * Styles match the original RoomListView.tsx exactly.
  */
 
-import React, { memo } from 'react';
+import React, { memo, useRef } from 'react';
 import {
     View,
     TextInput,
     TouchableOpacity,
     ActivityIndicator,
     StyleSheet,
+    Pressable,
 } from 'react-native';
 import { Search, X } from 'lucide-react-native';
 import { theme } from '../../../core/theme';
@@ -48,10 +49,15 @@ export const ListViewSearch = memo(function ListViewSearch({
     isSearching = false,
     placeholder = 'Search rooms...',
 }: ListViewSearchProps) {
+    const inputRef = useRef<TextInput>(null);
     return (
-        <View style={styles.searchContainer}>
+        <Pressable
+            style={styles.searchContainer}
+            onPress={() => inputRef.current?.focus()}
+        >
             <Search size={18} color={theme.tokens.text.tertiary} style={styles.searchIcon} />
             <TextInput
+                ref={inputRef}
                 style={styles.searchInput}
                 placeholder={placeholder}
                 placeholderTextColor={theme.tokens.text.tertiary}
@@ -71,7 +77,7 @@ export const ListViewSearch = memo(function ListViewSearch({
                     style={styles.searchLoadingIndicator}
                 />
             )}
-        </View>
+        </Pressable>
     );
 });
 

@@ -11,13 +11,14 @@
  * - Keyboard aware styling
  */
 
-import React, { RefObject } from 'react';
+import React, { RefObject, useRef } from 'react';
 import {
     View,
     TextInput,
     TouchableOpacity,
     StyleSheet,
     TextInput as RNTextInput,
+    Pressable,
 } from 'react-native';
 import { Send } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -59,11 +60,18 @@ export function MessageInput({
 }: MessageInputProps) {
     const insets = useSafeAreaInsets();
 
+    // We need an internal ref if one isn't provided, to handle the focus on container press
+    const internalRef = useRef<RNTextInput>(null);
+    const resolvedRef = (inputRef as RefObject<RNTextInput>) || internalRef;
+
     return (
         <View style={[styles.container, { paddingBottom: Math.max(insets.bottom, 12) }]}>
-            <View style={styles.inputWrapper}>
+            <Pressable
+                style={styles.inputWrapper}
+                onPress={() => resolvedRef.current?.focus()}
+            >
                 <TextInput
-                    ref={inputRef}
+                    ref={resolvedRef}
                     style={styles.input}
                     placeholder={placeholder}
                     placeholderTextColor={theme.tokens.text.tertiary}
@@ -74,7 +82,7 @@ export function MessageInput({
                     accessibilityLabel="Message input"
                     accessibilityHint="Type your message here"
                 />
-            </View>
+            </Pressable>
             <TouchableOpacity
                 style={styles.sendButton}
                 onPress={onSubmit}

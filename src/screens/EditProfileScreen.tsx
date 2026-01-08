@@ -20,6 +20,7 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -47,6 +48,8 @@ export default function EditProfileScreen() {
   const [isSavingBio, setIsSavingBio] = useState(false);
   const [isNameSaved, setIsNameSaved] = useState(false);
   const [isBioSaved, setIsBioSaved] = useState(false);
+  const displayNameRef = useRef<TextInput>(null);
+  const bioRef = useRef<TextInput>(null);
 
   const nameChanged = displayName.trim() !== (user?.displayName || '');
   const bioChanged = bio.trim() !== (user?.bio || '');
@@ -209,9 +212,13 @@ export default function EditProfileScreen() {
                 <Text style={styles.label}>Display Name</Text>
                 <Text style={styles.charCount}>{displayName.length}/{MAX_DISPLAY_NAME_LENGTH}</Text>
               </View>
-              <View style={styles.inputContainer}>
+              <Pressable
+                style={styles.inputContainer}
+                onPress={() => displayNameRef.current?.focus()}
+              >
                 <User size={20} color="#9ca3af" />
                 <TextInput
+                  ref={displayNameRef}
                   style={styles.input}
                   placeholder="Enter display name"
                   placeholderTextColor="#9ca3af"
@@ -235,7 +242,7 @@ export default function EditProfileScreen() {
                     )}
                   </TouchableOpacity>
                 )}
-              </View>
+              </Pressable>
               <Text style={styles.inputHint}>
                 This is how others will see you in chat rooms.
               </Text>
@@ -247,9 +254,13 @@ export default function EditProfileScreen() {
                 <Text style={styles.label}>Bio</Text>
                 <Text style={styles.charCount}>{bio.length}/{MAX_BIO_LENGTH}</Text>
               </View>
-              <View style={[styles.inputContainer, styles.bioInputContainer]}>
+              <Pressable
+                style={[styles.inputContainer, styles.bioInputContainer]}
+                onPress={() => bioRef.current?.focus()}
+              >
                 <FileText size={20} color="#9ca3af" style={styles.bioIcon} />
                 <TextInput
+                  ref={bioRef}
                   style={[styles.input, styles.bioInput]}
                   placeholder="Tell others about yourself..."
                   placeholderTextColor="#9ca3af"
@@ -279,7 +290,7 @@ export default function EditProfileScreen() {
                     )}
                   </TouchableOpacity>
                 )}
-              </View>
+              </Pressable>
               <Text style={styles.inputHint}>
                 Optional. Visible to others in rooms you join.
               </Text>

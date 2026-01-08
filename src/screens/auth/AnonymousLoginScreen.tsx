@@ -4,7 +4,7 @@
  * Allows users to join without creating an account.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import {
   Platform,
   ActivityIndicator,
   Alert,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -26,6 +27,7 @@ export default function AnonymousLoginScreen() {
   const navigation = useNavigation();
   const { loginAnonymous, isLoading, error } = useAuth();
   const [displayName, setDisplayName] = useState('');
+  const inputRef = useRef<TextInput>(null);
 
   const handleContinue = async () => {
     if (!displayName.trim()) {
@@ -80,7 +82,10 @@ export default function AnonymousLoginScreen() {
           </Text>
 
           <View style={styles.inputGroup}>
-            <View style={styles.inputContainer}>
+            <Pressable
+              style={styles.inputContainer}
+              onPress={() => inputRef.current?.focus()}
+            >
               <Text style={[
                 styles.floatingLabel,
                 displayName && styles.floatingLabelActive
@@ -88,6 +93,7 @@ export default function AnonymousLoginScreen() {
                 Display Name
               </Text>
               <TextInput
+                ref={inputRef}
                 style={styles.input}
                 placeholder=""
                 placeholderTextColor="#9ca3af"
@@ -103,7 +109,7 @@ export default function AnonymousLoginScreen() {
               >
                 <Sparkles size={20} color="#9ca3af" />
               </TouchableOpacity>
-            </View>
+            </Pressable>
 
             <Text style={styles.hint}>
               Tip: Tap the sparkle icon for a random name

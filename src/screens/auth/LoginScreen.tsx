@@ -9,6 +9,7 @@ import {
   Platform,
   ActivityIndicator,
   Animated,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -33,6 +34,8 @@ export default function LoginScreen() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+
+  const passwordRef = useRef<TextInput>(null);
 
   // Animation for shake effect
   const shakeAnimation = useRef(new Animated.Value(0)).current;
@@ -132,10 +135,13 @@ export default function LoginScreen() {
 
           {/* Password Input */}
           <View style={styles.inputGroup}>
-            <View style={[
-              styles.inputContainer,
-              hasError && styles.inputContainerError
-            ]}>
+            <Pressable
+              style={[
+                styles.inputContainer,
+                hasError && styles.inputContainerError
+              ]}
+              onPress={() => passwordRef.current?.focus()}
+            >
               <Text
                 style={[
                   styles.floatingLabel,
@@ -146,6 +152,7 @@ export default function LoginScreen() {
                 Password
               </Text>
               <TextInput
+                ref={passwordRef}
                 style={styles.input}
                 placeholder=""
                 placeholderTextColor="#9ca3af"
@@ -172,7 +179,7 @@ export default function LoginScreen() {
                   <Eye size={20} color="#9ca3af" />
                 )}
               </TouchableOpacity>
-            </View>
+            </Pressable>
 
             {/* Simple inline error message */}
             {hasError && (
