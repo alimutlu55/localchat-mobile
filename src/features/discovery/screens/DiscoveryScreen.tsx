@@ -29,9 +29,6 @@ import {
     MapViewRef,
 } from '@maplibre/maplibre-react-native';
 import { MAP_CONFIG, CATEGORIES } from '../../../constants';
-import {
-    Plus,
-} from 'lucide-react-native';
 
 // Navigation
 import { RootStackParamList } from '../../../navigation/types';
@@ -54,7 +51,8 @@ import {
     DiscoveryViewToggle,
     DiscoveryOverlay,
     ServerRoomMarker,
-    ServerClusterMarker
+    ServerClusterMarker,
+    CategoryFilter
 } from '../components';
 import RoomListView from '../components/RoomListView';
 
@@ -120,6 +118,15 @@ export default function DiscoveryScreen() {
 
     // Global Filter State
     const selectedCategory = useRoomStore(selectSelectedCategory);
+    const [showMapFilters, setShowMapFilters] = useState(false);
+    const [topContainerHeight, setTopContainerHeight] = useState(100);
+
+    const handleTopLayout = useCallback((e: any) => {
+        const height = e.nativeEvent.layout.height;
+        if (height > 0) {
+            setTopContainerHeight(height);
+        }
+    }, []);
 
     // Convert 'All' to undefined for the API
     // AND convert Label to ID because API expects ID (e.g. "LOST_FOUND") not Label ("Lost & Found")
@@ -608,6 +615,7 @@ export default function DiscoveryScreen() {
                         zoomOut={zoomOut}
                         onCenterOnUser={handleCenterOnUser}
                         onResetToWorldView={handleResetToWorldView}
+                        topOffset={topContainerHeight}
                     />
 
                     {/* Overlay (Counter & Empty State) */}
@@ -620,6 +628,7 @@ export default function DiscoveryScreen() {
                         isUserInView={isUserInView}
                         isMapMoving={isMapMoving}
                         onCreateRoom={handleCreateRoom}
+                        topOffset={topContainerHeight}
                     />
                 </Animated.View>
 
@@ -652,11 +661,28 @@ export default function DiscoveryScreen() {
                 <AdBanner transparent={false} />
             </View>
 
-            {/* Header with Connection Banner on top */}
-            <DiscoveryHeader
-                onOpenSidebar={openSidebar}
-                onCreateRoom={handleCreateRoom}
-            />
+            {/* Top UI Area (Header + Conditional Filters) */}
+            <View style={styles.topContainer} onLayout={handleTopLayout}>
+                <DiscoveryHeader
+                    onOpenSidebar={openSidebar}
+                    onCreateRoom={handleCreateRoom}
+                    onToggleFilters={() => setShowMapFilters(!showMapFilters)}
+                    isFilterActive={showMapFilters}
+                    viewMode={viewMode}
+                />
+
+                {/* Map-Specific Category Filter Bar */}
+                {viewMode === 'map' && showMapFilters && (
+                    <Animated.View
+                        style={[
+                            styles.filterBar,
+                            { opacity: listOpacity.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }) }
+                        ]}
+                    >
+                        <CategoryFilter />
+                    </Animated.View>
+                )}
+            </View>
 
             {/* View Toggle */}
             <DiscoveryViewToggle

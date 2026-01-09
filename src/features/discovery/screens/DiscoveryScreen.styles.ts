@@ -44,14 +44,20 @@ export const styles = StyleSheet.create({
         paddingTop: 100,
         backgroundColor: theme.tokens.bg.canvas,
     },
-    header: {
+    topContainer: {
         position: 'absolute',
         top: 0,
         left: 0,
         right: 0,
+        zIndex: 110,
+    },
+    header: {
         backgroundColor: 'rgba(255, 255, 255, 0.95)',
         borderBottomWidth: 1,
         borderBottomColor: '#e5e7eb',
+    },
+    filterBar: {
+        backgroundColor: 'transparent',
     },
     headerContent: {
         flexDirection: 'row',
@@ -82,9 +88,23 @@ export const styles = StyleSheet.create({
         alignItems: 'center',
         backgroundColor: '#FF6410',
     },
+    headerFilterButton: {
+        width: 36,
+        height: 36,
+        borderRadius: 12,
+        justifyContent: 'center',
+        alignItems: 'center',
+        backgroundColor: '#f3f4f6',
+        borderWidth: 1,
+        borderColor: '#e5e7eb',
+    },
+    headerFilterButtonActive: {
+        backgroundColor: '#fff7ed',
+        borderColor: '#ffedd5',
+    },
     mapControls: {
         position: 'absolute',
-        top: 150,
+        // top is now set dynamically via prop
         right: 10,
         gap: 12,
     },
@@ -132,7 +152,7 @@ export const styles = StyleSheet.create({
     },
     eventsCounter: {
         position: 'absolute',
-        top: 140, // Increased to definitely clear the header/insets
+        // top is now set dynamically via prop
         left: 20,
         zIndex: 10,
     },

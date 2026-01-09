@@ -156,6 +156,7 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
 
   const lastFetchBoundsRef = useRef<[number, number, number, number] | null>(null);
   const lastFetchZoomRef = useRef<number | null>(null);
+  const lastCategoryRef = useRef<string | undefined>(undefined);
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isFetchingRef = useRef(false);
   const mountedRef = useRef(true);
@@ -372,8 +373,10 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
 
     const lastZoom = lastFetchZoomRef.current;
     const lastBounds = lastFetchBoundsRef.current;
+    const lastCategory = lastCategoryRef.current;
     const isFirstLoad = lastBounds === null;
     const zoomChanged = lastZoom === null || Math.abs(zoom - lastZoom) >= 0.3;
+    const categoryChanged = category !== lastCategory;
 
     let panChanged = false;
     if (lastBounds) {
@@ -391,18 +394,25 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
     // Detect if user location just became available (critical for visibility radius rooms)
     const locationBecameAvailable = !lastFetchBoundsRef.current && userLocation !== null;
 
-    const shouldFetch = isFirstLoad || zoomChanged || panChanged || forceRefetch || locationBecameAvailable;
+    const shouldFetch = isFirstLoad || zoomChanged || panChanged || forceRefetch || locationBecameAvailable || categoryChanged;
     const prefetchInProgress = isPrefetchingRef.current || prefetchTimerRef.current !== null;
 
     if (!shouldFetch || prefetchInProgress) return;
 
-    const delay = forceRefetch ? 0 : getDebounceDelay(zoom);
+    // Use shorter delay for category changes and forced refetches for better UX
+    const delay = (forceRefetch || categoryChanged) ? 0 : getDebounceDelay(zoom);
+
+    // Update category ref before starting fetch
+    if (categoryChanged) {
+      lastCategoryRef.current = category;
+    }
+
     debounceTimerRef.current = setTimeout(() => {
       fetchClusters(bounds, zoom);
     }, delay);
 
     return () => { if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current); };
-  }, [bounds, zoom, enabled, isMapReady, userLocation, fetchClusters]);
+  }, [bounds, zoom, category, enabled, isMapReady, userLocation, fetchClusters]);
 
   useEffect(() => {
     if (!enabled || !isMapReady) return;

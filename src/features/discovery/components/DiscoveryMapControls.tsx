@@ -13,6 +13,7 @@ interface DiscoveryMapControlsProps {
     zoomOut: () => void;
     onCenterOnUser: () => void;
     onResetToWorldView: () => void;
+    topOffset?: number;
 }
 
 export const DiscoveryMapControls: React.FC<DiscoveryMapControlsProps> = ({
@@ -25,12 +26,13 @@ export const DiscoveryMapControls: React.FC<DiscoveryMapControlsProps> = ({
     zoomOut,
     onCenterOnUser,
     onResetToWorldView,
+    topOffset = 150,
 }) => {
     return (
         <Animated.View
             style={[
                 styles.mapControls,
-                { opacity: markersOpacity }
+                { opacity: markersOpacity, top: topOffset + 10 }
             ]}
             pointerEvents={isMapStable ? 'auto' : 'none'}
         >

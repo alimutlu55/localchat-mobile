@@ -11,6 +11,7 @@ interface DiscoveryOverlayProps {
     isUserInView: boolean;
     isMapMoving: boolean;
     onCreateRoom: () => void;
+    topOffset?: number;
 }
 
 export const DiscoveryOverlay: React.FC<DiscoveryOverlayProps> = ({
@@ -22,11 +23,12 @@ export const DiscoveryOverlay: React.FC<DiscoveryOverlayProps> = ({
     isUserInView,
     isMapMoving,
     onCreateRoom,
+    topOffset = 140,
 }) => {
     return (
         <>
             {/* Events Counter - Fade in with markers */}
-            <Animated.View style={[styles.eventsCounter, { opacity: markersOpacity }]}>
+            <Animated.View style={[styles.eventsCounter, { opacity: markersOpacity, top: topOffset + 5 }]}>
                 <Text style={styles.eventsCounterText}>
                     {totalEventsInView} {totalEventsInView === 1 ? 'event' : 'events'} in view
                 </Text>

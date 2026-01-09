@@ -13,18 +13,12 @@ import {
     TouchableOpacity,
     StyleSheet,
 } from 'react-native';
-import { CATEGORIES } from '../../../constants';
 import { theme } from '../../../core/theme';
+import { CategoryFilter } from '../components/CategoryFilter';
 
 // =============================================================================
 // Constants
 // =============================================================================
-
-// Build category filter options
-const CATEGORY_FILTERS = [
-    { label: 'All', emoji: '' },
-    ...CATEGORIES.map(cat => ({ label: cat.label, emoji: cat.emoji }))
-];
 
 // Sort options
 const SORT_OPTIONS = ['nearest', 'most-active', 'expiring-soon', 'newest'] as const;
@@ -42,40 +36,6 @@ export interface ListViewFiltersProps {
     showFilters?: boolean;
     onToggleFilters?: () => void;
 }
-
-// =============================================================================
-// Subcomponents
-// =============================================================================
-
-/**
- * CategoryChip - Individual category filter chip
- * Memoized to prevent unnecessary re-renders
- */
-const CategoryChip = memo(function CategoryChip({
-    label,
-    emoji,
-    isSelected,
-    onPress,
-}: {
-    label: string;
-    emoji?: string;
-    isSelected: boolean;
-    onPress: () => void;
-}) {
-    return (
-        <TouchableOpacity
-            style={[styles.categoryChip, isSelected && styles.categoryChipSelected]}
-            onPress={onPress}
-            activeOpacity={0.7}
-        >
-            <Text
-                style={[styles.categoryChipText, isSelected && styles.categoryChipTextSelected]}
-            >
-                {emoji && `${emoji} `}{label}
-            </Text>
-        </TouchableOpacity>
-    );
-});
 
 // =============================================================================
 // Main Component
@@ -96,12 +56,9 @@ export const ListViewFilters = memo(function ListViewFilters({
     showFilters = false,
     onToggleFilters,
 }: ListViewFiltersProps) {
-    const handleCategoryPress = useCallback(
-        (category: string) => {
-            onCategorySelect(category);
-        },
-        [onCategorySelect]
-    );
+
+
+
 
     const handleSortPress = useCallback(
         (sort: ListViewSortOption) => {
@@ -139,24 +96,12 @@ export const ListViewFilters = memo(function ListViewFilters({
                 </View>
             )}
 
-            {/* Category Chips */}
-            <View style={styles.categoriesContainer}>
-                <ScrollView
-                    horizontal
-                    showsHorizontalScrollIndicator={false}
-                    contentContainerStyle={styles.categoriesContent}
-                >
-                    {CATEGORY_FILTERS.map((cat) => (
-                        <CategoryChip
-                            key={cat.label}
-                            label={cat.label}
-                            emoji={cat.emoji}
-                            isSelected={selectedCategory === cat.label}
-                            onPress={() => handleCategoryPress(cat.label)}
-                        />
-                    ))}
-                </ScrollView>
-            </View>
+            {/* Category Chips - Using shared component for single source of truth */}
+            <CategoryFilter
+                style={styles.categoriesContainer}
+                value={selectedCategory}
+                onValueChange={onCategorySelect}
+            />
         </>
     );
 });
@@ -198,36 +143,10 @@ const styles = StyleSheet.create({
         textTransform: 'capitalize',
     },
     sortChipTextSelected: {
-        color: '#FF6410',
         fontWeight: '500',
     },
     categoriesContainer: {
-        backgroundColor: '#ffffff',
-        borderBottomWidth: 1,
-        borderBottomColor: '#e5e7eb',
-        paddingVertical: 12,
-    },
-    categoriesContent: {
-        paddingHorizontal: 16,
-        gap: 8,
-    },
-    categoryChip: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        borderRadius: 20,
-        backgroundColor: '#f3f4f6',
-        marginRight: 8,
-    },
-    categoryChipSelected: {
-        backgroundColor: '#FF6410',
-    },
-    categoryChipText: {
-        fontSize: 14,
-        color: '#6b7280',
-    },
-    categoryChipTextSelected: {
-        color: '#ffffff',
-        fontWeight: '500',
+        backgroundColor: 'transparent',
     },
 });
 

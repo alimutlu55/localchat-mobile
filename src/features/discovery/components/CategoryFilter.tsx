@@ -120,27 +120,33 @@ export function CategoryFilter({
 
 const styles = StyleSheet.create({
     container: {
-        paddingVertical: 8,
-        backgroundColor: theme.tokens.bg.surface,
+        paddingVertical: 4,
+        backgroundColor: 'transparent',
     },
     scrollContent: {
         paddingHorizontal: 16,
         gap: 8,
     },
     chip: {
-        paddingHorizontal: 16,
-        paddingVertical: 8,
+        paddingHorizontal: 12,
+        paddingVertical: 5,
         borderRadius: 20,
-        backgroundColor: theme.tokens.bg.subtle,
+        backgroundColor: '#ffffff',
         borderWidth: 1,
         borderColor: theme.tokens.border.subtle,
+        // Add a subtle shadow for better definition against the map
+        shadowColor: '#000',
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 2,
+        elevation: 2,
     },
     chipSelected: {
         backgroundColor: theme.tokens.brand.primary,
         borderColor: theme.tokens.brand.primary,
     },
     chipText: {
-        fontSize: 13,
+        fontSize: 12,
         fontWeight: '500',
         color: theme.tokens.text.secondary,
     },
