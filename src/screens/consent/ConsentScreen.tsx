@@ -48,9 +48,10 @@ export default function ConsentScreen() {
     // Explicit consent checkboxes - GDPR Article 7 compliant
     const [tosAccepted, setTosAccepted] = React.useState(false);
     const [privacyAccepted, setPrivacyAccepted] = React.useState(false);
+    const [ageVerified, setAgeVerified] = React.useState(false);
 
-    // Both consents required to proceed
-    const canContinue = tosAccepted && privacyAccepted;
+    // All consents required to proceed (Essential flow)
+    const canContinue = tosAccepted && privacyAccepted && ageVerified;
 
     const handleConsensus = async (all: boolean) => {
         if (!canContinue) return;
@@ -198,6 +199,23 @@ export default function ConsentScreen() {
                             </Text>
                         </Text>
                     </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={styles.consentRow}
+                        onPress={() => setAgeVerified(!ageVerified)}
+                        activeOpacity={0.7}
+                    >
+                        <View style={[
+                            styles.checkbox,
+                            { borderColor: ageVerified ? theme.tokens.brand.primary : theme.tokens.border.subtle },
+                            ageVerified && { backgroundColor: theme.tokens.brand.primary }
+                        ]}>
+                            {ageVerified && <Check size={10} color="#ffffff" strokeWidth={3} />}
+                        </View>
+                        <Text style={[styles.consentText, { color: theme.tokens.text.secondary }]}>
+                            I confirm I am at least 18 years of age
+                        </Text>
+                    </TouchableOpacity>
                 </View>
 
                 {/* Action Buttons */}
@@ -249,9 +267,16 @@ export default function ConsentScreen() {
                     activeOpacity={0.6}
                 >
                     <Text style={[styles.settingsLinkText, { color: theme.tokens.text.tertiary }]}>
-                        Privacy settings
+                        Customize preferences
                     </Text>
                 </TouchableOpacity>
+
+                {/* Data Controller Identity - KVKK Requirement */}
+                <View style={styles.controllerInfo}>
+                    <Text style={[styles.controllerText, { color: theme.tokens.text.tertiary }]}>
+                        Data Controller: BubbleUp Official (localchat.official@gmail.com)
+                    </Text>
+                </View>
             </View>
         </SafeAreaView>
     );
@@ -377,5 +402,14 @@ const styles = StyleSheet.create({
     settingsLinkText: {
         fontSize: 13,
         fontWeight: '500',
+    },
+    controllerInfo: {
+        marginTop: 12,
+        alignItems: 'center',
+    },
+    controllerText: {
+        fontSize: 10,
+        textAlign: 'center',
+        opacity: 0.8,
     },
 });

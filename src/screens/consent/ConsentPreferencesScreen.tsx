@@ -62,6 +62,7 @@ export default function ConsentPreferencesScreen() {
             analyticsConsent: analyticsEnabled,
             locationConsent: false, // Will be set after OS permission is granted
             personalizedAdsConsent: personalizedAdsEnabled,
+            ageVerified: true, // User has already verified age to get here
         });
         // Navigate back instead of replacing to Welcome
         navigation.goBack();

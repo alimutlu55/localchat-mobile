@@ -24,6 +24,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import * as Location from 'expo-location';
 import {
     CameraRef,
     MapViewRef,
@@ -148,10 +149,33 @@ export default function DiscoveryScreen() {
     const { showConsentFormIfRequired } = useAds();
 
     useEffect(() => {
-        // Defer ad consent form until map is shown to the user
-        // This is part of the "Low Friction" onboarding experience
-        log.info('Discovery Screen focused, checking if ad consent form is required');
-        showConsentFormIfRequired();
+        // Defer hardware permission requests until map is shown to the user
+        // This is part of the "Low Friction" onboarding experience and Privacy-by-Design compliance
+        log.info('Discovery Screen focused, checking hardware permissions');
+
+        const requestPermissions = async () => {
+            try {
+                // 1. Ad Consent
+                await showConsentFormIfRequired();
+
+                // 2. Notifications (Post-login trigger)
+                const { notificationService } = await import('../../../services/notifications');
+                await notificationService.requestPermissions();
+
+                // 3. Small delay between native prompts to prevent UI overlaps
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                // 4. Location (Post-login trigger - only if not already granted)
+                const { status } = await Location.getForegroundPermissionsAsync();
+                if (status !== 'granted') {
+                    await getLocationPermissionStore().requestPermission();
+                }
+            } catch (err) {
+                log.warn('Failed to handle hardware permissions in DiscoveryScreen', err);
+            }
+        };
+
+        requestPermissions();
     }, [showConsentFormIfRequired]);
 
     // ==========================================================================

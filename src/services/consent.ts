@@ -15,6 +15,7 @@ const CONSENT_VERSION = '1.0';
 export interface ConsentOptions {
     tosAccepted: boolean;
     privacyAccepted: boolean;
+    ageVerified: boolean;
     analyticsConsent: boolean;
     locationConsent: boolean;
     personalizedAdsConsent: boolean; // For personalized ads - basic ads handled by Google UMP
@@ -41,6 +42,7 @@ interface BackendConsentStatus {
     needsReconsent: boolean;
     tosAccepted: boolean;
     privacyAccepted: boolean;
+    ageVerified: boolean;
     analyticsConsent: boolean;
     locationConsent: boolean;
     personalizedAdsConsent: boolean;
@@ -115,6 +117,7 @@ class ConsentService {
                 options: localVersionValid ? {
                     tosAccepted: backendStatus.tosAccepted,
                     privacyAccepted: backendStatus.privacyAccepted,
+                    ageVerified: backendStatus.ageVerified ?? true, // Default to true if restored from old version
                     analyticsConsent: backendStatus.analyticsConsent,
                     locationConsent: backendStatus.locationConsent,
                     personalizedAdsConsent: backendStatus.personalizedAdsConsent ?? false,
@@ -142,6 +145,7 @@ class ConsentService {
         await this.saveConsent({
             tosAccepted: true,
             privacyAccepted: true,
+            ageVerified: true,
             analyticsConsent: true,
             locationConsent: true,
             personalizedAdsConsent: true,
@@ -156,6 +160,7 @@ class ConsentService {
         await this.saveConsent({
             tosAccepted: true,
             privacyAccepted: true,
+            ageVerified: true,
             analyticsConsent: false,
             locationConsent: false,
             personalizedAdsConsent: false,
@@ -201,6 +206,7 @@ class ConsentService {
                     deviceId,
                     tosAccepted: options.tosAccepted,
                     privacyAccepted: options.privacyAccepted,
+                    ageVerified: options.ageVerified,
                     analyticsConsent: options.analyticsConsent,
                     locationConsent: options.locationConsent,
                     personalizedAdsConsent: options.personalizedAdsConsent,

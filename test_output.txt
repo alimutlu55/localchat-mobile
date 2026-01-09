@@ -1,0 +1,115 @@
+FAIL src/screens/consent/__tests__/ConsentScreen.test.tsx
+  ConsentScreen
+    ✕ should have both buttons disabled initially (6 ms)
+    ✕ should enable buttons only after all checkboxes (including age) are checked (3 ms)
+    ✕ should call acceptEssentialOnly when the respective button is pressed (1 ms)
+
+  ● ConsentScreen › should have both buttons disabled initially
+
+    No safe area value available. Make sure you are rendering `<SafeAreaProvider>` at the top of your app.
+
+      42 |     const navigation = useNavigation<NavigationProp>();
+      43 |     const theme = useTheme();
+    > 44 |     const insets = useSafeAreaInsets();
+         |                                     ^
+      45 |     const { logout } = useAuth();
+      46 |     const [isSubmitting, setIsSubmitting] = React.useState(false);
+      47 |
+
+      at useSafeAreaInsets (node_modules/react-native-safe-area-context/src/SafeAreaContext.tsx:152:11)
+      at ConsentScreen (src/screens/consent/ConsentScreen.tsx:44:37)
+      at Object.react-stack-bottom-frame (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:13976:20)
+      at renderWithHooks (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:2866:22)
+      at updateFunctionComponent (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:6006:19)
+      at beginWork (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:7474:18)
+      at runWithFiberInDEV (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:1574:13)
+      at performUnitOfWork (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:10972:22)
+      at workLoopSync (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:10816:41)
+      at renderRootSync (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:10797:11)
+      at performWorkOnRoot (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:10384:39)
+      at performWorkOnRootViaSchedulerTask (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:2094:7)
+      at flushActQueue (node_modules/react/cjs/react.development.js:566:34)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/react/cjs/react.development.js:859:10)
+      at actImplementation (node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/screens/consent/__tests__/ConsentScreen.test.tsx:48:15)
+
+  ● ConsentScreen › should enable buttons only after all checkboxes (including age) are checked
+
+    No safe area value available. Make sure you are rendering `<SafeAreaProvider>` at the top of your app.
+
+      42 |     const navigation = useNavigation<NavigationProp>();
+      43 |     const theme = useTheme();
+    > 44 |     const insets = useSafeAreaInsets();
+         |                                     ^
+      45 |     const { logout } = useAuth();
+      46 |     const [isSubmitting, setIsSubmitting] = React.useState(false);
+      47 |
+
+      at useSafeAreaInsets (node_modules/react-native-safe-area-context/src/SafeAreaContext.tsx:152:11)
+      at ConsentScreen (src/screens/consent/ConsentScreen.tsx:44:37)
+      at Object.react-stack-bottom-frame (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:13976:20)
+      at renderWithHooks (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:2866:22)
+      at updateFunctionComponent (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:6006:19)
+      at beginWork (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:7474:18)
+      at runWithFiberInDEV (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:1574:13)
+      at performUnitOfWork (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:10972:22)
+      at workLoopSync (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:10816:41)
+      at renderRootSync (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:10797:11)
+      at performWorkOnRoot (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:10384:39)
+      at performWorkOnRootViaSchedulerTask (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:2094:7)
+      at flushActQueue (node_modules/react/cjs/react.development.js:566:34)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/react/cjs/react.development.js:859:10)
+      at actImplementation (node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/screens/consent/__tests__/ConsentScreen.test.tsx:61:15)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at Object.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+
+  ● ConsentScreen › should call acceptEssentialOnly when the respective button is pressed
+
+    No safe area value available. Make sure you are rendering `<SafeAreaProvider>` at the top of your app.
+
+      42 |     const navigation = useNavigation<NavigationProp>();
+      43 |     const theme = useTheme();
+    > 44 |     const insets = useSafeAreaInsets();
+         |                                     ^
+      45 |     const { logout } = useAuth();
+      46 |     const [isSubmitting, setIsSubmitting] = React.useState(false);
+      47 |
+
+      at useSafeAreaInsets (node_modules/react-native-safe-area-context/src/SafeAreaContext.tsx:152:11)
+      at ConsentScreen (src/screens/consent/ConsentScreen.tsx:44:37)
+      at Object.react-stack-bottom-frame (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:13976:20)
+      at renderWithHooks (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:2866:22)
+      at updateFunctionComponent (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:6006:19)
+      at beginWork (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:7474:18)
+      at runWithFiberInDEV (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:1574:13)
+      at performUnitOfWork (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:10972:22)
+      at workLoopSync (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:10816:41)
+      at renderRootSync (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:10797:11)
+      at performWorkOnRoot (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:10384:39)
+      at performWorkOnRootViaSchedulerTask (node_modules/react-test-renderer/cjs/react-test-renderer.development.js:2094:7)
+      at flushActQueue (node_modules/react/cjs/react.development.js:566:34)
+      at Object.<anonymous>.process.env.NODE_ENV.exports.act (node_modules/react/cjs/react.development.js:859:10)
+      at actImplementation (node_modules/@testing-library/react-native/src/act.ts:30:25)
+      at renderWithAct (node_modules/@testing-library/react-native/src/render-act.ts:13:11)
+      at renderInternal (node_modules/@testing-library/react-native/src/render.tsx:69:33)
+      at renderInternal (node_modules/@testing-library/react-native/src/render.tsx:44:10)
+      at Object.<anonymous> (src/screens/consent/__tests__/ConsentScreen.test.tsx:83:15)
+      at asyncGeneratorStep (node_modules/@babel/runtime/helpers/asyncToGenerator.js:3:17)
+      at _next (node_modules/@babel/runtime/helpers/asyncToGenerator.js:17:9)
+      at node_modules/@babel/runtime/helpers/asyncToGenerator.js:22:7
+      at Object.<anonymous> (node_modules/@babel/runtime/helpers/asyncToGenerator.js:14:12)
+
+Test Suites: 1 failed, 1 total
+Tests:       3 failed, 3 total
+Snapshots:   0 total
+Time:        1.739 s
+Ran all test suites matching /src\/screens\/consent\/__tests__\/ConsentScreen.test.tsx/i.
