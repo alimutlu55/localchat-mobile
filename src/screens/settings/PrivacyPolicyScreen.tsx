@@ -19,7 +19,7 @@ import { ArrowLeft } from 'lucide-react-native';
 import { theme } from '../../core/theme';
 
 const EFFECTIVE_DATE = 'January 4, 2026';
-const LAST_UPDATED = 'January 4, 2026';
+const LAST_UPDATED = 'January 9, 2026';
 
 /**
  * Section Component
@@ -79,6 +79,22 @@ export default function PrivacyPolicyScreen() {
                         <Text style={styles.dateValue}>{LAST_UPDATED}</Text>
                     </View>
                 </View>
+
+                {/* Data Controller - KVKK Article 10 Compliance */}
+                <PolicySection title="Data Controller">
+                    <Text style={styles.paragraph}>
+                        BubbleUp is operated by:
+                    </Text>
+                    <View style={styles.contactCard}>
+                        <Text style={styles.contactLabel}>Contact Email</Text>
+                        <Text style={styles.contactValue}>localchat.official@gmail.com</Text>
+                    </View>
+                    <Text style={styles.paragraph}>
+                        For Turkish users (KVKK): You may exercise your rights under Law No. 6698
+                        by contacting us at the email address above. We will respond to your
+                        request within 30 days.
+                    </Text>
+                </PolicySection>
 
                 {/* 1. Information We Collect */}
                 <PolicySection title="1. Information We Collect">
@@ -196,7 +212,15 @@ export default function PrivacyPolicyScreen() {
                         Your approximate viewport is sent to load tiles, not your precise location.
                     </Text>
                     <Text style={styles.bulletItem}>
-                        • We do <Text style={styles.bold}>not</Text> use any analytics or tracking SDKs
+                        • <Text style={styles.bold}>Google AdMob</Text> - We display advertisements
+                        through Google AdMob. Google may collect device identifiers and app usage
+                        data for ad personalization (if you consent) or to show contextual ads.
+                        In GDPR regions, you will see Google's consent dialog. See Google's
+                        Privacy Policy for details: policies.google.com/privacy
+                    </Text>
+                    <Text style={styles.bulletItem}>
+                        • We do <Text style={styles.bold}>not</Text> use third-party analytics SDKs.
+                        Usage analytics (if you opt in) are collected directly by us.
                     </Text>
 
                     <Text style={styles.subheading}>Legal Requirements</Text>
@@ -232,8 +256,9 @@ export default function PrivacyPolicyScreen() {
                     </Text>
 
                     <Text style={styles.paragraph}>
-                        When you delete your account, your data is "soft-deleted" (marked as deleted)
-                        and your email becomes available for re-registration.
+                        When you delete your account, your data is marked for deletion immediately.
+                        Personal data is permanently erased from our systems within 30 days,
+                        except where retention is required by law for legal compliance.
                     </Text>
                 </PolicySection>
 
@@ -358,22 +383,66 @@ export default function PrivacyPolicyScreen() {
                     </Text>
                 </PolicySection>
 
-                {/* 9. Legal Basis for Processing */}
+                {/* 9. Legal Basis for Processing - GDPR Article 13(1)(c) */}
                 <PolicySection title="9. Legal Basis for Processing">
                     <Text style={styles.paragraph}>
-                        We process your data based on:
+                        Under GDPR Article 6, we process your data based on the following legal bases:
+                    </Text>
+
+                    <Text style={styles.subheading}>Contract (Article 6.1.b)</Text>
+                    <Text style={styles.paragraph}>
+                        Processing necessary to provide BubbleUp's core services:
                     </Text>
                     <Text style={styles.bulletItem}>
-                        • <Text style={styles.bold}>Consent</Text> - Location data, optional profile info
+                        • Email address - Account login and recovery
                     </Text>
                     <Text style={styles.bulletItem}>
-                        • <Text style={styles.bold}>Contract</Text> - Account and messaging functionality
+                        • Password (hashed) - Authentication
                     </Text>
                     <Text style={styles.bulletItem}>
-                        • <Text style={styles.bold}>Legitimate Interest</Text> - Security, fraud prevention
+                        • Display name - Profile identification in rooms
                     </Text>
                     <Text style={styles.bulletItem}>
-                        • <Text style={styles.bold}>Legal Obligation</Text> - Compliance with laws
+                        • Messages - Chat functionality delivery
+                    </Text>
+                    <Text style={styles.bulletItem}>
+                        • Google Account ID - OAuth login (if used)
+                    </Text>
+
+                    <Text style={styles.subheading}>Consent (Article 6.1.a)</Text>
+                    <Text style={styles.paragraph}>
+                        Processing based on your explicit opt-in:
+                    </Text>
+                    <Text style={styles.bulletItem}>
+                        • Location data - Room discovery (randomized before storage)
+                    </Text>
+                    <Text style={styles.bulletItem}>
+                        • Bio and profile photo - Optional profile information
+                    </Text>
+                    <Text style={styles.bulletItem}>
+                        • Usage analytics - Service improvement (if enabled)
+                    </Text>
+                    <Text style={styles.bulletItem}>
+                        • Personalized ads - Ad customization (if enabled)
+                    </Text>
+
+                    <Text style={styles.subheading}>Legitimate Interest (Article 6.1.f)</Text>
+                    <Text style={styles.paragraph}>
+                        Processing necessary for our legitimate business interests:
+                    </Text>
+                    <Text style={styles.bulletItem}>
+                        • Device ID - Session security and anonymous account identification
+                    </Text>
+                    <Text style={styles.bulletItem}>
+                        • Device platform - App compatibility
+                    </Text>
+                    <Text style={styles.bulletItem}>
+                        • Block records - User safety and harassment prevention
+                    </Text>
+
+                    <Text style={styles.subheading}>Legal Obligation (Article 6.1.c)</Text>
+                    <Text style={styles.bulletItem}>
+                        • Data retained for legal compliance when required by law
                     </Text>
                 </PolicySection>
 
@@ -414,7 +483,8 @@ export default function PrivacyPolicyScreen() {
                 {/* Footer */}
                 <View style={styles.footer}>
                     <Text style={styles.footerText}>
-                        By using BubbleUp, you agree to this Privacy Policy.
+                        If you have questions about this Privacy Policy, please contact us
+                        at localchat.official@gmail.com.
                     </Text>
                 </View>
             </ScrollView>

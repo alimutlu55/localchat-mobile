@@ -2,9 +2,16 @@
  * Consent Screen
  * 
  * Premium consent screen designed for trust and minimal cognitive load.
- * Leads with reassurance, uses scannable guarantees, and reduces decision friction.
+ * Leads with reassurance, uses scannable guarantees, and reduces decision friction
+ * while maintaining full GDPR/KVKK compliance.
  * 
- * GDPR/KVKK-compliant - accurately reflects BubbleUp's data practices:
+ * Legal Requirements Addressed:
+ * - GDPR Article 7(4): Consent is specific and granular (unbundled)
+ * - GDPR Article 4(11): Clear affirmative action (checkboxes)
+ * - GDPR Article 7(2): Request for consent clearly distinguishable
+ * - KVKK Article 6: Explicit consent separate from general terms
+ * 
+ * Privacy Disclosures:
  * - Location: Randomized on device before sending to backend
  * - Rooms: Expire and become inaccessible (soft deleted)
  * - Device ID: For anonymous consent tracking and session security
@@ -19,6 +26,7 @@ import {
     TouchableOpacity,
     StatusBar,
     ActivityIndicator,
+    ScrollView,
 } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -37,20 +45,24 @@ export default function ConsentScreen() {
     const { logout } = useAuth();
     const [isSubmitting, setIsSubmitting] = React.useState(false);
 
+    // Explicit consent checkboxes - GDPR Article 7 compliant
+    const [tosAccepted, setTosAccepted] = React.useState(false);
+    const [privacyAccepted, setPrivacyAccepted] = React.useState(false);
+
+    // Both consents required to proceed
+    const canContinue = tosAccepted && privacyAccepted;
+
     const handleContinue = async () => {
+        if (!canContinue) return;
+
         setIsSubmitting(true);
         try {
             // 1. Force logout any stale session (e.g. from iOS Keychain persistence)
-            // This ensures we land on the Welcome screen as a guest, as requested.
             await logout();
 
             // 2. Accept essential consents (ToS, Privacy)
             // Optional consents (location, ads, analytics) will be managed separately
             await consentService.acceptAll();
-
-            // Note: Location permission is intentionally NOT requested here.
-            // It will be requested on OnboardingScreen/WelcomeScreen with proper
-            // context and explanation, as required by GDPR Article 7.
 
             // SessionManager and RootNavigator will reactively move the user 
             // to the WelcomeScreen once consentService.acceptAll() completes.
@@ -80,7 +92,7 @@ export default function ConsentScreen() {
     };
 
     const guarantees = [
-        'Location: randomized before sharing',
+        'Your exact location stays private',
         'Conversations expire (1-24 hours)',
         'Stay anonymous if you like',
         'We show ads to keep the app free',
@@ -90,64 +102,123 @@ export default function ConsentScreen() {
         <SafeAreaView style={[styles.container, { backgroundColor: theme.tokens.bg.surface }]} edges={['top']}>
             <StatusBar barStyle="dark-content" backgroundColor={theme.tokens.bg.surface} />
 
-            <View style={styles.content}>
-                {/* Hero Section - Reassurance First */}
-                <View style={styles.heroSection}>
-                    <Text style={[styles.title, { color: theme.tokens.text.primary }]}>
-                        Your privacy comes first
-                    </Text>
-                    <Text style={[styles.subtitle, { color: theme.tokens.text.secondary }]}>
-                        We collect only what's needed to connect you with people nearby or around the world.
-                    </Text>
-                </View>
+            <ScrollView
+                style={styles.scrollView}
+                contentContainerStyle={styles.scrollContent}
+                showsVerticalScrollIndicator={false}
+            >
+                <View style={styles.content}>
+                    {/* Hero Section - Reassurance First */}
+                    <View style={styles.heroSection}>
+                        <Text style={[styles.title, { color: theme.tokens.text.primary }]}>
+                            Your privacy comes first
+                        </Text>
+                        <Text style={[styles.subtitle, { color: theme.tokens.text.secondary }]}>
+                            We collect only what's needed to connect you with people nearby or around the world.
+                        </Text>
+                    </View>
 
-                {/* Core Guarantees - Scannable */}
-                <View style={styles.guaranteesSection}>
-                    {guarantees.map((guarantee, index) => (
-                        <View key={index} style={styles.guaranteeRow}>
-                            <View style={[styles.checkIcon, { backgroundColor: theme.tokens.brand.primary + '15' }]}>
-                                <Check size={16} color={theme.tokens.brand.primary} strokeWidth={3} />
+                    {/* Core Guarantees - Scannable */}
+                    <View style={styles.guaranteesSection}>
+                        {guarantees.map((guarantee, index) => (
+                            <View key={index} style={styles.guaranteeRow}>
+                                <View style={[styles.guaranteeIcon, { backgroundColor: theme.tokens.brand.primary + '15' }]}>
+                                    <Check size={14} color={theme.tokens.brand.primary} strokeWidth={3} />
+                                </View>
+                                <Text style={[styles.guaranteeText, { color: theme.tokens.text.primary }]}>
+                                    {guarantee}
+                                </Text>
                             </View>
-                            <Text style={[styles.guaranteeText, { color: theme.tokens.text.primary }]}>
-                                {guarantee}
+                        ))}
+                    </View>
+
+                    {/* Subtle Disclosure */}
+                    <View style={styles.disclosureSection}>
+                        <View style={styles.disclosureRow}>
+                            <Info size={12} color={theme.tokens.text.tertiary} />
+                            <Text style={[styles.disclosureText, { color: theme.tokens.text.tertiary }]}>
+                                Location sharing is optional
                             </Text>
                         </View>
-                    ))}
-                </View>
-
-                {/* Subtle Disclosure */}
-                <View style={styles.disclosureSection}>
-                    <View style={styles.disclosureRow}>
-                        <Info size={14} color={theme.tokens.text.tertiary} />
-                        <Text style={[styles.disclosureText, { color: theme.tokens.text.tertiary }]}>
-                            Location sharing is optional
-                        </Text>
-                    </View>
-                    <View style={styles.disclosureRow}>
-                        <Info size={14} color={theme.tokens.text.tertiary} />
-                        <Text style={[styles.disclosureText, { color: theme.tokens.text.tertiary }]}>
-                            Manage preferences in settings
-                        </Text>
+                        <View style={styles.disclosureRow}>
+                            <Info size={12} color={theme.tokens.text.tertiary} />
+                            <Text style={[styles.disclosureText, { color: theme.tokens.text.tertiary }]}>
+                                Manage preferences in settings anytime
+                            </Text>
+                        </View>
                     </View>
                 </View>
-            </View>
+            </ScrollView>
 
-            {/* Actions - Reduced Friction */}
-            <View style={[styles.actionsContainer, { paddingBottom: Math.max(insets.bottom, 24) }]}>
+            {/* Actions - Premium feel with legal compliance */}
+            <View style={[styles.actionsContainer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
+                {/* Elegant Consent Acknowledgments */}
+                <View style={styles.consentSection}>
+                    <TouchableOpacity
+                        style={styles.consentRow}
+                        onPress={() => setTosAccepted(!tosAccepted)}
+                        activeOpacity={0.7}
+                    >
+                        <View style={[
+                            styles.checkbox,
+                            { borderColor: tosAccepted ? theme.tokens.brand.primary : theme.tokens.border.subtle },
+                            tosAccepted && { backgroundColor: theme.tokens.brand.primary }
+                        ]}>
+                            {tosAccepted && <Check size={10} color="#ffffff" strokeWidth={3} />}
+                        </View>
+                        <Text style={[styles.consentText, { color: theme.tokens.text.secondary }]}>
+                            I agree to the{' '}
+                            <Text
+                                style={[styles.consentLink, { color: theme.tokens.brand.primary }]}
+                                onPress={handleViewTerms}
+                            >
+                                Terms of Service
+                            </Text>
+                        </Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={styles.consentRow}
+                        onPress={() => setPrivacyAccepted(!privacyAccepted)}
+                        activeOpacity={0.7}
+                    >
+                        <View style={[
+                            styles.checkbox,
+                            { borderColor: privacyAccepted ? theme.tokens.brand.primary : theme.tokens.border.subtle },
+                            privacyAccepted && { backgroundColor: theme.tokens.brand.primary }
+                        ]}>
+                            {privacyAccepted && <Check size={10} color="#ffffff" strokeWidth={3} />}
+                        </View>
+                        <Text style={[styles.consentText, { color: theme.tokens.text.secondary }]}>
+                            I acknowledge the{' '}
+                            <Text
+                                style={[styles.consentLink, { color: theme.tokens.brand.primary }]}
+                                onPress={handleViewPrivacy}
+                            >
+                                Privacy Policy
+                            </Text>
+                        </Text>
+                    </TouchableOpacity>
+                </View>
+
+                {/* Continue Button */}
                 <TouchableOpacity
                     style={[
                         styles.continueButton,
-                        { backgroundColor: theme.tokens.brand.primary },
+                        { backgroundColor: canContinue ? theme.tokens.brand.primary : theme.tokens.bg.subtle },
                         isSubmitting && { opacity: 0.8 }
                     ]}
                     onPress={handleContinue}
                     activeOpacity={0.8}
-                    disabled={isSubmitting}
+                    disabled={!canContinue || isSubmitting}
                 >
                     {isSubmitting ? (
                         <ActivityIndicator color={theme.tokens.text.onPrimary} />
                     ) : (
-                        <Text style={[styles.continueButtonText, { color: theme.tokens.text.onPrimary }]}>
+                        <Text style={[
+                            styles.continueButtonText,
+                            { color: canContinue ? theme.tokens.text.onPrimary : theme.tokens.text.tertiary }
+                        ]}>
                             Continue
                         </Text>
                     )}
@@ -158,22 +229,10 @@ export default function ConsentScreen() {
                     onPress={handlePrivacySettings}
                     activeOpacity={0.6}
                 >
-                    <Text style={[styles.settingsLinkText, { color: theme.tokens.text.secondary }]}>
+                    <Text style={[styles.settingsLinkText, { color: theme.tokens.text.tertiary }]}>
                         Privacy settings
                     </Text>
                 </TouchableOpacity>
-
-                {/* Legal Footer */}
-                <Text style={[styles.legalText, { color: theme.tokens.text.tertiary }]}>
-                    By continuing, you agree to our{' '}
-                    <Text style={[styles.legalLink, { color: theme.tokens.brand.primary }]} onPress={handleViewTerms}>
-                        Terms
-                    </Text>
-                    {' '}&{' '}
-                    <Text style={[styles.legalLink, { color: theme.tokens.brand.primary }]} onPress={handleViewPrivacy}>
-                        Privacy Policy
-                    </Text>
-                </Text>
             </View>
         </SafeAreaView>
     );
@@ -183,13 +242,18 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
     },
-    content: {
+    scrollView: {
         flex: 1,
-        paddingHorizontal: 28,
+    },
+    scrollContent: {
+        flexGrow: 1,
         justifyContent: 'center',
     },
+    content: {
+        paddingHorizontal: 28,
+    },
     heroSection: {
-        marginBottom: 40,
+        marginBottom: 36,
     },
     title: {
         fontSize: 28,
@@ -202,18 +266,18 @@ const styles = StyleSheet.create({
         lineHeight: 24,
     },
     guaranteesSection: {
-        marginBottom: 32,
-        gap: 16,
+        marginBottom: 28,
+        gap: 14,
     },
     guaranteeRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 14,
+        gap: 12,
     },
-    checkIcon: {
-        width: 28,
-        height: 28,
-        borderRadius: 14,
+    guaranteeIcon: {
+        width: 26,
+        height: 26,
+        borderRadius: 13,
         justifyContent: 'center',
         alignItems: 'center',
     },
@@ -221,28 +285,54 @@ const styles = StyleSheet.create({
         flex: 1,
         fontSize: 15,
         fontWeight: '500',
-        lineHeight: 22,
+        lineHeight: 21,
     },
     disclosureSection: {
-        gap: 10,
+        gap: 8,
     },
     disclosureRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 8,
+        gap: 6,
     },
     disclosureText: {
-        fontSize: 13,
-        lineHeight: 18,
+        fontSize: 12,
+        lineHeight: 16,
     },
     actionsContainer: {
         paddingHorizontal: 28,
-        gap: 16,
+        paddingTop: 16,
+    },
+    consentSection: {
+        gap: 12,
+        marginBottom: 16,
+    },
+    consentRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 10,
+    },
+    checkbox: {
+        width: 16,
+        height: 16,
+        borderRadius: 3,
+        borderWidth: 1.5,
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    consentText: {
+        flex: 1,
+        fontSize: 13,
+        lineHeight: 18,
+    },
+    consentLink: {
+        fontWeight: '500',
     },
     continueButton: {
         paddingVertical: 16,
         borderRadius: 30,
         alignItems: 'center',
+        marginBottom: 12,
     },
     continueButtonText: {
         fontSize: 17,
@@ -250,19 +340,10 @@ const styles = StyleSheet.create({
     },
     settingsLink: {
         alignItems: 'center',
-        paddingVertical: 8,
+        paddingVertical: 6,
     },
     settingsLinkText: {
-        fontSize: 15,
-        fontWeight: '500',
-    },
-    legalText: {
         fontSize: 13,
-        lineHeight: 20,
-        textAlign: 'center',
-        marginTop: 8,
-    },
-    legalLink: {
         fontWeight: '500',
     },
 });
