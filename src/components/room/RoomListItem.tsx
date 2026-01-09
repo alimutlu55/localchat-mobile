@@ -140,6 +140,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    flexWrap: 'wrap',
   },
   metaItem: {
     flexDirection: 'row',
