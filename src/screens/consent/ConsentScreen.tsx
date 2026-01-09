@@ -26,7 +26,6 @@ import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Check, Info } from 'lucide-react-native';
 import { consentService } from '../../services/consent';
 import { useAuth } from '../../features/auth/hooks/useAuth';
-import { getLocationPermissionStore } from '../../shared/stores/LocationConsentStore';
 import { useTheme } from '../../core/theme';
 
 type NavigationProp = NativeStackNavigationProp<any>;
@@ -45,14 +44,15 @@ export default function ConsentScreen() {
             // This ensures we land on the Welcome screen as a guest, as requested.
             await logout();
 
-            // 2. Accept all consents (ToS, Privacy)
+            // 2. Accept essential consents (ToS, Privacy)
+            // Optional consents (location, ads, analytics) will be managed separately
             await consentService.acceptAll();
 
-            // 3. Trigger OS Location permission immediately after legal consent
-            // This is the optimized sequence requested by the user
-            await getLocationPermissionStore().requestPermission();
+            // Note: Location permission is intentionally NOT requested here.
+            // It will be requested on OnboardingScreen/WelcomeScreen with proper
+            // context and explanation, as required by GDPR Article 7.
 
-            // Note: SessionManager and RootNavigator will reactively move the user 
+            // SessionManager and RootNavigator will reactively move the user 
             // to the WelcomeScreen once consentService.acceptAll() completes.
         } catch (error) {
             console.error('[ConsentScreen] Error during continuation:', error);

@@ -17,7 +17,7 @@ export interface ConsentOptions {
     privacyAccepted: boolean;
     analyticsConsent: boolean;
     locationConsent: boolean;
-    personalizedAdsConsent: boolean; // Basic ads are always on, this is for personalization
+    personalizedAdsConsent: boolean; // For personalized ads - basic ads handled by Google UMP
 }
 
 export interface ConsentStatus {

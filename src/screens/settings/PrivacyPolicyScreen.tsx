@@ -191,8 +191,9 @@ export default function PrivacyPolicyScreen() {
 
                     <Text style={styles.subheading}>Third-Party Services</Text>
                     <Text style={styles.bulletItem}>
-                        • <Text style={styles.bold}>Google Maps</Text> - Your location is sent to Google
-                        to display map tiles (subject to Google's Privacy Policy)
+                        • <Text style={styles.bold}>MapLibre</Text> - We use MapLibre, an open-source
+                        map library. Map tiles are loaded from OpenStreetMap-based servers.
+                        Your approximate viewport is sent to load tiles, not your precise location.
                     </Text>
                     <Text style={styles.bulletItem}>
                         • We do <Text style={styles.bold}>not</Text> use any analytics or tracking SDKs

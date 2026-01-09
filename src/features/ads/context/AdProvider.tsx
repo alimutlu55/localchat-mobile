@@ -23,13 +23,14 @@ export const AdProvider: React.FC<{ children: React.ReactNode }> = ({ children }
             // 1. Check app-level consent
             const appConsent = await consentService.getStatus();
 
-            // Essential consent = user has accepted ToS (basic ads are part of essential)
+            // Essential consent = user has accepted ToS (required to use app)
             const hasEssentialConsent = appConsent.hasConsent;
 
-            // Personalized ads require explicit opt-in
+            // Personalized ads require explicit opt-in in our app settings
             const wantsPersonalizedAds = appConsent.options?.personalizedAdsConsent === true;
 
             // 2. Request UMP consent info update for GDPR regions
+            // Google UMP handles basic ads consent automatically via TCF 2.0
             const consentInfo = await AdsConsent.requestInfoUpdate();
 
             // 3. Show the consent form if required (DEFERRED to manual trigger)
@@ -41,10 +42,11 @@ export const AdProvider: React.FC<{ children: React.ReactNode }> = ({ children }
             const updatedConsentInfo = await AdsConsent.requestInfoUpdate();
 
             // Check if GDPR allows ads (obtained consent or not in GDPR region)
+            // This is handled entirely by Google's UMP SDK
             const hasGdprConsent = updatedConsentInfo.status === AdsConsentStatus.OBTAINED ||
                 updatedConsentInfo.status === AdsConsentStatus.NOT_REQUIRED;
 
-            // Basic ads: Show if essential consent + GDPR allows
+            // Basic ads: Show if user accepted ToS + GDPR allows (via UMP)
             setCanShowAds(hasEssentialConsent && hasGdprConsent);
 
             // Personalization requires: user opt-in + GDPR full consent

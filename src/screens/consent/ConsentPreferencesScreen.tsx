@@ -34,7 +34,7 @@ export default function ConsentPreferencesScreen() {
     const theme = useTheme();
 
     const [analyticsEnabled, setAnalyticsEnabled] = useState(false);
-    const [adEnabled, setAdEnabled] = useState(false); // Personalized ads, default to false
+    const [personalizedAdsEnabled, setPersonalizedAdsEnabled] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
 
     // Load existing consent preferences on mount
@@ -44,7 +44,7 @@ export default function ConsentPreferencesScreen() {
                 const status = await consentService.getStatus();
                 if (status.options) {
                     setAnalyticsEnabled(status.options.analyticsConsent || false);
-                    setAdEnabled(status.options.personalizedAdsConsent || false);
+                    setPersonalizedAdsEnabled(status.options.personalizedAdsConsent || false);
                 }
             } catch (error) {
                 console.error('[ConsentPreferences] Failed to load preferences:', error);
@@ -61,7 +61,7 @@ export default function ConsentPreferencesScreen() {
             privacyAccepted: true,
             analyticsConsent: analyticsEnabled,
             locationConsent: false, // Will be set after OS permission is granted
-            personalizedAdsConsent: adEnabled,
+            personalizedAdsConsent: personalizedAdsEnabled,
         });
         // Navigate back instead of replacing to Welcome
         navigation.goBack();
@@ -126,19 +126,6 @@ export default function ConsentPreferencesScreen() {
                             <Check size={18} color="#22c55e" strokeWidth={3} />
                         </View>
                     </View>
-
-                    <View style={styles.preferenceItem}>
-                        <View style={styles.preferenceInfo}>
-                            <Text style={styles.preferenceTitle}>Basic Ads</Text>
-                            <Text style={styles.preferenceDescription}>
-                                Non-personalized ads help keep BubbleUp free.
-                                No personal data is used for targeting.
-                            </Text>
-                        </View>
-                        <View style={styles.checkContainer}>
-                            <Check size={18} color="#22c55e" strokeWidth={3} />
-                        </View>
-                    </View>
                 </View>
 
                 {/* Optional Section */}
@@ -155,12 +142,12 @@ export default function ConsentPreferencesScreen() {
                         <View style={styles.preferenceInfo}>
                             <Text style={styles.preferenceTitle}>Personalized Ads</Text>
                             <Text style={styles.preferenceDescription}>
-                                Ads tailored to your interests. Turn off for generic ads.
+                                Ads tailored to your interests. Basic ads consent is managed through Google's consent dialog in GDPR regions.
                             </Text>
                         </View>
                         <Switch
-                            value={adEnabled}
-                            onValueChange={setAdEnabled}
+                            value={personalizedAdsEnabled}
+                            onValueChange={setPersonalizedAdsEnabled}
                             trackColor={{ false: '#d1d5db', true: '#6366F1' }}
                             thumbColor="#ffffff"
                         />

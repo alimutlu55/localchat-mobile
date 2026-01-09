@@ -193,14 +193,13 @@ export default function WelcomeScreen() {
         </View>
       </View>
 
-      {/* Footer - Implicit Consent */}
+      {/* Footer - Legal Links */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          By continuing, you agree to our{' '}
           <Text style={styles.footerLink} onPress={() => navigation.navigate('TermsOfService')}>
             Terms of Service
           </Text>
-          {' '}and{' '}
+          {' · '}
           <Text style={styles.footerLink} onPress={() => navigation.navigate('PrivacyPolicy')}>
             Privacy Policy
           </Text>

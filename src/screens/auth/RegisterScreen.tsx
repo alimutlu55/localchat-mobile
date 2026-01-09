@@ -285,13 +285,12 @@ export default function RegisterScreen() {
               )}
             </TouchableOpacity>
 
-            {/* Implicit Consent Footer */}
+            {/* Legal Links */}
             <Text style={styles.consentText}>
-              By continuing, you agree to our{' '}
               <Text style={styles.consentLink} onPress={() => navigation.navigate('TermsOfService')}>
                 Terms of Service
               </Text>
-              {' '}and{' '}
+              {' · '}
               <Text style={styles.consentLink} onPress={() => navigation.navigate('PrivacyPolicy')}>
                 Privacy Policy
               </Text>

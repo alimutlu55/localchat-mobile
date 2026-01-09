@@ -176,13 +176,6 @@ export default function SplashScreen() {
             </Text>
           </TouchableOpacity>
         </Animated.View>
-
-        {/* Privacy note */}
-        <Animated.View style={[styles.privacyContainer, { opacity: buttonFadeAnim }]}>
-          <Text style={styles.privacyText}>
-            By continuing, you agree to our Terms of Service and Privacy Policy
-          </Text>
-        </Animated.View>
       </SafeAreaView>
     </LinearGradient>
   );
@@ -306,15 +299,5 @@ const styles = StyleSheet.create({
   signInLink: {
     color: '#FF6410',
     textDecorationLine: 'underline',
-  },
-  privacyContainer: {
-    paddingHorizontal: 48,
-    paddingBottom: 24,
-  },
-  privacyText: {
-    fontSize: 12,
-    color: '#9ca3af',
-    textAlign: 'center',
-    lineHeight: 18,
   },
 });
