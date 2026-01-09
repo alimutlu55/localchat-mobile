@@ -99,10 +99,6 @@ export default function App() {
     // Initialize notification service
     const cleanupNotifications = notificationService.initialize();
 
-    // Request notification permissions
-    notificationService.requestPermissions().then(() => {
-      // Permissions requested
-    });
 
     // Handle notification taps - navigate to the room
     const notificationSubscription = notificationService.addNotificationResponseListener(

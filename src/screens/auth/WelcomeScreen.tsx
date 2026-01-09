@@ -41,41 +41,10 @@ export default function WelcomeScreen() {
       clearError();
       setIsCheckingDevice(false);
 
-      // Request location permission immediately when user arrives from consent flow
-      // This shows the OS dialog right away on the welcome screen
-      const requestLocationPermission = async () => {
-        try {
-          const { status, canAskAgain } = await Location.getForegroundPermissionsAsync();
-
-          if (status === 'granted') {
-            // Already granted, nothing to do
-            return;
-          }
-
-          if (canAskAgain) {
-            // Can show system dialog
-            await getLocationPermissionStore().requestPermission();
-          } else {
-            // User set to "Never" - show alert directing to Settings
-            Alert.alert(
-              'Location Access Required',
-              'BubbleUp connects you with people nearby. Your location helps discover and create local rooms.\n\nPlease enable location access in Settings.',
-              [
-                { text: 'Not Now', style: 'cancel' },
-                { text: 'Open Settings', onPress: () => Linking.openSettings() }
-              ]
-            );
-          }
-        } catch (e) {
-          console.warn('[WelcomeScreen] Failed to request location permission:', e);
-        }
-      };
-      requestLocationPermission();
-
       return () => {
         // Cleanup if needed
       };
-    }, [])
+    }, [clearError])
   );
 
 
