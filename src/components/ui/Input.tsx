@@ -4,7 +4,7 @@
  * Reusable text input with label and error states.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import {
   ViewStyle,
   StyleProp,
   TextStyle,
+  Pressable,
 } from 'react-native';
 import { Eye, EyeOff } from 'lucide-react-native';
 import { theme } from '../../core/theme';
@@ -42,6 +43,7 @@ export function Input({
 }: InputProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
+  const inputRef = useRef<TextInput>(null);
 
   const hasError = !!error;
 
@@ -54,14 +56,18 @@ export function Input({
     <View style={[styles.container, containerStyle]}>
       {label && <Text style={styles.label}>{label}</Text>}
 
-      <View style={[
-        styles.inputContainer,
-        isFocused && styles.inputContainerFocused,
-        hasError && styles.inputContainerError,
-      ]}>
+      <Pressable
+        onPress={() => inputRef.current?.focus()}
+        style={[
+          styles.inputContainer,
+          isFocused && styles.inputContainerFocused,
+          hasError && styles.inputContainerError,
+        ]}
+      >
         {leftIcon && <View style={styles.iconLeft}>{leftIcon}</View>}
 
         <TextInput
+          ref={inputRef}
           style={inputStyles}
           placeholderTextColor={theme.tokens.text.tertiary}
           secureTextEntry={isPassword && !showPassword}
@@ -87,7 +93,7 @@ export function Input({
         {rightIcon && !isPassword && (
           <View style={styles.iconRight}>{rightIcon}</View>
         )}
-      </View>
+      </Pressable>
 
       {error && <Text style={styles.error}>{error}</Text>}
       {hint && !error && <Text style={styles.hint}>{hint}</Text>}

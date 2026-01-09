@@ -4,7 +4,7 @@
  * Account registration form.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import {
   ActivityIndicator,
   Alert,
   ScrollView,
+  Pressable,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -37,6 +38,11 @@ export default function RegisterScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+
+  const displayNameRef = useRef<TextInput>(null);
+  const emailRef = useRef<TextInput>(null);
+  const passwordRef = useRef<TextInput>(null);
+  const confirmPasswordRef = useRef<TextInput>(null);
 
   const displayError = localError || error;
 
@@ -112,7 +118,10 @@ export default function RegisterScreen() {
 
             {/* Display Name Input */}
             <View style={styles.inputGroup}>
-              <View style={styles.inputContainer}>
+              <Pressable
+                style={styles.inputContainer}
+                onPress={() => displayNameRef.current?.focus()}
+              >
                 <Text
                   style={[
                     styles.floatingLabel,
@@ -123,6 +132,7 @@ export default function RegisterScreen() {
                   Display Name
                 </Text>
                 <TextInput
+                  ref={displayNameRef}
                   style={styles.input}
                   placeholder=""
                   placeholderTextColor="#9ca3af"
@@ -136,12 +146,15 @@ export default function RegisterScreen() {
                   autoCapitalize="none"
                   autoCorrect={false}
                 />
-              </View>
+              </Pressable>
             </View>
 
             {/* Email Input */}
             <View style={styles.inputGroup}>
-              <View style={styles.inputContainer}>
+              <Pressable
+                style={styles.inputContainer}
+                onPress={() => emailRef.current?.focus()}
+              >
                 <Text
                   style={[
                     styles.floatingLabel,
@@ -152,6 +165,7 @@ export default function RegisterScreen() {
                   Email
                 </Text>
                 <TextInput
+                  ref={emailRef}
                   style={styles.input}
                   placeholder=""
                   placeholderTextColor="#9ca3af"
@@ -166,12 +180,15 @@ export default function RegisterScreen() {
                   autoCorrect={false}
                   autoComplete="email"
                 />
-              </View>
+              </Pressable>
             </View>
 
             {/* Password Input */}
             <View style={styles.inputGroup}>
-              <View style={styles.inputContainer}>
+              <Pressable
+                style={styles.inputContainer}
+                onPress={() => passwordRef.current?.focus()}
+              >
                 <Text
                   style={[
                     styles.floatingLabel,
@@ -182,6 +199,7 @@ export default function RegisterScreen() {
                   Password
                 </Text>
                 <TextInput
+                  ref={passwordRef}
                   style={styles.input}
                   placeholder=""
                   placeholderTextColor="#9ca3af"
@@ -206,12 +224,15 @@ export default function RegisterScreen() {
                     <Eye size={20} color="#9ca3af" />
                   )}
                 </TouchableOpacity>
-              </View>
+              </Pressable>
             </View>
 
             {/* Confirm Password Input */}
             <View style={styles.inputGroup}>
-              <View style={styles.inputContainer}>
+              <Pressable
+                style={styles.inputContainer}
+                onPress={() => confirmPasswordRef.current?.focus()}
+              >
                 <Text
                   style={[
                     styles.floatingLabel,
@@ -222,6 +243,7 @@ export default function RegisterScreen() {
                   Confirm Password
                 </Text>
                 <TextInput
+                  ref={confirmPasswordRef}
                   style={styles.input}
                   placeholder=""
                   placeholderTextColor="#9ca3af"
@@ -236,7 +258,7 @@ export default function RegisterScreen() {
                   autoCorrect={false}
                   textContentType="oneTimeCode"
                 />
-              </View>
+              </Pressable>
             </View>
 
             {/* Error Message */}
