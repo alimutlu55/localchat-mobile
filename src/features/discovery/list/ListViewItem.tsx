@@ -290,8 +290,10 @@ const styles = StyleSheet.create({
     },
     roomInfo: {
         flex: 1,
+        flexShrink: 1,
     },
     titleRow: {
+        width: '100%',
         flexDirection: 'row',
         justifyContent: 'space-between',
         alignItems: 'center',
@@ -302,16 +304,21 @@ const styles = StyleSheet.create({
         fontWeight: '600',
         color: '#1f2937',
         marginBottom: 2,
+        flex: 1,
+        flexShrink: 1,
+        marginRight: 8,
     },
     topRightMeta: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 6,
+        flexShrink: 0,
     },
     roomMeta: {
         flexDirection: 'row',
         alignItems: 'center',
         gap: 8,
+        flexWrap: 'wrap',
     },
     metaItem: {
         flexDirection: 'row',

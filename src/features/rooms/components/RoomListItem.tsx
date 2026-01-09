@@ -129,22 +129,28 @@ const styles = StyleSheet.create({
   },
   content: {
     flex: 1,
+    flexShrink: 1,
   },
   title: {
     fontSize: 15,
     fontWeight: '600',
     color: '#1f2937',
     marginBottom: 4,
+    marginRight: 8,
+    flexShrink: 1,
   },
   meta: {
+    width: '100%',
     flexDirection: 'row',
     alignItems: 'center',
     gap: 12,
+    flexWrap: 'wrap',
   },
   metaItem: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
+    flexShrink: 0,
   },
   metaText: {
     fontSize: 12,
@@ -165,6 +171,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 6,
+    flexShrink: 0,
   },
   categoryText: {
     fontSize: 10,
