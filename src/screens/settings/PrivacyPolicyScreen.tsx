@@ -463,9 +463,10 @@ export default function PrivacyPolicyScreen() {
                 {/* 11. Changes to This Policy */}
                 <PolicySection title="11. Changes to This Policy">
                     <Text style={styles.paragraph}>
-                        We may update this Privacy Policy periodically. We will notify you of significant
-                        changes through the app. Your continued use after changes constitutes acceptance
-                        of the updated policy.
+                        We may update this Privacy Policy periodically. For material changes
+                        affecting how we process your data, we will request your renewed
+                        consent before those changes take effect. Minor updates that do
+                        not expand data processing will be notified through the app.
                     </Text>
                 </PolicySection>
 

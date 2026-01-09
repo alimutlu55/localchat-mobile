@@ -52,23 +52,22 @@ export default function ConsentScreen() {
     // Both consents required to proceed
     const canContinue = tosAccepted && privacyAccepted;
 
-    const handleContinue = async () => {
+    const handleConsensus = async (all: boolean) => {
         if (!canContinue) return;
-
         setIsSubmitting(true);
         try {
-            // 1. Force logout any stale session (e.g. from iOS Keychain persistence)
             await logout();
 
-            // 2. Accept essential consents (ToS, Privacy)
-            // Optional consents (location, ads, analytics) will be managed separately
-            await consentService.acceptAll();
+            if (all) {
+                await consentService.acceptAll();
+            } else {
+                await consentService.acceptEssentialOnly();
+            }
 
             // SessionManager and RootNavigator will reactively move the user 
-            // to the WelcomeScreen once consentService.acceptAll() completes.
+            // once consent is saved.
         } catch (error) {
             console.error('[ConsentScreen] Error during continuation:', error);
-            // Fallback: attempt manual navigation if state sync fails
             navigation.replace('Auth', { screen: 'Welcome' });
         } finally {
             setIsSubmitting(false);
@@ -190,7 +189,7 @@ export default function ConsentScreen() {
                             {privacyAccepted && <Check size={10} color="#ffffff" strokeWidth={3} />}
                         </View>
                         <Text style={[styles.consentText, { color: theme.tokens.text.secondary }]}>
-                            I acknowledge the{' '}
+                            I agree to the{' '}
                             <Text
                                 style={[styles.consentLink, { color: theme.tokens.brand.primary }]}
                                 onPress={handleViewPrivacy}
@@ -201,28 +200,48 @@ export default function ConsentScreen() {
                     </TouchableOpacity>
                 </View>
 
-                {/* Continue Button */}
-                <TouchableOpacity
-                    style={[
-                        styles.continueButton,
-                        { backgroundColor: canContinue ? theme.tokens.brand.primary : theme.tokens.bg.subtle },
-                        isSubmitting && { opacity: 0.8 }
-                    ]}
-                    onPress={handleContinue}
-                    activeOpacity={0.8}
-                    disabled={!canContinue || isSubmitting}
-                >
-                    {isSubmitting ? (
-                        <ActivityIndicator color={theme.tokens.text.onPrimary} />
-                    ) : (
+                {/* Action Buttons */}
+                <View style={styles.buttonStack}>
+                    <TouchableOpacity
+                        style={[
+                            styles.mainButton,
+                            { backgroundColor: canContinue ? theme.tokens.brand.primary : theme.tokens.bg.subtle },
+                            isSubmitting && { opacity: 0.8 }
+                        ]}
+                        onPress={() => handleConsensus(true)}
+                        activeOpacity={0.8}
+                        disabled={!canContinue || isSubmitting}
+                    >
+                        {isSubmitting ? (
+                            <ActivityIndicator color={theme.tokens.text.onPrimary} />
+                        ) : (
+                            <Text style={[
+                                styles.mainButtonText,
+                                { color: canContinue ? theme.tokens.text.onPrimary : theme.tokens.text.tertiary }
+                            ]}>
+                                Accept All
+                            </Text>
+                        )}
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                        style={[
+                            styles.secondaryButton,
+                            { borderColor: theme.tokens.border.subtle },
+                            (!canContinue || isSubmitting) && { opacity: 0.5 }
+                        ]}
+                        onPress={() => handleConsensus(false)}
+                        activeOpacity={0.6}
+                        disabled={!canContinue || isSubmitting}
+                    >
                         <Text style={[
-                            styles.continueButtonText,
-                            { color: canContinue ? theme.tokens.text.onPrimary : theme.tokens.text.tertiary }
+                            styles.secondaryButtonText,
+                            { color: theme.tokens.text.secondary }
                         ]}>
-                            Continue
+                            Only Essentials
                         </Text>
-                    )}
-                </TouchableOpacity>
+                    </TouchableOpacity>
+                </View>
 
                 <TouchableOpacity
                     style={styles.settingsLink}
@@ -328,15 +347,28 @@ const styles = StyleSheet.create({
     consentLink: {
         fontWeight: '500',
     },
-    continueButton: {
+    buttonStack: {
+        gap: 12,
+        marginBottom: 16,
+    },
+    mainButton: {
         paddingVertical: 16,
         borderRadius: 30,
         alignItems: 'center',
-        marginBottom: 12,
     },
-    continueButtonText: {
+    mainButtonText: {
         fontSize: 17,
         fontWeight: '600',
+    },
+    secondaryButton: {
+        paddingVertical: 14,
+        borderRadius: 30,
+        alignItems: 'center',
+        borderWidth: 1,
+    },
+    secondaryButtonText: {
+        fontSize: 15,
+        fontWeight: '500',
     },
     settingsLink: {
         alignItems: 'center',

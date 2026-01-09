@@ -35,6 +35,7 @@ import {
   Bell,
   Download,
 } from 'lucide-react-native';
+import { useAuth } from '../../features/auth';
 import { useSettings } from '../../features/user';
 import { blockService, BlockedUser, consentService } from '../../services';
 import { theme } from '../../core/theme';
@@ -50,6 +51,7 @@ const LOCATION_MODES: { value: LocationMode; label: string; description: string 
 
 export default function PrivacySettingsScreen() {
   const navigation = useNavigation();
+  const { hardDeleteAccount } = useAuth();
   const { settings, updateSettings } = useSettings();
 
   const [showOnlineStatus, setShowOnlineStatus] = useState(settings?.showOnlineStatus ?? true);
@@ -123,15 +125,21 @@ export default function PrivacySettingsScreen() {
 
   const handleDeleteAccount = () => {
     Alert.alert(
-      'Delete Account',
-      'Are you sure you want to delete your account? This action cannot be undone and all your data will be permanently deleted.',
+      'Delete Account & Data',
+      'Are you sure you want to delete your account? This will permanently remove your profile, rooms, and all messages. This action cannot be undone.',
       [
         { text: 'Cancel', style: 'cancel' },
         {
-          text: 'Delete',
+          text: 'Delete Everything',
           style: 'destructive',
-          onPress: () => {
-            Alert.alert('Coming Soon', 'Account deletion will be available soon.');
+          onPress: async () => {
+            try {
+              await hardDeleteAccount();
+              // AuthStore will automatically transition to unauthenticated state via session.authChanged
+            } catch (error) {
+              console.error('Failed to delete account:', error);
+              Alert.alert('Error', 'Failed to delete account. Please try again.');
+            }
           },
         },
       ]

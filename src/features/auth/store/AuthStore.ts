@@ -570,6 +570,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
                 error: null,
             });
             useAppStore.getState().setAuthState('guest', null);
+            eventBus.emit('session.authChanged', { isAuthenticated: false, user: null });
             log.info('Account deleted successfully');
         } catch (err) {
             const message = getErrorMessage(err, 'Failed to delete account');
@@ -629,6 +630,7 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
                 error: null,
             });
             useAppStore.getState().setAuthState('guest', null);
+            eventBus.emit('session.authChanged', { isAuthenticated: false, user: null });
             log.info('Account hard-deleted successfully');
         } catch (err) {
             const message = getErrorMessage(err, 'Failed to hard-delete account');

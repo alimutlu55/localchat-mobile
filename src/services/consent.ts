@@ -136,9 +136,23 @@ class ConsentService {
     }
 
     /**
-     * Save consent with "Accept All" option
+     * Save consent with all options enabled
      */
     async acceptAll(): Promise<void> {
+        await this.saveConsent({
+            tosAccepted: true,
+            privacyAccepted: true,
+            analyticsConsent: true,
+            locationConsent: true,
+            personalizedAdsConsent: true,
+        });
+    }
+
+    /**
+     * Save consent with only essential options (privacy-by-default)
+     * Analytics, location, and personalized ads are defaulted to false.
+     */
+    async acceptEssentialOnly(): Promise<void> {
         await this.saveConsent({
             tosAccepted: true,
             privacyAccepted: true,
@@ -148,18 +162,6 @@ class ConsentService {
         });
     }
 
-    /**
-     * Save consent with "Only Essential" option
-     */
-    async acceptEssential(): Promise<void> {
-        await this.saveConsent({
-            tosAccepted: true,
-            privacyAccepted: true,
-            analyticsConsent: false,
-            locationConsent: false,
-            personalizedAdsConsent: false,
-        });
-    }
 
     /**
      * Save consent with custom preferences
