@@ -272,7 +272,7 @@ export function MessageBubble({
                     <View style={styles.bubbleInner}>
                       <Text style={[styles.messageText, styles.messageTextOwn]}>
                         {message.content}
-                        <View style={{ width: 68, height: 1 }} />
+                        <View style={{ width: 80, height: 1 }} />
                       </Text>
                       <View style={styles.ownMessageMetaAbsolute}>
                         {message.status === 'failed' ? (
