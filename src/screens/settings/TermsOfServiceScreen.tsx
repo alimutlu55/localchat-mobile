@@ -19,7 +19,7 @@ import { ArrowLeft } from 'lucide-react-native';
 import { theme } from '../../core/theme';
 
 const EFFECTIVE_DATE = 'January 4, 2026';
-const LAST_UPDATED = 'January 4, 2026';
+const LAST_UPDATED = 'January 10, 2026';
 
 /**
  * Section Component
@@ -153,7 +153,7 @@ export default function TermsOfServiceScreen() {
                         a ~500m privacy offset to protect your exact position
                     </Text>
                     <Text style={styles.bulletItem}>
-                        • <Text style={styles.bold}>Custom Pin</Text> - Select any location on the map;
+                        • <Text style={styles.bold}>Custom Location</Text> - Select any location on the map;
                         the room will appear at the exact coordinates you choose
                     </Text>
 

@@ -549,8 +549,8 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             // Small delay to allow pending WS operations to complete
             await new Promise((resolve) => setTimeout(resolve, 50));
 
-            // Call delete account API (this clears tokens too)
-            await authService.deleteAccount();
+            // Call hard delete account API (this purges all data permanently)
+            await authService.hardDeleteAccount();
 
             // Clear stores
             useRoomStore.getState().reset();

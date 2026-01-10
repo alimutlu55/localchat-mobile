@@ -204,7 +204,7 @@ export default function CreateRoomScreen() {
         title: title.trim(),
         description: description.trim() || undefined,
         category: categoryId,
-        duration: durationId as '1h' | '3h' | '6h' | '24h',
+        duration: durationId as '1h' | '3h' | '6h',
         maxParticipants,
         latitude: location.latitude,
         longitude: location.longitude,
@@ -641,7 +641,7 @@ export default function CreateRoomScreen() {
           </LinearGradient>
         </TouchableOpacity>
         <Text style={[styles.dailyLimitText, isLimitReached && styles.limitReachedText]}>
-          Daily limit: {quota?.used ?? 0}/{quota?.limit ?? 10} rooms
+          Daily limit: {quota?.used ?? 0}/{quota?.limit ?? 3} rooms
         </Text>
       </View>
 

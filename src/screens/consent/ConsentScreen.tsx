@@ -92,8 +92,7 @@ export default function ConsentScreen() {
     };
 
     const guarantees = [
-        'GPS location randomized for privacy',
-        'Conversations expire (1-24 hours)',
+        'GPS location approximated (~500m) for privacy',
         'Stay anonymous if you like',
         'We show ads to keep the app free',
     ];

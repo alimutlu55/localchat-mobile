@@ -19,7 +19,7 @@ import { ArrowLeft } from 'lucide-react-native';
 import { theme } from '../../core/theme';
 
 const EFFECTIVE_DATE = 'January 4, 2026';
-const LAST_UPDATED = 'January 9, 2026';
+const LAST_UPDATED = 'January 10, 2026';
 
 /**
  * Section Component
@@ -137,7 +137,7 @@ export default function PrivacyPolicyScreen() {
                         exact position is never sent to our servers
                     </Text>
                     <Text style={styles.bulletItem}>
-                        • <Text style={styles.bold}>Custom Pin</Text>: When you select a location on the map,
+                        • <Text style={styles.bold}>Custom Location</Text>: When you select a location on the map,
                         the exact coordinates you choose are stored as the room location
                     </Text>
                     <Text style={styles.bulletItem}>
