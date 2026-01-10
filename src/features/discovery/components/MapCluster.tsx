@@ -73,10 +73,20 @@ const AndroidMapCluster = memo(({ count, colors, size, fontSize }: MapClusterInt
             </Svg>
             <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center' }]}>
                 <Text
-                    style={[styles.text, { fontSize }]}
+                    style={[
+                        styles.text,
+                        {
+                            fontSize,
+                            fontWeight: '400',
+                            includeFontPadding: false,
+                            textAlignVertical: 'center',
+                            width: size.width,
+                            letterSpacing: 0,
+                        },
+                    ]}
                     numberOfLines={1}
                     adjustsFontSizeToFit={true}
-                    minimumFontScale={0.6}
+                    minimumFontScale={0.7}
                 >
                     {formatClusterCount(count)}
                 </Text>
@@ -231,15 +241,13 @@ const styles = StyleSheet.create({
     },
     text: {
         color: '#ffffff',
-        fontWeight: '400', // Thinner font weight (regular)
+        fontWeight: '400', // Reverted to original Regular for iOS
         // Lighter text shadow for cleaner look
         textShadowColor: 'rgba(0, 0, 0, 0.15)',
         textShadowOffset: { width: 0, height: 1 },
         textShadowRadius: 1,
         zIndex: 10,
-        letterSpacing: 0.5, // Add spacing for cleaner look
-        // Android fix: explicit sizing to prevent text truncation
-        minWidth: 24,
+        letterSpacing: 0.5, // Restored original iOS spacing
         textAlign: 'center',
     },
     glow: {
