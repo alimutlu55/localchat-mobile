@@ -20,9 +20,6 @@
 
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Animated } from 'react-native';
-import { createLogger } from '../../../../shared/utils/logger';
-
-const log = createLogger('MapTransitions');
 
 // =============================================================================
 // Types
@@ -91,7 +88,6 @@ export function useMapTransitions(
     const setDataLoaded = useCallback(() => {
         if (!hasInitialData) {
             setHasInitialData(true);
-            log.debug('Initial data marked as loaded');
         }
     }, [hasInitialData]);
 
@@ -101,7 +97,6 @@ export function useMapTransitions(
         setHasInitialData(false);
         overlayOpacity.setValue(1);
         markersOpacity.setValue(0);
-        log.debug('Animations reset');
     }, [overlayOpacity, markersOpacity]);
 
     // Track external hasData prop
@@ -109,7 +104,6 @@ export function useMapTransitions(
         if (hasData && !hasInitialData && isMapStable) {
             const timer = setTimeout(() => {
                 setHasInitialData(true);
-                log.debug('Initial data sync complete from prop');
             }, 50);
             return () => clearTimeout(timer);
         }
@@ -122,7 +116,6 @@ export function useMapTransitions(
             // Phase 1: Wait for map to stabilize internally
             const stabilizeTimer = setTimeout(() => {
                 setIsMapStable(true);
-                log.debug('Map stabilized, starting fade-in sequence');
 
                 // Phase 2: Fade out the overlay to reveal the map
                 Animated.timing(overlayOpacity, {
@@ -157,7 +150,6 @@ export function useMapTransitions(
         resetAnimations,
     ]);
 
-    // Calculate if markers can be rendered
     const canRenderMarkers = isMapStable && hasInitialData;
 
     return {

@@ -269,6 +269,7 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
   const prefetchForLocation = useCallback(
     async (centerLng: number, centerLat: number, targetZoom: number, animationDuration: number) => {
       isPrefetchingRef.current = true;
+      log.debug('Starting location prefetch', { centerLng, centerLat, targetZoom, animationDuration });
 
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       if (prefetchTimerRef.current) clearTimeout(prefetchTimerRef.current);
@@ -303,8 +304,16 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
         log.debug('Prefetch received', { count: response.features.length, networkMs, markerAppearOffset });
 
         prefetchTimerRef.current = setTimeout(() => {
-          if (!mountedRef.current) return;
-          log.debug('Applying prefetched markers');
+          if (!mountedRef.current) {
+            log.warn('Prefetch timer fired but component unmounted');
+            return;
+          }
+          log.debug('Applying prefetched markers (prefetchForLocation)');
+
+          // Update tracking refs ONLY when data is actually applied
+          lastFetchBoundsRef.current = targetBounds;
+          lastFetchZoomRef.current = targetZoom;
+
           setRawFeatures(response.features);
           setMetadata(response.metadata);
           reconcilePendingRooms(response.features);
@@ -330,6 +339,7 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
   const prefetchForWorldView = useCallback(
     async (animationDuration: number) => {
       isPrefetchingRef.current = true;
+      log.debug('Starting world view prefetch', { animationDuration });
       const targetZoom = 1;
       const targetBounds: [number, number, number, number] = [-180, -85, 180, 85];
 
@@ -346,21 +356,41 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
         );
 
         if (!mountedRef.current) return;
-        setRawFeatures(response.features);
-        setMetadata(response.metadata);
-        reconcilePendingRooms(response.features);
 
-        // Emit event to notify other components (like RoomListView) that map data has changed
-        eventBus.emit('discovery.clusteringCompleted', {
-          bounds: targetBounds,
-          zoom: targetZoom,
-          category
-        });
+        // Apply data after a delay to sync with map animation.
+        // World animation is usually longer (1100ms), so we appear 400ms before end.
+        const markerAppearOffset = Math.max(animationDuration - 400, 100);
 
-        setTimeout(() => { isPrefetchingRef.current = false; }, animationDuration + 100);
+        prefetchTimerRef.current = setTimeout(() => {
+          if (!mountedRef.current) return;
+          log.debug('Applying world prefetched markers', { count: response.features.length });
+
+          setRawFeatures(response.features);
+          setMetadata(response.metadata);
+          reconcilePendingRooms(response.features);
+
+          // Update tracking refs ONLY when data is actually applied
+          lastFetchBoundsRef.current = targetBounds;
+          lastFetchZoomRef.current = targetZoom;
+
+          // Emit event to notify other components (like RoomListView) that map data has changed
+          eventBus.emit('discovery.clusteringCompleted', {
+            bounds: targetBounds,
+            zoom: targetZoom,
+            category
+          });
+
+          prefetchTimerRef.current = null;
+        }, markerAppearOffset);
+
+        // Clear prefetch state after the map has settled
+        setTimeout(() => {
+          isPrefetchingRef.current = false;
+        }, animationDuration + 150);
       } catch (err) {
         log.error('World prefetch failed', err);
         isPrefetchingRef.current = false;
+        prefetchTimerRef.current = null;
       }
     },
     [category, userLocation, reconcilePendingRooms]
@@ -397,8 +427,16 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
     const shouldFetch = isFirstLoad || zoomChanged || panChanged || forceRefetch || locationBecameAvailable || categoryChanged;
     const prefetchInProgress = isPrefetchingRef.current || prefetchTimerRef.current !== null;
 
-    if (!shouldFetch || prefetchInProgress) return;
+    if (!shouldFetch || prefetchInProgress) {
+      if (!shouldFetch && !prefetchInProgress) {
+        log.debug('Fetch skipped: no change detected');
+      } else if (prefetchInProgress) {
+        log.debug('Fetch skipped: prefetch in progress');
+      }
+      return;
+    }
 
+    log.info('Triggering regional fetch', { zoom, bounds: bounds.map(b => b.toFixed(2)) });
     // Use shorter delay for category changes and forced refetches for better UX
     const delay = (forceRefetch || categoryChanged) ? 0 : getDebounceDelay(zoom);
 

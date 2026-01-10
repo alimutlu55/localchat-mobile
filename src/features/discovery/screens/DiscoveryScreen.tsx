@@ -624,6 +624,7 @@ export default function DiscoveryScreen() {
                             onServerRoomPress={handleServerRoomPress}
                             onMarkerDeselect={handleMarkerDeselect}
                             mapOverlayOpacity={mapOverlayOpacity}
+                            markersOpacity={markersOpacity}
                         />
                     )}
 

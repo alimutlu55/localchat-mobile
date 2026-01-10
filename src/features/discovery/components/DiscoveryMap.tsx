@@ -2,7 +2,7 @@ import React from 'react';
 import { View, Text, ActivityIndicator, Animated } from 'react-native';
 import { MapView, Camera, MapViewRef, CameraRef } from '@maplibre/maplibre-react-native';
 import { HUDDLE_MAP_STYLE } from '../../../styles/mapStyle';
-import { ServerRoomMarker, ServerClusterMarker } from '../components';
+import { ServerRoomMarker, ServerClusterMarker } from './ServerClusterMarkers';
 import { MapViewLocation } from '../map/MapViewLocation';
 import { ClusterFeature } from '../../../types';
 import { styles } from '../screens/DiscoveryScreen.styles';
@@ -24,6 +24,7 @@ interface DiscoveryMapProps {
     onServerRoomPress: (feature: ClusterFeature) => void;
     onMarkerDeselect: () => void;
     mapOverlayOpacity: Animated.Value;
+    markersOpacity: Animated.Value;
 }
 
 export const DiscoveryMap: React.FC<DiscoveryMapProps> = ({
@@ -43,6 +44,7 @@ export const DiscoveryMap: React.FC<DiscoveryMapProps> = ({
     onServerRoomPress,
     onMarkerDeselect,
     mapOverlayOpacity,
+    markersOpacity,
 }) => {
     return (
         <>
@@ -76,28 +78,38 @@ export const DiscoveryMap: React.FC<DiscoveryMapProps> = ({
                 )}
 
                 {/* Server-Side Markers - Flattened rendering to prevent Fragment-related native crashes */}
-                {canRenderMarkers && serverFeatures
-                    .filter((f: ClusterFeature) => f.properties.cluster ? f.properties.clusterId != null : !!f.properties.roomId)
-                    .map((feature: ClusterFeature) => {
-                        if (feature.properties.cluster) {
+                {(() => {
+                    if (!canRenderMarkers) {
+                        return null;
+                    }
+                    if (!serverFeatures || serverFeatures.length === 0) {
+                        return null;
+                    }
+
+                    return serverFeatures
+                        .filter((f: ClusterFeature) => f.properties.cluster ? f.properties.clusterId != null : !!f.properties.roomId)
+                        .map((feature: ClusterFeature) => {
+                            const [lng, lat] = feature.geometry.coordinates;
+                            if (feature.properties.cluster) {
+                                return (
+                                    <ServerClusterMarker
+                                        key={`server-cluster-${feature.properties.clusterId}-${lng.toFixed(4)}-${lat.toFixed(4)}`} // Force remount on move
+                                        feature={feature}
+                                        onPress={onServerClusterPress}
+                                    />
+                                );
+                            }
                             return (
-                                <ServerClusterMarker
-                                    key={`server-cluster-${feature.properties.clusterId}`}
+                                <ServerRoomMarker
+                                    key={`server-room-${feature.properties.roomId}-${lng.toFixed(4)}-${lat.toFixed(4)}`} // Force remount on move
                                     feature={feature}
-                                    onPress={onServerClusterPress}
+                                    isSelected={selectedFeature?.properties.roomId === feature.properties.roomId}
+                                    onPress={onServerRoomPress}
+                                    onDeselect={onMarkerDeselect}
                                 />
                             );
-                        }
-                        return (
-                            <ServerRoomMarker
-                                key={`server-room-${feature.properties.roomId}`}
-                                feature={feature}
-                                isSelected={selectedFeature?.properties.roomId === feature.properties.roomId}
-                                onPress={onServerRoomPress}
-                                onDeselect={onMarkerDeselect}
-                            />
-                        );
-                    })}
+                        });
+                })()}
             </MapView>
 
             {/* Map Loading Overlay - Fades out when map is ready */}

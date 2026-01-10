@@ -8,7 +8,8 @@
 import React, { memo, useCallback } from 'react';
 import { TouchableOpacity, StyleSheet, Platform, View } from 'react-native';
 import { PointAnnotation } from '@maplibre/maplibre-react-native';
-import { Bubble, MiniRoomCard } from './index';
+import { Bubble } from './Bubble';
+import { MiniRoomCard } from './MiniRoomCard';
 import { MapCluster } from './MapCluster';
 import { Room, ClusterFeature } from '../../../types';
 import { getCategoryEmoji } from '../../../constants';
