@@ -4,26 +4,31 @@
  * Centralized configuration for the BubbleUp mobile app.
  * Environment-specific values should be loaded from env variables in production.
  */
+import { Platform } from 'react-native';
 import { theme } from '../core/theme';
 
 /**
  * API Configuration
  */
+const getUrl = (envVar: string | undefined, devDefault: string): string => {
+  const url = envVar || (__DEV__ ? devDefault : '');
+
+  if (!__DEV__ && !url) {
+    throw new Error('API URLs must be set via environment variables in production');
+  }
+
+  // Android emulator needs 10.0.2.2 instead of localhost
+  if (__DEV__ && Platform.OS === 'android') {
+    return url.replace(/localhost|127\.0\.0\.1/g, '10.0.2.2');
+  }
+
+  return url;
+};
+
 export const API_CONFIG = {
-  // Base URL for REST API
-  BASE_URL: process.env.EXPO_PUBLIC_API_URL || (__DEV__
-    ? 'http://localhost:8080/api/v1'
-    : 'https://api.localchat.app/api/v1'),
-
-  // WebSocket URL
-  WS_URL: process.env.EXPO_PUBLIC_WS_URL || (__DEV__
-    ? 'ws://localhost:8080/ws'
-    : 'wss://api.localchat.app/ws'),
-
-  // Request timeout in milliseconds
+  BASE_URL: getUrl(process.env.EXPO_PUBLIC_API_URL, 'http://localhost:8080/api/v1'),
+  WS_URL: getUrl(process.env.EXPO_PUBLIC_WS_URL, 'ws://localhost:8080/ws'),
   TIMEOUT: 30000,
-
-  // Retry configuration
   RETRY_ATTEMPTS: 3,
   RETRY_DELAY: 1000,
 };
