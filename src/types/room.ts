@@ -106,6 +106,7 @@ export interface CreateRoomRequest {
   radiusMeters: number;
   duration: BackendDuration;
   maxParticipants?: number;
+  shouldRandomize?: boolean; // If true, apply 500m privacy offset
 }
 
 // =============================================================================

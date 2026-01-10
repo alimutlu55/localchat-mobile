@@ -132,11 +132,16 @@ export default function PrivacyPolicyScreen() {
                         nearby chat rooms and display your approximate position on the map
                     </Text>
                     <Text style={styles.bulletItem}>
-                        • When you create a room, only an <Text style={styles.bold}>approximate location</Text> (randomly
-                        offset by ~500m) is stored—your exact position is never sent to our servers
+                        • <Text style={styles.bold}>My Location (GPS)</Text>: When you create a room using
+                        this option, only an approximate location (randomly offset by ~500m) is stored—your
+                        exact position is never sent to our servers
                     </Text>
                     <Text style={styles.bulletItem}>
-                        • Other users see only that you are "nearby" - they cannot see your exact coordinates
+                        • <Text style={styles.bold}>Custom Pin</Text>: When you select a location on the map,
+                        the exact coordinates you choose are stored as the room location
+                    </Text>
+                    <Text style={styles.bulletItem}>
+                        • Other users see only room markers on the map—they cannot see your personal GPS coordinates
                     </Text>
 
                     <Text style={styles.subheading}>Usage Data</Text>

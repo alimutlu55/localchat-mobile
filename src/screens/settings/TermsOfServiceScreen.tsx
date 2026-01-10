@@ -147,6 +147,16 @@ export default function TermsOfServiceScreen() {
                         • Location permission is required for the app to function
                     </Text>
 
+                    <Text style={styles.subheading}>Room Location Options</Text>
+                    <Text style={styles.bulletItem}>
+                        • <Text style={styles.bold}>My Location (GPS)</Text> - Uses your current location with
+                        a ~500m privacy offset to protect your exact position
+                    </Text>
+                    <Text style={styles.bulletItem}>
+                        • <Text style={styles.bold}>Custom Pin</Text> - Select any location on the map;
+                        the room will appear at the exact coordinates you choose
+                    </Text>
+
                     <Text style={styles.subheading}>Ephemeral Rooms</Text>
                     <Text style={styles.bulletItem}>
                         • Rooms automatically expire after <Text style={styles.bold}>1-24 hours</Text>
@@ -191,9 +201,6 @@ export default function TermsOfServiceScreen() {
                     </Text>
                     <Text style={styles.bulletItem}>
                         • Attempt to hack, exploit, or disrupt the service
-                    </Text>
-                    <Text style={styles.bulletItem}>
-                        • Create rooms in locations where you are not physically present
                     </Text>
                     <Text style={styles.bulletItem}>
                         • Use the app for any illegal purpose

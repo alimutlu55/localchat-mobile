@@ -34,12 +34,16 @@ import {
   Locate,
   ChevronDown,
   ChevronUp,
+  Navigation,
+  Map,
 } from 'lucide-react-native';
+import { MapLocationPicker } from '../components/MapLocationPicker';
 import { RootStackParamList } from '../../../navigation/types';
 import { roomService } from '../../../services';
 import { RoomCategory, serializeRoom } from '../../../types';
 import { CATEGORIES, LOCATION_CONFIG } from '../../../constants';
 import { getCurrentPositionWithTimeout } from '../../../utils/location';
+import { randomizeForRoomCreation } from '../../../utils/locationPrivacy';
 import { useRoomStore } from '../store';
 import { useMyRooms } from '../hooks';
 import { useRoomQuota } from '../hooks/useRoomQuota';
@@ -100,10 +104,16 @@ export default function CreateRoomScreen() {
   const [radiusMeters, setRadiusMeters] = useState(1000); // Default to 1km
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [maxParticipants, setMaxParticipants] = useState(100);
-  const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(initialLocation || null);
+  const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isGettingLocation, setIsGettingLocation] = useState(true);
   const { quota, refreshQuota, isLimitReached } = useRoomQuota();
+
+  // Custom location picker state
+  const [locationMode, setLocationMode] = useState<'gps' | 'custom' | null>(null);
+  const [hasExplicitlySelectedLocation, setHasExplicitlySelectedLocation] = useState(false);
+  const [isLocationPickerVisible, setIsLocationPickerVisible] = useState(false);
+  const [gpsLocation, setGpsLocation] = useState<{ latitude: number; longitude: number } | null>(null);
 
   /**
    * Get current location on mount
@@ -127,10 +137,14 @@ export default function CreateRoomScreen() {
           LOCATION_CONFIG.TIMEOUT
         );
 
-        setLocation({
+        const coords = {
           latitude: currentLocation.coords.latitude,
           longitude: currentLocation.coords.longitude,
-        });
+        };
+
+        // Store GPS location and set as initial room location
+        setGpsLocation(coords);
+        setLocation(coords);
       } catch (error) {
         console.error('Location error:', error);
         Alert.alert('Error', 'Could not get your location.');
@@ -195,6 +209,7 @@ export default function CreateRoomScreen() {
         latitude: location.latitude,
         longitude: location.longitude,
         radiusMeters: visibilityType === 'global' ? 0 : radiusMeters,
+        shouldRandomize: locationMode === 'gps', // Only randomize in GPS mode
       });
 
       // Ensure isCreator is set to true since we just created this room
@@ -353,6 +368,76 @@ export default function CreateRoomScreen() {
                 </View>
               </ScrollView>
             </View>
+          </View>
+
+          {/* Room Location Mode */}
+          <View style={styles.section}>
+            <Text style={styles.label}>Room Location</Text>
+            <View style={styles.visibilityRow}>
+              <TouchableOpacity
+                style={[
+                  styles.visibilityCard,
+                  locationMode === 'custom' && styles.visibilityCardActive,
+                ]}
+                onPress={() => setIsLocationPickerVisible(true)}
+                activeOpacity={0.7}
+              >
+                <View style={[
+                  styles.visibilityIconBox,
+                  locationMode === 'custom' && styles.visibilityIconBoxActive
+                ]}>
+                  <Map size={18} color={locationMode === 'custom' ? '#fff' : '#94a3b8'} />
+                </View>
+                <View style={styles.visibilityContent}>
+                  <Text style={[
+                    styles.visibilityTitle,
+                    locationMode === 'custom' && styles.visibilityTitleActive
+                  ]}>Custom Location</Text>
+                  <Text style={styles.visibilityDesc}>Exact location on map</Text>
+                </View>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[
+                  styles.visibilityCard,
+                  locationMode === 'gps' && styles.visibilityCardActive,
+                ]}
+                onPress={() => {
+                  setLocationMode('gps');
+                  setHasExplicitlySelectedLocation(true);
+                  if (gpsLocation) {
+                    setLocation(gpsLocation);
+                  }
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={[
+                  styles.visibilityIconBox,
+                  locationMode === 'gps' && styles.visibilityIconBoxActive
+                ]}>
+                  <Navigation size={18} color={locationMode === 'gps' ? '#fff' : '#94a3b8'} />
+                </View>
+                <View style={styles.visibilityContent}>
+                  <Text style={[
+                    styles.visibilityTitle,
+                    locationMode === 'gps' && styles.visibilityTitleActive
+                  ]}>My Location</Text>
+                </View>
+              </TouchableOpacity>
+            </View>
+
+            {/* Location preview */}
+            {location && hasExplicitlySelectedLocation && (
+              <View style={styles.locationPreview}>
+                <MapPin size={14} color="#FF6410" />
+                <Text style={styles.locationPreviewText}>
+                  {locationMode === 'custom'
+                    ? `Exact: ${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`
+                    : `Approximate location (~500m) for your privacy`
+                  }
+                </Text>
+              </View>
+            )}
           </View>
 
           {/* Duration */}
@@ -534,7 +619,7 @@ export default function CreateRoomScreen() {
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
         <TouchableOpacity
           onPress={handleCreate}
-          disabled={isLoading || !title.trim() || !categoryLabel || isLimitReached || !location}
+          disabled={isLoading || !title.trim() || !categoryLabel || isLimitReached || !location || !locationMode}
           activeOpacity={0.8}
         >
           <LinearGradient
@@ -543,7 +628,7 @@ export default function CreateRoomScreen() {
             end={{ x: 1, y: 0 }}
             style={[
               styles.createRoomButton,
-              (isLoading || !title.trim() || !categoryLabel || isLimitReached || !location) && { opacity: 0.5 }
+              (isLoading || !title.trim() || !categoryLabel || isLimitReached || !location || !locationMode) && { opacity: 0.5 }
             ]}
           >
             {isLoading ? (
@@ -559,6 +644,21 @@ export default function CreateRoomScreen() {
           Daily limit: {quota?.used ?? 0}/{quota?.limit ?? 10} rooms
         </Text>
       </View>
+
+      {/* Map Location Picker Modal */}
+      <MapLocationPicker
+        visible={isLocationPickerVisible}
+        initialLocation={location || gpsLocation}
+        userLocation={gpsLocation}
+        onConfirm={(selectedLocation) => {
+          setLocation(selectedLocation);
+          setLocationMode('custom');
+          setHasExplicitlySelectedLocation(true);
+          setIsLocationPickerVisible(false);
+        }}
+        onCancel={() => setIsLocationPickerVisible(false)}
+        radiusMeters={visibilityType === 'nearby' ? radiusMeters : undefined}
+      />
     </View>
   );
 }
@@ -609,13 +709,13 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   section: {
-    marginBottom: 24,
+    marginBottom: 30,
   },
   label: {
     fontSize: 15,
     fontWeight: '600',
     color: '#334155',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   optionalText: {
     fontWeight: '400',
@@ -650,7 +750,7 @@ const styles = StyleSheet.create({
     maxHeight: 145, // Limits to ~3 lines of chips
     backgroundColor: '#f8fafc',
     borderRadius: 16,
-    padding: 10,
+    padding: 8,
     borderWidth: 1,
     borderColor: '#f1f5f9',
   },
@@ -721,7 +821,7 @@ const styles = StyleSheet.create({
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 12,
+    padding: 10,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#f1f5f9',
@@ -732,9 +832,9 @@ const styles = StyleSheet.create({
     backgroundColor: '#fff7ed',
   },
   visibilityIconBox: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     backgroundColor: '#f1f5f9',
     justifyContent: 'center',
     alignItems: 'center',
@@ -747,7 +847,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   visibilityTitle: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: '#64748b',
   },
@@ -895,7 +995,7 @@ const styles = StyleSheet.create({
     borderTopColor: '#f1f5f9',
   },
   createRoomButton: {
-    paddingVertical: 16,
+    paddingVertical: 14,
     borderRadius: 16,
     alignItems: 'center',
     shadowColor: '#FF6410',
@@ -918,5 +1018,26 @@ const styles = StyleSheet.create({
   limitReachedText: {
     color: '#FF3B30',
     fontWeight: '600',
+  },
+  // Location mode preview styles
+  locationPreview: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#f8fafc',
+    borderRadius: 8,
+    gap: 8,
+  },
+  locationPreviewText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#64748b',
+  },
+  locationChangeLink: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#FF6410',
   },
 });

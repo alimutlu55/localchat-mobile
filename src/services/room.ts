@@ -220,16 +220,30 @@ class RoomService {
    * Backend returns: { data: RoomDTO }
    */
   async createRoom(request: CreateRoomRequest): Promise<Room> {
-    // Use a fixed privacy radius (500m) for room creation
-    // The visibility radius (radiusMeters) controls who can SEE the room, not where it's placed
-    // These are separate concerns: privacy offset should not scale with visibility range
-    const FIXED_PRIVACY_RADIUS = 500;
-    const randomized = randomizeForRoomCreation(request.latitude, request.longitude, FIXED_PRIVACY_RADIUS);
+    // Randomize only if explicitly requested or if no preference is given (default: true for privacy)
+    // The flag allows bypassing randomization for user-selected "Custom Pin" locations
+    const shouldRandomize = request.shouldRandomize !== false;
+
+    let lat = request.latitude;
+    let lng = request.longitude;
+
+    if (shouldRandomize) {
+      // Use a fixed privacy radius (500m) for room creation
+      const FIXED_PRIVACY_RADIUS = 500;
+      const randomized = randomizeForRoomCreation(lat, lng, FIXED_PRIVACY_RADIUS);
+      lat = randomized.lat;
+      lng = randomized.lng;
+    }
+
     const safeRequest = {
       ...request,
-      latitude: randomized.lat,
-      longitude: randomized.lng,
+      latitude: lat,
+      longitude: lng,
     };
+
+    // Remove the flag before sending to backend as it expects only lat/lng
+    delete (safeRequest as any).shouldRandomize;
+
     const response = await api.post<{ data: RoomDTO }>('/rooms', safeRequest);
     return transformRoom(response.data);
   }
