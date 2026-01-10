@@ -325,7 +325,7 @@ export function MapLocationPicker({
         if (!cameraRef.current) return;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         cameraRef.current.setCamera({
-            zoomLevel: Math.min(currentZoom + 1, 18),
+            zoomLevel: Math.min(currentZoom + 1, 22),
             animationDuration: 300,
         });
     }, [currentZoom]);
@@ -393,7 +393,7 @@ export function MapLocationPicker({
                             zoomLevel: 15,
                         }}
                         minZoomLevel={13}
-                        maxZoomLevel={18}
+                        maxZoomLevel={15}
                     />
 
                     {/* 1km Radius Circle Overlay */}

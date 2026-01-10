@@ -213,7 +213,7 @@ export const MapContainer = React.forwardRef<MapContainerRef, MapContainerProps>
                 else targetZoom = currentZoom + 3;
             }
 
-            targetZoom = Math.min(targetZoom, 18);
+            targetZoom = Math.min(targetZoom, 15);
 
             onClusterPress?.(feature, targetZoom);
         }, [onClusterPress]);

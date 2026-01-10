@@ -66,7 +66,7 @@ export const DiscoveryMap: React.FC<DiscoveryMapProps> = ({
                         zoomLevel: zoom,
                     }}
                     minZoomLevel={1}
-                    maxZoomLevel={12}
+                    maxZoomLevel={15}
                 />
 
                 {/* User Location Indicator - Guard with location check */}

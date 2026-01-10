@@ -220,7 +220,7 @@ export default function DiscoveryScreen() {
         defaultCenter: userLocation || undefined,
         defaultZoom: userLocation ? 12 : 1,
         minZoom: 1,
-        maxZoom: 12,
+        maxZoom: 15,
     });
 
     // Refresh location when screen comes into focus (e.g. back from permission screen)
@@ -448,7 +448,7 @@ export default function DiscoveryScreen() {
                 const minProgressZoom = currentActualZoom < 5
                     ? optimalZoom  // From world view: jump directly to optimal
                     : Math.max(currentActualZoom + 2, optimalZoom);
-                const targetZoom = Math.min(minProgressZoom, 12);
+                const targetZoom = Math.min(minProgressZoom, 15);
 
                 // Calculate center of expansion bounds
                 const centerLng = (minLng + maxLng) / 2;
@@ -465,7 +465,7 @@ export default function DiscoveryScreen() {
 
                 // Use setCamera with calculated targetZoom
                 // The zoom level is chosen to ensure server eps will split the cluster
-                const finalTargetZoom = Math.min(targetZoom, 12);
+                const finalTargetZoom = Math.min(targetZoom, 15);
                 const animDuration = calcAnimationDuration(currentActualZoom, finalTargetZoom);
 
                 // Prefetch data - will show markers 300ms before animation ends
@@ -481,7 +481,7 @@ export default function DiscoveryScreen() {
                 // No expansion bounds - zoom in by fixed amount (more aggressive)
                 const currentActualZoom = zoomRef.current;
                 const zoomIncrement = pointCount > 100 ? 4 : pointCount > 20 ? 5 : 6;
-                const targetZoom = Math.min(currentActualZoom + zoomIncrement, 12);
+                const targetZoom = Math.min(currentActualZoom + zoomIncrement, 15);
 
                 log.debug('No expansion bounds, zooming by increment', {
                     from: currentActualZoom,

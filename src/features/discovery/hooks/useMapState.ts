@@ -97,7 +97,7 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
     defaultCenter,
     defaultZoom = defaultCenter ? 13 : 1, // Default to world view (1) if no center, else street view (13)
     minZoom = 1,
-    maxZoom = 12,
+    maxZoom = 15,
   } = options;
 
   // Refs
