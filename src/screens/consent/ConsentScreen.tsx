@@ -92,7 +92,7 @@ export default function ConsentScreen() {
     };
 
     const guarantees = [
-        'GPS location approximated (~500m) for privacy',
+        'Create rooms at any location close to you',
         'Stay anonymous if you like',
         'We show ads to keep the app free',
     ];
