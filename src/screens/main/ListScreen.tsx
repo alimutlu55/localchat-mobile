@@ -20,7 +20,8 @@ import * as Location from 'expo-location';
 import { Menu, Plus, Map as MapIcon, List } from 'lucide-react-native';
 import { RootStackParamList } from '../../navigation/types';
 import { Room, serializeRoom } from '../../types';
-import { ROOM_CONFIG } from '../../constants';
+import { ROOM_CONFIG, LOCATION_CONFIG } from '../../constants';
+import { getCurrentPositionWithTimeout } from '../../utils/location';
 import { useAuth } from '../../features/auth';
 import { useRoomDiscovery, useRoomOperations, useMyRooms } from '../../features/rooms/hooks';
 import { RoomListView } from '../../features/discovery/components';
@@ -103,9 +104,10 @@ export default function ListScreen() {
                     return;
                 }
 
-                const location = await Location.getCurrentPositionAsync({
-                    accuracy: Location.Accuracy.Balanced,
-                });
+                const location = await getCurrentPositionWithTimeout(
+                    { accuracy: LOCATION_CONFIG.ACCURACY },
+                    LOCATION_CONFIG.TIMEOUT
+                );
 
                 const coords = {
                     latitude: location.coords.latitude,
@@ -187,6 +189,7 @@ export default function ListScreen() {
                 onEnterRoom={handleEnterRoom}
                 onCreateRoom={handleCreateRoom}
                 userLocation={userLocation}
+                mode="list"
             />
 
             {/* Floating Map/List Toggle - Bottom Center */}

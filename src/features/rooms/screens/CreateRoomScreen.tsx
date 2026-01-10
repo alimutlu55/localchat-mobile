@@ -38,7 +38,8 @@ import {
 import { RootStackParamList } from '../../../navigation/types';
 import { roomService } from '../../../services';
 import { RoomCategory, serializeRoom } from '../../../types';
-import { CATEGORIES } from '../../../constants';
+import { CATEGORIES, LOCATION_CONFIG } from '../../../constants';
+import { getCurrentPositionWithTimeout } from '../../../utils/location';
 import { useRoomStore } from '../store';
 import { useMyRooms } from '../hooks';
 import { useRoomQuota } from '../hooks/useRoomQuota';
@@ -121,9 +122,10 @@ export default function CreateRoomScreen() {
           return;
         }
 
-        const currentLocation = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
+        const currentLocation = await getCurrentPositionWithTimeout(
+          { accuracy: LOCATION_CONFIG.ACCURACY },
+          LOCATION_CONFIG.TIMEOUT
+        );
 
         setLocation({
           latitude: currentLocation.coords.latitude,
@@ -132,6 +134,7 @@ export default function CreateRoomScreen() {
       } catch (error) {
         console.error('Location error:', error);
         Alert.alert('Error', 'Could not get your location.');
+        navigation.goBack();
       } finally {
         setIsGettingLocation(false);
       }
@@ -531,7 +534,7 @@ export default function CreateRoomScreen() {
       <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 20) }]}>
         <TouchableOpacity
           onPress={handleCreate}
-          disabled={isLoading || !title.trim() || !categoryLabel || isLimitReached}
+          disabled={isLoading || !title.trim() || !categoryLabel || isLimitReached || !location}
           activeOpacity={0.8}
         >
           <LinearGradient
@@ -540,7 +543,7 @@ export default function CreateRoomScreen() {
             end={{ x: 1, y: 0 }}
             style={[
               styles.createRoomButton,
-              (isLoading || !title.trim() || !categoryLabel || isLimitReached) && { opacity: 0.5 }
+              (isLoading || !title.trim() || !categoryLabel || isLimitReached || !location) && { opacity: 0.5 }
             ]}
           >
             {isLoading ? (

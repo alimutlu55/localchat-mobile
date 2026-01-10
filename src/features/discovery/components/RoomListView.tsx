@@ -51,7 +51,6 @@ interface RoomListViewProps {
     onCreateRoom?: () => void;
     userLocation?: { latitude: number; longitude: number; lat?: number; lng?: number } | null;
     mode: 'map' | 'list';
-    isTransitioning: boolean;
 }
 
 /**
@@ -154,7 +153,6 @@ export const RoomListView = memo(function RoomListView({
     onCreateRoom,
     userLocation: userLocationProp,
     mode,
-    isTransitioning,
 }: RoomListViewProps) {
     const insets = useSafeAreaInsets();
     const [searchQuery, setSearchQuery] = useState('');

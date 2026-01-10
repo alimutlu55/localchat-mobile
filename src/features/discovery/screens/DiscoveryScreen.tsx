@@ -97,7 +97,6 @@ export default function DiscoveryScreen() {
     const {
         mode: viewMode,
         setMode: setViewMode,
-        isTransitioning: isViewTransitioning,
         shouldRenderMap,
         listOpacity,
     } = useDiscoveryViewState({ initialMode: 'map' });
@@ -672,7 +671,6 @@ export default function DiscoveryScreen() {
                         onCreateRoom={handleCreateRoom}
                         userLocation={userLocation}
                         mode={viewMode}
-                        isTransitioning={isViewTransitioning}
                     />
                 </Animated.View>
             </View>

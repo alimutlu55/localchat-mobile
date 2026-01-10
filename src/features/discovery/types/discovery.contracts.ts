@@ -28,8 +28,6 @@ export type DiscoveryViewMode = 'map' | 'list';
 export interface DiscoveryViewState {
     /** Current active view */
     mode: DiscoveryViewMode;
-    /** Whether a view transition animation is in progress */
-    isTransitioning: boolean;
 }
 
 // =============================================================================

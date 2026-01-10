@@ -33,7 +33,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Plus, Menu, Map as MapIcon, List } from 'lucide-react-native';
 import { RootStackParamList } from '../../navigation/types';
 import { Room, serializeRoom } from '../../types';
-import { ROOM_CONFIG, MAP_CONFIG } from '../../constants';
+import { ROOM_CONFIG, MAP_CONFIG, LOCATION_CONFIG } from '../../constants';
+import { getCurrentPositionWithTimeout } from '../../utils/location';
 import { useAuth } from '../../features/auth';
 import { useRoomDiscovery, useMyRooms } from '../../features/rooms/hooks';
 import { Sidebar } from '../../components/Sidebar';
@@ -249,9 +250,10 @@ export default function MapScreen() {
         }
 
         // Get initial position
-        const initialLocation = await Location.getCurrentPositionAsync({
-          accuracy: Location.Accuracy.Balanced,
-        });
+        const initialLocation = await getCurrentPositionWithTimeout(
+          { accuracy: LOCATION_CONFIG.ACCURACY },
+          LOCATION_CONFIG.TIMEOUT
+        );
 
         const coords = {
           latitude: initialLocation.coords.latitude,
@@ -328,7 +330,7 @@ export default function MapScreen() {
           visibleBounds[1][0], visibleBounds[1][1],
           visibleBounds[0][0], visibleBounds[0][1]
         ];
-        
+
         // Use debounced setter to batch clustering recalculations
         debouncedSetViewport(Math.round(zoom), newBounds);
       }
@@ -390,7 +392,7 @@ export default function MapScreen() {
 
     isAnimatingRef.current = true;
     const newZoom = Math.min(currentZoom + 1, 12);
-    
+
     cameraRef.current.setCamera({
       zoomLevel: newZoom,
       animationDuration: 500,
@@ -414,7 +416,7 @@ export default function MapScreen() {
 
     isAnimatingRef.current = true;
     const newZoom = Math.max(currentZoom - 1, 1);
-    
+
     cameraRef.current.setCamera({
       zoomLevel: newZoom,
       animationDuration: 500,

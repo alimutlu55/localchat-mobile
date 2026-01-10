@@ -5,6 +5,7 @@
  * Environment-specific values should be loaded from env variables in production.
  */
 import { Platform } from 'react-native';
+import * as Location from 'expo-location';
 import { theme } from '../core/theme';
 
 /**
@@ -127,6 +128,17 @@ export const MAP_CONFIG = {
   // Cluster configuration
   CLUSTER_RADIUS: 50,
   MIN_CLUSTER_SIZE: 2,
+};
+
+/**
+ * Location Configuration
+ */
+export const LOCATION_CONFIG = {
+  // Timeout for one-time location fetching (ms)
+  TIMEOUT: 3000,
+
+  // Default accuracy for location fetching
+  ACCURACY: Location.Accuracy.Balanced,
 };
 
 /**

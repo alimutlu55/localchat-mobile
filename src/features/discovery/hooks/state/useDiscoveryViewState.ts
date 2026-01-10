@@ -39,8 +39,6 @@ export interface UseDiscoveryViewStateReturn extends DiscoveryViewState {
     setMode: (mode: DiscoveryViewMode) => void;
     /** Toggle between map and list */
     toggleMode: () => void;
-    /** Whether a view transition is in progress */
-    isTransitioning: boolean;
     /** Whether map should be rendered (false = unmounted for performance) */
     shouldRenderMap: boolean;
     /** Animated value for list opacity (0 = hidden, 1 = visible) */
@@ -63,14 +61,11 @@ export function useDiscoveryViewState(
     // View mode state - consolidated to minimize re-renders
     const [state, setState] = useState<{
         mode: DiscoveryViewMode;
-        isTransitioning: boolean;
     }>({
         mode: initialMode,
-        isTransitioning: false,
     });
 
     const mode = state.mode;
-    const isTransitioning = state.isTransitioning;
 
     // Map rendering state - unmount for performance when in list mode
     const [shouldRenderMap, setShouldRenderMap] = useState(initialMode === 'map');
@@ -84,9 +79,7 @@ export function useDiscoveryViewState(
             toValue: mode === 'list' ? 1 : 0,
             duration: transitionDuration,
             useNativeDriver: true,
-        }).start(() => {
-            setState(current => ({ ...current, isTransitioning: false }));
-        });
+        }).start();
 
         if (mode === 'list') {
             // Keep map for transition duration, then unmount to save resources
@@ -109,7 +102,6 @@ export function useDiscoveryViewState(
 
             return {
                 mode: newMode,
-                isTransitioning: true
             };
         });
     }, []);
@@ -119,15 +111,13 @@ export function useDiscoveryViewState(
         setState(current => ({
             ...current,
             mode: current.mode === 'map' ? 'list' : 'map',
-            isTransitioning: true
         }));
     }, []);
 
     return {
-        mode,
+        mode: state.mode,
         setMode,
         toggleMode,
-        isTransitioning,
         shouldRenderMap,
         listOpacity,
     };

@@ -6,6 +6,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import * as Location from 'expo-location';
+import { LOCATION_CONFIG } from '../constants';
+import { getCurrentPositionWithTimeout } from '../utils/location';
 
 export interface GeolocationState {
   latitude: number | null;
@@ -39,7 +41,11 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
     permissionStatus: null,
   });
 
-  const { enableHighAccuracy = true, timeout = 10000, watch = false } = options;
+  const {
+    enableHighAccuracy = true,
+    timeout = LOCATION_CONFIG.TIMEOUT,
+    watch = false
+  } = options;
 
   /**
    * Request permission and get current position
@@ -63,11 +69,14 @@ export function useGeolocation(options: UseGeolocationOptions = {}) {
       }
 
       // Get current position
-      const location = await Location.getCurrentPositionAsync({
-        accuracy: enableHighAccuracy
-          ? Location.Accuracy.High
-          : Location.Accuracy.Balanced,
-      });
+      const location = await getCurrentPositionWithTimeout(
+        {
+          accuracy: enableHighAccuracy
+            ? Location.Accuracy.High
+            : Location.Accuracy.Balanced,
+        },
+        timeout
+      );
 
       setState({
         latitude: location.coords.latitude,

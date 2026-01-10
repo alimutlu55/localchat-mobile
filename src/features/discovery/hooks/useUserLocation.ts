@@ -15,6 +15,8 @@ import * as Location from 'expo-location';
 import { createLogger } from '../../../shared/utils/logger';
 import { useLocationPermission } from '../../../shared/stores/LocationConsentStore';
 import { eventBus } from '../../../core/events/EventBus';
+import { LOCATION_CONFIG } from '../../../constants';
+import { getCurrentPositionWithTimeout } from '../../../utils/location';
 
 const log = createLogger('UserLocation');
 
@@ -91,9 +93,10 @@ export function useUserLocation(
       }
 
       // Get current position
-      const currentLocation = await Location.getCurrentPositionAsync({
-        accuracy: Location.Accuracy.Balanced,
-      });
+      const currentLocation = await getCurrentPositionWithTimeout(
+        { accuracy: LOCATION_CONFIG.ACCURACY },
+        LOCATION_CONFIG.TIMEOUT
+      );
 
       const coords: UserLocation = {
         latitude: currentLocation.coords.latitude,
