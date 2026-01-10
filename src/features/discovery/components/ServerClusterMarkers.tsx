@@ -5,8 +5,8 @@
  * These work with ClusterFeature from the server API response.
  */
 
-import React, { memo } from 'react';
-import { TouchableOpacity, StyleSheet } from 'react-native';
+import React, { memo, useCallback } from 'react';
+import { TouchableOpacity, StyleSheet, Platform, View } from 'react-native';
 import { PointAnnotation } from '@maplibre/maplibre-react-native';
 import { Bubble, MiniRoomCard } from './index';
 import { MapCluster } from './MapCluster';
@@ -28,6 +28,50 @@ interface ServerRoomMarkerProps {
   onDeselect?: () => void;
 }
 
+/**
+ * Internal: Android Room Marker
+ */
+const AndroidRoomMarker = memo(({ feature, isSelected, onPress, roomForPin }: any) => (
+  <PointAnnotation
+    id={`server-room-${feature.properties.roomId}`}
+    coordinate={feature.geometry.coordinates}
+    anchor={{ x: 0.5, y: 1 }}
+    onSelected={() => onPress(feature)}
+  >
+    <View style={[styles.markerContainer, isSelected && styles.selectedMarker]}>
+      {USE_CARD_STYLE ? (
+        <MiniRoomCard room={roomForPin as Room} isSelected={isSelected} />
+      ) : (
+        <Bubble room={roomForPin as Room} isSelected={isSelected} />
+      )}
+    </View>
+  </PointAnnotation>
+));
+
+/**
+ * Internal: iOS Room Marker
+ */
+const IosRoomMarker = memo(({ feature, isSelected, onPress, onDeselect, roomForPin }: any) => (
+  <PointAnnotation
+    id={`server-room-${feature.properties.roomId}`}
+    coordinate={feature.geometry.coordinates}
+    anchor={{ x: 0.5, y: 1 }}
+    onDeselected={onDeselect}
+  >
+    <TouchableOpacity
+      style={[styles.markerContainer, isSelected && styles.selectedMarker]}
+      activeOpacity={0.85}
+      onPress={() => onPress(feature)}
+    >
+      {USE_CARD_STYLE ? (
+        <MiniRoomCard room={roomForPin as Room} isSelected={isSelected} />
+      ) : (
+        <Bubble room={roomForPin as Room} isSelected={isSelected} />
+      )}
+    </TouchableOpacity>
+  </PointAnnotation>
+));
+
 export const ServerRoomMarker = memo(function ServerRoomMarker({
   feature,
   isSelected,
@@ -36,18 +80,10 @@ export const ServerRoomMarker = memo(function ServerRoomMarker({
 }: ServerRoomMarkerProps) {
   const { properties, geometry } = feature;
 
-  // Skip if not a room or missing coordinates
-  if (properties.cluster || !properties.roomId || !geometry?.coordinates) {
-    return null;
-  }
-
+  if (properties.cluster || !properties.roomId || !geometry?.coordinates) return null;
   const [lng, lat] = geometry.coordinates;
+  if (lng == null || lat == null || !isFinite(lng) || !isFinite(lat)) return null;
 
-  if (lng == null || lat == null || isNaN(lng) || isNaN(lat) || !isFinite(lng) || !isFinite(lat)) {
-    return null;
-  }
-
-  // Memoize room object to prevent unnecessary Bubble re-renders
   const roomForPin = React.useMemo((): Partial<Room> => ({
     id: properties.roomId,
     title: properties.title || '',
@@ -59,114 +95,88 @@ export const ServerRoomMarker = memo(function ServerRoomMarker({
     isExpiringSoon: properties.isExpiringSoon || false,
     isHighActivity: properties.isHighActivity || false,
     isNew: properties.isNew || false,
-  }), [
-    properties.roomId,
-    properties.title,
-    properties.category,
-    properties.categoryIcon,
-    properties.participantCount,
-    properties.status,
-    properties.isExpiringSoon,
-    properties.isHighActivity,
-    properties.isNew,
-  ]);
+  }), [properties]);
+
+  if (Platform.OS === 'android') {
+    return <AndroidRoomMarker feature={feature} isSelected={isSelected} onPress={onPress} roomForPin={roomForPin} />;
+  }
 
   return (
-    <PointAnnotation
-      key={`server-room-${properties.roomId}`}
-      id={`server-room-${properties.roomId}`}
-      coordinate={[lng, lat]}
-      anchor={{ x: 0.5, y: 1 }}
-      selected={isSelected}
-      onDeselected={onDeselect}
-    >
-      <TouchableOpacity
-        style={[
-          styles.markerContainer,
-          isSelected && styles.selectedMarker
-        ]}
-        activeOpacity={0.85}
-        onPress={() => onPress(feature)}
-      >
-        {USE_CARD_STYLE ? (
-          <MiniRoomCard room={roomForPin as Room} isSelected={isSelected} />
-        ) : (
-          <Bubble room={roomForPin as Room} isSelected={isSelected} />
-        )}
-      </TouchableOpacity>
-    </PointAnnotation>
+    <IosRoomMarker
+      feature={feature}
+      isSelected={isSelected}
+      onPress={onPress}
+      onDeselect={onDeselect}
+      roomForPin={roomForPin}
+    />
   );
-}, (prevProps, nextProps) => {
-  // Enhanced comparison to prevent re-renders
-  return (
-    prevProps.feature.properties.roomId === nextProps.feature.properties.roomId &&
-    prevProps.feature.properties.participantCount === nextProps.feature.properties.participantCount &&
-    prevProps.feature.properties.status === nextProps.feature.properties.status &&
-    prevProps.feature.properties.category === nextProps.feature.properties.category &&
-    prevProps.feature.properties.categoryIcon === nextProps.feature.properties.categoryIcon &&
-    prevProps.feature.properties.isExpiringSoon === nextProps.feature.properties.isExpiringSoon &&
-    prevProps.feature.properties.isHighActivity === nextProps.feature.properties.isHighActivity &&
-    prevProps.feature.properties.isNew === nextProps.feature.properties.isNew &&
-    prevProps.isSelected === nextProps.isSelected &&
-    prevProps.feature.geometry.coordinates[0] === nextProps.feature.geometry.coordinates[0] &&
-    prevProps.feature.geometry.coordinates[1] === nextProps.feature.geometry.coordinates[1]
-  );
-});
+}, (prev, next) => prev.isSelected === next.isSelected && prev.feature === next.feature);
 
 /**
  * Server Cluster Marker Component
- * For cluster aggregations from server clustering response
  */
 interface ServerClusterMarkerProps {
   feature: ClusterFeature;
-  isSelected?: boolean;
   onPress: (feature: ClusterFeature) => void;
   onDeselect?: () => void;
 }
 
+/**
+ * Internal: Android Cluster Marker
+ * Features the "Indestructible Container" (128px) and onSelected touch.
+ */
+const AndroidClusterMarker = memo(({ feature, onPress }: any) => (
+  <PointAnnotation
+    id={`server-cluster-${feature.properties.clusterId}`}
+    coordinate={feature.geometry.coordinates}
+    anchor={{ x: 0.5, y: 0.5 }}
+    onSelected={() => onPress(feature)}
+  >
+    <View style={{
+      width: 128, // Constant "Indestructible" size
+      height: 128,
+      alignItems: 'center',
+      justifyContent: 'center',
+    }}>
+      <MapCluster count={feature.properties.pointCount || 0} />
+    </View>
+  </PointAnnotation>
+));
+
+/**
+ * Internal: iOS Cluster Marker
+ * Clean implementation with zero extra padding or bitmap-specific scale logic.
+ */
+const IosClusterMarker = memo(({ feature, onPress, onDeselect }: any) => (
+  <PointAnnotation
+    id={`server-cluster-${feature.properties.clusterId}`}
+    coordinate={feature.geometry.coordinates}
+    anchor={{ x: 0.5, y: 0.5 }}
+    onDeselected={onDeselect}
+  >
+    <TouchableOpacity activeOpacity={0.9} onPress={() => onPress(feature)}>
+      <MapCluster count={feature.properties.pointCount || 0} />
+    </TouchableOpacity>
+  </PointAnnotation>
+));
+
 export const ServerClusterMarker = memo(function ServerClusterMarker({
   feature,
-  isSelected = false,
   onPress,
   onDeselect
 }: ServerClusterMarkerProps) {
   const { properties, geometry } = feature;
 
-  // Skip if not a cluster or missing data
-  if (!properties.cluster || properties.clusterId == null || !geometry?.coordinates) {
-    return null;
-  }
-
+  if (!properties.cluster || properties.clusterId == null || !geometry?.coordinates) return null;
   const [lng, lat] = geometry.coordinates;
+  if (lng == null || lat == null || !isFinite(lng) || !isFinite(lat)) return null;
 
-  if (lng == null || lat == null || isNaN(lng) || isNaN(lat) || !isFinite(lng) || !isFinite(lat)) {
-    return null;
+  if (Platform.OS === 'android') {
+    return <AndroidClusterMarker feature={feature} onPress={onPress} />;
   }
 
-  return (
-    <PointAnnotation
-      key={`server-cluster-${properties.clusterId}`}
-      id={`server-cluster-${properties.clusterId}`}
-      coordinate={[lng, lat]}
-      anchor={{ x: 0.5, y: 0.5 }}
-      onDeselected={onDeselect}
-    >
-      <TouchableOpacity
-        activeOpacity={0.9}
-        onPress={() => onPress(feature)}
-      >
-        <MapCluster count={properties.pointCount || 0} />
-      </TouchableOpacity>
-    </PointAnnotation>
-  );
-}, (prevProps, nextProps) => {
-  return (
-    prevProps.feature.properties.clusterId === nextProps.feature.properties.clusterId &&
-    prevProps.feature.properties.pointCount === nextProps.feature.properties.pointCount &&
-    prevProps.feature.geometry.coordinates[0] === nextProps.feature.geometry.coordinates[0] &&
-    prevProps.feature.geometry.coordinates[1] === nextProps.feature.geometry.coordinates[1]
-  );
-});
+  return <IosClusterMarker feature={feature} onPress={onPress} onDeselect={onDeselect} />;
+}, (prev, next) => prev.feature === next.feature);
 
 const styles = StyleSheet.create({
   markerContainer: {
@@ -174,6 +184,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   selectedMarker: {
-    zIndex: 100, // Ensure selected marker is above others
+    zIndex: 100,
   },
 });

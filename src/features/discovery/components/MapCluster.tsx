@@ -4,25 +4,99 @@ import {
     StyleSheet,
     Animated,
     View,
+    Platform,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
+import Svg, { Circle, Defs, LinearGradient as SvgGradient, Stop } from 'react-native-svg';
 import { getClusterSizeCategory, formatClusterCount } from '../../../utils/mapClustering';
 
 interface MapClusterProps {
     count: number;
 }
 
-export const MapCluster = memo(({ count }: MapClusterProps) => {
-    const sizeCategory = getClusterSizeCategory(count);
+interface MapClusterInternalProps {
+    count: number;
+    colors: [string, string];
+    size: { width: number; height: number; borderRadius: number };
+    fontSize: number;
+}
 
-    // Animations
+/**
+ * Android Implementation: Optimized for PointAnnotation's static bitmap rendering.
+ * Uses SVG for mathematically perfect circles and a large "Safe Zone" buffer
+ * to prevent clipping during overshoot animations or sub-pixel rounding.
+ */
+const AndroidMapCluster = memo(({ count, colors, size, fontSize }: MapClusterInternalProps) => {
+    const scale = useRef(new Animated.Value(0.85)).current;
+    const opacity = useRef(new Animated.Value(0)).current;
+
+    useEffect(() => {
+        Animated.parallel([
+            // Android timing eliminates overshoot entirely, which is the primary cause of clipping
+            Animated.timing(scale, {
+                toValue: 1,
+                duration: 300,
+                useNativeDriver: true,
+            }),
+            Animated.timing(opacity, {
+                toValue: 1,
+                duration: 200,
+                useNativeDriver: true,
+            }),
+        ]).start();
+    }, []);
+
+    const BUFFER = 32;
+    const width = size.width + BUFFER;
+    const height = size.height + BUFFER;
+    const centerX = width / 2;
+    const centerY = height / 2;
+    const radius = size.width / 2;
+
+    return (
+        <Animated.View style={{
+            width,
+            height,
+            opacity,
+            transform: [{ scale }],
+            justifyContent: 'center',
+            alignItems: 'center',
+        }}>
+            <Svg width={width} height={height} viewBox={`0 0 ${width} ${height}`}>
+                <Defs>
+                    <SvgGradient id="grad" x1="0%" y1="0%" x2="100%" y2="100%">
+                        <Stop offset="0%" stopColor={colors[0]} />
+                        <Stop offset="100%" stopColor={colors[1]} />
+                    </SvgGradient>
+                </Defs>
+                <Circle cx={centerX} cy={centerY} r={radius} fill="url(#grad)" />
+            </Svg>
+            <View style={[StyleSheet.absoluteFill, { justifyContent: 'center', alignItems: 'center' }]}>
+                <Text
+                    style={[styles.text, { fontSize }]}
+                    numberOfLines={1}
+                    adjustsFontSizeToFit={true}
+                    minimumFontScale={0.6}
+                >
+                    {formatClusterCount(count)}
+                </Text>
+            </View>
+        </Animated.View>
+    );
+});
+
+/**
+ * iOS Implementation: Full premium effects (glow, ripple, spring animations).
+ * PointAnnotation on iOS supports full interactive React Native components,
+ * so we don't need the bitmap-specific optimizations required for Android.
+ */
+const IosMapCluster = memo(({ count, colors, size, fontSize }: MapClusterInternalProps) => {
     const scale = useRef(new Animated.Value(0.85)).current;
     const opacity = useRef(new Animated.Value(0)).current;
     const rippleScale = useRef(new Animated.Value(1)).current;
     const rippleOpacity = useRef(new Animated.Value(0.2)).current;
 
     useEffect(() => {
-        // Initial entry animation - matching web spring
         const entryAnim = Animated.parallel([
             Animated.spring(scale, {
                 toValue: 1,
@@ -37,38 +111,20 @@ export const MapCluster = memo(({ count }: MapClusterProps) => {
             }),
         ]);
 
-        entryAnim.start();
-
-        // Subtle ripple animation - matching web (2.5s duration)
         const rippleAnim = Animated.loop(
             Animated.parallel([
                 Animated.sequence([
-                    Animated.timing(rippleScale, {
-                        toValue: 1.2,
-                        duration: 1250,
-                        useNativeDriver: true,
-                    }),
-                    Animated.timing(rippleScale, {
-                        toValue: 1,
-                        duration: 1250,
-                        useNativeDriver: true,
-                    }),
+                    Animated.timing(rippleScale, { toValue: 1.2, duration: 1250, useNativeDriver: true }),
+                    Animated.timing(rippleScale, { toValue: 1, duration: 1250, useNativeDriver: true }),
                 ]),
                 Animated.sequence([
-                    Animated.timing(rippleOpacity, {
-                        toValue: 0,
-                        duration: 1250,
-                        useNativeDriver: true,
-                    }),
-                    Animated.timing(rippleOpacity, {
-                        toValue: 0.2,
-                        duration: 1250,
-                        useNativeDriver: true,
-                    }),
+                    Animated.timing(rippleOpacity, { toValue: 0, duration: 1250, useNativeDriver: true }),
+                    Animated.timing(rippleOpacity, { toValue: 0.2, duration: 1250, useNativeDriver: true }),
                 ]),
             ])
         );
 
+        entryAnim.start();
         rippleAnim.start();
 
         return () => {
@@ -77,95 +133,80 @@ export const MapCluster = memo(({ count }: MapClusterProps) => {
         };
     }, []);
 
-    // Colors matching web exactly (more vivid, saturated)
-    const getColors = (): [string, string] => {
-        switch (sizeCategory) {
-            case 'small':
-                return ['#FF6410', '#f43f5e']; // orange-400 -> rose-500
-            case 'medium':
-                return ['#FF6410', '#e11d48']; // orange-500 -> rose-600
-            case 'large':
-                return ['#f43f5e', '#9333ea']; // rose-500 -> purple-600
-            case 'xlarge':
-                return ['#a855f7', '#4f46e5']; // purple-500 -> indigo-600
-        }
-    };
-
-    // Sizes matching web (w-10=40, w-12=48, w-14=56, w-16=64)
-    const getSizeStyle = () => {
-        switch (sizeCategory) {
-            case 'small':
-                return { width: 40, height: 40, borderRadius: 20 };
-            case 'medium':
-                return { width: 48, height: 48, borderRadius: 24 };
-            case 'large':
-                return { width: 56, height: 56, borderRadius: 28 };
-            case 'xlarge':
-                return { width: 64, height: 64, borderRadius: 32 };
-        }
-    };
-
-    // Font sizes matching web (text-sm=14, text-base=16, text-lg=18, text-xl=20)
-    const getFontSize = () => {
-        switch (sizeCategory) {
-            case 'small': return 14;
-            case 'medium': return 16;
-            case 'large': return 18;
-            case 'xlarge': return 20;
-        }
-    };
-
-    const colors = getColors();
-    const size = getSizeStyle();
+    const sizeCategory = getClusterSizeCategory(count);
+    const hasGlow = sizeCategory === 'large' || sizeCategory === 'xlarge';
 
     return (
         <View style={styles.container}>
-            <Animated.View
-                style={[
-                    styles.inner,
-                    size,
-                    {
-                        opacity,
-                        transform: [{ scale }],
-                    },
-                ]}
-            >
-                {/* Glow effect for large clusters - matching web */}
-                {(sizeCategory === 'large' || sizeCategory === 'xlarge') && (
-                    <View
-                        style={[
-                            styles.glow,
-                            size,
-                            { backgroundColor: colors[0] },
-                        ]}
-                    />
-                )}
-
+            <Animated.View style={[styles.inner, size, { opacity, transform: [{ scale }] }]}>
+                {hasGlow && <View style={[styles.glow, size, { backgroundColor: colors[0] }]} />}
                 <LinearGradient
                     colors={colors}
                     start={{ x: 0, y: 0 }}
                     end={{ x: 1, y: 1 }}
                     style={[styles.gradient, size]}
                 >
-                    {/* Subtle ripple effect - matching web bg-white/15 */}
                     <Animated.View
                         style={[
                             styles.ripple,
-                            {
-                                transform: [{ scale: rippleScale }],
-                                opacity: rippleOpacity,
-                            }
+                            { transform: [{ scale: rippleScale }], opacity: rippleOpacity }
                         ]}
                     />
-
-                    {/* Count text with shadow - matching web drop-shadow-sm */}
-                    <Text style={[styles.text, { fontSize: getFontSize() }]}>
+                    <Text style={[styles.text, { fontSize }]}>
                         {formatClusterCount(count)}
                     </Text>
                 </LinearGradient>
             </Animated.View>
         </View>
     );
+});
+
+export const MapCluster = memo(({ count }: MapClusterProps) => {
+    const sizeCategory = getClusterSizeCategory(count);
+
+    // Colors matching web exactly (more vivid, saturated)
+    const getColors = (): [string, string] => {
+        switch (sizeCategory) {
+            case 'small': return ['#FF6410', '#f43f5e'];
+            case 'medium': return ['#FF6410', '#e11d48'];
+            case 'large': return ['#f43f5e', '#9333ea'];
+            case 'xlarge': return ['#a855f7', '#4f46e5'];
+            default: return ['#FF6410', '#f43f5e'];
+        }
+    };
+
+    const getSizeStyle = () => {
+        switch (sizeCategory) {
+            case 'small': return { width: 40, height: 40, borderRadius: 20 };
+            case 'medium': return { width: 48, height: 48, borderRadius: 24 };
+            case 'large': return { width: 56, height: 56, borderRadius: 28 };
+            case 'xlarge': return { width: 64, height: 64, borderRadius: 32 };
+            default: return { width: 40, height: 40, borderRadius: 20 };
+        }
+    };
+
+    const getFontSize = () => {
+        switch (sizeCategory) {
+            case 'small': return 14;
+            case 'medium': return 16;
+            case 'large': return 18;
+            case 'xlarge': return 20;
+            default: return 14;
+        }
+    };
+
+    const sharedProps = {
+        count,
+        colors: getColors(),
+        size: getSizeStyle(),
+        fontSize: getFontSize(),
+    };
+
+    if (Platform.OS === 'android') {
+        return <AndroidMapCluster {...sharedProps} />;
+    }
+
+    return <IosMapCluster {...sharedProps} />;
 });
 
 const styles = StyleSheet.create({
@@ -197,6 +238,9 @@ const styles = StyleSheet.create({
         textShadowRadius: 1,
         zIndex: 10,
         letterSpacing: 0.5, // Add spacing for cleaner look
+        // Android fix: explicit sizing to prevent text truncation
+        minWidth: 24,
+        textAlign: 'center',
     },
     glow: {
         position: 'absolute',
