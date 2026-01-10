@@ -149,16 +149,38 @@ export default function MapScreen() {
     latitude: number;
     longitude: number;
   } | null>(null);
-  const [currentZoom, setCurrentZoom] = useState(12);
+  const [currentZoom, setCurrentZoom] = useState(2); // Start at World View
   const [bounds, setBounds] = useState<[number, number, number, number]>([-180, -85, 180, 85]);
-  const [centerCoord, setCenterCoord] = useState<[number, number]>([
-    MAP_CONFIG.DEFAULT_CENTER.longitude,
-    MAP_CONFIG.DEFAULT_CENTER.latitude,
-  ]);
-
-  // Sidebar and profile drawer state
+  const [centerCoord, setCenterCoord] = useState<[number, number]>([0, 20]); // World View center
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isProfileDrawerOpen, setIsProfileDrawerOpen] = useState(false);
+
+  /**
+   * Force viewport refresh - directly updates bounds/zoom from current map state
+   */
+  const forceViewportRefresh = useCallback(async () => {
+    // Safety check: ensure ref exists AND component is still mounted
+    if (!mapRef.current || !isMountedRef.current) return;
+
+    try {
+      const zoom = await mapRef.current.getZoom();
+      const visibleBounds = await mapRef.current.getVisibleBounds();
+
+      if (visibleBounds && visibleBounds.length === 2) {
+        const newBounds: [number, number, number, number] = [
+          visibleBounds[1][0], visibleBounds[1][1],
+          visibleBounds[0][0], visibleBounds[0][1]
+        ];
+        const roundedZoom = Math.round(zoom);
+
+        // Force state update to trigger re-clustering
+        setCurrentZoom(roundedZoom);
+        setBounds(newBounds);
+      }
+    } catch (error) {
+      log.error('Error forcing viewport refresh', error);
+    }
+  }, []);
 
   // Use activeRooms for clustering (only non-expired, non-closed)
   const clusterIndex = useMemo(() => createClusterIndex(activeRooms), [activeRooms]);
@@ -262,6 +284,7 @@ export default function MapScreen() {
 
         setUserLocation(coords);
         setCenterCoord([coords.longitude, coords.latitude]);
+        setCurrentZoom(12); // Snap to location zoom
 
         await fetchRooms(coords.latitude, coords.longitude);
 
@@ -310,7 +333,24 @@ export default function MapScreen() {
    */
   const handleMapReady = useCallback(() => {
     setMapReady(true);
-  }, []);
+    // Force clustering engine to initialize immediately
+    setTimeout(forceViewportRefresh, 100);
+  }, [forceViewportRefresh]);
+
+  /**
+   * Sync camera when location and map are both ready
+   */
+  useEffect(() => {
+    if (mapReady && userLocation && cameraRef.current) {
+      cameraRef.current.setCamera({
+        centerCoordinate: [userLocation.longitude, userLocation.latitude],
+        zoomLevel: 12,
+        animationDuration: 0, // Instant jump on initial load
+      });
+      // Ensure clustering is triggered for this new position
+      setTimeout(forceViewportRefresh, 500);
+    }
+  }, [mapReady, !!userLocation]);
 
   /**
    * Handle region change - updates viewport for clustering with debouncing
@@ -518,32 +558,6 @@ export default function MapScreen() {
     }
   }, [navigation, setSelectedRoom, mapReady, currentZoom, calculateMapFlyDuration]);
 
-  /**
-   * Force viewport refresh - directly updates bounds/zoom from current map state
-   */
-  const forceViewportRefresh = useCallback(async () => {
-    // Safety check: ensure ref exists AND component is still mounted
-    if (!mapRef.current || !isMountedRef.current) return;
-
-    try {
-      const zoom = await mapRef.current.getZoom();
-      const visibleBounds = await mapRef.current.getVisibleBounds();
-
-      if (visibleBounds && visibleBounds.length === 2) {
-        const newBounds: [number, number, number, number] = [
-          visibleBounds[1][0], visibleBounds[1][1],
-          visibleBounds[0][0], visibleBounds[0][1]
-        ];
-        const roundedZoom = Math.round(zoom);
-
-        // Force state update to trigger re-clustering
-        setCurrentZoom(roundedZoom);
-        setBounds(newBounds);
-      }
-    } catch (error) {
-      log.error('Error forcing viewport refresh', error);
-    }
-  }, []);
 
   // Cleanup: mark as unmounted to prevent native calls during unmount
   useEffect(() => {
