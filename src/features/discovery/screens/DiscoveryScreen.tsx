@@ -208,7 +208,7 @@ export default function DiscoveryScreen() {
         hasBoundsInitialized,
         isMapMoving,
         handleMapReady,
-        handleRegionWillChange,
+        handleRegionWillChange: baseHandleRegionWillChange,
         handleRegionDidChange,
         zoomIn,
         zoomOut,
@@ -219,7 +219,7 @@ export default function DiscoveryScreen() {
     } = useMapState({
         defaultCenter: userLocation || undefined,
         defaultZoom: userLocation ? MAP_CONFIG.ZOOM.INITIAL : MAP_CONFIG.ZOOM.BROWSE_MIN,
-        minZoom: MAP_CONFIG.ZOOM.BROWSE_MIN,
+        minZoom: MAP_CONFIG.ZOOM.LIMIT_MIN,
         maxZoom: MAP_CONFIG.ZOOM.LIMIT_MAX,
     });
 
@@ -355,6 +355,24 @@ export default function DiscoveryScreen() {
     // ==========================================================================
     // Handlers
     // ==========================================================================
+
+    const handleRegionWillChange = useCallback((payload: any) => {
+        baseHandleRegionWillChange(payload);
+
+        // Add prefetch if zoom changed by >1
+        if (payload?.properties?.zoom != null) {
+            const newZoom = payload.properties.zoom;
+            const zoomDelta = Math.abs(newZoom - zoom);
+            if (zoomDelta > 1) {
+                const newCenter = payload.geometry?.coordinates;
+                if (newCenter && Array.isArray(newCenter) && newCenter.length >= 2) {
+                    const animDuration = calculateFlyDuration(newZoom);
+                    prefetchForLocation(newCenter[0], newCenter[1], newZoom, animDuration);
+                    log.debug('Manual zoom prefetch initiated', { newZoom, delta: zoomDelta.toFixed(2) });
+                }
+            }
+        }
+    }, [baseHandleRegionWillChange, zoom, calculateFlyDuration, prefetchForLocation]);
 
     const handleResetToWorldView = useCallback(() => {
         const animDuration = calculateFlyDuration(MAP_CONFIG.ZOOM.WORLD_VIEW);

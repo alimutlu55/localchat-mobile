@@ -65,7 +65,7 @@ export interface UseMapStateReturn {
   /** Call when map finishes loading */
   handleMapReady: () => void;
   /** Call when region will change (pan/zoom start) */
-  handleRegionWillChange: () => void;
+  handleRegionWillChange: (payload: any) => void;
   /** Call when region finishes changing (debounced internally) */
   handleRegionDidChange: () => void;
   /** Zoom in by one level */
@@ -197,7 +197,7 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
     setIsMapReady(true);
   }, []);
 
-  const handleRegionWillChange = useCallback(() => {
+  const handleRegionWillChange = useCallback((payload: any) => {
     setIsMapMoving(true);
   }, []);
 
@@ -336,7 +336,7 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
         log.error('Error getting map state', error);
         setIsMapMoving(false);
       }
-    }, 100); // 100ms debounce
+    }, 300); // 300ms debounce for stability during pinch-zoom
   }, [hasBoundsInitialized]);
 
   // ==========================================================================
@@ -346,9 +346,10 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
   const calculateFlyDuration = useCallback(
     (targetZoom: number): number => {
       const zoomDiff = Math.abs(targetZoom - zoomRef.current);
-      // Faster, snappier animation for zoom transitions
-      const duration = 0.8 + zoomDiff * 0.15;
-      return Math.min(duration, 3.0) * 1000; // 3 second max for faster world view transition
+      // Snappy animation: base 600ms + 150ms per zoom level change
+      // Capped at 1500ms for large deltas (e.g. world view transitions)
+      const duration = 600 + zoomDiff * 150;
+      return Math.min(duration, 1500);
     },
     [] // No dependencies - uses ref
   );

@@ -38,12 +38,28 @@ export const DiscoveryMapControls: React.FC<DiscoveryMapControlsProps> = ({
             pointerEvents={isMapStable ? 'auto' : 'none'}
         >
             <View style={styles.zoomCard}>
-                <TouchableOpacity style={styles.zoomButton} onPress={zoomIn} activeOpacity={0.7}>
-                    <Plus size={20} color="#374151" />
+                <TouchableOpacity
+                    style={styles.zoomButton}
+                    onPress={zoomIn}
+                    activeOpacity={0.7}
+                    disabled={zoom >= MAP_CONFIG.ZOOM.LIMIT_MAX}
+                >
+                    <Plus
+                        size={20}
+                        color={zoom >= MAP_CONFIG.ZOOM.LIMIT_MAX ? '#d1d5db' : '#374151'}
+                    />
                 </TouchableOpacity>
                 <View style={styles.zoomDivider} />
-                <TouchableOpacity style={styles.zoomButton} onPress={zoomOut} activeOpacity={0.7}>
-                    <Minus size={20} color="#374151" />
+                <TouchableOpacity
+                    style={styles.zoomButton}
+                    onPress={zoomOut}
+                    activeOpacity={0.7}
+                    disabled={zoom <= MAP_CONFIG.ZOOM.LIMIT_MIN}
+                >
+                    <Minus
+                        size={20}
+                        color={zoom <= MAP_CONFIG.ZOOM.LIMIT_MIN ? '#d1d5db' : '#374151'}
+                    />
                 </TouchableOpacity>
             </View>
 
