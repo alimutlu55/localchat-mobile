@@ -16,7 +16,12 @@ import { Users, Clock, Zap, Sparkles } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Room } from '../../../types';
 import { CATEGORIES } from '../../../constants';
-import { calculateDistance } from '../../../utils/format';
+import {
+    calculateDistance,
+    formatDistance,
+    getDistanceColor,
+    getTimeColor
+} from '../../../utils/format';
 import { theme } from '../../../core/theme';
 
 // =============================================================================
@@ -85,29 +90,6 @@ export const ListViewItem = memo(
             }
             return null;
         }, [room.distance, room.latitude, room.longitude, userLocation]);
-
-        const getTimeColor = useCallback(() => {
-            const hoursLeft = (room.expiresAt.getTime() - Date.now()) / (1000 * 60 * 60);
-            if (hoursLeft < 0.25) return theme.tokens.text.error;
-            if (hoursLeft < 1) return theme.tokens.brand.primary;
-            return theme.tokens.text.success;
-        }, [room.expiresAt]);
-
-        const formatDistance = useCallback((meters: number | null): string => {
-            if (meters === null) return '';
-            if (meters < 500) return 'Nearby';
-            if (meters < 1000) return `${Math.round(meters)}m away`;
-            const km = meters / 1000;
-            if (km < 10) return `${km.toFixed(1)}km away`;
-            return `${Math.round(km)}km away`;
-        }, []);
-
-        const getDistanceColor = useCallback((meters: number | null): string => {
-            if (meters === null) return theme.tokens.text.tertiary; // Disabled
-            if (meters < 500) return theme.tokens.text.success; // Green - very close
-            if (meters < 2000) return theme.tokens.brand.primary; // Orange - nearby
-            return theme.tokens.text.tertiary; // Gray - far
-        }, []);
 
         const getGradientColors = useCallback((): [string, string] => {
             // Soft Peach/Apricot Palette - "Just enough color"
@@ -186,8 +168,8 @@ export const ListViewItem = memo(
                                 </Text>
                             </View>
                             <View style={styles.metaItem}>
-                                <Clock size={12} color={getTimeColor()} />
-                                <Text style={[styles.timeText, { color: getTimeColor() }]}>
+                                <Clock size={12} color={getTimeColor(room.expiresAt)} />
+                                <Text style={[styles.timeText, { color: getTimeColor(room.expiresAt) }]}>
                                     {room.timeRemaining}
                                 </Text>
                             </View>

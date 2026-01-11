@@ -17,48 +17,49 @@ export { calculateDistance } from './geo';
  * Format distance in meters to human-readable string
  *
  * @param meters Distance in meters
- * @returns Formatted string (e.g., "50m away", "2.5km away")
+ * @returns Formatted string (e.g., "Nearby", "2.5km away")
  */
-export function formatDistance(meters: number | undefined): string {
+export function formatDistance(meters: number | undefined | null): string {
   if (meters === undefined || meters === null) {
-    return 'Distance unknown';
+    return '—';
   }
 
-  if (meters < 1000) {
-    return `${Math.round(meters)}m away`;
+  // Privacy Rule: "Nearby" for anything within 1km
+  if (meters <= 1000) {
+    return 'Nearby';
   }
 
   const km = meters / 1000;
 
   if (km < 10) {
-    return `${km.toFixed(1)}km away`;
+    return `~${km.toFixed(1)}km away`;
   }
 
-  return `${Math.round(km)}km away`;
+  return `~${Math.round(km)}km away`;
 }
 
 /**
  * Format distance (short version, no "away")
  *
  * @param meters Distance in meters
- * @returns Formatted string (e.g., "50m", "2.5km")
+ * @returns Formatted string (e.g., "Nearby", "~2.5km")
  */
-export function formatDistanceShort(meters: number | undefined): string {
+export function formatDistanceShort(meters: number | undefined | null): string {
   if (meters === undefined || meters === null) {
     return '—';
   }
 
-  if (meters < 1000) {
-    return `${Math.round(meters)}m`;
+  if (meters <= 1000) {
+    return 'Nearby';
   }
 
   const km = meters / 1000;
 
   if (km < 10) {
-    return `${km.toFixed(1)}km`;
+    return `~${km.toFixed(1)}km`;
   }
 
-  return `${Math.round(km)}km`;
+  return `~${Math.round(km)}km`;
 }
 
 /**
@@ -67,16 +68,20 @@ export function formatDistanceShort(meters: number | undefined): string {
  * @param meters Distance in meters
  * @returns Color code
  */
-export function getDistanceColor(meters: number): string {
-  if (meters < 500) {
-    return '#16a34a'; // Green - very close
+export function getDistanceColor(meters: number | undefined | null): string {
+  if (meters === undefined || meters === null) {
+    return '#6b7280'; // Gray
   }
 
-  if (meters < 2000) {
-    return '#FF6410'; // Orange - nearby
+  if (meters <= 1000) {
+    return '#16a34a'; // Green - Nearby (Privacy Zone)
   }
 
-  return '#6b7280'; // Gray - far
+  if (meters < 5000) {
+    return '#FF6410'; // Orange - Medium Range
+  }
+
+  return '#6b7280'; // Gray - Far
 }
 
 /**

@@ -44,34 +44,30 @@ describe('format utilities', () => {
 
     describe('formatDistance', () => {
         it('should return "Distance unknown" for undefined', () => {
-            expect(formatDistance(undefined)).toBe('Distance unknown');
+            expect(formatDistance(undefined)).toBe('—');
         });
 
         it('should return "Distance unknown" for null', () => {
-            expect(formatDistance(null as unknown as number)).toBe('Distance unknown');
+            expect(formatDistance(null as unknown as number)).toBe('—');
         });
 
-        it('should format distances under 1km in meters', () => {
-            expect(formatDistance(50)).toBe('50m away');
-            expect(formatDistance(500)).toBe('500m away');
-            expect(formatDistance(999)).toBe('999m away');
-        });
-
-        it('should round meters to nearest integer', () => {
-            expect(formatDistance(50.7)).toBe('51m away');
-            expect(formatDistance(50.2)).toBe('50m away');
+        it('should format distances under 1km as "Nearby"', () => {
+            expect(formatDistance(50)).toBe('Nearby');
+            expect(formatDistance(500)).toBe('Nearby');
+            expect(formatDistance(999)).toBe('Nearby');
+            expect(formatDistance(1000)).toBe('Nearby');
         });
 
         it('should format distances 1-10km with one decimal', () => {
-            expect(formatDistance(1000)).toBe('1.0km away');
-            expect(formatDistance(2500)).toBe('2.5km away');
-            expect(formatDistance(9999)).toBe('10.0km away');
+            expect(formatDistance(1100)).toBe('~1.1km away');
+            expect(formatDistance(2500)).toBe('~2.5km away');
+            expect(formatDistance(9999)).toBe('~10.0km away');
         });
 
         it('should format distances 10km+ as rounded integers', () => {
-            expect(formatDistance(10000)).toBe('10km away');
-            expect(formatDistance(15700)).toBe('16km away');
-            expect(formatDistance(100000)).toBe('100km away');
+            expect(formatDistance(10000)).toBe('~10km away');
+            expect(formatDistance(15700)).toBe('~16km away');
+            expect(formatDistance(100000)).toBe('~100km away');
         });
     });
 
@@ -84,35 +80,36 @@ describe('format utilities', () => {
             expect(formatDistanceShort(null as unknown as number)).toBe('—');
         });
 
-        it('should format distances under 1km in meters without "away"', () => {
-            expect(formatDistanceShort(50)).toBe('50m');
-            expect(formatDistanceShort(500)).toBe('500m');
+        it('should format distances under 1km as "Nearby"', () => {
+            expect(formatDistanceShort(50)).toBe('Nearby');
+            expect(formatDistanceShort(500)).toBe('Nearby');
+            expect(formatDistanceShort(1000)).toBe('Nearby');
         });
 
         it('should format distances 1-10km with one decimal without "away"', () => {
-            expect(formatDistanceShort(2500)).toBe('2.5km');
+            expect(formatDistanceShort(2500)).toBe('~2.5km');
         });
 
         it('should format distances 10km+ as rounded integers without "away"', () => {
-            expect(formatDistanceShort(15700)).toBe('16km');
+            expect(formatDistanceShort(15700)).toBe('~16km');
         });
     });
 
     describe('getDistanceColor', () => {
-        it('should return green for distances under 500m', () => {
+        it('should return green for distances under 1000m (Nearby)', () => {
             expect(getDistanceColor(0)).toBe('#16a34a');
             expect(getDistanceColor(100)).toBe('#16a34a');
-            expect(getDistanceColor(499)).toBe('#16a34a');
+            expect(getDistanceColor(999)).toBe('#16a34a');
+            expect(getDistanceColor(1000)).toBe('#16a34a');
         });
 
-        it('should return orange for distances 500m-2000m', () => {
-            expect(getDistanceColor(500)).toBe('#FF6410');
-            expect(getDistanceColor(1000)).toBe('#FF6410');
-            expect(getDistanceColor(1999)).toBe('#FF6410');
+        it('should return orange for distances 1000m-5000m', () => {
+            expect(getDistanceColor(1001)).toBe('#FF6410');
+            expect(getDistanceColor(2000)).toBe('#FF6410');
+            expect(getDistanceColor(4999)).toBe('#FF6410');
         });
 
-        it('should return gray for distances 2000m+', () => {
-            expect(getDistanceColor(2000)).toBe('#6b7280');
+        it('should return gray for distances 5000m+', () => {
             expect(getDistanceColor(5000)).toBe('#6b7280');
             expect(getDistanceColor(100000)).toBe('#6b7280');
         });

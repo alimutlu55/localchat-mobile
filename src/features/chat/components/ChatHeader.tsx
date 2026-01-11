@@ -17,6 +17,7 @@ import { ArrowLeft, MoreVertical } from 'lucide-react-native';
 import { theme } from '../../../core/theme';
 import { ConnectionBanner } from '../../../components/chat';
 import { Room } from '../../../types';
+import { formatDistanceShort } from '../../../utils/format';
 
 // =============================================================================
 // Types
@@ -87,7 +88,7 @@ export const ChatHeader = React.memo(function ChatHeader({
                         {room.title}
                     </Text>
                     <Text style={styles.headerSubtitle}>
-                        {room.participantCount} people • {room.distanceDisplay || 'Nearby'}
+                        {room.participantCount} people • {formatDistanceShort(room.distance)}
                     </Text>
                 </TouchableOpacity>
 

@@ -23,7 +23,13 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { Room } from '../../../types';
 import { theme } from '../../../core/theme';
 import { calculateDistance } from '../../../utils/geo';
-import { formatDistanceShort, getTimeColor as getTimeColorUtil, isExpiringSoon } from '../../../utils/format';
+import {
+    formatDistance,
+    getDistanceColor,
+    formatDistanceShort,
+    getTimeColor,
+    isExpiringSoon
+} from '../../../utils/format';
 import { CATEGORIES } from '../../../constants';
 
 // =============================================================================
@@ -51,30 +57,6 @@ export interface RoomCardProps {
 const getCategoryLabel = (categoryId: string): string => {
     const category = CATEGORIES.find(cat => cat.id === categoryId);
     return category?.label || categoryId;
-};
-
-/** Get distance color based on meters */
-const getDistanceColor = (meters: number): string => {
-    if (meters < 500) return theme.tokens.text.success;
-    if (meters < 2000) return theme.tokens.brand.primary;
-    return theme.tokens.text.tertiary;
-};
-
-/** Get time color based on expiry */
-const getTimeColor = (expiresAt: Date): string => {
-    const hoursLeft = (expiresAt.getTime() - Date.now()) / (1000 * 60 * 60);
-    if (hoursLeft < 0.25) return theme.tokens.text.error;
-    if (hoursLeft < 1) return theme.tokens.brand.primary;
-    return theme.tokens.text.success;
-};
-
-/** Format distance for display */
-const formatDistance = (meters: number): string => {
-    if (meters < 500) return 'Nearby';
-    if (meters < 1000) return `${Math.round(meters)}m away`;
-    const km = meters / 1000;
-    if (km < 10) return `${km.toFixed(1)}km away`;
-    return `${Math.round(km)}km away`;
 };
 
 /** Get gradient colors for emoji background */

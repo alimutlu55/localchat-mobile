@@ -29,6 +29,7 @@ import * as Haptics from 'expo-haptics';
 import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, withRepeat } from 'react-native-reanimated';
 
 import { theme, useTheme } from '../../../core/theme';
+import { formatDistance } from '../../../utils/format';
 
 import { HUDDLE_MAP_STYLE } from '../../../styles/mapStyle';
 import { createLogger } from '../../../shared/utils/logger';
@@ -449,13 +450,7 @@ export function MapLocationPicker({
         onCancel();
     }, [onCancel]);
 
-    // Format distance for display
-    const formatDistance = (meters: number): string => {
-        if (meters < 1000) {
-            return `${Math.round(meters)}m`;
-        }
-        return `${(meters / 1000).toFixed(1)}km`;
-    };
+
 
     // ==========================================================================
     // Render

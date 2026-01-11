@@ -40,7 +40,7 @@ import { eventBus } from '../../../core/events';
 import { BannedUsersModal } from '../components';
 import { useRoom } from '../hooks';
 import { useRoomStore } from '../store/RoomStore';
-import { formatTimeAgo } from '../../../utils/format';
+import { formatTimeAgo, formatDistance } from '../../../utils/format';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'RoomInfo'>;
 type RoomInfoRouteProp = RouteProp<RootStackParamList, 'RoomInfo'>;
@@ -336,12 +336,14 @@ export default function RoomInfoScreen() {
                             <Text style={styles.gridValue}>{room.timeRemaining}</Text>
                         </View>
 
+
+
                         <View style={styles.gridItem}>
                             <View style={styles.gridItemHeader}>
                                 <MapPin size={18} color="#6b7280" />
                                 <Text style={styles.gridLabel}>Distance</Text>
                             </View>
-                            <Text style={styles.gridValue}>{room.distanceDisplay || 'Nearby'}</Text>
+                            <Text style={styles.gridValue}>{formatDistance(room.distance)}</Text>
                         </View>
 
                         <View style={styles.gridItem}>
