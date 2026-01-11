@@ -66,7 +66,10 @@ export const AdProvider: React.FC<{ children: React.ReactNode }> = ({ children }
             }
             // Default to canShowAds=false in production if everything fails
             if (!__DEV__) {
-                setCanShowAds(false);
+                // If it's a critical error but we have essential consent, 
+                // we try to show basic ads at minimum
+                const appConsent = await consentService.getStatus();
+                setCanShowAds(appConsent.hasConsent);
                 setHasPersonalizationConsent(false);
             }
         } finally {

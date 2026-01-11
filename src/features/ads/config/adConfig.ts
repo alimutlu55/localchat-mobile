@@ -34,17 +34,16 @@ const TEST_AD_UNITS = {
 // =============================================================================
 
 const PROD_AD_UNITS = {
-    // TODO: Replace with your actual AdMob Banner Ad Unit IDs
-    BANNER_IOS: 'ca-app-pub-XXXXX/BANNER_IOS',
-    BANNER_ANDROID: 'ca-app-pub-XXXXX/BANNER_ANDROID',
+    // 🚨 IMPORTANT: Replace these with your real AdMob Unit IDs for release
+    // Currently using Google Test IDs so TestFlight builds can display test ads
+    BANNER_IOS: 'ca-app-pub-3940256099942544/2934735716',
+    BANNER_ANDROID: 'ca-app-pub-3940256099942544/6300978111',
 
-    // TODO: Replace with your actual AdMob Interstitial Ad Unit IDs
-    INTERSTITIAL_IOS: 'ca-app-pub-XXXXX/INTERSTITIAL_IOS',
-    INTERSTITIAL_ANDROID: 'ca-app-pub-XXXXX/INTERSTITIAL_ANDROID',
+    INTERSTITIAL_IOS: 'ca-app-pub-3940256099942544/4411468910',
+    INTERSTITIAL_ANDROID: 'ca-app-pub-3940256099942544/1033173712',
 
-    // TODO: Replace with your actual AdMob Rewarded Ad Unit IDs (if used)
-    REWARDED_IOS: 'ca-app-pub-XXXXX/REWARDED_IOS',
-    REWARDED_ANDROID: 'ca-app-pub-XXXXX/REWARDED_ANDROID',
+    REWARDED_IOS: 'ca-app-pub-3940256099942544/1712485313',
+    REWARDED_ANDROID: 'ca-app-pub-3940256099942544/5224354917',
 } as const;
 
 // =============================================================================
