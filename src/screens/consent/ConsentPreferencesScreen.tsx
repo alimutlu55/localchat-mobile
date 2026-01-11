@@ -119,7 +119,7 @@ export default function ConsentPreferencesScreen() {
                         <View style={styles.preferenceInfo}>
                             <Text style={styles.preferenceTitle}>Privacy Policy</Text>
                             <Text style={styles.preferenceDescription}>
-                                How we collect, use, and protect your data including location,
+                                How we collect, use, and protect your data including anonymized area,
                                 messages, and account information.
                             </Text>
                         </View>

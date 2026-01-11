@@ -10,7 +10,7 @@
  * - Confirm/Cancel actions
  */
 
-import React, { useCallback, useRef, useState, useEffect } from 'react';
+import React, { useCallback, useRef, useState, useEffect, useMemo } from 'react';
 import {
     View,
     Text,
@@ -26,10 +26,9 @@ import { MapView, Camera, MapViewRef, CameraRef, ShapeSource, CircleLayer, FillL
 import { LinearGradient } from 'expo-linear-gradient';
 import { X, MapPin, Plus, Minus } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, interpolate, interpolateColor } from 'react-native-reanimated';
+import Animated, { useSharedValue, useAnimatedStyle, withSpring, withTiming, withRepeat } from 'react-native-reanimated';
 
 import { theme, useTheme } from '../../../core/theme';
-const AnimatedMapPin = Animated.createAnimatedComponent(MapPin);
 
 import { HUDDLE_MAP_STYLE } from '../../../styles/mapStyle';
 import { createLogger } from '../../../shared/utils/logger';
@@ -41,7 +40,8 @@ const log = createLogger('MapLocationPicker');
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 // Max distance in meters user can select from their GPS location
-const MAX_SELECTION_DISTANCE_METERS = 1000;
+const MAX_SELECTION_DISTANCE_METERS = 5000;
+const ROOM_COVERAGE_RADIUS_METERS = 1000;
 
 // =============================================================================
 // Geodetic Constants - Using spherical Earth model for consistency
@@ -77,6 +77,13 @@ function calculateDistanceMeters(
  * @param lat Starting latitude in degrees
  * @param lon Starting longitude in degrees  
  * @param bearing Bearing in degrees (0 = North, 90 = East)
+
+
+/**
+ * Calculate destination point from start point, bearing, and distance
+ * @param lat Starting latitude in degrees
+ * @param lon Starting longitude in degrees  
+ * @param bearing Bearing in degrees (0 = North, 90 = East)
  * @param distance Distance in meters
  * @returns Destination {lat, lon} in degrees
  */
@@ -101,29 +108,54 @@ function destinationPoint(
 
     const sinPhi2 = sinPhi1 * cosDelta + cosPhi1 * sinDelta * Math.cos(theta);
     const phi2 = Math.asin(sinPhi2);
-
-    const y = Math.sin(theta) * sinDelta * cosPhi1;
-    const x = cosDelta - sinPhi1 * sinPhi2;
-    const lambda2 = lambda1 + Math.atan2(y, x);
+    const lambda2 = lambda1 + Math.atan2(
+        Math.sin(theta) * sinDelta * cosPhi1,
+        cosDelta - sinPhi1 * sinPhi2
+    );
 
     return {
         lat: toDeg(phi2),
-        lon: toDeg(lambda2),
+        lon: toDeg(lambda2)
+    };
+}
+
+/**
+ * Generate a GeoJSON Polygon representing a grid cell for a given coordinate.
+ * Matches the 0.01 degree grid used for privacy snapping.
+ */
+function generateGridCellPolygon(longitude: number, latitude: number): any {
+    const resolution = 0.01;
+    const minLng = Math.floor(longitude / resolution) * resolution;
+    const maxLng = minLng + resolution;
+    const minLat = Math.floor(latitude / resolution) * resolution;
+    const maxLat = minLat + resolution;
+
+    return {
+        type: 'Feature',
+        geometry: {
+            type: 'Polygon',
+            coordinates: [[
+                [minLng, minLat],
+                [maxLng, minLat],
+                [maxLng, maxLat],
+                [minLng, maxLat],
+                [minLng, minLat]
+            ]],
+        },
+        properties: {},
     };
 }
 
 /**
  * Generate a GeoJSON Polygon representing a circle at a specific location
- * Uses spherical projection matching the Haversine distance formula exactly.
  */
 function generateCirclePolygon(center: [number, number], radiusInMeters: number, pointsCount: number = 128): any {
     const coords = [];
     const lng = center[0];
     const lat = center[1];
 
-    // Generate points around the circle using destination point formula
     for (let i = 0; i <= pointsCount; i++) {
-        const bearing = (i / pointsCount) * 360; // Degrees from 0 to 360
+        const bearing = (i / pointsCount) * 360;
         const point = destinationPoint(lat, lng, bearing, radiusInMeters);
         coords.push([point.lon, point.lat]);
     }
@@ -207,47 +239,94 @@ export function MapLocationPicker({
     const isWithinRange = distanceFromGps <= MAX_SELECTION_DISTANCE_METERS + PRECISION_TOLERANCE_METERS;
     const canConfirm = selectedLocation && isWithinRange;
 
-    // Animation values
-    const pinTranslateY = useSharedValue(0);
+    // Memoized boundary polygon to avoid re-generating on every frame
+    const boundaryPolygon = useMemo(() => {
+        if (!userLocation) return null;
+        return generateCirclePolygon(
+            [userLocation.longitude, userLocation.latitude],
+            MAX_SELECTION_DISTANCE_METERS
+        );
+    }, [userLocation]);
+
     const bottomSheetTranslateY = useSharedValue(200);
     const rangeValue = useSharedValue(1); // 1 = in range, 0 = out of range
+    const breathingValue = useSharedValue(1); // For idle pulse animation
 
     // Update range animation when state changes
     useEffect(() => {
         rangeValue.value = withTiming(isWithinRange ? 1 : 0, { duration: 300 });
     }, [isWithinRange, rangeValue]);
 
-    // Animated Styles
-    const pinAnimatedStyle = useAnimatedStyle(() => ({
-        transform: [{ translateY: pinTranslateY.value }]
-    }));
-
-    const pinIconAnimatedStyle = useAnimatedStyle(() => ({
-        color: interpolateColor(rangeValue.value, [0, 1], [theme.tokens.status.error.main, theme.tokens.brand.primary])
-    }));
-
-    const crosshairAnimatedStyle = useAnimatedStyle(() => ({
-        backgroundColor: interpolateColor(rangeValue.value, [0, 1], [theme.tokens.status.error.main, theme.tokens.brand.primary])
-    }));
-
-    const pinShadowAnimatedStyle = useAnimatedStyle(() => {
-        const scale = interpolate(pinTranslateY.value, [0, -20], [1, 0.4], 'clamp');
-        const opacity = interpolate(pinTranslateY.value, [0, -20], [1, 0.2], 'clamp');
-        return {
-            transform: [{ scale }],
-            opacity,
-        };
-    });
-
     const bottomSheetAnimatedStyle = useAnimatedStyle(() => ({
         transform: [{ translateY: bottomSheetTranslateY.value }]
     }));
 
+    // Dynamic scaling for the Hero Aura (RN View on top of map)
+    const heroAuraAnimatedStyle = useAnimatedStyle(() => {
+        // Meters to pixels conversion at zoom 12 is approx 38.2m/px at equator.
+        // We use a base size of 80px at zoom 12 (approx 3km diameter) 
+        // and scale exponentially with zoom.
+        const baseSizeAtZoom12 = 80;
+        const scale = Math.pow(2, currentZoom - 12);
+        const size = baseSizeAtZoom12 * scale;
+
+        return {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            transform: [
+                { translateX: -size / 2 },
+                { translateY: -size / 2 },
+            ],
+            opacity: visible ? 1 : 0,
+        };
+    }, [currentZoom, visible]);
+
+    // Breathing Animation Loop (Now targets the Pulse Ring only)
+    useEffect(() => {
+        if (!isMoving && visible) {
+            breathingValue.value = withRepeat(
+                withTiming(1.4, { duration: 2000 }), // Increased to 1.4x for "visible" breathing
+                -1,
+                true // reverse
+            );
+        } else {
+            breathingValue.value = withTiming(1, { duration: 300 });
+        }
+    }, [isMoving, visible]);
+
+    // Dedicated style for Pulse Ring to avoid transform conflicts
+    const pulseRingAnimatedStyle = useAnimatedStyle(() => {
+        // Calculate size based on zoom (same logic as heroAura)
+        const metersPerPixel = (156543.03392 * Math.cos(centerCoord[1] * Math.PI / 180)) / Math.pow(2, currentZoom);
+        const radiusPixels = ROOM_COVERAGE_RADIUS_METERS / metersPerPixel;
+        const size = radiusPixels * 2;
+
+        return {
+            width: size,
+            height: size,
+            borderRadius: size / 2,
+            transform: [
+                { translateX: -size / 2 },
+                { translateY: -size / 2 },
+                { scale: breathingValue.value } // Include scale here combined with centering
+            ],
+            opacity: visible ? 1 : 0,
+        };
+    }, [currentZoom, visible, breathingValue, centerCoord]);
+
+
     // Reset state when modal opens
     useEffect(() => {
         if (visible && initialLocation) {
-            setSelectedLocation(initialLocation);
-            setCenterCoord([initialLocation.longitude, initialLocation.latitude]);
+            // Initial snap for consistency
+            const resolution = 0.01;
+            const snappedLng = Math.floor(initialLocation.longitude / resolution) * resolution + (resolution / 2);
+            const snappedLat = Math.floor(initialLocation.latitude / resolution) * resolution + (resolution / 2);
+
+            const snappedLocation = { latitude: snappedLat, longitude: snappedLng };
+            setSelectedLocation(snappedLocation);
+            setCenterCoord([snappedLng, snappedLat]);
             setDistanceFromGps(0);
 
             // Animate bottom sheet in
@@ -279,48 +358,64 @@ export function MapLocationPicker({
 
     const handleRegionWillChange = useCallback(() => {
         setIsMoving(true);
-        pinTranslateY.value = withSpring(-20, { damping: 12 });
-    }, [pinTranslateY]);
+    }, []);
 
-    const handleRegionDidChange = useCallback(async () => {
-        if (!mapRef.current) return;
+    const lastUpdateRef = useRef(0);
+    const handleRegionIsChanging = useCallback((feature: any) => {
+        if (!feature?.geometry?.coordinates) return;
+
+        const now = Date.now();
+        if (now - lastUpdateRef.current < 16) return; // Limit to ~60fps
+        lastUpdateRef.current = now;
+
+        const [lng, lat] = feature.geometry.coordinates;
+        setSelectedLocation({ latitude: lat, longitude: lng });
+        setCenterCoord([lng, lat]);
+
+        if (userLocation) {
+            const distance = calculateDistanceMeters(
+                userLocation.latitude, userLocation.longitude,
+                lat, lng
+            );
+            setDistanceFromGps(distance);
+
+            // Magnetic Haptics: Subtle tick when crossing 80% and 95% of range
+            const rangeRatio = distance / MAX_SELECTION_DISTANCE_METERS;
+            if (rangeRatio > 0.8 && rangeRatio < 0.85) {
+                // Haptics.selectionAsync(); // Prevent spamming, need state tracker
+            }
+        }
+
+        // Update zoom if provided in feature properties
+        if (feature.properties?.zoomLevel !== undefined) {
+            setCurrentZoom(feature.properties.zoomLevel);
+        }
+    }, [userLocation]);
+
+    const handleRegionDidChange = useCallback(async (feature: any) => {
+        if (!mapRef.current || !cameraRef.current) return;
 
         try {
             const zoom = await mapRef.current.getZoom();
             setCurrentZoom(zoom);
 
-            // Calculate coordinate at crosshair position (25px below screen center)
-            // Accounts for pin icon (42px) + crosshair marginTop (4px)
-            const crosshairOffsetFromCenter = 25;
-            const pinScreenX = SCREEN_WIDTH / 2;
-            const pinScreenY = (SCREEN_HEIGHT / 2) + crosshairOffsetFromCenter;
+            if (feature?.geometry?.coordinates) {
+                const [lng, lat] = feature.geometry.coordinates;
 
-            const coordinate = await mapRef.current.getCoordinateFromView([pinScreenX, pinScreenY]);
+                setSelectedLocation({ latitude: lat, longitude: lng });
+                setCenterCoord([lng, lat]);
 
-            if (coordinate && Array.isArray(coordinate) && coordinate.length === 2) {
-                const [lng, lat] = coordinate as [number, number];
-
-                if (typeof lng === 'number' && typeof lat === 'number' &&
-                    isFinite(lng) && isFinite(lat)) {
-                    setSelectedLocation({ latitude: lat, longitude: lng });
-                    setCenterCoord([lng, lat]);
-
-                    if (userLocation) {
-                        const distance = calculateDistanceMeters(
-                            userLocation.latitude, userLocation.longitude,
-                            lat, lng
-                        );
-                        setDistanceFromGps(distance);
-                    }
+                // Haptic feedback if landing out of range
+                if (userLocation && distanceFromGps > MAX_SELECTION_DISTANCE_METERS) {
+                    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
                 }
             }
         } catch (error) {
-            log.error('Error getting coordinate at crosshair', error);
+            log.error('Error in region did change', error);
         } finally {
             setIsMoving(false);
-            pinTranslateY.value = withSpring(0, { damping: 15 });
         }
-    }, [userLocation, pinTranslateY]);
+    }, [userLocation, distanceFromGps]);
 
     const handleZoomIn = useCallback(() => {
         if (!cameraRef.current) return;
@@ -385,6 +480,7 @@ export function MapLocationPicker({
                     attributionPosition={{ bottom: 120, right: 8 }}
                     onDidFinishLoadingMap={handleMapReady}
                     onRegionWillChange={handleRegionWillChange}
+                    onRegionIsChanging={handleRegionIsChanging}
                     onRegionDidChange={handleRegionDidChange}
                 >
                     <Camera
@@ -397,54 +493,32 @@ export function MapLocationPicker({
                         maxZoomLevel={MAP_CONFIG.ZOOM.LIMIT_MAX}
                     />
 
-                    {/* 1km Radius Circle Overlay */}
-                    {userLocation && (
+                    {/* 5km Radius Boundary Circle Overlay */}
+                    {userLocation && boundaryPolygon && (
                         <ShapeSource
                             id="radius-source"
-                            shape={generateCirclePolygon(
-                                [userLocation.longitude, userLocation.latitude],
-                                MAX_SELECTION_DISTANCE_METERS
-                            )}
+                            shape={boundaryPolygon}
                         >
                             <FillLayer
                                 id="radius-fill"
                                 style={{
-                                    fillColor: 'rgba(255, 100, 16, 0.05)',
-                                    fillOutlineColor: 'rgba(255, 100, 16, 0.2)',
+                                    fillColor: 'rgba(255, 100, 16, 0.03)',
+                                    fillOpacity: Math.max(0, (distanceFromGps - 3500) / 1500) * 0.8,
+                                    fillOutlineColor: 'rgba(255, 100, 16, 0.1)',
                                 }}
                             />
                             <LineLayer
                                 id="radius-line"
                                 style={{
-                                    lineColor: 'rgba(255, 100, 16, 0.3)',
-                                    lineWidth: 2,
-                                    lineDasharray: [2, 2],
+                                    lineColor: 'rgba(255, 100, 16, 0.15)',
+                                    lineOpacity: Math.max(0, (distanceFromGps - 3500) / 1500),
+                                    lineWidth: 1.5,
+                                    lineDasharray: [4, 4],
                                 }}
                             />
                         </ShapeSource>
                     )}
 
-                    {/* Snapped Area Grid Visualization (Optional, for transparency) */}
-                    {selectedLocation && isWithinRange && (
-                        <ShapeSource
-                            id="snapped-source"
-                            shape={generateCirclePolygon(
-                                [
-                                    Math.floor(selectedLocation.longitude / 0.01) * 0.01 + 0.005,
-                                    Math.floor(selectedLocation.latitude / 0.01) * 0.01 + 0.005
-                                ],
-                                500 // 1000m diameter / 2
-                            )}
-                        >
-                            <FillLayer
-                                id="snapped-fill"
-                                style={{
-                                    fillColor: 'rgba(0, 100, 255, 0.1)',
-                                    fillOutlineColor: 'rgba(0, 100, 255, 0.3)',
-                                }}
-                            />
-                        </ShapeSource>
-                    )}
 
                     {/* User Location Indicator (Blue dot + Pulse) */}
                     {userLocation && isMapReady && (
@@ -470,7 +544,7 @@ export function MapLocationPicker({
                             <X size={24} color="#374151" />
                         </TouchableOpacity>
 
-                        <Text style={styles.headerTitle}>Select Location</Text>
+                        <Text style={styles.headerTitle}>Place your room in the city</Text>
 
                         {/* Empty spacer for visual balance - matches cancel button width */}
                         <View style={styles.headerSpacer} />
@@ -500,26 +574,41 @@ export function MapLocationPicker({
 
                 </View>
 
-                {/* Center Pin Indicator (Fixed in screen center) */}
-                <View style={styles.pinContainer} pointerEvents="none">
-                    <Animated.View style={[styles.pinWrapper, pinAnimatedStyle]}>
-                        {/* Pin Shadow - Dynamic based on lift */}
-                        <Animated.View style={[styles.pinShadow, pinShadowAnimatedStyle]} />
-                        {/* Pin Icon - changes color when out of range */}
-                        <Animated.View style={styles.pinIcon}>
-                            <AnimatedMapPin
-                                size={42}
-                                animatedProps={useAnimatedStyle(() => ({
-                                    color: interpolateColor(rangeValue.value, [0, 1], [theme.tokens.status.error.main, theme.tokens.brand.primary]),
-                                    fill: interpolateColor(rangeValue.value, [0, 1], [theme.tokens.status.error.main, theme.tokens.brand.primary]),
-                                }))}
-                                strokeWidth={1}
-                            />
-                        </Animated.View>
-                    </Animated.View>
-                    {/* Crosshair dot */}
-                    <Animated.View style={[styles.crosshairDot, crosshairAnimatedStyle]} />
-                </View>
+                {/* 
+                  Hero Coverage Visuals
+                  1. Pulse Ring (Behind, Animated)
+                  2. Hero Aura (Front, Static Precision)
+                */}
+
+                {/* 1. Pulse Ring (Breath Annotation) */}
+                <Animated.View
+                    pointerEvents="none"
+                    style={[
+                        styles.heroAura,
+                        {
+                            borderColor: isWithinRange ? theme.palette.emerald[500] : theme.tokens.status.error.main,
+                            backgroundColor: isWithinRange ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                            zIndex: 4, // Below main aura
+                            elevation: 0, // No shadow for pulse
+                            shadowOpacity: 0,
+                            borderWidth: 0, // No border to avoid "double circle" look
+                        },
+                        pulseRingAnimatedStyle // Use dedicated style
+                    ]}
+                />
+
+                {/* 2. Hero Aura (Main Precision Circle) */}
+                <Animated.View
+                    pointerEvents="none"
+                    style={[
+                        styles.heroAura,
+                        {
+                            borderColor: isWithinRange ? theme.palette.emerald[500] : theme.tokens.status.error.main,
+                            backgroundColor: isWithinRange ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+                        },
+                        heroAuraAnimatedStyle
+                    ]}
+                />
 
                 {/* Bottom Sheet */}
                 <Animated.View style={[
@@ -535,25 +624,25 @@ export function MapLocationPicker({
                             styles.locationIconContainer,
                             !isWithinRange && styles.locationIconContainerError
                         ]}>
-                            <MapPin size={22} color={isWithinRange ? '#FF6410' : '#ef4444'} />
+                            <MapPin size={22} color={isWithinRange ? theme.palette.emerald[500] : theme.palette.red[500]} />
                         </View>
                         <View style={styles.locationTextContainer}>
                             <Text style={[
                                 styles.locationLabel,
                                 !isWithinRange && { color: theme.tokens.text.error }
                             ]}>
-                                {isWithinRange ? 'Room Location' : 'Room Out of Range'}
+                                {isWithinRange ? 'Covers nearby area' : 'Too far to deploy'}
                             </Text>
                             {selectedLocation ? (
                                 <Text style={[
                                     styles.locationCoords,
                                     !isWithinRange && styles.locationCoordsError
                                 ]}>
-                                    {formatDistance(distanceFromGps)} from you
-                                    {!isWithinRange && ' (max 1km limit)'}
+                                    {formatDistance(distanceFromGps)} from here
+                                    {!isWithinRange && ' (too far)'}
                                 </Text>
                             ) : (
-                                <Text style={styles.locationCoordsPlaceholder}>Move map to select</Text>
+                                <Text style={styles.locationCoordsPlaceholder}>Move map to place</Text>
                             )}
                         </View>
                     </View>
@@ -562,8 +651,8 @@ export function MapLocationPicker({
                     <View style={styles.hintContainer}>
                         <Text style={[styles.radiusHint, !isWithinRange && styles.radiusHintError]}>
                             {isWithinRange
-                                ? 'Place your room anywhere within a 1km radius of your current position'
-                                : 'Move the pin closer to your current position to place your room'}
+                                ? 'People nearby will be able to join'
+                                : 'Move closer to your location to deploy'}
                         </Text>
                     </View>
 
@@ -583,7 +672,7 @@ export function MapLocationPicker({
                                 styles.confirmButtonText,
                                 !canConfirm && { color: '#94a3b8' }
                             ]}>
-                                {canConfirm ? 'Confirm Room Location' : 'Out of Range'}
+                                {canConfirm ? 'Select Area' : 'Out of Bounds'}
                             </Text>
                         </LinearGradient>
                     </TouchableOpacity>
@@ -597,7 +686,7 @@ export function MapLocationPicker({
                     </View>
                 )}
             </View>
-        </Modal>
+        </Modal >
     );
 }
 
@@ -736,6 +825,26 @@ const styles = StyleSheet.create({
         alignSelf: 'center',
         marginBottom: 20,
     },
+    // Hero Aura (Static View centered on screen)
+    heroAura: {
+        position: 'absolute',
+        top: '50%',
+        left: '50%',
+        borderWidth: 0.5, // Hairline edge
+        justifyContent: 'center',
+        alignItems: 'center',
+        zIndex: 5,
+        // Shadow for elevation
+        shadowColor: "#000",
+        shadowOffset: {
+            width: 0,
+            height: 4,
+        },
+        shadowOpacity: 0.25,
+        shadowRadius: 8,
+        elevation: 8,
+    },
+    // Removed heroAuraGlow
     locationInfo: {
         flexDirection: 'row',
         alignItems: 'center',

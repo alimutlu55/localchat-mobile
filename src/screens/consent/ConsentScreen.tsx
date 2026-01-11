@@ -92,9 +92,9 @@ export default function ConsentScreen() {
     };
 
     const guarantees = [
-        'Create rooms at any location close to you',
-        'Stay anonymous if you like',
-        'We show ads to keep the app free',
+        'Rooms are created by area, not exact locations',
+        'Join and chat without revealing who you are',
+        'Ads help keep the app free for everyone',
     ];
 
     return (
@@ -136,7 +136,7 @@ export default function ConsentScreen() {
                         <View style={styles.disclosureRow}>
                             <Info size={12} color={theme.tokens.text.tertiary} />
                             <Text style={[styles.disclosureText, { color: theme.tokens.text.tertiary }]}>
-                                Location sharing is optional
+                                Precise location is never shared
                             </Text>
                         </View>
                         <View style={styles.disclosureRow}>

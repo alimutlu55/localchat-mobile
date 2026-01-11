@@ -142,9 +142,13 @@ export default function CreateRoomScreen() {
           longitude: currentLocation.coords.longitude,
         };
 
+        // Snap to grid centroid for privacy and UI consistency
+        const snapped = randomizeForRoomCreation(coords.latitude, coords.longitude);
+        const snappedCoords = { latitude: snapped.lat, longitude: snapped.lng };
+
         // Store GPS location and set as initial room location
-        setGpsLocation(coords);
-        setLocation(coords);
+        setGpsLocation(snappedCoords);
+        setLocation(snappedCoords);
       } catch (error) {
         console.error('Location error:', error);
         Alert.alert('Error', 'Could not get your location.');
@@ -392,8 +396,8 @@ export default function CreateRoomScreen() {
                   <Text style={[
                     styles.visibilityTitle,
                     locationMode === 'custom' && styles.visibilityTitleActive
-                  ]}>Custom Location</Text>
-                  <Text style={styles.visibilityDesc}>Exact location on map</Text>
+                  ]}>Custom Area</Text>
+                  <Text style={styles.visibilityDesc}>Select zone on map</Text>
                 </View>
               </TouchableOpacity>
 
@@ -419,22 +423,19 @@ export default function CreateRoomScreen() {
                 </View>
                 <View style={styles.visibilityContent}>
                   <Text style={[
-                    styles.visibilityTitle,
                     locationMode === 'gps' && styles.visibilityTitleActive
-                  ]}>My Location</Text>
+                  ]}>Nearby Area</Text>
+                  <Text style={styles.visibilityDesc}>Your general vicinity</Text>
                 </View>
               </TouchableOpacity>
             </View>
 
-            {/* Location preview */}
-            {location && hasExplicitlySelectedLocation && (
+            {/* Location preview - Only show for GPS mode if needed, or remove for Custom as requested */}
+            {location && hasExplicitlySelectedLocation && locationMode !== 'custom' && (
               <View style={styles.locationPreview}>
                 <MapPin size={14} color="#FF6410" />
                 <Text style={styles.locationPreviewText}>
-                  {locationMode === 'custom'
-                    ? `Exact: ${location.latitude.toFixed(4)}, ${location.longitude.toFixed(4)}`
-                    : `Approximate location (~500m) for your privacy`
-                  }
+                  {`Coverage zone near your current location`}
                 </Text>
               </View>
             )}
