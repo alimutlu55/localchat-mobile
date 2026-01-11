@@ -12,6 +12,7 @@
  */
 
 import { Room, ClusterFeature, RoomCategory } from '../../../types';
+import { MAP_CONFIG } from '../../../constants';
 
 // =============================================================================
 // View State Contracts
@@ -110,14 +111,12 @@ export interface MapCameraOptions {
     animationMode: 'flyTo' | 'easeTo' | 'moveTo';
 }
 
-/**
- * World view constants
- */
 export const WORLD_VIEW_BOUNDS: MapBounds = [-180, -85, 180, 85];
-export const WORLD_VIEW_ZOOM = 1;
-export const DEFAULT_ZOOM = 12;
-export const MIN_ZOOM = 1;
-export const MAX_ZOOM = 12;
+export const WORLD_VIEW_ZOOM = MAP_CONFIG.ZOOM.WORLD_VIEW;
+
+export const DEFAULT_ZOOM = MAP_CONFIG.ZOOM.INITIAL;
+export const BROWSE_MIN_ZOOM = MAP_CONFIG.ZOOM.BROWSE_MIN;
+export const MAX_ZOOM = MAP_CONFIG.ZOOM.LIMIT_MAX;
 
 // =============================================================================
 // Cluster Data Contracts

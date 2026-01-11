@@ -12,7 +12,7 @@
  * - KVKK Article 6: Explicit consent separate from general terms
  * 
  * Privacy Disclosures:
- * - Location: Randomized on device before sending to backend
+ * - Location: Anonymized via 1km grid snapping on device before sending to backend
  * - Rooms: Expire and become inaccessible (soft deleted)
  * - Device ID: For anonymous consent tracking and session security
  * - Location is optional: Users can browse global rooms without sharing location

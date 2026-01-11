@@ -120,10 +120,14 @@ export const MAP_CONFIG = {
     longitude: -122.4194,
   },
 
-  // Default zoom levels
-  DEFAULT_ZOOM: 12,
-  MIN_ZOOM: 10,
-  MAX_ZOOM: 12,
+  // Zoom configuration
+  ZOOM: {
+    LIMIT_MIN: 1,      // Absolute floor (World)
+    LIMIT_MAX: 12,     // Absolute ceiling (Privacy)
+    BROWSE_MIN: 10,    // Soft floor for buttons/gestures
+    INITIAL: 12,       // Default start level
+    WORLD_VIEW: 1,     // Preset for globe button
+  },
 
   // Cluster configuration
   CLUSTER_RADIUS: 50,

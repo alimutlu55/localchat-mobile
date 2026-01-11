@@ -5,6 +5,7 @@ import { HUDDLE_MAP_STYLE } from '../../../styles/mapStyle';
 import { ServerRoomMarker, ServerClusterMarker } from './ServerClusterMarkers';
 import { MapViewLocation } from '../map/MapViewLocation';
 import { ClusterFeature } from '../../../types';
+import { MAP_CONFIG } from '../../../constants';
 import { styles } from '../screens/DiscoveryScreen.styles';
 
 interface DiscoveryMapProps {
@@ -65,8 +66,8 @@ export const DiscoveryMap: React.FC<DiscoveryMapProps> = ({
                         centerCoordinate: centerCoord,
                         zoomLevel: zoom,
                     }}
-                    minZoomLevel={1}
-                    maxZoomLevel={15}
+                    minZoomLevel={MAP_CONFIG.ZOOM.LIMIT_MIN}
+                    maxZoomLevel={MAP_CONFIG.ZOOM.LIMIT_MAX}
                 />
 
                 {/* User Location Indicator - Guard with location check */}

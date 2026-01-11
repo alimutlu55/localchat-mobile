@@ -71,7 +71,6 @@ export const MiniRoomCard = memo(({ room, isSelected }: MiniRoomCardProps) => {
                 {/* Premium selection accent */}
                 {isSelected && <View style={[styles.selectionLine, { backgroundColor: accentColor }]} />}
             </View>
-            <View style={styles.pointer} />
         </Animated.View>
     );
 });
@@ -130,17 +129,5 @@ const styles = StyleSheet.create({
         left: 0,
         right: 0,
         height: 2.5,
-    },
-    pointer: {
-        width: 8,
-        height: 8,
-        backgroundColor: '#ffffff',
-        transform: [{ rotate: '45deg' }],
-        marginTop: -4,
-        zIndex: -1,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 1,
     },
 });

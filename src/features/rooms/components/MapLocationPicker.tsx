@@ -34,6 +34,7 @@ const AnimatedMapPin = Animated.createAnimatedComponent(MapPin);
 import { HUDDLE_MAP_STYLE } from '../../../styles/mapStyle';
 import { createLogger } from '../../../shared/utils/logger';
 import { MapViewLocation } from '../../discovery/map/MapViewLocation';
+import { MAP_CONFIG } from '../../../constants';
 
 const log = createLogger('MapLocationPicker');
 
@@ -190,7 +191,7 @@ export function MapLocationPicker({
         return [0, 20]; // World view fallback
     });
     const [distanceFromGps, setDistanceFromGps] = useState<number>(0);
-    const [currentZoom, setCurrentZoom] = useState(15);
+    const [currentZoom, setCurrentZoom] = useState(MAP_CONFIG.ZOOM.LIMIT_MAX);
     const [headerHeight, setHeaderHeight] = useState(100);
 
     const handleHeaderLayout = useCallback((e: any) => {
@@ -257,7 +258,7 @@ export function MapLocationPicker({
                 if (cameraRef.current && initialLocation) {
                     cameraRef.current.setCamera({
                         centerCoordinate: [initialLocation.longitude, initialLocation.latitude],
-                        zoomLevel: 15,
+                        zoomLevel: MAP_CONFIG.ZOOM.LIMIT_MAX,
                         animationDuration: 0,
                     });
                 }
@@ -325,14 +326,14 @@ export function MapLocationPicker({
         if (!cameraRef.current) return;
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
         cameraRef.current.setCamera({
-            zoomLevel: Math.min(currentZoom + 1, 22),
+            zoomLevel: Math.min(currentZoom + 1, MAP_CONFIG.ZOOM.LIMIT_MAX),
             animationDuration: 300,
         });
     }, [currentZoom]);
 
     const handleZoomOut = useCallback(() => {
         if (!cameraRef.current) return;
-        const nextZoom = Math.max(currentZoom - 1, 3);
+        const nextZoom = Math.max(currentZoom - 1, MAP_CONFIG.ZOOM.BROWSE_MIN);
         cameraRef.current.setCamera({
             zoomLevel: nextZoom,
             animationDuration: 200,
@@ -390,10 +391,10 @@ export function MapLocationPicker({
                         ref={cameraRef}
                         defaultSettings={{
                             centerCoordinate: centerCoord,
-                            zoomLevel: 15,
+                            zoomLevel: MAP_CONFIG.ZOOM.LIMIT_MAX,
                         }}
-                        minZoomLevel={13}
-                        maxZoomLevel={15}
+                        minZoomLevel={MAP_CONFIG.ZOOM.BROWSE_MIN}
+                        maxZoomLevel={MAP_CONFIG.ZOOM.LIMIT_MAX}
                     />
 
                     {/* 1km Radius Circle Overlay */}
@@ -418,6 +419,28 @@ export function MapLocationPicker({
                                     lineColor: 'rgba(255, 100, 16, 0.3)',
                                     lineWidth: 2,
                                     lineDasharray: [2, 2],
+                                }}
+                            />
+                        </ShapeSource>
+                    )}
+
+                    {/* Snapped Area Grid Visualization (Optional, for transparency) */}
+                    {selectedLocation && isWithinRange && (
+                        <ShapeSource
+                            id="snapped-source"
+                            shape={generateCirclePolygon(
+                                [
+                                    Math.floor(selectedLocation.longitude / 0.01) * 0.01 + 0.005,
+                                    Math.floor(selectedLocation.latitude / 0.01) * 0.01 + 0.005
+                                ],
+                                500 // 1000m diameter / 2
+                            )}
+                        >
+                            <FillLayer
+                                id="snapped-fill"
+                                style={{
+                                    fillColor: 'rgba(0, 100, 255, 0.1)',
+                                    fillOutlineColor: 'rgba(0, 100, 255, 0.3)',
                                 }}
                             />
                         </ShapeSource>

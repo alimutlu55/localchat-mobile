@@ -149,7 +149,7 @@ export default function MapScreen() {
     latitude: number;
     longitude: number;
   } | null>(null);
-  const [currentZoom, setCurrentZoom] = useState(2); // Start at World View
+  const [currentZoom, setCurrentZoom] = useState(MAP_CONFIG.ZOOM.WORLD_VIEW); // Start at World View
   const [bounds, setBounds] = useState<[number, number, number, number]>([-180, -85, 180, 85]);
   const [centerCoord, setCenterCoord] = useState<[number, number]>([0, 20]); // World View center
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -284,7 +284,7 @@ export default function MapScreen() {
 
         setUserLocation(coords);
         setCenterCoord([coords.longitude, coords.latitude]);
-        setCurrentZoom(12); // Snap to location zoom
+        setCurrentZoom(MAP_CONFIG.ZOOM.INITIAL); // Snap to location zoom
 
         await fetchRooms(coords.latitude, coords.longitude);
 
@@ -344,7 +344,7 @@ export default function MapScreen() {
     if (mapReady && userLocation && cameraRef.current) {
       cameraRef.current.setCamera({
         centerCoordinate: [userLocation.longitude, userLocation.latitude],
-        zoomLevel: 12,
+        zoomLevel: MAP_CONFIG.ZOOM.INITIAL,
         animationDuration: 0, // Instant jump on initial load
       });
       // Ensure clustering is triggered for this new position
@@ -413,7 +413,7 @@ export default function MapScreen() {
   const centerOnUser = useCallback(() => {
     if (!mapReady || !userLocation || !cameraRef.current) return;
 
-    const targetZoom = 12;
+    const targetZoom = MAP_CONFIG.ZOOM.INITIAL;
     const duration = calculateMapFlyDuration(targetZoom);
 
     cameraRef.current.setCamera({
@@ -431,7 +431,7 @@ export default function MapScreen() {
     if (!mapReady || !cameraRef.current || isAnimatingRef.current) return;
 
     isAnimatingRef.current = true;
-    const newZoom = Math.min(currentZoom + 1, 12);
+    const newZoom = Math.min(currentZoom + 1, MAP_CONFIG.ZOOM.LIMIT_MAX);
 
     cameraRef.current.setCamera({
       zoomLevel: newZoom,
@@ -455,7 +455,7 @@ export default function MapScreen() {
     if (!mapReady || !cameraRef.current || isAnimatingRef.current) return;
 
     isAnimatingRef.current = true;
-    const newZoom = Math.max(currentZoom - 1, 1);
+    const newZoom = Math.max(currentZoom - 1, MAP_CONFIG.ZOOM.BROWSE_MIN);
 
     cameraRef.current.setCamera({
       zoomLevel: newZoom,
@@ -501,7 +501,7 @@ export default function MapScreen() {
    */
   const handleResetView = useCallback(() => {
     if (!mapReady || !cameraRef.current) return;
-    const targetZoom = 1;
+    const targetZoom = MAP_CONFIG.ZOOM.WORLD_VIEW;
     const duration = calculateMapFlyDuration(targetZoom);
 
     cameraRef.current.setCamera({
@@ -522,7 +522,7 @@ export default function MapScreen() {
     log.debug('Room pressed', { roomId: room.id });
 
     if (mapReady && cameraRef.current && room.latitude != null && room.longitude != null) {
-      const targetZoom = 12;
+      const targetZoom = MAP_CONFIG.ZOOM.INITIAL;
       const zoomDiff = Math.abs(targetZoom - currentZoom);
 
       // If already at a good zoom level (within 1.5 levels), open immediately
@@ -607,12 +607,11 @@ export default function MapScreen() {
     const latRadians = centerLat * Math.PI / 180;
     const mercatorScale = Math.cos(latRadians);
     const zoomForLat = Math.log2((usableHeight / WORLD_SIZE) * (180 / paddedLatSpan) * mercatorScale);
-
     // Use the smaller zoom to ensure both dimensions fit
     const optimalZoom = Math.min(zoomForLng, zoomForLat);
 
     // Clamp to valid zoom range and round down to be safe
-    return Math.max(1, Math.min(Math.floor(optimalZoom), 12));
+    return Math.max(MAP_CONFIG.ZOOM.WORLD_VIEW, Math.min(Math.floor(optimalZoom), MAP_CONFIG.ZOOM.INITIAL));
   }, []);
 
   /**
@@ -703,7 +702,7 @@ export default function MapScreen() {
     } else {
       // Fallback - fly to cluster location
       const expansionZoom = getClusterExpansionZoom(clusterIndex, cluster.properties.cluster_id);
-      const targetZoom = Math.min(Math.max(expansionZoom, currentZoom + 2), 12);
+      const targetZoom = Math.min(Math.max(expansionZoom, currentZoom + 2), MAP_CONFIG.ZOOM.INITIAL);
       const duration = calculateMapFlyDuration(targetZoom);
 
       cameraRef.current.setCamera({
@@ -761,8 +760,8 @@ export default function MapScreen() {
             centerCoordinate: centerCoord,
             zoomLevel: currentZoom,
           }}
-          minZoomLevel={1}
-          maxZoomLevel={12}
+          minZoomLevel={MAP_CONFIG.ZOOM.WORLD_VIEW}
+          maxZoomLevel={MAP_CONFIG.ZOOM.INITIAL}
         />
 
         {/* Single ShapeSource for all room circles - prevents crash from dynamic children */}

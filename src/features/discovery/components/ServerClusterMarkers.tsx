@@ -36,7 +36,7 @@ const AndroidRoomMarker = memo(({ feature, isSelected, onPress, roomForPin }: an
   <PointAnnotation
     id={`server-room-${feature.properties.roomId}`}
     coordinate={feature.geometry.coordinates}
-    anchor={{ x: 0.5, y: 1 }}
+    anchor={{ x: 0.5, y: 0.5 }}
     onSelected={() => onPress(feature)}
   >
     <View style={[styles.markerContainer, isSelected && styles.selectedMarker]}>
@@ -56,7 +56,7 @@ const IosRoomMarker = memo(({ feature, isSelected, onPress, onDeselect, roomForP
   <PointAnnotation
     id={`server-room-${feature.properties.roomId}`}
     coordinate={feature.geometry.coordinates}
-    anchor={{ x: 0.5, y: 1 }}
+    anchor={{ x: 0.5, y: 0.5 }}
     onDeselected={onDeselect}
   >
     <TouchableOpacity

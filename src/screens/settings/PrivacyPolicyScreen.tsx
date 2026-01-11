@@ -19,7 +19,7 @@ import { ArrowLeft } from 'lucide-react-native';
 import { theme } from '../../core/theme';
 
 const EFFECTIVE_DATE = 'January 4, 2026';
-const LAST_UPDATED = 'January 10, 2026';
+const LAST_UPDATED = 'January 11, 2026';
 
 /**
  * Section Component
@@ -133,12 +133,13 @@ export default function PrivacyPolicyScreen() {
                     </Text>
                     <Text style={styles.bulletItem}>
                         • <Text style={styles.bold}>My Location (GPS)</Text>: When you create a room using
-                        this option, only an approximate location (randomly offset by ~500m) is stored—your
-                        exact position is never sent to our servers
+                        this option, only the center of a <Text style={styles.bold}>1km x 1km area</Text> is stored—your
+                        exact position is never sent to our servers.
                     </Text>
                     <Text style={styles.bulletItem}>
-                        • <Text style={styles.bold}>Custom Location</Text>: When you select a location on the map,
-                        the exact coordinates you choose are stored as the room location
+                        • <Text style={styles.bold}>Custom Location</Text>: Even when you select a location on the map,
+                        it is automatically snapped to the same 1km grid center before storage, ensuring
+                        no exact coordinates are ever persisted.
                     </Text>
                     <Text style={styles.bulletItem}>
                         • Other users see only room markers on the map—they cannot see your personal GPS coordinates
@@ -257,7 +258,7 @@ export default function PrivacyPolicyScreen() {
                     </Text>
                     <Text style={styles.bulletItem}>
                         • <Text style={styles.bold}>Location</Text> - Your exact location is never stored;
-                        room locations are approximate (~500m offset) and deleted when rooms expire
+                        room locations are anonymized to a 1km area centroid and deleted when rooms expire
                     </Text>
 
                     <Text style={styles.paragraph}>
@@ -419,7 +420,7 @@ export default function PrivacyPolicyScreen() {
                         Processing based on your explicit opt-in:
                     </Text>
                     <Text style={styles.bulletItem}>
-                        • Location data - Room discovery (randomized before storage)
+                        • Location data - Room discovery (anonymized via area-snapping before storage)
                     </Text>
                     <Text style={styles.bulletItem}>
                         • Bio and profile photo - Optional profile information

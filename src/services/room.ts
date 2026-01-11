@@ -228,9 +228,8 @@ class RoomService {
     let lng = request.longitude;
 
     if (shouldRandomize) {
-      // Use a fixed privacy radius (500m) for room creation
-      const FIXED_PRIVACY_RADIUS = 500;
-      const randomized = randomizeForRoomCreation(lat, lng, FIXED_PRIVACY_RADIUS);
+      // Deterministic snapping to grid for privacy
+      const randomized = randomizeForRoomCreation(lat, lng);
       lat = randomized.lat;
       lng = randomized.lng;
     }

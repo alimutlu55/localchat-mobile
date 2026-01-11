@@ -24,6 +24,7 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { Dimensions } from 'react-native';
 import { MapViewRef, CameraRef } from '@maplibre/maplibre-react-native';
+import { MAP_CONFIG } from '../../../constants';
 import { createLogger } from '../../../shared/utils/logger';
 
 const log = createLogger('MapState');
@@ -95,9 +96,9 @@ export interface UseMapStateReturn {
 export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn {
   const {
     defaultCenter,
-    defaultZoom = defaultCenter ? 13 : 1, // Default to world view (1) if no center, else street view (13)
-    minZoom = 1,
-    maxZoom = 15,
+    defaultZoom = defaultCenter ? MAP_CONFIG.ZOOM.INITIAL : MAP_CONFIG.ZOOM.BROWSE_MIN,
+    minZoom = MAP_CONFIG.ZOOM.BROWSE_MIN,
+    maxZoom = MAP_CONFIG.ZOOM.LIMIT_MAX,
   } = options;
 
   // Refs
@@ -481,7 +482,7 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
     (coordinate: MapCoordinate, targetZoom?: number) => {
       if (!isMapReady || !cameraRef.current) return;
 
-      const finalZoom = targetZoom ?? 14;
+      const finalZoom = targetZoom ?? MAP_CONFIG.ZOOM.LIMIT_MAX;
       const duration = calculateFlyDuration(finalZoom);
 
       // Track animation state so user interactions can interrupt appropriately
@@ -508,7 +509,7 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
   const resetToWorldView = useCallback(() => {
     if (!isMapReady || !cameraRef.current) return;
 
-    const targetZoom = 1;
+    const targetZoom = MAP_CONFIG.ZOOM.WORLD_VIEW;
     const duration = calculateFlyDuration(targetZoom);
 
     // Track animation state so user interactions can interrupt appropriately

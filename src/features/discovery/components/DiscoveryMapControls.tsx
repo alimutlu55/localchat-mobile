@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, TouchableOpacity, Animated } from 'react-native';
 import { Plus, Minus, Navigation, Globe } from 'lucide-react-native';
+import { MAP_CONFIG } from '../../../constants';
 import { styles } from '../screens/DiscoveryScreen.styles';
 
 interface DiscoveryMapControlsProps {
@@ -56,7 +57,7 @@ export const DiscoveryMapControls: React.FC<DiscoveryMapControlsProps> = ({
                 </TouchableOpacity>
             )}
 
-            {zoom > 1 && (
+            {zoom > MAP_CONFIG.ZOOM.WORLD_VIEW && (
                 <TouchableOpacity
                     style={styles.controlButton}
                     onPress={onResetToWorldView}

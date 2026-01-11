@@ -218,9 +218,9 @@ export default function DiscoveryScreen() {
         calculateFlyDuration,
     } = useMapState({
         defaultCenter: userLocation || undefined,
-        defaultZoom: userLocation ? 12 : 1,
-        minZoom: 1,
-        maxZoom: 15,
+        defaultZoom: userLocation ? MAP_CONFIG.ZOOM.INITIAL : MAP_CONFIG.ZOOM.BROWSE_MIN,
+        minZoom: MAP_CONFIG.ZOOM.BROWSE_MIN,
+        maxZoom: MAP_CONFIG.ZOOM.LIMIT_MAX,
     });
 
     // Refresh location when screen comes into focus (e.g. back from permission screen)
@@ -357,7 +357,7 @@ export default function DiscoveryScreen() {
     // ==========================================================================
 
     const handleResetToWorldView = useCallback(() => {
-        const animDuration = calculateFlyDuration(1);
+        const animDuration = calculateFlyDuration(MAP_CONFIG.ZOOM.WORLD_VIEW);
         prefetchForWorldView(animDuration);
         resetToWorldView();
     }, [calculateFlyDuration, prefetchForWorldView, resetToWorldView]);
@@ -448,7 +448,7 @@ export default function DiscoveryScreen() {
                 const minProgressZoom = currentActualZoom < 5
                     ? optimalZoom  // From world view: jump directly to optimal
                     : Math.max(currentActualZoom + 2, optimalZoom);
-                const targetZoom = Math.min(minProgressZoom, 15);
+                const targetZoom = Math.min(minProgressZoom, MAP_CONFIG.ZOOM.LIMIT_MAX);
 
                 // Calculate center of expansion bounds
                 const centerLng = (minLng + maxLng) / 2;
@@ -465,7 +465,7 @@ export default function DiscoveryScreen() {
 
                 // Use setCamera with calculated targetZoom
                 // The zoom level is chosen to ensure server eps will split the cluster
-                const finalTargetZoom = Math.min(targetZoom, 15);
+                const finalTargetZoom = Math.min(targetZoom, MAP_CONFIG.ZOOM.LIMIT_MAX);
                 const animDuration = calcAnimationDuration(currentActualZoom, finalTargetZoom);
 
                 // Prefetch data - will show markers 300ms before animation ends
@@ -481,7 +481,7 @@ export default function DiscoveryScreen() {
                 // No expansion bounds - zoom in by fixed amount (more aggressive)
                 const currentActualZoom = zoomRef.current;
                 const zoomIncrement = pointCount > 100 ? 4 : pointCount > 20 ? 5 : 6;
-                const targetZoom = Math.min(currentActualZoom + zoomIncrement, 15);
+                const targetZoom = Math.min(currentActualZoom + zoomIncrement, MAP_CONFIG.ZOOM.LIMIT_MAX);
 
                 log.debug('No expansion bounds, zooming by increment', {
                     from: currentActualZoom,
@@ -562,7 +562,7 @@ export default function DiscoveryScreen() {
 
     const handleCenterOnUser = useCallback(() => {
         if (userLocation) {
-            const targetZoom = MAP_CONFIG.DEFAULT_ZOOM;
+            const targetZoom = MAP_CONFIG.ZOOM.INITIAL;
             const animDuration = calculateFlyDuration(targetZoom);
 
             // Prefetch data - will show markers 300ms before animation ends
