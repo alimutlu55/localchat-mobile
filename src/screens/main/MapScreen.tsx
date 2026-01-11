@@ -751,6 +751,8 @@ export default function MapScreen() {
         logoEnabled={false}
         attributionEnabled={true}
         attributionPosition={{ bottom: 8, right: 8 }}
+        rotateEnabled={false}
+        pitchEnabled={false}
         onDidFinishLoadingMap={handleMapReady}
         onRegionDidChange={handleRegionDidChange}
       >

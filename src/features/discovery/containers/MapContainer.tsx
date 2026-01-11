@@ -85,7 +85,7 @@ export const MapContainer = React.forwardRef<MapContainerRef, MapContainerProps>
         } = props;
 
         // Track zoom in a ref for immediate access
-        const zoomRef = useRef<number>(MAP_CONFIG.DEFAULT_ZOOM);
+        const zoomRef = useRef<number>(MAP_CONFIG.ZOOM.INITIAL);
 
         // Global filter state
         const selectedCategory = useRoomStore(selectSelectedCategory);
@@ -110,7 +110,7 @@ export const MapContainer = React.forwardRef<MapContainerRef, MapContainerProps>
             resetToWorldView,
         } = useMapState({
             defaultCenter: MAP_CONFIG.DEFAULT_CENTER,
-            defaultZoom: MAP_CONFIG.DEFAULT_ZOOM,
+            defaultZoom: MAP_CONFIG.ZOOM.INITIAL,
         });
 
         const {
@@ -271,12 +271,14 @@ export const MapContainer = React.forwardRef<MapContainerRef, MapContainerProps>
                     attributionEnabled={false}
                     logoEnabled={false}
                     compassEnabled={false}
+                    rotateEnabled={false}
+                    pitchEnabled={false}
                 >
                     <CameraComponent
                         ref={cameraRef as any}
                         defaultSettings={{
                             centerCoordinate: [MAP_CONFIG.DEFAULT_CENTER.longitude, MAP_CONFIG.DEFAULT_CENTER.latitude],
-                            zoomLevel: MAP_CONFIG.DEFAULT_ZOOM,
+                            zoomLevel: MAP_CONFIG.ZOOM.INITIAL,
                         }}
                     />
 

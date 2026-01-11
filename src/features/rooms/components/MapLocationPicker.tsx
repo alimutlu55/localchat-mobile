@@ -473,6 +473,8 @@ export function MapLocationPicker({
                     logoEnabled={false}
                     attributionEnabled={true}
                     attributionPosition={{ bottom: 120, right: 8 }}
+                    rotateEnabled={false}
+                    pitchEnabled={false}
                     onDidFinishLoadingMap={handleMapReady}
                     onRegionWillChange={handleRegionWillChange}
                     onRegionIsChanging={handleRegionIsChanging}
