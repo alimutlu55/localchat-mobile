@@ -375,10 +375,39 @@ export default function DiscoveryScreen() {
     }, [baseHandleRegionWillChange, zoom, calculateFlyDuration, prefetchForLocation]);
 
     const handleResetToWorldView = useCallback(() => {
-        const animDuration = calculateFlyDuration(MAP_CONFIG.ZOOM.WORLD_VIEW);
+        const targetZoom = MAP_CONFIG.ZOOM.WORLD_VIEW;
+        const animDuration = calculateFlyDuration(targetZoom);
+
         prefetchForWorldView(animDuration);
-        resetToWorldView();
-    }, [calculateFlyDuration, prefetchForWorldView, resetToWorldView]);
+
+        animateCamera({
+            centerCoordinate: [0, 0],
+            zoomLevel: targetZoom,
+            animationDuration: animDuration,
+            animationMode: 'flyTo',
+        });
+    }, [prefetchForWorldView, animateCamera]);
+
+    const handleCenterOnUser = useCallback(() => {
+        if (!userLocation) return;
+
+        const targetZoom = MAP_CONFIG.ZOOM.INITIAL;
+        const animDuration = calculateFlyDuration(targetZoom);
+
+        prefetchForLocation(
+            userLocation.longitude,
+            userLocation.latitude,
+            targetZoom,
+            animDuration
+        );
+
+        animateCamera({
+            centerCoordinate: [userLocation.longitude, userLocation.latitude],
+            zoomLevel: targetZoom,
+            animationDuration: animDuration,
+            animationMode: 'flyTo',
+        });
+    }, [userLocation, calculateFlyDuration, prefetchForLocation, animateCamera]);
 
     // Handle room feature press (from server clustering)
     const handleServerRoomPress = useCallback(
@@ -577,18 +606,6 @@ export default function DiscoveryScreen() {
         },
         [navigation]
     );
-
-    const handleCenterOnUser = useCallback(() => {
-        if (userLocation) {
-            const targetZoom = MAP_CONFIG.ZOOM.INITIAL;
-            const animDuration = calculateFlyDuration(targetZoom);
-
-            // Prefetch data - will show markers 300ms before animation ends
-            prefetchForLocation(userLocation.longitude, userLocation.latitude, targetZoom, animDuration);
-
-            centerOn(userLocation, targetZoom);
-        }
-    }, [userLocation, centerOn, calculateFlyDuration, prefetchForLocation]);
 
     // ==========================================================================
     // Loading State

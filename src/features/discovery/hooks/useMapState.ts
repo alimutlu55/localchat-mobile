@@ -97,7 +97,7 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
   const {
     defaultCenter,
     defaultZoom = defaultCenter ? MAP_CONFIG.ZOOM.INITIAL : MAP_CONFIG.ZOOM.BROWSE_MIN,
-    minZoom = MAP_CONFIG.ZOOM.BROWSE_MIN,
+    minZoom = MAP_CONFIG.ZOOM.LIMIT_MIN,
     maxZoom = MAP_CONFIG.ZOOM.LIMIT_MAX,
   } = options;
 
@@ -346,10 +346,10 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
   const calculateFlyDuration = useCallback(
     (targetZoom: number): number => {
       const zoomDiff = Math.abs(targetZoom - zoomRef.current);
-      // Snappy animation: base 600ms + 150ms per zoom level change
-      // Capped at 1500ms for large deltas (e.g. world view transitions)
-      const duration = 600 + zoomDiff * 150;
-      return Math.min(duration, 1500);
+      // Relaxed animation: base 800ms + 250ms per zoom level change
+      // Capped at 2500ms for large deltas (e.g. world view transitions)
+      const duration = 800 + zoomDiff * 250;
+      return Math.min(duration, 2500);
     },
     [] // No dependencies - uses ref
   );
