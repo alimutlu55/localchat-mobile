@@ -249,46 +249,49 @@ export function MessageBubble({
           {isOwn ? (
             <View style={{ alignItems: 'flex-end' }}>
               <View style={{ position: 'relative' }}>
-                <TouchableOpacity
-                  onPress={message.status === 'failed' ? handleRetry : handlePress}
-                  onLongPress={message.status === 'failed' ? undefined : handleLongPress}
-                  activeOpacity={0.85}
-                >
-                  <LinearGradient
-                    colors={
-                      message.status === 'failed'
-                        ? [theme.tokens.status.error.main, theme.tokens.status.error.main]
-                        : [theme.tokens.brand.primary, theme.tokens.brand.secondary]
-                    }
-                    start={{ x: 0, y: 0 }}
-                    end={{ x: 1, y: 1 }}
-                    style={[
-                      styles.bubble,
-                      styles.bubbleOwn,
-                      message.status === 'failed' && styles.bubbleFailed,
-                      message.reactions && message.reactions.length > 0 && { marginBottom: 12 },
-                    ]}
+                <View style={styles.outgoingContainer}>
+
+                  <TouchableOpacity
+                    onPress={message.status === 'failed' ? handleRetry : handlePress}
+                    onLongPress={message.status === 'failed' ? undefined : handleLongPress}
+                    activeOpacity={0.85}
                   >
-                    <View style={styles.bubbleInner}>
-                      <Text style={[styles.messageText, styles.messageTextOwn]}>
-                        {message.content}
-                        <View style={{ width: 80, height: 1 }} />
-                      </Text>
-                      <View style={styles.ownMessageMetaAbsolute}>
-                        {message.status === 'failed' ? (
-                          <AlertCircle size={14} color={theme.tokens.text.onPrimary} />
-                        ) : (
-                          <>
-                            <Text style={styles.messageTimeOwn}>
-                              {formatTime(message.timestamp)}
-                            </Text>
-                            {getStatusIcon()}
-                          </>
-                        )}
+                    <LinearGradient
+                      colors={
+                        message.status === 'failed'
+                          ? [theme.tokens.status.error.main, theme.tokens.status.error.main]
+                          : [theme.tokens.brand.primary, theme.tokens.brand.secondary]
+                      }
+                      start={{ x: 0, y: 0 }}
+                      end={{ x: 1, y: 1 }}
+                      style={[
+                        styles.bubble,
+                        styles.bubbleOwn,
+                        message.status === 'failed' && styles.bubbleFailed,
+                        message.reactions && message.reactions.length > 0 && { marginBottom: 12 },
+                      ]}
+                    >
+                      <View style={styles.bubbleInner}>
+                        <Text style={[styles.messageText, styles.messageTextOwn]}>
+                          {message.content}
+                          <View style={{ width: 70, height: 1 }} />
+                        </Text>
+                        <View style={styles.ownMessageMetaAbsolute}>
+                          {message.status === 'failed' ? (
+                            <AlertCircle size={14} color={theme.tokens.text.onPrimary} />
+                          ) : (
+                            <>
+                              <Text style={styles.messageTimeOwn}>
+                                {formatTime(message.timestamp)}
+                              </Text>
+                              {getStatusIcon()}
+                            </>
+                          )}
+                        </View>
                       </View>
-                    </View>
-                  </LinearGradient>
-                </TouchableOpacity>
+                    </LinearGradient>
+                  </TouchableOpacity>
+                </View>
                 {message.reactions && message.reactions.length > 0 && (
                   <View style={[styles.reactionsContainer, styles.reactionsContainerOwn]}>
                     {message.reactions.map((reaction, idx) => (
@@ -582,6 +585,10 @@ const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   incomingContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  outgoingContainer: {
     flexDirection: 'row',
     alignItems: 'center',
   },
