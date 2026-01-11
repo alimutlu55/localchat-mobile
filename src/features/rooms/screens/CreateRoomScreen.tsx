@@ -1,10 +1,3 @@
-/**
- * Create Room Screen
- *
- * Form to create a new chat room, matching the web app design.
- * Refactored to Full Screen Page Layout.
- */
-
 import React, { useState, useEffect, useMemo } from 'react';
 import {
   View,
@@ -22,11 +15,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import * as Location from 'expo-location';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   X,
-  MapPin,
   Clock,
   Users,
   Check,
@@ -34,19 +25,18 @@ import {
   Locate,
   ChevronDown,
   ChevronUp,
-  Navigation,
-  Map,
+  MapPin,
 } from 'lucide-react-native';
-import { MapLocationPicker } from '../components/MapLocationPicker';
+
 import { RootStackParamList } from '../../../navigation/types';
 import { roomService } from '../../../services';
-import { RoomCategory, serializeRoom } from '../../../types';
-import { CATEGORIES, LOCATION_CONFIG } from '../../../constants';
-import { getCurrentPositionWithTimeout } from '../../../utils/location';
-import { randomizeForRoomCreation } from '../../../utils/locationPrivacy';
+import { serializeRoom } from '../../../types';
+import { CATEGORIES } from '../../../constants';
 import { useRoomStore } from '../store';
 import { useMyRooms } from '../hooks';
 import { useRoomQuota } from '../hooks/useRoomQuota';
+import { PrivacyLocationSelector } from '../components/PrivacyLocationSelector';
+
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'CreateRoom'>;
 type CreateRoomRouteProp = RouteProp<RootStackParamList, 'CreateRoom'>;
@@ -106,60 +96,10 @@ export default function CreateRoomScreen() {
   const [maxParticipants, setMaxParticipants] = useState(100);
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
-  const [isGettingLocation, setIsGettingLocation] = useState(true);
   const { quota, refreshQuota, isLimitReached } = useRoomQuota();
 
-  // Custom location picker state
+  // Mode is handled internally by PrivacyLocationSelector, we just need the coord and a flag if we want
   const [locationMode, setLocationMode] = useState<'gps' | 'custom' | null>(null);
-  const [hasExplicitlySelectedLocation, setHasExplicitlySelectedLocation] = useState(false);
-  const [isLocationPickerVisible, setIsLocationPickerVisible] = useState(false);
-  const [gpsLocation, setGpsLocation] = useState<{ latitude: number; longitude: number } | null>(null);
-
-  /**
-   * Get current location on mount
-   */
-  useEffect(() => {
-    const getLocation = async () => {
-      try {
-        const { status } = await Location.requestForegroundPermissionsAsync();
-        if (status !== 'granted') {
-          // If we have an initial location (from map center), we can still show it
-          // but we prompt the user that GPS is required for accurate placement
-          if (!initialLocation) {
-            Alert.alert('Location Required', 'Precise location is required to create a room.');
-            navigation.goBack();
-          }
-          return;
-        }
-
-        const currentLocation = await getCurrentPositionWithTimeout(
-          { accuracy: LOCATION_CONFIG.ACCURACY },
-          LOCATION_CONFIG.TIMEOUT
-        );
-
-        const coords = {
-          latitude: currentLocation.coords.latitude,
-          longitude: currentLocation.coords.longitude,
-        };
-
-        // Snap to grid centroid for privacy and UI consistency
-        const snapped = randomizeForRoomCreation(coords.latitude, coords.longitude);
-        const snappedCoords = { latitude: snapped.lat, longitude: snapped.lng };
-
-        // Store GPS location and set as initial room location
-        setGpsLocation(snappedCoords);
-        setLocation(snappedCoords);
-      } catch (error) {
-        console.error('Location error:', error);
-        Alert.alert('Error', 'Could not get your location.');
-        navigation.goBack();
-      } finally {
-        setIsGettingLocation(false);
-      }
-    };
-
-    getLocation();
-  }, []);
 
   /**
    * Calculate expiration time
@@ -213,7 +153,6 @@ export default function CreateRoomScreen() {
         latitude: location.latitude,
         longitude: location.longitude,
         radiusMeters: visibilityType === 'global' ? 0 : radiusMeters,
-        shouldRandomize: locationMode === 'gps', // Only randomize in GPS mode
       });
 
       // Ensure isCreator is set to true since we just created this room
@@ -251,14 +190,7 @@ export default function CreateRoomScreen() {
     }
   };
 
-  if (isGettingLocation) {
-    return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#FF6410" />
-        <Text style={styles.loadingText}>Getting your location...</Text>
-      </View>
-    );
-  }
+
 
   // ---------------------------------------------------------------------------
   // RENDER
@@ -374,71 +306,14 @@ export default function CreateRoomScreen() {
             </View>
           </View>
 
-          {/* Room Location Mode */}
+          {/* Room Location Selector */}
           <View style={styles.section}>
-            <Text style={styles.label}>Room Location</Text>
-            <View style={styles.visibilityRow}>
-              <TouchableOpacity
-                style={[
-                  styles.visibilityCard,
-                  locationMode === 'custom' && styles.visibilityCardActive,
-                ]}
-                onPress={() => setIsLocationPickerVisible(true)}
-                activeOpacity={0.7}
-              >
-                <View style={[
-                  styles.visibilityIconBox,
-                  locationMode === 'custom' && styles.visibilityIconBoxActive
-                ]}>
-                  <Map size={18} color={locationMode === 'custom' ? '#fff' : '#94a3b8'} />
-                </View>
-                <View style={styles.visibilityContent}>
-                  <Text style={[
-                    styles.visibilityTitle,
-                    locationMode === 'custom' && styles.visibilityTitleActive
-                  ]}>Custom Area</Text>
-                  <Text style={styles.visibilityDesc}>Select zone on map</Text>
-                </View>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[
-                  styles.visibilityCard,
-                  locationMode === 'gps' && styles.visibilityCardActive,
-                ]}
-                onPress={() => {
-                  setLocationMode('gps');
-                  setHasExplicitlySelectedLocation(true);
-                  if (gpsLocation) {
-                    setLocation(gpsLocation);
-                  }
-                }}
-                activeOpacity={0.7}
-              >
-                <View style={[
-                  styles.visibilityIconBox,
-                  locationMode === 'gps' && styles.visibilityIconBoxActive
-                ]}>
-                  <Navigation size={18} color={locationMode === 'gps' ? '#fff' : '#94a3b8'} />
-                </View>
-                <View style={styles.visibilityContent}>
-                  <Text style={[
-                    locationMode === 'gps' && styles.visibilityTitleActive
-                  ]}>Nearby Area</Text>
-                  <Text style={styles.visibilityDesc}>Your general vicinity</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-
-            {/* Location preview - Only show for GPS mode if needed, or remove for Custom as requested */}
-            {location && hasExplicitlySelectedLocation && locationMode !== 'custom' && (
-              <View style={styles.locationPreview}>
-                <MapPin size={14} color="#FF6410" />
-                <Text style={styles.locationPreviewText}>
-                  {`Coverage zone near your current location`}
-                </Text>
-              </View>
-            )}
+            <PrivacyLocationSelector
+              onLocationChange={(loc, mode) => {
+                setLocation(loc);
+                setLocationMode(mode);
+              }}
+            />
           </View>
 
           {/* Duration */}
@@ -646,20 +521,7 @@ export default function CreateRoomScreen() {
         </Text>
       </View>
 
-      {/* Map Location Picker Modal */}
-      <MapLocationPicker
-        visible={isLocationPickerVisible}
-        initialLocation={location || gpsLocation}
-        userLocation={gpsLocation}
-        onConfirm={(selectedLocation) => {
-          setLocation(selectedLocation);
-          setLocationMode('custom');
-          setHasExplicitlySelectedLocation(true);
-          setIsLocationPickerVisible(false);
-        }}
-        onCancel={() => setIsLocationPickerVisible(false)}
-        radiusMeters={visibilityType === 'nearby' ? radiusMeters : undefined}
-      />
+
     </View>
   );
 }

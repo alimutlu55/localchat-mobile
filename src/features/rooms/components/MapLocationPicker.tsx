@@ -220,7 +220,7 @@ export function MapLocationPicker({
         if (initialLocation) {
             return [initialLocation.longitude, initialLocation.latitude];
         }
-        return [0, 20]; // World view fallback
+        return [-74.006, 40.7128]; // New York fallback (better than ocean)
     });
     const [distanceFromGps, setDistanceFromGps] = useState<number>(0);
     const [currentZoom, setCurrentZoom] = useState(MAP_CONFIG.ZOOM.LIMIT_MAX);
