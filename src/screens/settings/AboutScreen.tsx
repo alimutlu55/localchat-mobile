@@ -275,7 +275,7 @@ export default function AboutScreen() {
                 {/* Footer */}
                 <View style={styles.footer}>
                     <Text style={styles.footerText}>Made with ❤️ for local communities</Text>
-                    <Text style={styles.copyright}>© 2025 BubbleUp. All rights reserved.</Text>
+                    <Text style={styles.copyright}>© 2026 BubbleUp. All rights reserved.</Text>
                 </View>
             </ScrollView>
         </SafeAreaView>

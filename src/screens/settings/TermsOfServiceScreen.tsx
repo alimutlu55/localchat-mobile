@@ -19,7 +19,7 @@ import { ArrowLeft } from 'lucide-react-native';
 import { theme } from '../../core/theme';
 
 const EFFECTIVE_DATE = 'January 4, 2026';
-const LAST_UPDATED = 'January 10, 2026';
+const LAST_UPDATED = 'January 11, 2026';
 
 /**
  * Section Component
@@ -95,10 +95,7 @@ export default function TermsOfServiceScreen() {
                         To use BubbleUp, you must:
                     </Text>
                     <Text style={styles.bulletItem}>
-                        • Be at least <Text style={styles.bold}>13 years of age</Text>
-                    </Text>
-                    <Text style={styles.bulletItem}>
-                        • Have parental/guardian consent if you are under 18
+                        • Be at least <Text style={styles.bold}>18 years of age</Text>
                     </Text>
                     <Text style={styles.bulletItem}>
                         • Not be prohibited from using the service under applicable laws
@@ -149,12 +146,12 @@ export default function TermsOfServiceScreen() {
 
                     <Text style={styles.subheading}>Room Location Options</Text>
                     <Text style={styles.bulletItem}>
-                        • <Text style={styles.bold}>My Location (GPS)</Text> - Uses your current location with
-                        a ~500m privacy offset to protect your exact position
+                        • <Text style={styles.bold}>My Location (GPS)</Text> - Uses your current location,
+                        rounded to the nearest ~1km grid to protect your exact position
                     </Text>
                     <Text style={styles.bulletItem}>
-                        • <Text style={styles.bold}>Custom Location</Text> - Select any location on the map;
-                        the room will appear at the exact coordinates you choose
+                        • <Text style={styles.bold}>Custom Location</Text> - Select any area on the map;
+                        the room will appear at the center of the nearest ~1km grid to ensure privacy
                     </Text>
 
                     <Text style={styles.subheading}>Ephemeral Rooms</Text>
@@ -171,8 +168,10 @@ export default function TermsOfServiceScreen() {
 
                     <Text style={styles.subheading}>Room Categories</Text>
                     <Text style={styles.bulletItem}>
-                        • Traffic & Transit, Events & Gatherings, Emergency & Safety,
-                        Lost & Found, Sports & Recreation, Food & Dining, Neighborhood, and General
+                        • Social & Meetups, Events & Festivals, Food & Dining, Atmosphere & Music,
+                        Sports & Fitness, Hidden Gems & Sightseeing, News & Intel, Wait times & Retail,
+                        Deals & Pop-ups, Markets & Finds, Traffic & Transit, Lost & Found,
+                        Safety & Hazards, and General
                     </Text>
                 </TermsSection>
 

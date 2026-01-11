@@ -322,12 +322,9 @@ export default function PrivacyPolicyScreen() {
                 {/* 7. Children's Privacy */}
                 <PolicySection title="7. Children's Privacy">
                     <Text style={styles.paragraph}>
-                        BubbleUp is not intended for users under 13 years of age. We do not knowingly
-                        collect information from children under 13. If you believe a child under 13 has
+                        BubbleUp is not intended for users under 18 years of age. We do not knowingly
+                        collect information from children under 18. If you believe a child under 18 has
                         provided us with personal information, please contact us immediately.
-                    </Text>
-                    <Text style={styles.paragraph}>
-                        If you are between 13 and 18, you may need parental consent depending on your jurisdiction.
                     </Text>
                 </PolicySection>
 
