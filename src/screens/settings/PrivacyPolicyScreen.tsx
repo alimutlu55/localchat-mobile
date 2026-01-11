@@ -67,7 +67,7 @@ export default function PrivacyPolicyScreen() {
                 <View style={styles.introCard}>
                     <Text style={styles.introText}>
                         Your privacy is important to us. This Privacy Policy explains how BubbleUp
-                        collects, uses, and protects your information when you use our location-based
+                        collects, uses, and protects your information when you use our approximate area-based
                         chat application.
                     </Text>
                     <View style={styles.dateRow}>
@@ -132,14 +132,16 @@ export default function PrivacyPolicyScreen() {
                         nearby chat rooms and display your approximate position on the map
                     </Text>
                     <Text style={styles.bulletItem}>
-                        • <Text style={styles.bold}>My Location (GPS)</Text>: When you create a room using
-                        this option, only the center of a <Text style={styles.bold}>1km x 1km area</Text> is stored—your
-                        exact position is never sent to our servers.
+                        • <Text style={styles.bold}>Geohash Area Privacy</Text>: precise location data is converted
+                        to a regional "grid ID" (Geohash) directly on your device before transmission.
                     </Text>
                     <Text style={styles.bulletItem}>
-                        • <Text style={styles.bold}>Custom Location</Text>: Even when you select a location on the map,
-                        it is automatically snapped to the same 1km grid center before storage, ensuring
-                        no exact coordinates are ever persisted.
+                        • <Text style={styles.bold}>Raw GPS Never Sent</Text>: Our servers never receive, store, or process
+                        your exact coordinates. We only know which ~1km grid cell you are in.
+                    </Text>
+                    <Text style={styles.bulletItem}>
+                        • <Text style={styles.bold}>Deterministic Snapping</Text>: Whether you use GPS or specialized selection,
+                        all locations are snapped to this pre-defined grid.
                     </Text>
                     <Text style={styles.bulletItem}>
                         • Other users see only room markers on the map—they cannot see your personal GPS coordinates

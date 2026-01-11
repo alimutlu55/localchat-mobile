@@ -67,7 +67,7 @@ export default function TermsOfServiceScreen() {
                 <View style={styles.introCard}>
                     <Text style={styles.introText}>
                         Welcome to BubbleUp! These Terms of Service govern your use of our
-                        location-based ephemeral chat application. By using BubbleUp, you
+                        approximate area-based ephemeral chat application. By using BubbleUp, you
                         agree to these terms.
                     </Text>
                     <View style={styles.dateRow}>
@@ -182,10 +182,16 @@ export default function TermsOfServiceScreen() {
                         You agree to use BubbleUp responsibly. You must <Text style={styles.bold}>NOT</Text>:
                     </Text>
                     <Text style={styles.bulletItem}>
-                        • Post illegal, harmful, threatening, or abusive content
+                        • <Text style={styles.bold}>Illegal Acts</Text>: Use the service for any unlawful purpose,
+                        or to solicit others to perform or participate in unlawful acts
                     </Text>
                     <Text style={styles.bulletItem}>
-                        • Harass, bully, or intimidate other users
+                        • <Text style={styles.bold}>Targeting & Harassment</Text>: Stalk, harass, bully, or intimidate
+                        any individual or group
+                    </Text>
+
+                    <Text style={styles.bulletItem}>
+                        • Post illegal, harmful, threatening, or abusive content
                     </Text>
                     <Text style={styles.bulletItem}>
                         • Share personal information of others without consent
@@ -201,9 +207,6 @@ export default function TermsOfServiceScreen() {
                     </Text>
                     <Text style={styles.bulletItem}>
                         • Attempt to hack, exploit, or disrupt the service
-                    </Text>
-                    <Text style={styles.bulletItem}>
-                        • Use the app for any illegal purpose
                     </Text>
                 </TermsSection>
 
