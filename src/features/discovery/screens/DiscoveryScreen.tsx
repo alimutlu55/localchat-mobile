@@ -687,6 +687,7 @@ export default function DiscoveryScreen() {
                         isUserInView={isUserInView}
                         isMapMoving={isMapMoving}
                         onCreateRoom={handleCreateRoom}
+                        zoom={zoom}
                         topOffset={topContainerHeight}
                     />
                 </Animated.View>

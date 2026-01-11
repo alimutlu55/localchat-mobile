@@ -5,21 +5,33 @@
             "distribution": "internal",
             "env": {
                 "EXPO_PUBLIC_API_URL": "http://localhost:8080/api/v1",
-                "EXPO_PUBLIC_WS_URL": "ws://localhost:8080/ws"
+                "EXPO_PUBLIC_WS_URL": "ws://localhost:8080/ws",
+                "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "274499277342-qfltkqsdp4guiqrs6js8d3ecrkt98ifi.apps.googleusercontent.com",
+                "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "274499277342-4hmns1nvku7tedo3ik3ofgnfohbj3ipb.apps.googleusercontent.com",
+                "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "274499277342-cn816kobls7vauj59rspie2pllhr6a19.apps.googleusercontent.com"
             }
         },
         "preview": {
             "distribution": "internal",
+            "android": {
+                "buildType": "apk"
+            },
             "env": {
-                "EXPO_PUBLIC_API_URL": "https://api-staging.yourdomain.com/v1",
-                "EXPO_PUBLIC_WS_URL": "wss://api-staging.yourdomain.com/ws"
+                "EXPO_PUBLIC_API_URL": "https://bubbleupapp.com/api/v1",
+                "EXPO_PUBLIC_WS_URL": "wss://bubbleupapp.com/ws",
+                "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "274499277342-qfltkqsdp4guiqrs6js8d3ecrkt98ifi.apps.googleusercontent.com",
+                "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "274499277342-4hmns1nvku7tedo3ik3ofgnfohbj3ipb.apps.googleusercontent.com",
+                "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "274499277342-cn816kobls7vauj59rspie2pllhr6a19.apps.googleusercontent.com"
             }
         },
         "production": {
             "autoIncrement": true,
             "env": {
-                "EXPO_PUBLIC_API_URL": "https://api.yourdomain.com/v1",
-                "EXPO_PUBLIC_WS_URL": "wss://api.yourdomain.com/ws"
+                "EXPO_PUBLIC_API_URL": "https://bubbleupapp.com/api/v1",
+                "EXPO_PUBLIC_WS_URL": "wss://bubbleupapp.com/ws",
+                "EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID": "274499277342-qfltkqsdp4guiqrs6js8d3ecrkt98ifi.apps.googleusercontent.com",
+                "EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID": "274499277342-4hmns1nvku7tedo3ik3ofgnfohbj3ipb.apps.googleusercontent.com",
+                "EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID": "274499277342-cn816kobls7vauj59rspie2pllhr6a19.apps.googleusercontent.com"
             }
         }
     },

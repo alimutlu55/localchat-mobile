@@ -60,6 +60,11 @@
         }
       ],
       "@maplibre/maplibre-react-native"
-    ]
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "0abcf607-53ed-42a2-9b23-d8aaf6453ada"
+      }
+    }
   }
 }
