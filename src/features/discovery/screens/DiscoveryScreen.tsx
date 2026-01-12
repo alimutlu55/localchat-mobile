@@ -207,6 +207,7 @@ export default function DiscoveryScreen() {
         isMapReady,
         hasBoundsInitialized,
         isMapMoving,
+        isAnimating,
         handleMapReady,
         handleRegionWillChange: baseHandleRegionWillChange,
         handleRegionDidChange,
@@ -214,6 +215,7 @@ export default function DiscoveryScreen() {
         zoomOut,
         centerOn,
         resetToWorldView,
+        handleMapInteraction: baseHandleMapInteraction,
         animateCamera,
         calculateFlyDuration,
     } = useMapState({
@@ -283,6 +285,7 @@ export default function DiscoveryScreen() {
         refetchList: refreshDiscovery,
         prefetchForLocation,
         prefetchForWorldView,
+        cancelPrefetch,
     } = useUnifiedDiscovery({
         bounds,
         zoom,
@@ -359,6 +362,13 @@ export default function DiscoveryScreen() {
     const handleRegionWillChange = useCallback((payload: any) => {
         baseHandleRegionWillChange(payload);
 
+        // Detect user interaction and cancel prefetch if needed
+        const isUserInteraction = payload?.properties?.isUserInteraction;
+        if (isUserInteraction) {
+            log.info('User interaction detected on DiscoveryScreen, triggering prefetch cancellation');
+            cancelPrefetch();
+        }
+
         // Add prefetch if zoom changed by >1
         if (payload?.properties?.zoom != null) {
             const newZoom = payload.properties.zoom;
@@ -373,6 +383,14 @@ export default function DiscoveryScreen() {
             }
         }
     }, [baseHandleRegionWillChange, zoom, calculateFlyDuration, prefetchForLocation]);
+
+    const handleInteraction = useCallback(() => {
+        if (isAnimating || isLoadingClusters) {
+            log.info('Map interaction detected in screen - cancelling animations and prefetch');
+            baseHandleMapInteraction();
+            cancelPrefetch();
+        }
+    }, [baseHandleMapInteraction, cancelPrefetch, isLoadingClusters, isAnimating]);
 
     const handleResetToWorldView = useCallback(() => {
         const targetZoom = MAP_CONFIG.ZOOM.WORLD_VIEW;
@@ -660,6 +678,7 @@ export default function DiscoveryScreen() {
                             onMarkerDeselect={handleMarkerDeselect}
                             mapOverlayOpacity={mapOverlayOpacity}
                             markersOpacity={markersOpacity}
+                            onInteraction={handleInteraction}
                         />
                     )}
 

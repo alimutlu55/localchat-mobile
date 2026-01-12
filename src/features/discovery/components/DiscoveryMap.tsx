@@ -24,6 +24,7 @@ interface DiscoveryMapProps {
     onServerClusterPress: (feature: ClusterFeature) => void;
     onServerRoomPress: (feature: ClusterFeature) => void;
     onMarkerDeselect: () => void;
+    onInteraction?: () => void;
     mapOverlayOpacity: Animated.Value;
     markersOpacity: Animated.Value;
 }
@@ -44,76 +45,79 @@ export const DiscoveryMap: React.FC<DiscoveryMapProps> = ({
     onServerClusterPress,
     onServerRoomPress,
     onMarkerDeselect,
+    onInteraction,
     mapOverlayOpacity,
     markersOpacity,
 }) => {
     return (
         <>
-            <MapView
-                ref={mapRef}
-                style={styles.map}
-                mapStyle={HUDDLE_MAP_STYLE}
-                logoEnabled={false}
-                attributionEnabled={true}
-                attributionPosition={{ bottom: 8, right: 8 }}
-                rotateEnabled={false}
-                pitchEnabled={false}
-                onDidFinishLoadingMap={onMapReady}
-                onRegionWillChange={onRegionWillChange}
-                onRegionDidChange={onRegionDidChange}
-            >
-                <Camera
-                    ref={cameraRef}
-                    defaultSettings={{
-                        centerCoordinate: centerCoord,
-                        zoomLevel: zoom,
-                    }}
-                    minZoomLevel={MAP_CONFIG.ZOOM.LIMIT_MIN}
-                    maxZoomLevel={MAP_CONFIG.ZOOM.LIMIT_MAX}
-                />
-
-                {/* User Location Indicator - Guard with location check */}
-                {userLocation && (
-                    <MapViewLocation
-                        location={userLocation}
-                        isMapStable={isMapStable}
+            <View style={styles.map} onTouchStart={onInteraction}>
+                <MapView
+                    ref={mapRef}
+                    style={styles.map}
+                    mapStyle={HUDDLE_MAP_STYLE}
+                    logoEnabled={false}
+                    attributionEnabled={true}
+                    attributionPosition={{ bottom: 8, right: 8 }}
+                    rotateEnabled={false}
+                    pitchEnabled={false}
+                    onDidFinishLoadingMap={onMapReady}
+                    onRegionWillChange={onRegionWillChange}
+                    onRegionDidChange={onRegionDidChange}
+                >
+                    <Camera
+                        ref={cameraRef}
+                        defaultSettings={{
+                            centerCoordinate: centerCoord,
+                            zoomLevel: zoom,
+                        }}
+                        minZoomLevel={MAP_CONFIG.ZOOM.LIMIT_MIN}
+                        maxZoomLevel={MAP_CONFIG.ZOOM.LIMIT_MAX}
                     />
-                )}
 
-                {/* Server-Side Markers - Flattened rendering to prevent Fragment-related native crashes */}
-                {(() => {
-                    if (!canRenderMarkers) {
-                        return null;
-                    }
-                    if (!serverFeatures || serverFeatures.length === 0) {
-                        return null;
-                    }
+                    {/* User Location Indicator - Guard with location check */}
+                    {userLocation && (
+                        <MapViewLocation
+                            location={userLocation}
+                            isMapStable={isMapStable}
+                        />
+                    )}
 
-                    return serverFeatures
-                        .filter((f: ClusterFeature) => f.properties.cluster ? f.properties.clusterId != null : !!f.properties.roomId)
-                        .map((feature: ClusterFeature) => {
-                            const [lng, lat] = feature.geometry.coordinates;
-                            if (feature.properties.cluster) {
+                    {/* Server-Side Markers - Flattened rendering to prevent Fragment-related native crashes */}
+                    {(() => {
+                        if (!canRenderMarkers) {
+                            return null;
+                        }
+                        if (!serverFeatures || serverFeatures.length === 0) {
+                            return null;
+                        }
+
+                        return serverFeatures
+                            .filter((f: ClusterFeature) => f.properties.cluster ? f.properties.clusterId != null : !!f.properties.roomId)
+                            .map((feature: ClusterFeature) => {
+                                const [lng, lat] = feature.geometry.coordinates;
+                                if (feature.properties.cluster) {
+                                    return (
+                                        <ServerClusterMarker
+                                            key={`server-cluster-${feature.properties.clusterId}-${lng.toFixed(4)}-${lat.toFixed(4)}`} // Force remount on move
+                                            feature={feature}
+                                            onPress={onServerClusterPress}
+                                        />
+                                    );
+                                }
                                 return (
-                                    <ServerClusterMarker
-                                        key={`server-cluster-${feature.properties.clusterId}-${lng.toFixed(4)}-${lat.toFixed(4)}`} // Force remount on move
+                                    <ServerRoomMarker
+                                        key={`server-room-${feature.properties.roomId}-${lng.toFixed(4)}-${lat.toFixed(4)}`} // Force remount on move
                                         feature={feature}
-                                        onPress={onServerClusterPress}
+                                        isSelected={selectedFeature?.properties.roomId === feature.properties.roomId}
+                                        onPress={onServerRoomPress}
+                                        onDeselect={onMarkerDeselect}
                                     />
                                 );
-                            }
-                            return (
-                                <ServerRoomMarker
-                                    key={`server-room-${feature.properties.roomId}-${lng.toFixed(4)}-${lat.toFixed(4)}`} // Force remount on move
-                                    feature={feature}
-                                    isSelected={selectedFeature?.properties.roomId === feature.properties.roomId}
-                                    onPress={onServerRoomPress}
-                                    onDeselect={onMarkerDeselect}
-                                />
-                            );
-                        });
-                })()}
-            </MapView>
+                            });
+                    })()}
+                </MapView>
+            </View>
 
             {/* Map Loading Overlay - Fades out when map is ready */}
             <Animated.View

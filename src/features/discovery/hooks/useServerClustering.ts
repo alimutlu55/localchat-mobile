@@ -37,6 +37,7 @@ export interface UseServerClusteringReturn {
   refetch: (throwOnError?: boolean) => Promise<void>;
   prefetchForLocation: (centerLng: number, centerLat: number, targetZoom: number, animationDuration: number) => void;
   prefetchForWorldView: (animationDuration: number) => void;
+  cancelPrefetch: () => void;
 }
 
 // =============================================================================
@@ -163,6 +164,24 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
   const forceNextFetchRef = useRef(false);
   const prefetchTimerRef = useRef<NodeJS.Timeout | null>(null);
   const isPrefetchingRef = useRef(false);
+  const activePrefetchIdRef = useRef<number | null>(null);
+
+  const cancelPrefetch = useCallback(() => {
+    if (activePrefetchIdRef.current || prefetchTimerRef.current) {
+      log.info('Cancelling map data prefetch due to interruption', {
+        activeId: activePrefetchIdRef.current,
+        hasTimer: !!prefetchTimerRef.current
+      });
+    }
+    activePrefetchIdRef.current = null;
+    if (prefetchTimerRef.current) {
+      clearTimeout(prefetchTimerRef.current);
+      prefetchTimerRef.current = null;
+    }
+    if (isPrefetchingRef.current) {
+      isPrefetchingRef.current = false;
+    }
+  }, []);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -268,8 +287,10 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
 
   const prefetchForLocation = useCallback(
     async (centerLng: number, centerLat: number, targetZoom: number, animationDuration: number) => {
+      const prefetchId = Date.now();
+      activePrefetchIdRef.current = prefetchId;
       isPrefetchingRef.current = true;
-      log.debug('Starting location prefetch', { centerLng, centerLat, targetZoom, animationDuration });
+      log.debug('Starting location prefetch', { centerLng, centerLat, targetZoom, animationDuration, prefetchId });
 
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       if (prefetchTimerRef.current) clearTimeout(prefetchTimerRef.current);
@@ -293,6 +314,15 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
           targetBounds[0], targetBounds[1], targetBounds[2], targetBounds[3],
           Math.floor(targetZoom), category, userLocation?.latitude, userLocation?.longitude
         );
+
+        if (activePrefetchIdRef.current !== prefetchId) {
+          log.info('Discarding stale prefetch data (user interrupted or newer request)', {
+            prefetchId,
+            activeId: activePrefetchIdRef.current
+          });
+          return;
+        }
+
         const networkMs = Date.now() - perfStart;
 
         if (!mountedRef.current) return;
@@ -338,8 +368,10 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
 
   const prefetchForWorldView = useCallback(
     async (animationDuration: number) => {
+      const prefetchId = Date.now();
+      activePrefetchIdRef.current = prefetchId;
       isPrefetchingRef.current = true;
-      log.debug('Starting world view prefetch', { animationDuration });
+      log.debug('Starting world view prefetch', { animationDuration, prefetchId });
       const targetZoom = 1;
       const targetBounds: [number, number, number, number] = [-180, -85, 180, 85];
 
@@ -354,6 +386,14 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
           targetBounds[0], targetBounds[1], targetBounds[2], targetBounds[3],
           targetZoom, category, userLocation?.latitude, userLocation?.longitude
         );
+
+        if (activePrefetchIdRef.current !== prefetchId) {
+          log.info('Discarding stale world prefetch data (user interrupted)', {
+            prefetchId,
+            activeId: activePrefetchIdRef.current
+          });
+          return;
+        }
 
         if (!mountedRef.current) return;
 
@@ -460,8 +500,8 @@ export function useServerClustering(options: UseServerClusteringOptions): UseSer
   }, [enabled, isMapReady, refetch]);
 
   return useMemo(() => ({
-    features, setFeatures: setRawFeatures, isLoading, error, metadata, refetch, prefetchForLocation, prefetchForWorldView,
-  }), [features, isLoading, error, metadata, refetch, prefetchForLocation, prefetchForWorldView]);
+    features, setFeatures: setRawFeatures, isLoading, error, metadata, refetch, prefetchForLocation, prefetchForWorldView, cancelPrefetch,
+  }), [features, isLoading, error, metadata, refetch, prefetchForLocation, prefetchForWorldView, cancelPrefetch]);
 }
 
 export default useServerClustering;

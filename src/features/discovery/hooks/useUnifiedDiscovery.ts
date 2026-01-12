@@ -25,7 +25,8 @@ export function useUnifiedDiscovery(options: UnifiedDiscoveryOptions) {
         metadata: clusterMetadata,
         refetch: refetchClusters,
         prefetchForLocation,
-        prefetchForWorldView
+        prefetchForWorldView,
+        cancelPrefetch
     } = useServerClustering({
         bounds: bounds || [0, 0, 0, 0], // Fallback for type safety
         zoom,
@@ -70,6 +71,7 @@ export function useUnifiedDiscovery(options: UnifiedDiscoveryOptions) {
         refetchClusters,
         prefetchForLocation,
         prefetchForWorldView,
+        cancelPrefetch,
 
         // List data
         viewportRooms,

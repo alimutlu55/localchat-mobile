@@ -62,6 +62,8 @@ export interface UseMapStateReturn {
   hasBoundsInitialized: boolean;
   /** Whether map is currently moving */
   isMapMoving: boolean;
+  /** Whether a programmatic animation is in progress */
+  isAnimating: boolean;
   /** Call when map finishes loading */
   handleMapReady: () => void;
   /** Call when region will change (pan/zoom start) */
@@ -78,6 +80,8 @@ export interface UseMapStateReturn {
   centerOn: (coordinate: MapCoordinate, targetZoom?: number) => void;
   /** Reset to world view */
   resetToWorldView: () => void;
+  /** Handle direct map interaction (touch/press) as animation interruption */
+  handleMapInteraction: () => void;
   /** Animate camera to a new state with full tracking */
   animateCamera: (config: {
     centerCoordinate?: [number, number];
@@ -199,6 +203,54 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
 
   const handleRegionWillChange = useCallback((payload: any) => {
     setIsMapMoving(true);
+
+    // Detect user interaction (panning, pinching, etc.)
+    const isUserInteraction = payload?.properties?.isUserInteraction;
+
+    if (isUserInteraction && isAnimatingRef.current) {
+      log.info('Map animation interrupted by user gesture', {
+        currentZoom: zoomRef.current,
+        targetZoom: targetZoomRef.current,
+      });
+      isAnimatingRef.current = false;
+      targetZoomRef.current = null;
+    }
+  }, []);
+
+  const handleMapInteraction = useCallback(async () => {
+    if (isAnimatingRef.current) {
+      log.info('Map interaction detected (touch/press), anchoring camera and snapping state');
+
+      const prevTarget = targetZoomRef.current;
+      isAnimatingRef.current = false;
+      targetZoomRef.current = null;
+
+      // Anchor native camera immediately to stop SDK-side movement
+      if (cameraRef.current && mapRef.current) {
+        try {
+          const [currZoom, currCenter] = await Promise.all([
+            mapRef.current.getZoom(),
+            mapRef.current.getCenter(),
+          ]);
+
+          cameraRef.current.setCamera({
+            centerCoordinate: currCenter,
+            zoomLevel: currZoom,
+            animationDuration: 0
+          });
+
+          // Snapshot state to React so UI elements (like buttons) update instantly
+          const roundedZoom = Math.round(currZoom);
+          setZoom(roundedZoom);
+          zoomRef.current = roundedZoom;
+          setCenterCoord(currCenter as [number, number]);
+
+          log.debug('Camera anchored specifically', { actualZoom: currZoom, prevTarget });
+        } catch (e) {
+          log.warn('Failed to anchor camera', e);
+        }
+      }
+    }
   }, []);
 
   const handleRegionDidChange = useCallback(() => {
@@ -461,6 +513,7 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
       // Track animation state so user interactions can interrupt appropriately
       isAnimatingRef.current = true;
       targetZoomRef.current = finalZoom;
+      zoomRef.current = finalZoom;
 
       setZoom(finalZoom);
       cameraRef.current.setCamera({
@@ -489,6 +542,7 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
       // Track animation state so user interactions can interrupt appropriately
       isAnimatingRef.current = true;
       targetZoomRef.current = finalZoom;
+      zoomRef.current = finalZoom;
 
       setZoom(finalZoom);
       cameraRef.current.setCamera({
@@ -516,6 +570,7 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
     // Track animation state so user interactions can interrupt appropriately
     isAnimatingRef.current = true;
     targetZoomRef.current = targetZoom;
+    zoomRef.current = targetZoom; // Critical for jitter-check to work after interruption
 
     setZoom(targetZoom);
     cameraRef.current.setCamera({
@@ -588,6 +643,7 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
     isMapReady,
     hasBoundsInitialized,
     isMapMoving,
+    isAnimating: isAnimatingRef.current,
     handleMapReady,
     handleRegionWillChange,
     handleRegionDidChange,
@@ -596,6 +652,7 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
     flyTo,
     centerOn,
     resetToWorldView,
+    handleMapInteraction,
     animateCamera,
     calculateFlyDuration,
   };
