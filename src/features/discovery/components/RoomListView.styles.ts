@@ -22,7 +22,7 @@ export const styles = StyleSheet.create({
         borderBottomWidth: 1,
         borderBottomColor: theme.tokens.border.subtle,
         paddingHorizontal: 16,
-        paddingTop: 24,
+        paddingTop: 12,
         paddingBottom: 12,
     },
     headerTop: {

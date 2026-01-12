@@ -41,7 +41,6 @@ export const styles = StyleSheet.create({
     },
     listContainer: {
         ...StyleSheet.absoluteFillObject,
-        paddingTop: 100,
         backgroundColor: theme.tokens.bg.canvas,
     },
     topContainer: {

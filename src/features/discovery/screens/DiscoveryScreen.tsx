@@ -713,7 +713,10 @@ export default function DiscoveryScreen() {
 
                 {/* List View */}
                 <Animated.View
-                    style={[styles.listContainer, { opacity: listOpacity }]}
+                    style={[
+                        styles.listContainer,
+                        { opacity: listOpacity, paddingTop: topContainerHeight }
+                    ]}
                     pointerEvents={viewMode === 'map' ? 'none' : 'auto'}
                 >
                     <RoomListView
