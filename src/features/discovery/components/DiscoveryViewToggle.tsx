@@ -19,13 +19,13 @@ export const DiscoveryViewToggle: React.FC<DiscoveryViewToggleProps> = ({
                     style={[styles.viewToggleButton, viewMode === 'map' && styles.viewToggleButtonActive]}
                     onPress={() => onSetViewMode('map')}
                 >
-                    <MapIcon size={18} color={viewMode === 'map' ? '#ffffff' : '#6b7280'} />
+                    <MapIcon size={22} color={viewMode === 'map' ? '#ffffff' : '#6b7280'} />
                 </TouchableOpacity>
                 <TouchableOpacity
                     style={[styles.viewToggleButton, viewMode === 'list' && styles.viewToggleButtonActive]}
                     onPress={() => onSetViewMode('list')}
                 >
-                    <List size={18} color={viewMode === 'list' ? '#ffffff' : '#6b7280'} />
+                    <List size={22} color={viewMode === 'list' ? '#ffffff' : '#6b7280'} />
                 </TouchableOpacity>
             </View>
         </View>

@@ -201,7 +201,7 @@ export const styles = StyleSheet.create({
     viewToggle: {
         flexDirection: 'row',
         backgroundColor: '#ffffff',
-        borderRadius: 24,
+        borderRadius: 28,
         padding: 4,
         // Sharper, more visible shadow for compact look
         shadowColor: '#000',
@@ -213,9 +213,9 @@ export const styles = StyleSheet.create({
         borderColor: '#e5e7eb', // Solid border for better definition
     },
     viewToggleButton: {
-        width: 38,
-        height: 38,
-        borderRadius: 19,
+        width: 44,
+        height: 44,
+        borderRadius: 22,
         alignItems: 'center',
         justifyContent: 'center',
     },

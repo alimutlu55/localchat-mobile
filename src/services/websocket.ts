@@ -136,9 +136,12 @@ class WebSocketService {
   private ws: WebSocket | null = null;
   private connectionState: ConnectionState = 'disconnected';
   private reconnectAttempts = 0;
-  private maxReconnectAttempts = 10;  // 10 attempts
-  private reconnectDelay = 3000;      // 3 seconds fixed delay (30 sec total)
+  private maxReconnectAttempts = Infinity;
+  private minReconnectDelay = 2000;    // Start with 2 seconds
+  private maxReconnectDelay = 60000;   // Cap at 60 seconds
   private heartbeatInterval: ReturnType<typeof setInterval> | null = null;
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private networkUnsubscribe: (() => void) | null = null;
   private subscribedRooms = new Set<string>();
   private eventHandlers = new Map<string, Set<EventHandler>>();
   private messageQueue: Array<{ type: string; payload: unknown }> = [];
@@ -147,6 +150,19 @@ class WebSocketService {
 
   constructor() {
     this.setupAppStateListener();
+    this.setupNetworkListener();
+  }
+
+  /**
+   * Setup network status listener to trigger immediate reconnect when online
+   */
+  private setupNetworkListener(): void {
+    const { offlineManager } = require('../core/network/OfflineManager');
+    this.networkUnsubscribe = offlineManager.onNetworkChange((isOnline: boolean) => {
+      if (isOnline && (this.connectionState === 'disconnected' || this.connectionState === 'reconnecting')) {
+        this.manualReconnect();
+      }
+    });
   }
 
   /**
@@ -244,8 +260,9 @@ class WebSocketService {
         };
 
         // Connection timeout
-        setTimeout(() => {
+        const timeout = setTimeout(() => {
           if (this.connectionState === 'connecting') {
+            console.warn('[WS] Connection timeout (15s)');
             this.ws?.close();
             resolve(false);
           }
@@ -271,6 +288,10 @@ class WebSocketService {
     this.subscribedRooms.clear();
 
     if (this.ws) {
+      this.ws.onopen = null;
+      this.ws.onmessage = null;
+      this.ws.onerror = null;
+      this.ws.onclose = null;
       this.ws.close(1000, 'Client disconnect');
       this.ws = null;
     }
@@ -395,16 +416,33 @@ class WebSocketService {
   }
 
   /**
-   * Schedule reconnection attempt
+   * Schedule reconnection attempt with exponential backoff
    */
   private scheduleReconnect(): void {
-    // Fixed 3-second delay between attempts (not exponential)
-    const delay = this.reconnectDelay;
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+    }
 
-    // State is already 'reconnecting' from handleDisconnect
+    // Calculate exponential delay: 2s, 4s, 8s, 16s, 32s, then capped at maxReconnectDelay
+    const delay = Math.min(
+      this.minReconnectDelay * Math.pow(2, this.reconnectAttempts),
+      this.maxReconnectDelay
+    );
 
-    setTimeout(() => {
+    this.reconnectTimer = setTimeout(async () => {
       this.reconnectAttempts++;
+
+      // Before connecting, ensure we have a fresh token if we've been trying for a while
+      if (this.reconnectAttempts % 3 === 0) {
+        try {
+          await api.refreshAccessToken();
+          const token = await secureStorage.get(STORAGE_KEYS.AUTH_TOKEN);
+          if (token) this.authToken = token;
+        } catch (e) {
+          console.error('[WS] Token refresh failed during reconnect', e);
+        }
+      }
+
       this.connect();
     }, delay);
   }
@@ -799,6 +837,11 @@ class WebSocketService {
     this.disconnect();
     this.eventHandlers.clear();
     this.appStateSubscription?.remove();
+    this.networkUnsubscribe?.();
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
   }
 }
 
