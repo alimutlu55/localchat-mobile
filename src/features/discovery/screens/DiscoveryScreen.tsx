@@ -397,14 +397,8 @@ export default function DiscoveryScreen() {
         const animDuration = calculateFlyDuration(targetZoom);
 
         prefetchForWorldView(animDuration);
-
-        animateCamera({
-            centerCoordinate: [0, 0],
-            zoomLevel: targetZoom,
-            animationDuration: animDuration,
-            animationMode: 'flyTo',
-        });
-    }, [prefetchForWorldView, animateCamera]);
+        resetToWorldView(userLocation || undefined);
+    }, [prefetchForWorldView, resetToWorldView, userLocation, calculateFlyDuration]);
 
     const handleCenterOnUser = useCallback(() => {
         if (!userLocation) return;

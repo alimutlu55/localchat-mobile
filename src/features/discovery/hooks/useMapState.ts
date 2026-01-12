@@ -79,7 +79,7 @@ export interface UseMapStateReturn {
   /** Center on a specific location with optional zoom */
   centerOn: (coordinate: MapCoordinate, targetZoom?: number) => void;
   /** Reset to world view */
-  resetToWorldView: () => void;
+  resetToWorldView: (coordinate?: MapCoordinate) => void;
   /** Handle direct map interaction (touch/press) as animation interruption */
   handleMapInteraction: () => void;
   /** Animate camera to a new state with full tracking */
@@ -561,7 +561,7 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
     [isMapReady, calculateFlyDuration]
   );
 
-  const resetToWorldView = useCallback(() => {
+  const resetToWorldView = useCallback((coordinate?: MapCoordinate) => {
     if (!isMapReady || !cameraRef.current) return;
 
     const targetZoom = MAP_CONFIG.ZOOM.WORLD_VIEW;
@@ -573,8 +573,15 @@ export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn
     zoomRef.current = targetZoom; // Critical for jitter-check to work after interruption
 
     setZoom(targetZoom);
+
+    // Use provided coordinate's longitude for a "zoom up" feel, 
+    // otherwise default to Africa [0, 20]
+    const targetCenter: [number, number] = coordinate
+      ? [coordinate.longitude, 20]
+      : [0, 20];
+
     cameraRef.current.setCamera({
-      centerCoordinate: [0, 20],
+      centerCoordinate: targetCenter,
       zoomLevel: targetZoom,
       animationDuration: duration,
       animationMode: 'flyTo',
