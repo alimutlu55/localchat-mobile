@@ -14,6 +14,7 @@ interface DiscoveryOverlayProps {
     onCreateRoom: () => void;
     zoom: number;
     topOffset?: number;
+    emptyStateStyle?: any;
 }
 
 export const DiscoveryOverlay: React.FC<DiscoveryOverlayProps> = ({
@@ -27,6 +28,7 @@ export const DiscoveryOverlay: React.FC<DiscoveryOverlayProps> = ({
     onCreateRoom,
     zoom,
     topOffset = 140,
+    emptyStateStyle,
 }) => {
     return (
         <>
@@ -39,7 +41,7 @@ export const DiscoveryOverlay: React.FC<DiscoveryOverlayProps> = ({
 
             {/* Empty State - Show if empty, user in view, and (map stable OR at max zoom) */}
             {serverFeaturesCount === 0 && !isLoadingClusters && isUserInView && (zoom >= MAX_ZOOM || (isMapStable && !isMapMoving)) && zoom > MAX_ZOOM - 1 && (
-                <Animated.View style={[styles.emptyState, { opacity: markersOpacity }]}>
+                <Animated.View style={[styles.emptyState, { opacity: markersOpacity }, emptyStateStyle]}>
                     <Text style={styles.emptyTitle}>No rooms nearby</Text>
                     <Text style={styles.emptyText}>Be the first to start a conversation!</Text>
                     <TouchableOpacity style={styles.createButton} onPress={onCreateRoom}>

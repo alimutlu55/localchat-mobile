@@ -6,14 +6,16 @@ import { styles } from '../screens/DiscoveryScreen.styles';
 interface DiscoveryViewToggleProps {
     viewMode: 'map' | 'list';
     onSetViewMode: (mode: 'map' | 'list') => void;
+    style?: any;
 }
 
 export const DiscoveryViewToggle: React.FC<DiscoveryViewToggleProps> = ({
     viewMode,
     onSetViewMode,
+    style,
 }) => {
     return (
-        <View style={styles.viewToggleContainer} pointerEvents="box-none">
+        <View style={[styles.viewToggleContainer, style]} pointerEvents="box-none">
             <View style={styles.viewToggle}>
                 <TouchableOpacity
                     style={[styles.viewToggleButton, viewMode === 'map' && styles.viewToggleButtonActive]}

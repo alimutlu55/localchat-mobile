@@ -708,6 +708,7 @@ export default function DiscoveryScreen() {
                         onCreateRoom={handleCreateRoom}
                         zoom={zoom}
                         topOffset={topContainerHeight}
+                        emptyStateStyle={{ bottom: 92 }}
                     />
                 </Animated.View>
 
@@ -769,6 +770,7 @@ export default function DiscoveryScreen() {
             <DiscoveryViewToggle
                 viewMode={viewMode}
                 onSetViewMode={setViewMode}
+                style={{ bottom: insets.bottom + 84 + 20 }}
             />
         </View>
     );

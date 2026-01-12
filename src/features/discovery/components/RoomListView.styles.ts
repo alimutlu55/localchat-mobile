@@ -141,7 +141,7 @@ export const styles = StyleSheet.create({
     },
     roomListContent: {
         padding: 16,
-        paddingBottom: 60, // Extra padding for toggle button at bottom
+        paddingBottom: 92,
     },
     group: {
         marginBottom: 24,

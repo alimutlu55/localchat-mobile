@@ -191,7 +191,6 @@ export const styles = StyleSheet.create({
     },
     viewToggleContainer: {
         position: 'absolute',
-        bottom: 130, // Increased from 110px to ensure 20px+ gap from ad banner (Google policy compliance)
         left: 0,
         right: 0,
         alignItems: 'center',
@@ -237,7 +236,6 @@ export const styles = StyleSheet.create({
     },
     emptyState: {
         position: 'absolute',
-        bottom: 186, // Adjusted to maintain spacing above view toggle (was 166px)
         left: 20,
         right: 20,
         backgroundColor: '#ffffff',
