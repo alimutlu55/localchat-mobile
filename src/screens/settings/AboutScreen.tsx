@@ -32,7 +32,6 @@ import {
     Bug,
     ChevronRight,
     MapPin,
-    MessageCircle,
     Users,
     Clock,
     Smartphone,
@@ -218,33 +217,6 @@ export default function AboutScreen() {
                     </View>
                 </View>
 
-                {/* Data & Permissions Section */}
-                <View style={styles.section}>
-                    <Text style={styles.sectionTitle}>Data & Permissions</Text>
-                    <View style={styles.dataCard}>
-                        <View style={styles.dataItem}>
-                            <MapPin size={18} color={theme.tokens.brand.primary} />
-                            <View style={styles.dataContent}>
-                                <Text style={styles.dataTitle}>Location</Text>
-                                <Text style={styles.dataDescription}>
-                                    Used to show nearby rooms and your approximate position on the map.
-                                    Your exact location is never shared with other users.
-                                </Text>
-                            </View>
-                        </View>
-                        <View style={styles.dataDivider} />
-                        <View style={styles.dataItem}>
-                            <MessageCircle size={18} color={theme.tokens.brand.primary} />
-                            <View style={styles.dataContent}>
-                                <Text style={styles.dataTitle}>Messages</Text>
-                                <Text style={styles.dataDescription}>
-                                    Messages are stored temporarily and deleted when rooms expire.
-                                    We don't read or analyze your conversations.
-                                </Text>
-                            </View>
-                        </View>
-                    </View>
-                </View>
 
                 {/* Support Section */}
                 <View style={styles.section}>
@@ -463,41 +435,6 @@ const styles = StyleSheet.create({
         marginLeft: 62,
     },
 
-    // Data Card
-    dataCard: {
-        backgroundColor: theme.tokens.bg.surface,
-        borderRadius: 12,
-        padding: 16,
-        shadowColor: '#000',
-        shadowOffset: { width: 0, height: 1 },
-        shadowOpacity: 0.05,
-        shadowRadius: 4,
-        elevation: 2,
-    },
-    dataItem: {
-        flexDirection: 'row',
-        alignItems: 'flex-start',
-    },
-    dataContent: {
-        flex: 1,
-        marginLeft: 12,
-    },
-    dataTitle: {
-        fontSize: 14,
-        fontWeight: '600',
-        color: theme.tokens.text.primary,
-        marginBottom: 4,
-    },
-    dataDescription: {
-        fontSize: 13,
-        color: theme.tokens.text.secondary,
-        lineHeight: 18,
-    },
-    dataDivider: {
-        height: 1,
-        backgroundColor: theme.tokens.border.subtle,
-        marginVertical: 12,
-    },
 
     // Share Button
     shareButton: {
