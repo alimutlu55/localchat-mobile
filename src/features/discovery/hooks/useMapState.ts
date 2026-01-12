@@ -100,7 +100,7 @@ export interface UseMapStateReturn {
 export function useMapState(options: UseMapStateOptions = {}): UseMapStateReturn {
   const {
     defaultCenter,
-    defaultZoom = defaultCenter ? MAP_CONFIG.ZOOM.INITIAL : MAP_CONFIG.ZOOM.BROWSE_MIN,
+    defaultZoom = defaultCenter ? MAP_CONFIG.ZOOM.INITIAL : MAP_CONFIG.ZOOM.WORLD_VIEW,
     minZoom = MAP_CONFIG.ZOOM.LIMIT_MIN,
     maxZoom = MAP_CONFIG.ZOOM.LIMIT_MAX,
   } = options;

@@ -220,7 +220,7 @@ export default function DiscoveryScreen() {
         calculateFlyDuration,
     } = useMapState({
         defaultCenter: userLocation || undefined,
-        defaultZoom: userLocation ? MAP_CONFIG.ZOOM.INITIAL : MAP_CONFIG.ZOOM.BROWSE_MIN,
+        defaultZoom: userLocation ? MAP_CONFIG.ZOOM.INITIAL : MAP_CONFIG.ZOOM.WORLD_VIEW,
         minZoom: MAP_CONFIG.ZOOM.LIMIT_MIN,
         maxZoom: MAP_CONFIG.ZOOM.LIMIT_MAX,
     });
