@@ -274,7 +274,7 @@ export function MessageBubble({
                       <View style={styles.bubbleInner}>
                         <Text style={[styles.messageText, styles.messageTextOwn]}>
                           {message.content}
-                          <View style={{ width: 70, height: 1 }} />
+                          <View style={{ width: 65, height: 1 }} />
                         </Text>
                         <View style={styles.ownMessageMetaAbsolute}>
                           {message.status === 'failed' ? (
@@ -346,7 +346,7 @@ export function MessageBubble({
                     <View style={styles.bubbleInner}>
                       <Text style={styles.messageText}>
                         {message.content}
-                        <View style={{ width: 55, height: 1 }} />
+                        <View style={{ width: 48, height: 1 }} />
                       </Text>
                       <View style={styles.messageMetaAbsolute}>
                         <Text style={styles.messageTimeInside}>
@@ -595,8 +595,8 @@ const styles = StyleSheet.create({
   bubble: {
     backgroundColor: theme.tokens.bg.surface,
     borderRadius: 10,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
+    paddingHorizontal: 6,
+    paddingVertical: 5,
     borderWidth: 1,
     borderColor: theme.tokens.border.subtle,
     shadowColor: theme.tokens.border.strong,
@@ -627,7 +627,7 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   messageText: {
-    fontSize: 15,
+    fontSize: 16,
     color: theme.tokens.text.primary,
     lineHeight: 20,
     flexShrink: 1,
@@ -645,23 +645,23 @@ const styles = StyleSheet.create({
   },
   ownMessageMetaAbsolute: {
     position: 'absolute',
-    bottom: 2,
-    right: 8,
+    bottom: -2,
+    right: 0,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
   messageMetaAbsolute: {
     position: 'absolute',
-    bottom: 2,
-    right: 8,
+    bottom: -2,
+    right: 0,
   },
   messageTimeOwn: {
-    fontSize: 11,
+    fontSize: 10,
     color: 'rgba(255, 255, 255, 0.7)',
   },
   messageTimeInside: {
-    fontSize: 11,
+    fontSize: 10,
     color: theme.tokens.text.tertiary,
   },
   reactionsContainer: {

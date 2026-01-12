@@ -1,13 +1,14 @@
 /**
- * Chat Room Screen (Refactored)
+ * Chat Room Screen (Refactored + Fully Responsive)
  *
  * Real-time chat interface using extracted hooks for separation of concerns.
+ * Optimized for all iPhone models from SE to 16 Pro Max.
  *
  * Architecture:
  * - useChatMessages: Message state, WebSocket subscriptions
  * - useChatInput: Input state, typing indicators
  * - useBlockedUsers: Blocked user management
- * - UI is purely presentational
+ * - UI is purely presentational and fully responsive
  *
  * ~400 LOC (down from 1,388 LOC)
  */
@@ -28,6 +29,7 @@ import {
   NativeScrollEvent,
   Modal,
   Pressable,
+  Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp, useFocusEffect } from '@react-navigation/native';
@@ -77,6 +79,57 @@ import { isAlreadyReported } from '../../../shared/utils/errors';
 import { eventBus } from '../../../core/events/EventBus';
 
 const log = createLogger('ChatRoom');
+
+// =============================================================================
+// Responsive Utilities
+// =============================================================================
+
+const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
+
+// Scale based on iPhone 8 (375x667) as baseline
+const scale = (size: number) => (SCREEN_WIDTH / 375) * size;
+const verticalScale = (size: number) => (SCREEN_HEIGHT / 667) * size;
+const moderateScale = (size: number, factor = 0.5) =>
+  size + (scale(size) - size) * factor;
+
+// Device detection
+const isSmallDevice = SCREEN_WIDTH < 375; // SE (2nd gen and older)
+const isLargeDevice = SCREEN_WIDTH > 414; // Pro Max models
+
+// Responsive values
+const responsiveValues = {
+  padding: {
+    small: scale(12),
+    medium: scale(16),
+    large: scale(24),
+  },
+  fontSize: {
+    small: moderateScale(13, 0.3),
+    medium: moderateScale(15, 0.3),
+    large: moderateScale(16, 0.3),
+    xlarge: moderateScale(20, 0.3),
+    xxlarge: moderateScale(48, 0.4),
+  },
+  iconSize: {
+    small: scale(20),
+    medium: scale(24),
+    large: scale(32),
+  },
+  buttonHeight: {
+    standard: moderateScale(52, 0.3),
+    minimum: 44, // iOS minimum touch target
+  },
+  borderRadius: {
+    small: scale(8),
+    medium: scale(16),
+    large: scale(24),
+  },
+  modal: {
+    width: '90%',
+    maxWidth: Math.min(SCREEN_WIDTH * 0.9, 400),
+    minWidth: 280,
+  },
+};
 
 // =============================================================================
 // Types
@@ -521,7 +574,7 @@ export default function ChatRoomScreen() {
       <KeyboardAvoidingView
         style={styles.content}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : scale(20)}
       >
         {/* Show loading indicator while fetching messages */}
         {isLoading ? (
@@ -614,9 +667,16 @@ export default function ChatRoomScreen() {
             onPress={() => setShowBlockedWarning(false)}
           />
           <View style={styles.warningModal}>
-            <AlertCircle size={32} color={theme.tokens.brand.primary} />
+            <AlertCircle
+              size={responsiveValues.iconSize.large}
+              color={theme.tokens.brand.primary}
+            />
             <Text style={styles.warningTitle}>Blocked user in chat</Text>
-            <Text style={styles.warningDescription}>
+            <Text
+              style={styles.warningDescription}
+              numberOfLines={3}
+              adjustsFontSizeToFit
+            >
               A user you've blocked is in this chat.
             </Text>
             <TouchableOpacity
@@ -647,7 +707,7 @@ export default function ChatRoomScreen() {
 }
 
 // =============================================================================
-// Styles
+// Responsive Styles
 // =============================================================================
 
 const styles = StyleSheet.create({
@@ -670,49 +730,54 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   messageList: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingHorizontal: responsiveValues.padding.medium,
+    paddingVertical: responsiveValues.padding.small,
     flexGrow: 1,
   },
   messageListInverted: {
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    // For inverted list, flexGrow pushes content to bottom when empty
+    paddingHorizontal: responsiveValues.padding.medium,
+    paddingVertical: responsiveValues.padding.small,
     flexGrow: 1,
   },
   emptyState: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 60,
+    paddingVertical: verticalScale(40),
+    minHeight: SCREEN_HEIGHT * 0.4,
   },
   emptyStateInverted: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingVertical: 60,
+    paddingVertical: verticalScale(40),
+    minHeight: SCREEN_HEIGHT * 0.4,
     // Flip the empty state back since list is inverted
     transform: [{ scaleY: -1 }],
   },
   emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16,
+    fontSize: responsiveValues.fontSize.xxlarge,
+    marginBottom: scale(16),
   },
   emptyTitle: {
-    fontSize: 20,
+    fontSize: responsiveValues.fontSize.xlarge,
     fontWeight: '600',
     color: theme.tokens.text.primary,
-    marginBottom: 8,
+    marginBottom: scale(8),
+    textAlign: 'center',
+    paddingHorizontal: responsiveValues.padding.medium,
   },
   emptySubtitle: {
-    fontSize: 15,
+    fontSize: responsiveValues.fontSize.medium,
     color: theme.tokens.text.secondary,
+    textAlign: 'center',
+    paddingHorizontal: responsiveValues.padding.medium,
   },
   modalOverlay: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
+    padding: responsiveValues.padding.medium,
   },
   modalBackdrop: {
     ...StyleSheet.absoluteFillObject,
@@ -720,51 +785,70 @@ const styles = StyleSheet.create({
   },
   warningModal: {
     backgroundColor: theme.tokens.bg.surface,
-    borderRadius: 24,
-    padding: 24,
-    width: '100%',
-    maxWidth: 340,
+    borderRadius: responsiveValues.borderRadius.large,
+    padding: responsiveValues.padding.large,
+    width: '90%',
+    maxWidth: responsiveValues.modal.maxWidth,
+    minWidth: responsiveValues.modal.minWidth,
     alignItems: 'center',
+    // Enhanced shadow for better elevation on all devices
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: scale(8) },
+    shadowOpacity: 0.15,
+    shadowRadius: scale(16),
+    elevation: 8,
   },
   warningTitle: {
-    fontSize: 20,
+    fontSize: responsiveValues.fontSize.xlarge,
+    lineHeight: moderateScale(26, 0.3),
     fontWeight: '700',
     color: theme.tokens.text.primary,
     textAlign: 'center',
-    marginTop: 16,
-    marginBottom: 8,
+    marginTop: scale(16),
+    marginBottom: scale(8),
+    paddingHorizontal: scale(8),
   },
   warningDescription: {
-    fontSize: 15,
+    fontSize: responsiveValues.fontSize.medium,
+    lineHeight: moderateScale(20, 0.3),
     color: theme.tokens.text.secondary,
     textAlign: 'center',
-    marginBottom: 24,
+    marginBottom: responsiveValues.padding.large,
+    paddingHorizontal: scale(4),
   },
   stayButton: {
     width: '100%',
-    height: 52,
-    borderRadius: 16,
+    height: responsiveValues.buttonHeight.standard,
+    minHeight: responsiveValues.buttonHeight.minimum,
+    borderRadius: responsiveValues.borderRadius.medium,
     backgroundColor: theme.tokens.brand.primary,
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 12,
+    marginBottom: responsiveValues.padding.small,
+    // Better touch feedback
+    shadowColor: theme.tokens.brand.primary,
+    shadowOffset: { width: 0, height: scale(4) },
+    shadowOpacity: 0.3,
+    shadowRadius: scale(8),
+    elevation: 4,
   },
   stayButtonText: {
     color: theme.tokens.text.onPrimary,
-    fontSize: 16,
+    fontSize: responsiveValues.fontSize.large,
     fontWeight: '600',
   },
   leaveButton: {
     width: '100%',
-    height: 52,
-    borderRadius: 16,
+    height: responsiveValues.buttonHeight.standard,
+    minHeight: responsiveValues.buttonHeight.minimum,
+    borderRadius: responsiveValues.borderRadius.medium,
     backgroundColor: theme.tokens.bg.subtle,
     justifyContent: 'center',
     alignItems: 'center',
   },
   leaveButtonText: {
     color: theme.tokens.text.secondary,
-    fontSize: 16,
+    fontSize: responsiveValues.fontSize.large,
     fontWeight: '600',
   },
 });
