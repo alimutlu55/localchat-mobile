@@ -1,11 +1,12 @@
 /**
- * Avatar Picker Component
+ * Avatar Picker Component - Improved for All iPhone Sizes
  *
  * DiceBear avatar picker with:
  * - Multiple avatar styles
  * - Shuffle functionality
  * - Preview
  * - SVG Support via react-native-svg
+ * - Responsive design for all iPhone sizes (SE to Pro Max)
  */
 
 import React, { useState, useMemo } from 'react';
@@ -18,6 +19,9 @@ import {
   ScrollView,
   Image,
   ActivityIndicator,
+  Dimensions,
+  Platform,
+  useWindowDimensions,
 } from 'react-native';
 import { X, Shuffle, Check } from 'lucide-react-native';
 import { SvgUri } from 'react-native-svg';
@@ -58,12 +62,41 @@ function generateRandomSeed(): string {
   return Math.random().toString(36).substring(2, 10);
 }
 
+/**
+ * Calculate responsive dimensions based on screen size
+ */
+function useResponsiveDimensions() {
+  const { width, height } = useWindowDimensions();
+
+  // Screen size categories
+  const isSmallDevice = width < 375; // iPhone SE, 12/13 mini
+  const isMediumDevice = width >= 375 && width < 414; // iPhone 12/13/14 Pro
+  const isLargeDevice = width >= 414; // iPhone 14 Plus, Pro Max
+
+  return {
+    width,
+    height,
+    isSmallDevice,
+    isMediumDevice,
+    isLargeDevice,
+    // Preview size
+    previewSize: isSmallDevice ? 100 : isMediumDevice ? 120 : 140,
+    // Grid columns
+    gridColumns: isSmallDevice ? 3 : 4,
+    // Modal max height
+    modalMaxHeight: height * 0.9,
+    // Bottom padding for safe area
+    bottomPadding: Platform.OS === 'ios' ? 34 : 20,
+  };
+}
+
 export function AvatarPicker({
   isOpen,
   onClose,
   currentAvatarUrl,
   onSelect,
 }: AvatarPickerProps) {
+  const dimensions = useResponsiveDimensions();
   const [selectedStyle, setSelectedStyle] = useState<AvatarStyle>('adventurer');
   const [seeds, setSeeds] = useState<Record<string, string>>(() => {
     const initialSeeds: Record<string, string> = {};
@@ -74,10 +107,12 @@ export function AvatarPicker({
   });
   const [selectedAvatarUrl, setSelectedAvatarUrl] = useState<string | null>(null);
 
-  // Generate avatar options for selected style (8 options)
+  // Generate avatar options for selected style - responsive count
   const avatarOptions = useMemo(() => {
     const options: { seed: string; url: string }[] = [];
-    for (let i = 0; i < 8; i++) {
+    // Show 6 options on small devices, 8 on larger
+    const optionCount = dimensions.isSmallDevice ? 6 : 8;
+    for (let i = 0; i < optionCount; i++) {
       const seed = `${seeds[selectedStyle]}-${i}`;
       options.push({
         seed,
@@ -85,7 +120,7 @@ export function AvatarPicker({
       });
     }
     return options;
-  }, [selectedStyle, seeds]);
+  }, [selectedStyle, seeds, dimensions.isSmallDevice]);
 
   const handleStyleChange = (styleId: AvatarStyle) => {
     setSelectedStyle(styleId);
@@ -119,6 +154,11 @@ export function AvatarPicker({
   const previewUrl = selectedAvatarUrl || avatarOptions[0]?.url;
   const hasChanges = selectedAvatarUrl !== null && selectedAvatarUrl !== currentAvatarUrl;
 
+  // Calculate grid item width based on columns and gaps
+  const gridGap = dimensions.isSmallDevice ? 8 : 12;
+  const gridPadding = dimensions.isSmallDevice ? 16 : 20;
+  const gridItemWidth = (dimensions.width - (gridPadding * 2) - (gridGap * (dimensions.gridColumns - 1))) / dimensions.gridColumns;
+
   return (
     <Modal
       visible={isOpen}
@@ -127,102 +167,159 @@ export function AvatarPicker({
       onRequestClose={handleClose}
     >
       <View style={styles.overlay}>
-        <View style={styles.modal}>
+        <View style={[styles.modal, { maxHeight: dimensions.modalMaxHeight }]}>
           {/* Handle */}
           <View style={styles.handle} />
 
           {/* Header */}
           <View style={styles.header}>
-            <Text style={styles.title}>Choose Avatar</Text>
+            <Text style={[
+              styles.title,
+              dimensions.isSmallDevice && styles.titleSmall
+            ]}>
+              Choose Avatar
+            </Text>
             <TouchableOpacity onPress={handleClose} style={styles.closeButton}>
-              <X size={20} color={theme.tokens.text.secondary} />
+              <X size={dimensions.isSmallDevice ? 18 : 20} color={theme.tokens.text.secondary} />
             </TouchableOpacity>
           </View>
 
-          {/* Preview */}
-          <View style={styles.previewContainer}>
-            <View style={styles.previewWrapper}>
-              <SvgUri
-                uri={previewUrl}
-                width="100%"
-                height="100%"
-              />
-            </View>
-          </View>
-
-          {/* Style Tabs */}
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.styleTabs}
-            contentContainerStyle={styles.styleTabsContent}
-          >
-            {AVATAR_STYLES.map((style) => (
-              <TouchableOpacity
-                key={style.id}
-                style={[
-                  styles.styleTab,
-                  selectedStyle === style.id && styles.styleTabActive,
-                ]}
-                onPress={() => handleStyleChange(style.id)}
-              >
-                <Text
-                  style={[
-                    styles.styleTabText,
-                    selectedStyle === style.id && styles.styleTabTextActive,
-                  ]}
-                >
-                  {style.name}
-                </Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-
-          {/* Avatar Grid */}
-          <View style={styles.gridContainer}>
-            <View style={styles.gridHeader}>
-              <Text style={styles.gridTitle}>Select an avatar</Text>
-              <TouchableOpacity style={styles.shuffleButton} onPress={handleShuffle}>
-                <Shuffle size={16} color={theme.tokens.brand.primary} />
-                <Text style={styles.shuffleText}>Shuffle</Text>
-              </TouchableOpacity>
+          <ScrollView showsVerticalScrollIndicator={false}>
+            {/* Preview */}
+            <View style={[
+              styles.previewContainer,
+              dimensions.isSmallDevice && styles.previewContainerSmall
+            ]}>
+              <View style={[
+                styles.previewWrapper,
+                {
+                  width: dimensions.previewSize,
+                  height: dimensions.previewSize,
+                  borderRadius: dimensions.previewSize / 2,
+                }
+              ]}>
+                <SvgUri
+                  uri={previewUrl}
+                  width="100%"
+                  height="100%"
+                />
+              </View>
             </View>
 
-            <View style={styles.grid}>
-              {avatarOptions.map((option) => (
+            {/* Style Tabs */}
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={styles.styleTabs}
+              contentContainerStyle={[
+                styles.styleTabsContent,
+                dimensions.isSmallDevice && styles.styleTabsContentSmall
+              ]}
+            >
+              {AVATAR_STYLES.map((style) => (
                 <TouchableOpacity
-                  key={option.seed}
+                  key={style.id}
                   style={[
-                    styles.avatarOption,
-                    selectedAvatarUrl === option.url && styles.avatarOptionSelected,
+                    styles.styleTab,
+                    dimensions.isSmallDevice && styles.styleTabSmall,
+                    selectedStyle === style.id && styles.styleTabActive,
                   ]}
-                  onPress={() => handleSelectAvatar(option.url)}
+                  onPress={() => handleStyleChange(style.id)}
                 >
-                  <View style={styles.avatarImageContainer}>
-                    <SvgUri
-                      uri={option.url}
-                      width="100%"
-                      height="100%"
-                    />
-                  </View>
-                  {selectedAvatarUrl === option.url && (
-                    <View style={styles.selectedCheck}>
-                      <Check size={12} color={theme.tokens.text.onPrimary} />
-                    </View>
-                  )}
+                  <Text
+                    style={[
+                      styles.styleTabText,
+                      dimensions.isSmallDevice && styles.styleTabTextSmall,
+                      selectedStyle === style.id && styles.styleTabTextActive,
+                    ]}
+                  >
+                    {style.name}
+                  </Text>
                 </TouchableOpacity>
               ))}
-            </View>
-          </View>
+            </ScrollView>
 
-          {/* Confirm Button */}
-          <View style={styles.footer}>
+            {/* Avatar Grid */}
+            <View style={[
+              styles.gridContainer,
+              { padding: gridPadding }
+            ]}>
+              <View style={styles.gridHeader}>
+                <Text style={[
+                  styles.gridTitle,
+                  dimensions.isSmallDevice && styles.gridTitleSmall
+                ]}>
+                  Select an avatar
+                </Text>
+                <TouchableOpacity
+                  style={[
+                    styles.shuffleButton,
+                    dimensions.isSmallDevice && styles.shuffleButtonSmall
+                  ]}
+                  onPress={handleShuffle}
+                >
+                  <Shuffle size={dimensions.isSmallDevice ? 14 : 16} color={theme.tokens.brand.primary} />
+                  <Text style={[
+                    styles.shuffleText,
+                    dimensions.isSmallDevice && styles.shuffleTextSmall
+                  ]}>
+                    Shuffle
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              <View style={[styles.grid, { gap: gridGap }]}>
+                {avatarOptions.map((option) => (
+                  <TouchableOpacity
+                    key={option.seed}
+                    style={[
+                      styles.avatarOption,
+                      {
+                        width: gridItemWidth,
+                        height: gridItemWidth,
+                      },
+                      selectedAvatarUrl === option.url && styles.avatarOptionSelected,
+                    ]}
+                    onPress={() => handleSelectAvatar(option.url)}
+                  >
+                    <View style={styles.avatarImageContainer}>
+                      <SvgUri
+                        uri={option.url}
+                        width="100%"
+                        height="100%"
+                      />
+                    </View>
+                    {selectedAvatarUrl === option.url && (
+                      <View style={styles.selectedCheck}>
+                        <Check size={10} color={theme.tokens.text.onPrimary} />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                ))}
+              </View>
+            </View>
+          </ScrollView>
+
+          {/* Confirm Button - Fixed at bottom */}
+          <View style={[
+            styles.footer,
+            { paddingBottom: dimensions.bottomPadding }
+          ]}>
             <TouchableOpacity
-              style={[styles.confirmButton, !hasChanges && styles.confirmButtonDisabled]}
+              style={[
+                styles.confirmButton,
+                dimensions.isSmallDevice && styles.confirmButtonSmall,
+                !hasChanges && styles.confirmButtonDisabled
+              ]}
               onPress={handleConfirm}
               disabled={!hasChanges}
             >
-              <Text style={styles.confirmButtonText}>Save Avatar</Text>
+              <Text style={[
+                styles.confirmButtonText,
+                dimensions.isSmallDevice && styles.confirmButtonTextSmall
+              ]}>
+                Save Avatar
+              </Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -277,7 +374,11 @@ function AvatarFallback({
         alignItems: 'center',
       }, style]}
     >
-      <Text style={{ fontSize: dimensions.text, fontWeight: '600', color: isPlaceholder ? theme.tokens.text.tertiary : theme.tokens.text.onPrimary }}>
+      <Text style={{
+        fontSize: dimensions.text,
+        fontWeight: '600',
+        color: isPlaceholder ? theme.tokens.text.tertiary : theme.tokens.text.onPrimary
+      }}>
         {displayName?.charAt(0).toUpperCase() || 'U'}
       </Text>
     </View>
@@ -364,7 +465,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#ffffff',
     borderTopLeftRadius: 20,
     borderTopRightRadius: 20,
-    maxHeight: '90%',
   },
   handle: {
     width: 36,
@@ -373,6 +473,7 @@ const styles = StyleSheet.create({
     borderRadius: 2,
     alignSelf: 'center',
     marginTop: 8,
+    marginBottom: 4,
   },
   header: {
     flexDirection: 'row',
@@ -388,6 +489,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#1f2937',
   },
+  titleSmall: {
+    fontSize: 16,
+  },
   closeButton: {
     width: 32,
     height: 32,
@@ -398,10 +502,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 20,
   },
+  previewContainerSmall: {
+    paddingVertical: 16,
+  },
   previewWrapper: {
-    width: 120,
-    height: 120,
-    borderRadius: 60,
     backgroundColor: theme.tokens.bg.subtle,
     justifyContent: 'center',
     alignItems: 'center',
@@ -409,23 +513,29 @@ const styles = StyleSheet.create({
     borderWidth: 3,
     borderColor: theme.tokens.border.focus,
   },
-  previewImage: {
-    width: 110,
-    height: 110,
-  },
   styleTabs: {
     borderBottomWidth: 1,
     borderBottomColor: '#f3f4f6',
+    maxHeight: 50,
   },
   styleTabsContent: {
     paddingHorizontal: 16,
     gap: 8,
+    paddingVertical: 8,
+  },
+  styleTabsContentSmall: {
+    paddingHorizontal: 12,
+    gap: 6,
   },
   styleTab: {
     paddingHorizontal: 16,
     paddingVertical: 10,
     borderRadius: 20,
     backgroundColor: theme.tokens.bg.subtle,
+  },
+  styleTabSmall: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
   },
   styleTabActive: {
     backgroundColor: theme.tokens.action.secondary.default,
@@ -435,11 +545,14 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: theme.tokens.text.secondary,
   },
+  styleTabTextSmall: {
+    fontSize: 12,
+  },
   styleTabTextActive: {
     color: theme.tokens.brand.primary,
   },
   gridContainer: {
-    padding: 20,
+    paddingBottom: 16,
   },
   gridHeader: {
     flexDirection: 'row',
@@ -452,6 +565,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: theme.tokens.text.secondary,
   },
+  gridTitleSmall: {
+    fontSize: 13,
+  },
   shuffleButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -461,19 +577,24 @@ const styles = StyleSheet.create({
     backgroundColor: theme.tokens.action.secondary.default,
     borderRadius: 16,
   },
+  shuffleButtonSmall: {
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    gap: 4,
+  },
   shuffleText: {
     fontSize: 13,
     fontWeight: '500',
     color: theme.tokens.brand.primary,
   },
+  shuffleTextSmall: {
+    fontSize: 12,
+  },
   grid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
   },
   avatarOption: {
-    width: '22%',
-    aspectRatio: 1,
     borderRadius: 12,
     backgroundColor: theme.tokens.bg.subtle,
     justifyContent: 'center',
@@ -490,32 +611,32 @@ const styles = StyleSheet.create({
     width: '80%',
     height: '80%',
   },
-  avatarImage: {
-    width: '80%',
-    height: '80%',
-  },
   selectedCheck: {
     position: 'absolute',
     top: 4,
     right: 4,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
     backgroundColor: theme.tokens.brand.primary,
     justifyContent: 'center',
     alignItems: 'center',
   },
   footer: {
     padding: 20,
-    paddingBottom: 34,
+    paddingTop: 16,
     borderTopWidth: 1,
     borderTopColor: theme.tokens.border.subtle,
+    backgroundColor: '#ffffff',
   },
   confirmButton: {
     backgroundColor: theme.tokens.action.primary.default,
     padding: 16,
     borderRadius: 12,
     alignItems: 'center',
+  },
+  confirmButtonSmall: {
+    padding: 14,
   },
   confirmButtonDisabled: {
     backgroundColor: theme.tokens.action.disabled.bg,
@@ -524,6 +645,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: theme.tokens.action.primary.contrast,
+  },
+  confirmButtonTextSmall: {
+    fontSize: 15,
   },
 });
 
