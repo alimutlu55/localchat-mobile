@@ -20,6 +20,7 @@ import {
     Animated,
     Alert,
     Linking,
+    useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
@@ -102,6 +103,25 @@ export default function DiscoveryScreen() {
     } = useDiscoveryViewState({ initialMode: 'map' });
 
     const insets = useSafeAreaInsets();
+    const { width: screenWidth } = useWindowDimensions();
+
+    // Layout Constants
+    // Layout Constants
+    const TOGGLE_BOTTOM_MARGIN = 24;
+    const TOGGLE_HEIGHT = 52;
+    const CARD_GAP = 30; // 30px distance from toggle
+
+    // Ensure card doesn't touch side buttons (70px margin per side)
+    const emptyStateMaxWidth = Math.min(screenWidth - 140, 300);
+
+    const [isAdVisible, setIsAdVisible] = useState(false);
+
+    // Derived Layout Calculations (Simplified)
+    // Goal: Stack EmptyState exactly above ViewToggle
+    // Since these components now live in the flex-flow content area,
+    // their 'bottom' property is relative to the footer/ad banner automatically.
+    const toggleBottomPosition = TOGGLE_BOTTOM_MARGIN;
+    const emptyStateBottomPosition = toggleBottomPosition + TOGGLE_HEIGHT + CARD_GAP;
 
     // ==========================================================================
     // Auth Status & Logout Protection
@@ -702,7 +722,10 @@ export default function DiscoveryScreen() {
                         onCreateRoom={handleCreateRoom}
                         zoom={zoom}
                         topOffset={topContainerHeight}
-                        emptyStateStyle={{ bottom: 92 }}
+                        emptyStateStyle={{
+                            bottom: emptyStateBottomPosition,
+                            maxWidth: emptyStateMaxWidth
+                        }}
                     />
                 </Animated.View>
 
@@ -727,6 +750,13 @@ export default function DiscoveryScreen() {
                         mode={viewMode}
                     />
                 </Animated.View>
+
+                {/* View Toggle - Now inside the content area so its absolute bottom is relative to the footer/ad banner */}
+                <DiscoveryViewToggle
+                    viewMode={viewMode}
+                    onSetViewMode={setViewMode}
+                    style={{ bottom: toggleBottomPosition }}
+                />
             </View>
 
             {/* Ad Banner - Footer placement respects Safe Area and has dedicated space */}
@@ -734,7 +764,7 @@ export default function DiscoveryScreen() {
                 styles.adBannerContainer,
                 { paddingBottom: insets.bottom }
             ]}>
-                <AdBanner transparent={false} />
+                <AdBanner transparent={false} onVisibilityChange={setIsAdVisible} />
             </View>
 
             {/* Top UI Area (Header + Conditional Filters) */}
@@ -760,12 +790,6 @@ export default function DiscoveryScreen() {
                 )}
             </View>
 
-            {/* View Toggle */}
-            <DiscoveryViewToggle
-                viewMode={viewMode}
-                onSetViewMode={setViewMode}
-                style={{ bottom: insets.bottom + 84 + 20 }}
-            />
         </View>
     );
 }

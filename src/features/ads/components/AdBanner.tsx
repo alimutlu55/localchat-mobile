@@ -10,10 +10,12 @@ export interface AdBannerProps {
     height?: number;
     /** Optional size override */
     size?: keyof typeof AD_CONFIG.BANNER_SIZES;
-    /** Refresh interval in milliseconds (default 45s, 0 to disable) */
+    /** refresh interval in milliseconds (default 45s, 0 to disable) */
     refreshInterval?: number;
     /** Whether the background should be transparent */
     transparent?: boolean;
+    /** Called when the banner's visibility changes (e.g. ad failed to load or consent denied) */
+    onVisibilityChange?: (isVisible: boolean) => void;
 }
 
 /**
@@ -29,7 +31,8 @@ export const AdBanner: React.FC<AdBannerProps> = ({
     height = 60,
     size = 'ANCHORED_ADAPTIVE_BANNER',
     refreshInterval = 45000, // 45 seconds default for balance between revenue and UX
-    transparent = false
+    transparent = false,
+    onVisibilityChange
 }) => {
     const { canShowAds, hasPersonalizationConsent, isLoading: isConsentLoading } = useAdConsent();
     const [isAdLoaded, setIsAdLoaded] = useState(false);
@@ -64,25 +67,17 @@ export const AdBanner: React.FC<AdBannerProps> = ({
     // Don't show anything if consent is still loading
     if (isConsentLoading) {
         return <View style={[styles.container, transparent && styles.transparent, { height }]} />;
-    }
-
-    // Show premium placeholder if ads are disabled or failed
+    }    // Show premium placeholder if ads are disabled or failed
     // NOTE: This is NOT an ad, it's promotional content for the app's premium features
-    if (!canShowAds || adError) {
-        return (
-            <View style={[styles.container, transparent && styles.transparent, { height }]}>
-                <View style={[styles.placeholder, transparent && styles.transparentFallback]}>
-                    <View style={styles.placeholderIcon}>
-                        <Award size={20} color="#FF6410" />
-                    </View>
-                    <View style={styles.placeholderTextContainer}>
-                        <Text style={styles.placeholderTitle}>Go Premium</Text>
-                        <Text style={styles.placeholderSubtitle}>Remove all ads & get exclusive icons</Text>
-                    </View>
-                    <ChevronRight size={18} color="#FF6410" style={styles.placeholderChevron} />
-                </View>
-            </View>
-        );
+    const isVisible = canShowAds && !adError;
+
+    // Notify parent of visibility changes
+    useEffect(() => {
+        onVisibilityChange?.(isVisible);
+    }, [isVisible, onVisibilityChange]);
+
+    if (!isVisible) {
+        return null;
     }
 
     return (
@@ -156,63 +151,6 @@ const styles = StyleSheet.create({
     },
     transparent: {
         backgroundColor: 'transparent',
-    },
-    placeholder: {
-        backgroundColor: '#1f2937',
-        flexDirection: 'row',
-        alignItems: 'center',
-        paddingHorizontal: 16,
-        paddingVertical: 8,
-        marginHorizontal: 12,
-        borderRadius: 12,
-        flex: 1,
-    },
-    transparentFallback: {
-        backgroundColor: 'rgba(31, 41, 55, 0.7)', // Semi-transparent instead of solid black
-        borderWidth: 1,
-        borderColor: 'rgba(255, 255, 255, 0.1)',
-    },
-    placeholderIcon: {
-        marginRight: 12,
-    },
-    placeholderTextContainer: {
-        flex: 1,
-    },
-    placeholderTitle: {
-        color: '#FF6410',
-        fontSize: 14,
-        fontWeight: '700',
-    },
-    placeholderSubtitle: {
-        color: '#9ca3af',
-        fontSize: 12,
-        marginTop: 2,
-    },
-    placeholderChevron: {
-        marginLeft: 12,
-    },
-    placeholderBrand: {
-        color: '#FF6410',
-        fontSize: 14,
-        fontWeight: '700',
-        letterSpacing: 0.5,
-    },
-    placeholderText: {
-        color: '#9ca3af',
-        fontSize: 12,
-        marginTop: 2,
-    },
-    adBadge: {
-        backgroundColor: 'rgba(255, 255, 255, 0.1)',
-        paddingHorizontal: 6,
-        paddingVertical: 2,
-        borderRadius: 4,
-        alignSelf: 'center',
-    },
-    adBadgeText: {
-        color: '#9ca3af',
-        fontSize: 8,
-        fontWeight: '600',
     },
 });
 
