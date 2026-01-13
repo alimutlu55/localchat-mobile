@@ -59,7 +59,8 @@
           "color": "#FF6410"
         }
       ],
-      "@maplibre/maplibre-react-native"
+      "@maplibre/maplibre-react-native",
+      "expo-apple-authentication"
     ],
     "extra": {
       "eas": {

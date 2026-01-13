@@ -110,6 +110,7 @@ export interface AuthStoreActions {
      * Login with Google OAuth
      */
     loginWithGoogle: (idToken: string) => Promise<void>;
+    loginWithApple: (idToken: string, fullName?: string) => Promise<void>;
 
     /**
      * Logout user - orchestrated cleanup before state transition
@@ -458,6 +459,50 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
         } catch (err) {
             const message = getErrorMessage(err, 'Google login failed');
             log.warn('Google login unsuccessful', { reason: message });
+            set({
+                status: 'guest',
+                error: message,
+                isLoading: false,
+                isAuthenticated: false,
+            });
+            useAppStore.getState().setAuthState('guest', null);
+            throw err;
+        }
+    },
+
+    loginWithApple: async (idToken: string, fullName?: string) => {
+        const currentStatus = get().status;
+
+        if (currentStatus === 'authenticated' || currentStatus === 'authenticating' || currentStatus === 'loggingOut') {
+            log.warn('Apple login blocked - invalid state', { currentStatus });
+            return;
+        }
+
+        set({ status: 'authenticating', isLoading: true, error: null });
+        useAppStore.getState().setAuthState('authenticating', null);
+
+        try {
+            log.debug('Apple login attempt');
+
+            const user = await authService.loginWithApple(idToken, fullName);
+
+            useUserStore.getState().setUser(user);
+
+            // Connect WebSocket
+            await wsService.connect();
+
+            set({
+                status: 'authenticated',
+                isAuthenticated: true,
+                isLoading: false,
+                isInitializing: false,
+            });
+            useAppStore.getState().setAuthState('authenticated', user.id);
+            eventBus.emit('session.authChanged', { isAuthenticated: true, user });
+            log.debug('Apple login successful', { userId: user.id });
+        } catch (err) {
+            const message = getErrorMessage(err, 'Apple login failed');
+            log.warn('Apple login unsuccessful', { reason: message });
             set({
                 status: 'guest',
                 error: message,

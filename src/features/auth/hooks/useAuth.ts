@@ -48,6 +48,7 @@ export function useAuth() {
     const register = useAuthStore((state) => state.register);
     const loginAnonymous = useAuthStore((state) => state.loginAnonymous);
     const loginWithGoogle = useAuthStore((state) => state.loginWithGoogle);
+    const loginWithApple = useAuthStore((state) => state.loginWithApple);
     const logout = useAuthStore((state) => state.logout);
     const deleteAccount = useAuthStore((state) => state.deleteAccount);
     const hardDeleteAccount = useAuthStore((state) => state.hardDeleteAccount);
@@ -85,6 +86,7 @@ export function useAuth() {
         register,
         loginAnonymous,
         loginWithGoogle,
+        loginWithApple,
         logout,
         deleteAccount,
         hardDeleteAccount,

@@ -2,11 +2,13 @@
  * OAuth Service
  *
  * Handles OAuth authentication flows for third-party providers.
- * Currently supports Google Sign-In using expo-auth-session.
+ * Currently supports Google and Apple Sign-In.
  */
 
 import * as Google from 'expo-auth-session/providers/google';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import * as WebBrowser from 'expo-web-browser';
+import { Platform } from 'react-native';
 
 // Complete auth session on web (required for expo-auth-session)
 WebBrowser.maybeCompleteAuthSession();
@@ -15,13 +17,6 @@ WebBrowser.maybeCompleteAuthSession();
  * OAuth configuration for Google.
  * 
  * NOTE: These should be configured via environment variables in production.
- * The client IDs are obtained from Google Cloud Console:
- * https://console.cloud.google.com/apis/credentials
- * 
- * You need to create OAuth 2.0 Client IDs for:
- * - iOS (iOS bundle ID)
- * - Android (Android package name + SHA-1 fingerprint)
- * - Web (for Expo Go development)
  */
 export const GOOGLE_OAUTH_CONFIG = {
     // Web client ID (used for Expo Go development and web)
@@ -39,30 +34,6 @@ export type GoogleAuthResult = ReturnType<typeof Google.useIdTokenAuthRequest>[1
 
 /**
  * Hook for Google Sign-In using ID token authentication.
- * 
- * This hook provides:
- * - `request`: The auth request object (null if not ready)
- * - `response`: The auth response after user completes sign-in
- * - `promptAsync`: Function to start the sign-in flow
- * - `isReady`: Whether the auth request is ready
- * 
- * @example
- * ```tsx
- * const { request, response, promptAsync, isReady } = useGoogleAuth();
- * 
- * useEffect(() => {
- *   if (response?.type === 'success') {
- *     const idToken = response.params.id_token;
- *     // Send token to your backend
- *   }
- * }, [response]);
- * 
- * return (
- *   <Button onPress={() => promptAsync()} disabled={!isReady}>
- *     Sign in with Google
- *   </Button>
- * );
- * ```
  */
 export function useGoogleAuth() {
     const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
@@ -81,9 +52,6 @@ export function useGoogleAuth() {
 
 /**
  * Extract ID token from Google auth response.
- * 
- * @param response The auth response from useGoogleAuth
- * @returns The ID token string if successful, null otherwise
  */
 export function extractIdToken(
     response: GoogleAuthResult
@@ -92,6 +60,48 @@ export function extractIdToken(
         return response.params.id_token;
     }
     return null;
+}
+
+/**
+ * Hook for Apple Sign-In.
+ * 
+ * This hook provides a way to start the Apple Sign-In flow.
+ * Note: Apple Sign-In only works on iOS devices and some Android/Web flows.
+ */
+export function useAppleAuth() {
+    const isAvailable = async (): Promise<boolean> => {
+        return await AppleAuthentication.isAvailableAsync();
+    };
+
+    const promptAsync = async () => {
+        try {
+            const credential = await AppleAuthentication.signInAsync({
+                requestedScopes: [
+                    AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+                    AppleAuthentication.AppleAuthenticationScope.EMAIL,
+                ],
+            });
+            return credential;
+        } catch (e: any) {
+            if (e.code === 'ERR_CANCELED') {
+                return null;
+            }
+            throw e;
+        }
+    };
+
+    return {
+        promptAsync,
+        isAvailable,
+        isSupported: Platform.OS === 'ios',
+    };
+}
+
+/**
+ * Check if Apple OAuth is available on this platform.
+ */
+export async function isAppleAuthAvailable(): Promise<boolean> {
+    return Platform.OS === 'ios' && await AppleAuthentication.isAvailableAsync();
 }
 
 /**

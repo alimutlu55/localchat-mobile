@@ -16,7 +16,7 @@ import { AuthStackParamList } from '../../navigation/types';
 import { onboardingService } from '../../services/onboarding';
 import { storage } from '../../services/storage';
 import { useAuth } from '../../features/auth';
-import { GoogleSignInButton } from '../../components/auth';
+import { GoogleSignInButton, AppleSignInButton } from '../../components/auth';
 import { getLocationPermissionStore } from '../../shared/stores/LocationConsentStore';
 import { AppIcon } from '../../components/ui/AppIcon';
 
@@ -121,12 +121,19 @@ export default function WelcomeScreen() {
             activeOpacity={0.8}
             disabled={authLoading}
           >
-            <Mail size={20} color="#1f2937" />
+            <View style={styles.iconContainer}>
+              <Mail size={20} color="#1f2937" />
+            </View>
             <Text style={styles.primaryButtonText}>Sign in with Email</Text>
           </TouchableOpacity>
 
           <GoogleSignInButton
-            onError={(error) => console.error('Google sign-in error:', error)}
+            onError={(error: string) => console.error('Google sign-in error:', error)}
+            disabled={authLoading}
+          />
+
+          <AppleSignInButton
+            onError={(error: string) => console.error('Apple sign-in error:', error)}
             disabled={authLoading}
           />
 
@@ -140,7 +147,9 @@ export default function WelcomeScreen() {
               <ActivityIndicator color="#374151" />
             ) : (
               <>
-                <User size={20} color="#374151" />
+                <View style={styles.iconContainer}>
+                  <User size={20} color="#374151" />
+                </View>
                 <Text style={styles.secondaryButtonText}>Continue Anonymously</Text>
               </>
             )}
@@ -237,32 +246,40 @@ const styles = StyleSheet.create({
   primaryButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     backgroundColor: '#f3f4f6',
-    paddingVertical: 16,
+    paddingVertical: 14,
     paddingHorizontal: 24,
+    paddingLeft: 64,
     borderRadius: 12,
-    gap: 10,
+    gap: 12,
   },
   buttonDisabled: {
     opacity: 0.6,
   },
   primaryButtonText: {
-    fontSize: 16,
+    fontSize: 15,
     fontWeight: '600',
     color: '#1f2937',
   },
   secondaryButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
+    justifyContent: 'flex-start',
     backgroundColor: '#ffffff',
     borderWidth: 1,
     borderColor: '#e5e7eb',
     paddingVertical: 14,
     paddingHorizontal: 24,
+    paddingLeft: 64,
     borderRadius: 12,
-    gap: 10,
+    gap: 12,
+  },
+  iconContainer: {
+    width: 24,
+    height: 24,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   secondaryButtonText: {
     fontSize: 15,

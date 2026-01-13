@@ -238,6 +238,30 @@ class AuthService {
   }
 
   /**
+   * Login with Apple OAuth
+   * 
+   * @param identityToken The Apple identity token
+   * @param fullName Optional full name (provided on first login)
+   */
+  async loginWithApple(identityToken: string, fullName?: string): Promise<User> {
+    const deviceId = await this.getDeviceId();
+    const request = {
+      identityToken,
+      fullName,
+      deviceId,
+      devicePlatform: this.getDevicePlatform(),
+    };
+
+    const response = await api.post<{ data: AuthResponse & { isNewUser?: boolean } }>(
+      '/auth/apple',
+      request,
+      { skipAuth: true }
+    );
+    await this.handleAuthResponse(response.data);
+    return this.currentUser!;
+  }
+
+  /**
    * Logout user
    */
   async logout(): Promise<void> {
