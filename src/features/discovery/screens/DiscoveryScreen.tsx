@@ -111,8 +111,8 @@ export default function DiscoveryScreen() {
     const TOGGLE_HEIGHT = 52;
     const CARD_GAP = 30; // 30px distance from toggle
 
-    // Ensure card doesn't touch side buttons (70px margin per side)
-    const emptyStateMaxWidth = Math.min(screenWidth - 140, 300);
+    // Ensure card doesn't touch side buttons (40px margin per side)
+    const emptyStateMaxWidth = Math.min(screenWidth - 80, 360);
 
     const [isAdVisible, setIsAdVisible] = useState(false);
 
@@ -719,6 +719,7 @@ export default function DiscoveryScreen() {
                         isMapStable={isMapStable}
                         isUserInView={isUserInView}
                         isMapMoving={isMapMoving}
+                        isAnimating={isAnimating}
                         onCreateRoom={handleCreateRoom}
                         zoom={zoom}
                         topOffset={topContainerHeight}
