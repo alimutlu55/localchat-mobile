@@ -82,6 +82,7 @@ export interface RoomEvents {
     kickedUserId: string;
     kickedBy: string;
     userName?: string;
+    participantCount?: number;
   };
   'room.userBanned': {
     roomId: string;
@@ -89,6 +90,7 @@ export interface RoomEvents {
     bannedBy: string;
     reason?: string;
     userName?: string;
+    participantCount?: number;
   };
   'room.userUnbanned': {
     roomId: string;

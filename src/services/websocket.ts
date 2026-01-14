@@ -641,6 +641,7 @@ class WebSocketService {
           kickedUserId: payload.kickedUserId,
           kickedBy: payload.kickedBy,
           userName: payload.displayName,
+          participantCount: payload.participantCount,
         });
         break;
 
@@ -651,6 +652,7 @@ class WebSocketService {
           bannedBy: payload.bannedBy,
           reason: payload.reason,
           userName: payload.displayName,
+          participantCount: payload.participantCount,
         });
         break;
 

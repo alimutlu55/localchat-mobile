@@ -189,6 +189,7 @@ export function useRoomEvents(userId?: string): void {
             kickedUserId: string;
             kickedBy: string;
             userName?: string;
+            participantCount?: number;
         }) => {
             const eventKey = `${payload.roomId}-${payload.kickedUserId}`;
             if (processedKickEvents.has(eventKey)) return;
@@ -200,12 +201,9 @@ export function useRoomEvents(userId?: string): void {
                 log.warn('Current user was kicked');
                 store.removeJoinedRoom(payload.roomId);
                 wsService.unsubscribe(payload.roomId);
-            } else {
-                // Refresh room to get updated count for others
-                try {
-                    const fresh = await roomService.getRoom(payload.roomId);
-                    store.updateRoom(payload.roomId, { participantCount: fresh.participantCount });
-                } catch (err) { }
+            } else if (payload.participantCount !== undefined) {
+                // Update participant count directly from real-time payload
+                store.updateRoom(payload.roomId, { participantCount: payload.participantCount });
             }
         };
 
@@ -213,6 +211,7 @@ export function useRoomEvents(userId?: string): void {
             roomId: string;
             bannedUserId: string;
             bannedBy: string;
+            participantCount?: number;
         }) => {
             const eventKey = `${payload.roomId}-${payload.bannedUserId}`;
             if (processedBanEvents.has(eventKey)) return;
@@ -225,12 +224,9 @@ export function useRoomEvents(userId?: string): void {
                 store.removeJoinedRoom(payload.roomId);
                 store.hideRoom(payload.roomId); // Banned users shouldn't see the room
                 wsService.unsubscribe(payload.roomId);
-            } else {
-                // Refresh count for others
-                try {
-                    const fresh = await roomService.getRoom(payload.roomId);
-                    store.updateRoom(payload.roomId, { participantCount: fresh.participantCount });
-                } catch (err) { }
+            } else if (payload.participantCount !== undefined) {
+                // Update participant count directly from real-time payload
+                store.updateRoom(payload.roomId, { participantCount: payload.participantCount });
             }
         };
 

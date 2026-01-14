@@ -24,6 +24,8 @@ import {
 } from '../../../utils/format';
 import { theme } from '../../../core/theme';
 
+import { useRoomStore } from '../../rooms';
+
 // =============================================================================
 // Helpers
 // =============================================================================
@@ -68,6 +70,12 @@ export const ListViewItem = memo(
         onJoin,
         onEnter,
     }: ListViewItemProps) {
+        // Subscribe to real-time participant count from store
+        // This ensures updates even if the parent list doesn't re-render the item prop
+        const participantCount = useRoomStore(
+            useCallback((state) => state.rooms.get(room.id)?.participantCount ?? room.participantCount, [room.id, room.participantCount])
+        );
+
         // Calculate room distance
         const roomDistance = useMemo(() => {
             // Only show distance if we have a real user location to compare against.
@@ -164,7 +172,7 @@ export const ListViewItem = memo(
                             <View style={styles.metaItem}>
                                 <Users size={12} color={theme.tokens.text.tertiary} />
                                 <Text style={styles.metaText}>
-                                    {room.participantCount}
+                                    {participantCount}
                                 </Text>
                             </View>
                             <View style={styles.metaItem}>

@@ -317,7 +317,7 @@ export function useRoomDiscovery(
       unsubCreated();
       unsubClosed();
     };
-  }, [latitude, longitude, storeSetRooms, addDiscoveredRoomIds, setDiscoveredRoomIds]);
+  }, [latitude, longitude, storeSetRooms, addDiscoveredRoomIds, setDiscoveredRoomIds, storeUpdateRoom]);
 
   return {
     rooms,
