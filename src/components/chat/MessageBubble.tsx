@@ -8,35 +8,19 @@
  * - Animated entrance
  */
 
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useRef, useEffect, useMemo } from 'react';
 import {
   View,
   Text,
   StyleSheet,
   TouchableOpacity,
   Animated,
-  Modal,
-  Pressable,
-  Image,
-  Alert,
-  Platform,
-  ScrollView,
-  FlatList,
-  Dimensions,
 } from 'react-native';
 import {
   Check,
   CheckCheck,
-  Copy,
-  Flag,
-  Ban,
   Clock,
   AlertCircle,
-  MoreVertical,
-  CornerUpLeft,
-  ArrowRight,
-  Star,
-  Trash2,
 } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { theme } from '../../core/theme';
@@ -48,32 +32,30 @@ import { getCategoryColor } from '../../constants';
 interface MessageBubbleProps {
   message: ChatMessage;
   isOwn: boolean;
-  onReport?: (message: ChatMessage) => void;
-  onBlock?: (message: ChatMessage) => void;
+  onPress: (message: ChatMessage) => void;
+  onLongPress: (message: ChatMessage) => void;
   onReact?: (messageId: string, emoji: string) => void;
   onRetry?: (message: ChatMessage) => void;
   hasBlocked?: boolean;
 }
 
-const EMOJIS = ['❤️', '👍', '😂', '🔥', '😮', '🙏'];
-
-const EMOJI_CATEGORIES = [
-  { title: '🕒', name: 'FREQUENTLY USED', emojis: ['🫶', '😍', '👥', '💯', '😋', '🎊', '🙌', '😂', '😟', '👍', '❤️', '🙏', '😮', '😢'] },
-  { title: '😃', name: 'SMILEYS & PEOPLE', emojis: ['😊', '😇', '🙂', '🙃', '😉', '😌', '🥰', '😘', '😗', '😙', '😚', '😋', '😛', '😝', '😜', '🤪', '🤨', '🧐', '🤓', '😎', '🤩', '🥳', '😏', '😒', '😞', '😔', '😟', '😕', '🙁', '☹️', '😣', '😖', '😫', '😩', '🥺', '😢', '😭', '😤', '😠', '😡', '🤬', '🤯', '😳', '🥵', '🥶', '😱', '😨', '😰', '😥', '😓', '🤗', '🤔', '🤭', '🤫', '🤥', '😶', '😐', '😑', '😬', '🙄', '😯', '😦', '😧', '😮', '😲', '🥱', '😴', '🤤', '😪', '😵', '🤐', '🥴', '🤢', '🤮', '🤧', '😷', '🤒', '🤕'] },
-  { title: '🐻', name: 'ANIMALS & NATURE', emojis: ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐻‍❄️', '🐨', '🐯', '🦁', '🐮', '🐷', '🐽', '🐸', '🐵', '🙈', '🙊', '🐒', '🐔', '🐧', '🐦', '🐤', '🐣', '🐥', '🦆', '🦅', '🦉', '🦇', '🐺', '🐗', '🐴', '🦄', '🐝', '🪱', '🐛', '🦋', '🐌', '🐞', '🐜', '🦟', '🦗', '🕷', '🕸', '🦂', '🐢', '🐍', '🦎', '🦖', '🦕', '🐙', '🦑', '🦐', '🦞', '🦀', '🐡', '🐠', '🐟', '🐬', '🐳', '🐋', '🦈', '🐊', '🐅', '🐆', '🦓', '🦍', '🦧', '🐘', '🦛', '🦏', '🐪', '🐫', '🦒', '🦘', '🦬', '🐃', '🐂', '🐄', '🐎', '🐖', '🐏', '🐑', '🦙', '🐐', '🦌', '🐕', '🐩', '🦮', '🐕‍🦺', '🐈', '🐈‍⬛', '🐓', '🦃', '🦚', '🦜', '🦢', '🦩', '🕊', '🐇', '🦝', '🦨', '🦡', '🦦', '🦥', '🐁', '🐀', '🐿', '🦔'] },
-  { title: '☕', name: 'FOOD & DRINK', emojis: ['🍏', '🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍈', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🍆', '🥑', '🥦', '🥬', '🥒', '🌽', '🥕', '🫒', '🧄', '🧅', '🥔', '🍠', '🥐', '🥯', '🍞', '🥖', '🥨', '🧀', '🥚', '🍳', '🧈', '🥞', '🧇', '🥓', '🥩', '🍗', '🍖', '🦴', '🌭', '🍔', '🍟', '🍕', '🫓', '🥪', '🌮', '🌯', '🫔', '🥙', '🧆', '🥚', '🍲', '🥣', '🥗', '🍿', '🧈', '🧂', '🥫', '🍱', '🍘', '🍙', '🍚', '🍛', '🍜', '🍝', '🍠', '🍢', '🍣', '🍤', '🍥', '🥮', '🍡', '🥟', ' fortune_cookie', '🥡', '🦀', '🦞', '🦐', '🦑', '🍦', '🍧', '🍨', '🍩', '🍪', '🎂', '🍰', '🧁', '🥧', '🍫', '🍬', '🍭', '🍮', '🍯', '🍼', '🥛', '☕️', '🫖', '🍵', '🍶', '🍾', '🍷', '🍸', '🍹', '🍺', '🍻', '🥂', '🥃', '🥤', '🧋', '🧃', '🧉', '🧊'] },
-  { title: '⚽', name: 'ACTIVITIES', emojis: ['⚽️', '🏀', '🏈', '⚾️', '🥎', '🎾', '🏐', '🏉', '🎱', '🪀', '🏓', '🏸', '🏒', '🏑', '🥍', '🏏', '🪃', '🥅', '⛳️', '🪁', '🏹', '🎣', '🤿', '🥊', '🥋', '🎽', '🛹', '🛼', '🛷', '⛸', '🥌', '🎿', '⛷', '🏂', '🪂', '🏋️‍♀️', '🏋️', '🏋️‍♂️', '🤼‍♀️', '🤼', '🤼‍♂️', '🤸‍♀️', '🤸', '🤸‍♂️', '⛹️‍♀️', '⛹️', '⛹️‍♂️', '🤺', '🤾‍♀️', '🤾', '🤾‍♂️', '🏌️‍♀️', '🏌️', '🏌️‍♂️', '🏇', '🧘‍♀️', '🧘', '🧘‍♂️', '🏄‍♀️', '🏄', '🏄‍♂️', '🏊‍♀️', '脫', '🏊‍♂️', '🤽‍♀️', '🤽', '🤽‍♂️', '🚣‍♀️', '🚣', '🚣‍♂️', '🧗‍♀️', '🧗', '🧗‍♂️', '🚵‍♀️', '🚵', '🚵‍♂️', '🚴‍♀️', '🚴', '🚴‍♂️', '🏆', '🥇', '🥈', '🥉', '🏅', '🎖', '🏵', '🎗', '🎫', '🎟', '🎭', '🩰', '🎨', '🎬', '🎤', '🎧', '🎼', '🎹', '🥁', '🪘', '🎷', '🎺', '🪗', '🎸', '🪕', '🎻', '🎲', '♟', '🎯', '🎳', '🎮', '🎰', '🧩'] },
-  { title: '🚘', name: 'TRAVEL & PLACES', emojis: ['🚗', '🚕', '🚙', '🚌', '🚎', '🏎', '🚓', '🚑', '🚒', '🚐', '🛻', '🚚', '🚛', '🚜', '🛵', '🏍', '🛺', '🚲', '🛴', '🚳', '🛹', '🛼', '⛽️', '🚨', '🚥', '🚦', '🛑', '🚧', '⚓️', '⛵️', '🛶', '🚤', '🛳', '⛴', '🛥', '🚢', '✈️', '🛩', '🛫', '🛬', '🪂', '💺', '🚁', '🚟', '🚠', '🚡', '🛰', '🚀', '🛸', '🛎', '🧳', '⌛️', '⏳', '⌚️', '⏰', '⏱', '⏲', '🕰', '🌡', '☀️', '🌝', '🌛', '🌜', '🌚', '🌕', '🌖', '🌗', '🌘', '🌑', '🌓', '🌔', '🌙', '🌎', '🌍', '🌏', '🪐', '💫', '⭐️', '🌟', '✨', '⚡️', '☄️', '💥', '🔥', '🌪', '🌈', '☀️', '🌤', '⛅️', '🌥', '☁️', '🌦', '🌧', '⛈', '🌩', '🌨', '❄️', '☃️', '⛄️', '🌬', '💨', '💧', '💦', '🫧', '☔️', '☂️', '🌊', '🌫'] },
-  { title: '💡', name: 'OBJECTS', emojis: ['⌚️', '📱', '📲', '💻', '⌨️', '🖱', '🖲', '🕹', '🗜', '💽', '💾', '💿', '📀', '📼', '📷', '📸', '📹', '🎥', '📽', '🎞', '📞', '☎️', '📟', '📠', '📺', '📻', '🎙', '🎚', '🎛', '🧭', '⏱', '⏲', '⏰', '🕰', '⌛️', '⏳', '📡', '🔋', '🔌', '💡', '🔦', '🕯', '🪔', '🧯', '🛢', '💸', '💵', '💴', '💶', '💷', '🪙', '💰', '💳', '💎', '⚖️', '🪜', '🧰', '🪛', '🔧', '🔨', '⚒', '🛠', '⛏', '🪚', '🔩', '⚙️', '🪤', '🧱', '⛓', '🧲', '🔫', '💣', '🧨', '🪓', '🔪', '🗡', '⚔️', '🛡', '🚬', '⚰️', '🪦', '⚱️', '🏺', '🔮', '📿', '🧿', '💈', '⚗️', '🔭', '🔬', '🕳', '🩹', '🩺', '💊', '💉', '🩸', '🧬', '🦠', '🧼', '🧽', '🪥', '🪒', '🧴', '🧷', '🧹', '🧺', '🧻', '🚽', '🚰', '🚿', '🛀', '🧼', '🪠', '🔑', '🗝', '🚪', '🪑', '🛋', '🛏', '🛌', '🧸', '🖼', '🪞', '🪟', '🛍', '🛒', '🎁', '🎈', '🎏', '🎀', '🪄', '🪅', '🎊', '🎉', '🎎', '🏮', '🎐', '🧧', '✉️', '📩', '📨', '📧', '💌', '📥', '📤', '📦', '🏷', '🪧', '📪', '📫', '📬', '📭', '📮', '📯', '📜', '📃', '📄', '📑', '📊', '📈', '📉', '🗒', '🗓', '📅', '🗑', '📇', '🗃', '🗳', '🗄', '📋', '📁', '📂', '🗂', '🗞', '📰', '📓', '📔', '📒', '📕', '📗', '📘', '📙', '📚', '📖', '🔖', '🧷', '🔗', '📎', '🖇', '📐', '📏', '🧮', '📌', '📍', '✂️', '🖊', '🖋', '✒️', '🖌', '🖍', '📝', '✏️', '🔍', '🔎', '🔏', '🔐', '🔒', '🔓'] },
-  { title: '🔣', name: 'SYMBOLS', emojis: ['❤️', '🧡', '💛', '💚', '💙', '💜', '🖤', '🤍', '🤎', '💔', '❣️', '💕', '💞', '💓', '💗', '💖', '💘', '💝', '💟', '☮️', '✝️', '☪️', '🕉', '☸️', '✡️', '🔯', '🕎', '☯️', '☦️', '🛐', '⛎', '♈️', '♉️', '♊️', '♋️', '♌️', '♍️', '♎️', '♏️', '♐️', '♑️', '♒️', '♓️', '🆔', '⚛️', '🉑', '☢️', '☣️', '📴', '📳', '🈶', '🈚️', '🈸', '🈺', '🈷️', '✴️', '🆚', '💮', '🉐', '㊙️', '㊗️', '🈴', '🈵', '🈹', '🈲', '🅰️', '🅱️', '🆎', '🆑', '🅾️', '🆘', '❌', '⭕️', '🛑', '⛔️', '📛', '🚫', '💯', '💢', '♨️', '🚷', '🚯', '🚳', '🚱', '🔞', '📵', '🚭', '❗️', '❕', '❓', '❔', '‼️', '⁉️', '🔅', '🔆', '〽️', '⚠️', '🚸', '🔱', '⚜️', '🔰', '♻️', '✅', '🈯️', '💹', '❇️', '✳️', '❎', '🌐', '💠', 'Ⓜ️', '🌀', '💤', '🏧', '🚾', '♿️', '🅿️', '🈳', '🈂️', '🛂', '🛃', '🛄', '🛅', '🚹', '🚺', '🚼', '⚧', '🚻', '🚮', '🎦', '📶', '🈁', '🔣', 'ℹ️', '🔤', '🔡', '🔠', '🆖', '🆗', '🆙', '🆒', '🆕', '🆓', '0️⃣', '1️⃣', '2️⃣', '3️⃣', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟', '🔢', '▶️', '⏸', '⏯', '⏹', '⏺', '⏏️', '⏭', '⏮', '⏩', '⏪', '⏫', '⏬', '◀️', '🔼', '🔽', '➡️', '⬅️', '⬆️', '⬇️', '↗️', '↘️', '↙️', '↖️', '↕️', '↔️', '↪️', '↩️', '⤴️', '⤵️', '🔀', '🔁', '🔂', '🔄', '🔃', '🎵', '🎶', '➕', '➖', '➗', '✖️', '♾', '💲', '💱', '™️', '©️', '®️', '👁‍🗨', '🔚', '🔙', '🔛', '🔝', '🔜', '〰️', '➰', '➿', '✔️', '☑️', '🔘', '🔴', '🟠', '🟡', '🟢', '🔵', '🟣', '⚫️', '⚪️', '🟤', '🔺', '🔻', '🔸', '🔹', '🔶', '🔷', '🔳', '🔲', '▪️', '▫️', '◾️', '◽️', '◼️', '◻️', '🟥', '🟧', '🟨', '🟩', '🟦', '🟪', '⬛️', '⬜️', '🟫', '🔈', '🔇', '🔉', '🔊', '🔔', '🔕', '📣', '📢', '💬', '💭', '🗯', '♠️', '♣️', '♥️', '♦️', '🃏', '🎴', '🀄️', '🕐', '🕑', '🕒', '🕓', '🕔', '🕕', '🕖', '🕗', '🕘', '🕙', '🕚', '🕛', '🕜', '🕝', '🕞', '🕟', '🕠', '🕡', '🕢', '🕣', '🕤', '🕥', '🕦', '🕧'] },
-  { title: '🚩', name: 'FLAGS', emojis: ['🏁', '🚩', '🎌', '🏴', '🏳️', '🏳️‍🌈', '🏳️‍⚧️', '🏴‍☠️', '🇦🇫', '🇦🇽', '🇦🇱', '🇩🇿', '🇦🇸', '🇦🇩', '🇦🇴', '🇦🇮', '🇦🇶', '🇦🇬', '🇦🇷', '🇦🇲', '🇦🇼', '🇦🇺', '🇦🇹', '🇦🇿', '🇧🇸', '🇧🇭', '🇧🇩', '🇧🇧', '🇧🇾', '🇧🇪', '🇧🇿', '🇧🇯', '🇧🇲', '🇧🇹', '🇧🇴', '🇧🇦', '🇧🇼', '🇧🇷', '🇮🇴', '🇻🇬', '🇧🇳', '🇧🇬', '🇧🇫', '🇧🇮', '🇰🇭', '🇨🇲', '🇨🇦', '🇮🇨', '🇨🇻', '🇧🇶', '🇰🇾', '🇨🇫', '🇹🇩', '🇨🇱', '🇨🇳', '🇨🇽', '🇨🇨', '🇨🇴', '🇰🇲', '🇨🇬', '🇨🇩', '🇨🇰', '🇨🇷', '🇨🇮', '🇭🇷', '🇨🇺', '🇨🇼', '🇨🇾', '🇨🇿', '🇩🇰', '🇩🇯', '🇩🇲', '🇩🇴', '🇪🇨', '🇪🇬', '🇸🇻', '🇬🇶', '🇪🇷', '🇪🇪', '🇸🇿', '🇪🇹', '🇪🇺', '🇫🇰', '🇫🇴', '🇫🇯', '🇫🇮', '🇫🇷', '🇬🇫', '🇵🇫', '🇹🇫', '🇬🇦', '🇬🇲', '🇬🇪', '🇩🇪', '🇬🇭', '🇬🇮', '🇬🇷', '🇬🇱', '🇬🇩', '🇬🇵', '🇬🇺', '🇬🇹', '🇬🇬', '🇬🇳', '🇬🇼', '🇬🇾', '🇭🇹', '🇭🇳', '🇭🇰', '🇭🇺', '🇮🇸', '🇮🇳', '🇮🇩', '🇮🇷', '🇮🇶', '🇮🇪', '🇮🇲', '🇮🇱', '🇮🇹', '🇯🇲', '🇯🇵', '🇯🇪', '🇯🇴', '🇰🇿', '🇰🇪', '🇰🇮', '🇽🇰', '🇰🇼', '🇰🇬', '🇱🇦', '🇱🇻', '🇱🇧', '🇱🇸', '🇱🇷', '🇱🇾', '🇱🇮', '🇱🇹', '🇱🇺', '🇲🇴', '🇲🇬', '🇲🇼', '🇲🇾', '🇲🇻', '🇲🇱', '🇲🇹', '🇲🇭', '🇲🇶', '🇲🇷', '🇲🇺', '🇾🇹', '🇲🇽', '🇫🇲', '🇲🇩', '🇲🇨', '🇲🇳', '🇲🇪', '🇲🇸', '🇲🇦', '🇲🇿', '🇲🇲', '🇳🇦', '🇳🇷', '🇳🇵', '🇳🇱', '🇳🇨', '🇳🇿', '🇳🇮', '🇳🇪', '🇳🇬', '🇳🇺', '🇳🇫', '🇰🇵', '🇲🇰', '🇲🇵', '🇳🇴', '🇴🇲', '🇵🇰', '🇵🇼', '🇵🇸', '🇵🇦', '🇵🇬', '🇵🇾', '🇵🇪', '🇵🇭', '🇵🇳', '🇵🇱', '🇵🇹', '🇵🇷', '🇶🇦', '🇷🇪', '🇷🇴', '🇷🇺', '🇷🇼', '🇼🇸', '🇸🇲', '🇸🇹', '🇸🇦', '🇸🇳', '🇸🇷', '🇸🇨', '🇸🇱', '🇸🇬', '🇸🇽', '🇸🇰', '🇸🇮', '🇬🇸', '🇸🇧', '🇸🇴', '🇿🇦', '🇰🇷', '🇸🇸', '🇪🇸', '🇱🇰', '🇧🇱', '🇸🇭', '🇰🇳', '🇱🇨', '🇲🇫', '🇵🇲', '🇻🇨', '🇸🇩', '🇸🇷', '🇸🇿', '🇸🇪', '🇨🇭', '🇸🇾', '🇹🇼', '🇹🇯', '🇹🇿', '🇹🇭', '🇹🇱', '🇹🇬', '🇹🇰', '🇹🇴', '🇹🇹', '🇹🇳', '🇹🇷', '🇹🇲', '🇹🇨', '🇹🇻', '🇻🇮', '🇺🇬', '🇺🇦', '🇦🇪', '🇬🇧', '🏴󠁧󠁢󠁥󠁮󠁧󠁿', '🏴󠁧󠁢󠁳󠁣󠁴󠁿', '🏴󠁧󠁢󠁷󠁬󠁳󠁿', '🇺🇸', '🇺🇾', '🇺🇿', '🇻🇺', '🇻🇦', '🇻🇪', '🇻🇳', '🇼🇫', '🇪🇭', '🇾🇪', '🇿🇲', '🇿🇼'] },
-];
+const isOnlyEmojis = (str: string) => {
+  try {
+    // Check if string contains only emojis and whitespace
+    // \p{Extended_Pictographic} covers most emojis
+    // We allow whitespace between emojis
+    const regex = /^(?:\p{Extended_Pictographic}|\p{Emoji_Presentation}|\p{Emoji_Component}|\s)+$/u;
+    return regex.test(str) && str.trim().length > 0;
+  } catch (e) {
+    return false;
+  }
+};
 
 export function MessageBubble({
   message,
   isOwn,
-  onReport,
-  onBlock,
+  onPress,
+  onLongPress,
   onReact,
   onRetry,
   hasBlocked
@@ -88,11 +70,6 @@ export function MessageBubble({
   const userName = profile.displayName;
   const userProfilePhoto = profile.profilePhotoUrl;
 
-  const [showContextMenu, setShowContextMenu] = useState(false);
-  const [showEmojiDrawer, setShowEmojiDrawer] = useState(false);
-  const [selectedCategory, setSelectedCategory] = useState(0);
-  const scrollRef = useRef<ScrollView>(null);
-  const categoryOffsets = useRef<{ [key: string]: number }>({}).current;
   const scaleAnim = useRef(new Animated.Value(0.95)).current;
   const opacityAnim = useRef(new Animated.Value(0)).current;
 
@@ -115,39 +92,6 @@ export function MessageBubble({
 
   const formatTime = (date: Date) => {
     return date.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
-  };
-
-  const handleCopy = async () => {
-    // Note: To enable clipboard functionality, install expo-clipboard:
-    // npx expo install expo-clipboard
-    // Then import: import * as Clipboard from 'expo-clipboard';
-    // And use: await Clipboard.setStringAsync(message.content);
-    Alert.alert('Copied', 'Message copied to clipboard');
-    setShowContextMenu(false);
-  };
-
-  const handleReport = () => {
-    onReport?.(message);
-    setShowContextMenu(false);
-  };
-
-  const handleBlock = () => {
-    if (hasBlocked) return;
-    onBlock?.(message);
-    setShowContextMenu(false);
-  };
-
-  const handleLongPress = () => {
-    setShowContextMenu(true);
-  };
-
-  const handlePress = () => {
-    setShowContextMenu(true);
-  };
-
-  const handleReactPress = (emoji: string) => {
-    onReact?.(message.id, emoji);
-    setShowContextMenu(false);
   };
 
   /**
@@ -181,21 +125,6 @@ export function MessageBubble({
     }
   };
 
-  const getAvatarColor = (name: string) => {
-    const colors = [
-      getCategoryColor('FOOD_DINING'),
-      getCategoryColor('EVENTS_FESTIVALS'),
-      getCategoryColor('SPORTS_FITNESS'),
-      getCategoryColor('TRAFFIC_TRANSIT'),
-      getCategoryColor('GENERAL'),
-    ];
-    let hash = 0;
-    for (let i = 0; i < name.length; i++) {
-      hash = name.charCodeAt(i) + ((hash << 5) - hash);
-    }
-    return colors[Math.abs(hash) % colors.length];
-  };
-
   /**
    * Get avatar initial or display image
    */
@@ -211,6 +140,28 @@ export function MessageBubble({
       </View>
     );
   };
+
+  // Determine if message is jumbo emoji candidate
+  const emojiInfo = useMemo(() => {
+    if (message.type === 'system') return { isJumbo: false, count: 0 };
+
+    const isEmoji = isOnlyEmojis(message.content);
+    if (!isEmoji) return { isJumbo: false, count: 0 };
+
+    // Count emojis roughly by splitting by non-whitespace
+    // This is an approximation. Array.from(str) splits by code points/surrogates correctly-ish.
+    const count = [...message.content.trim()].filter(c => /\S/.test(c)).length / 2; // Rough estimate since emojis are often 2 chars
+    // Better count using Intl.Segmenter if available, or just length of match
+    // Actually, let's just use a threshold on length.
+    // Standard emoji is 2 chars. 3 emojis ~ 6 chars.
+    // Allow up to 3 emojis for jumbo size.
+
+    // Simple approach: if length is small enough, it's few emojis.
+    // 3 emojis max.
+    const isSmallCount = message.content.trim().length <= 12; // Generous limit for 3-4 emojis
+
+    return { isJumbo: isEmoji && isSmallCount, count: 0 };
+  }, [message.content, message.type]);
 
   // System message rendering
   if (message.type === 'system') {
@@ -252,44 +203,65 @@ export function MessageBubble({
                 <View style={styles.outgoingContainer}>
 
                   <TouchableOpacity
-                    onPress={message.status === 'failed' ? handleRetry : handlePress}
-                    onLongPress={message.status === 'failed' ? undefined : handleLongPress}
+                    onPress={() => message.status === 'failed' ? handleRetry() : onPress(message)}
+                    onLongPress={() => message.status === 'failed' ? undefined : onLongPress(message)}
                     activeOpacity={0.85}
                   >
-                    <LinearGradient
-                      colors={
-                        message.status === 'failed'
-                          ? [theme.tokens.status.error.main, theme.tokens.status.error.main]
-                          : [theme.tokens.brand.primary, theme.tokens.brand.secondary]
-                      }
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 1 }}
-                      style={[
-                        styles.bubble,
-                        styles.bubbleOwn,
-                        message.status === 'failed' && styles.bubbleFailed,
-                        message.reactions && message.reactions.length > 0 && { marginBottom: 12 },
-                      ]}
-                    >
-                      <View style={styles.bubbleInner}>
-                        <Text style={[styles.messageText, styles.messageTextOwn]}>
+                    {emojiInfo.isJumbo ? (
+                      <View style={[styles.jumboEmojiContainer, message.reactions && message.reactions.length > 0 && { marginBottom: 12 }]}>
+                        <Text style={styles.jumboEmojiText}>
                           {message.content}
-                          <View style={{ width: 65, height: 1 }} />
                         </Text>
-                        <View style={styles.ownMessageMetaAbsolute}>
-                          {message.status === 'failed' ? (
-                            <AlertCircle size={14} color={theme.tokens.text.onPrimary} />
+                        <View style={styles.ownMessageMetaJumbo}>
+                           {message.status === 'failed' ? (
+                            <AlertCircle size={14} color={theme.tokens.text.error} />
                           ) : (
                             <>
-                              <Text style={styles.messageTimeOwn}>
+                              <Text style={[styles.messageTimeOwn, { color: theme.tokens.text.tertiary }]}>
                                 {formatTime(message.timestamp)}
                               </Text>
-                              {getStatusIcon()}
+                              {/* For jumbo emojis, we don't show read ticks inside, maybe next to it?
+                                  Or just hide them for simplicity/aesthetics */}
                             </>
                           )}
                         </View>
                       </View>
-                    </LinearGradient>
+                    ) : (
+                      <LinearGradient
+                        colors={
+                          message.status === 'failed'
+                            ? [theme.tokens.status.error.main, theme.tokens.status.error.main]
+                            : [theme.tokens.brand.primary, theme.tokens.brand.secondary]
+                        }
+                        start={{ x: 0, y: 0 }}
+                        end={{ x: 1, y: 1 }}
+                        style={[
+                          styles.bubble,
+                          styles.bubbleOwn,
+                          message.status === 'failed' && styles.bubbleFailed,
+                          message.reactions && message.reactions.length > 0 && { marginBottom: 12 },
+                        ]}
+                      >
+                        <View style={styles.bubbleInner}>
+                          <Text style={[styles.messageText, styles.messageTextOwn]}>
+                            {message.content}
+                            <View style={{ width: 65, height: 1 }} />
+                          </Text>
+                          <View style={styles.ownMessageMetaAbsolute}>
+                            {message.status === 'failed' ? (
+                              <AlertCircle size={14} color={theme.tokens.text.onPrimary} />
+                            ) : (
+                              <>
+                                <Text style={styles.messageTimeOwn}>
+                                  {formatTime(message.timestamp)}
+                                </Text>
+                                {getStatusIcon()}
+                              </>
+                            )}
+                          </View>
+                        </View>
+                      </LinearGradient>
+                    )}
                   </TouchableOpacity>
                 </View>
                 {message.reactions && message.reactions.length > 0 && (
@@ -335,25 +307,36 @@ export function MessageBubble({
                 <View style={styles.incomingContainer}>
                   <TouchableOpacity
                     style={[
-                      styles.bubble,
+                      emojiInfo.isJumbo ? styles.jumboEmojiContainer : styles.bubble,
                       message.reactions && message.reactions.length > 0 && { marginBottom: 12 },
-                      styles.bubbleIncoming
+                      !emojiInfo.isJumbo && styles.bubbleIncoming
                     ]}
-                    onPress={handlePress}
-                    onLongPress={handleLongPress}
+                    onPress={() => onPress(message)}
+                    onLongPress={() => onLongPress(message)}
                     activeOpacity={0.8}
                   >
-                    <View style={styles.bubbleInner}>
-                      <Text style={styles.messageText}>
-                        {message.content}
-                        <View style={{ width: 48, height: 1 }} />
-                      </Text>
-                      <View style={styles.messageMetaAbsolute}>
-                        <Text style={styles.messageTimeInside}>
+                    {emojiInfo.isJumbo ? (
+                      <View>
+                        <Text style={styles.jumboEmojiText}>
+                          {message.content}
+                        </Text>
+                        <Text style={[styles.messageTimeInside, { marginTop: 4, textAlign: 'right' }]}>
                           {formatTime(message.timestamp)}
                         </Text>
                       </View>
-                    </View>
+                    ) : (
+                      <View style={styles.bubbleInner}>
+                        <Text style={styles.messageText}>
+                          {message.content}
+                          <View style={{ width: 48, height: 1 }} />
+                        </Text>
+                        <View style={styles.messageMetaAbsolute}>
+                          <Text style={styles.messageTimeInside}>
+                            {formatTime(message.timestamp)}
+                          </Text>
+                        </View>
+                      </View>
+                    )}
                   </TouchableOpacity>
                 </View>
                 {message.reactions && message.reactions.length > 0 && (
@@ -385,145 +368,6 @@ export function MessageBubble({
           )}
         </View>
       </Animated.View >
-
-      {/* Context Menu Modal */}
-      <Modal
-        visible={showContextMenu}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowContextMenu(false)}
-      >
-        <Pressable
-          style={styles.modalOverlay}
-          onPress={() => setShowContextMenu(false)}
-        >
-          <View style={styles.overlayInner}>
-            <View style={styles.emojiBar}>
-              {EMOJIS.map((emoji) => (
-                <TouchableOpacity
-                  key={emoji}
-                  style={styles.emojiButton}
-                  onPress={() => handleReactPress(emoji)}
-                >
-                  <Text style={styles.emojiText}>{emoji}</Text>
-                </TouchableOpacity>
-              ))}
-              <TouchableOpacity
-                style={styles.emojiButton}
-                onPress={() => {
-                  setShowContextMenu(false);
-                  setShowEmojiDrawer(true);
-                }}
-              >
-                <View style={styles.plusCircle}>
-                  <Text style={styles.plusIcon}>+</Text>
-                </View>
-              </TouchableOpacity>
-            </View>
-
-            <View style={styles.contextMenu}>
-              <TouchableOpacity style={styles.menuItem} onPress={handleCopy}>
-                <Text style={styles.menuItemText}>Copy</Text>
-                <Copy size={20} color={theme.tokens.text.primary} />
-              </TouchableOpacity>
-
-              {!isOwn && (
-                <>
-                  <View style={styles.menuDivider} />
-                  <TouchableOpacity
-                    style={styles.menuItem}
-                    onPress={handleReport}
-                  >
-                    <Text style={styles.menuItemText}>Report</Text>
-                    <Flag size={20} color={theme.tokens.text.primary} />
-                  </TouchableOpacity>
-
-                  <View style={styles.menuDivider} />
-
-                  <TouchableOpacity
-                    style={[styles.menuItem, hasBlocked && styles.menuItemDisabled]}
-                    onPress={handleBlock}
-                    disabled={hasBlocked}
-                  >
-                    <Text style={[styles.menuItemText, hasBlocked ? styles.menuItemDisabledText : styles.menuItemDanger]}>
-                      {hasBlocked ? 'Already Blocked' : 'Block User'}
-                    </Text>
-                    <Ban size={20} color={hasBlocked ? theme.tokens.text.tertiary : theme.tokens.text.error} />
-                  </TouchableOpacity>
-                </>
-              )}
-            </View>
-          </View>
-        </Pressable>
-      </Modal >
-
-      {/* Emoji Selector Drawer */}
-      <Modal
-        visible={showEmojiDrawer}
-        transparent
-        animationType="none"
-        onRequestClose={() => setShowEmojiDrawer(false)}
-      >
-        <View style={styles.drawerOverlay}>
-          <Pressable
-            style={StyleSheet.absoluteFill}
-            onPress={() => setShowEmojiDrawer(false)}
-          />
-          <Animated.View style={styles.drawerContent}>
-            <View style={styles.drawerHandle} />
-
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>
-                {EMOJI_CATEGORIES[selectedCategory].name}
-              </Text>
-            </View>
-            <FlatList
-              data={EMOJI_CATEGORIES[selectedCategory].emojis}
-              renderItem={({ item: emoji }) => (
-                <TouchableOpacity
-                  style={styles.gridEmojiButton}
-                  onPress={() => {
-                    onReact?.(message.id, emoji);
-                    setShowEmojiDrawer(false);
-                  }}
-                >
-                  <Text style={styles.gridEmojiText}>{emoji}</Text>
-                </TouchableOpacity>
-              )}
-              keyExtractor={(item, index) => `${selectedCategory}-${index}`}
-              numColumns={8}
-              contentContainerStyle={styles.flatListContent}
-              removeClippedSubviews={true}
-              initialNumToRender={24}
-              maxToRenderPerBatch={16}
-              windowSize={5}
-              getItemLayout={(data, index) => ({
-                length: 40,
-                offset: 40 * Math.floor(index / 8),
-                index,
-              })}
-              showsVerticalScrollIndicator={false}
-            />
-
-            <View style={styles.drawerFooter}>
-              {EMOJI_CATEGORIES.map((category, idx) => (
-                <TouchableOpacity
-                  key={idx}
-                  style={styles.footerIcon}
-                  onPress={() => setSelectedCategory(idx)}
-                >
-                  <Text style={[
-                    styles.footerIconText,
-                    selectedCategory === idx && styles.footerIconActive
-                  ]}>
-                    {category.title}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          </Animated.View>
-        </View>
-      </Modal >
     </>
   );
 }
@@ -724,191 +568,6 @@ const styles = StyleSheet.create({
   reactionCountActiveIncoming: {
     color: theme.tokens.text.secondary,
   },
-  overlayInner: {
-    width: '85%',
-    maxWidth: 320,
-    alignItems: 'center',
-  },
-  emojiBar: {
-    flexDirection: 'row',
-    backgroundColor: theme.tokens.bg.surface,
-    borderRadius: 30,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-    marginBottom: 12,
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    width: '100%',
-    shadowColor: theme.tokens.border.strong,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  emojiButton: {
-    paddingHorizontal: 6,
-  },
-  emojiText: {
-    fontSize: 24,
-  },
-  plusCircle: {
-    width: 28,
-    height: 28,
-    borderRadius: 14,
-    backgroundColor: theme.tokens.bg.subtle,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  plusIcon: {
-    color: theme.tokens.text.secondary,
-    fontSize: 18,
-    fontWeight: '300',
-  },
-  contextMenu: {
-    backgroundColor: theme.tokens.bg.surface,
-    borderRadius: 16,
-    width: '100%',
-    overflow: 'hidden',
-    shadowColor: theme.tokens.border.strong,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  menuItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-  },
-  menuItemText: {
-    fontSize: 15,
-    color: theme.tokens.text.primary,
-    fontWeight: '400',
-  },
-  menuItemDisabledText: {
-    color: theme.tokens.text.tertiary,
-  },
-  menuItemDanger: {
-    color: theme.tokens.text.error,
-  },
-  menuDivider: {
-    height: 0.5,
-    backgroundColor: theme.tokens.border.subtle,
-    marginHorizontal: 16,
-  },
-  menuItemDisabled: {
-    opacity: 0.5,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  drawerOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
-    justifyContent: 'flex-end',
-  },
-  drawerContent: {
-    backgroundColor: theme.tokens.bg.surface,
-    borderTopLeftRadius: 20,
-    borderTopRightRadius: 20,
-    height: '50%',
-    paddingBottom: 60,
-    paddingHorizontal: 16,
-  },
-  drawerHandle: {
-    width: 40,
-    height: 5,
-    backgroundColor: theme.tokens.border.strong,
-    borderRadius: 2.5,
-    alignSelf: 'center',
-    marginTop: 10,
-    marginBottom: 10,
-  },
-  drawerHeader: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    marginBottom: 8,
-  },
-  sectionHeader: {
-    backgroundColor: theme.tokens.bg.surface,
-    paddingVertical: 8,
-    marginBottom: 4,
-  },
-  searchBar: {
-    backgroundColor: theme.tokens.bg.canvas,
-    borderRadius: 10,
-    paddingHorizontal: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 36,
-  },
-  searchInput: {
-    flex: 1,
-    fontSize: 15,
-    color: theme.tokens.text.primary,
-    padding: 0,
-  },
-  drawerBody: {
-    flex: 1,
-  },
-  drawerSection: {
-    marginBottom: 20,
-  },
-  sectionTitle: {
-    color: theme.tokens.text.tertiary,
-    fontSize: 12,
-    fontWeight: '600',
-    marginBottom: 12,
-    textTransform: 'uppercase',
-  },
-  emojiGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    justifyContent: 'flex-start',
-    gap: 15,
-  },
-  flatListContent: {
-    paddingBottom: 20,
-  },
-  gridEmojiButton: {
-    width: Dimensions.get('window').width / 8 - 4,
-    height: 40,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  gridEmojiText: {
-    fontSize: 28,
-  },
-  drawerFooter: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 10,
-    borderTopWidth: 0.5,
-    borderTopColor: theme.tokens.border.subtle,
-    backgroundColor: theme.tokens.bg.surface,
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    paddingBottom: Platform.OS === 'ios' ? 34 : 20,
-    paddingHorizontal: 20,
-  },
-  footerIcon: {
-    padding: 10,
-  },
-  footerIconText: {
-    fontSize: 20,
-    opacity: 0.6,
-  },
-  footerIconActive: {
-    opacity: 1,
-    transform: [{ scale: 1.2 }],
-  },
   systemMessage: {
     alignItems: 'center',
     marginVertical: 12,
@@ -922,25 +581,19 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderRadius: 12,
   },
-  reportedIndicator: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    marginLeft: 4,
-    backgroundColor: theme.tokens.status.error.bg,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: theme.tokens.border.subtle,
+  jumboEmojiContainer: {
+    paddingHorizontal: 4,
+    paddingVertical: 0,
   },
-  reportedText: {
-    fontSize: 9,
-    fontWeight: '700',
-    color: theme.tokens.text.error,
-    textTransform: 'uppercase',
+  jumboEmojiText: {
+    fontSize: 48,
+    lineHeight: 56,
+  },
+  ownMessageMetaJumbo: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 4,
   },
 });
 
 export default MessageBubble;
-
