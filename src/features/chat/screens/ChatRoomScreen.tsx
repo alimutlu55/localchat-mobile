@@ -71,6 +71,8 @@ import {
   ChatRoomMenu,
   ReportModal,
   ReportReason,
+  MessageContextMenu,
+  EmojiPickerDrawer,
 } from '../../../components/chat';
 
 // Utils
@@ -195,6 +197,10 @@ export default function ChatRoomScreen() {
     targetType: 'message' | 'room' | 'user';
     targetData?: any;
   }>({ isOpen: false, targetType: 'message' });
+
+  // Message Menu State
+  const [contextMenuMessage, setContextMenuMessage] = useState<ChatMessage | null>(null);
+  const [emojiPickerMessage, setEmojiPickerMessage] = useState<ChatMessage | null>(null);
 
   // Refs
   const flatListRef = useRef<FlatList>(null);
@@ -467,6 +473,18 @@ export default function ChatRoomScreen() {
     [isBlocked, blockUser]
   );
 
+  const handleCopyMessage = useCallback((content: string) => {
+    Alert.alert('Copied', 'Message copied to clipboard');
+  }, []);
+
+  const handleOpenEmojiPicker = useCallback((message: ChatMessage) => {
+    setEmojiPickerMessage(message);
+  }, []);
+
+  const handleMessagePress = useCallback((message: ChatMessage) => {
+    setContextMenuMessage(message);
+  }, []);
+
   const handleSubmitReport = async (data: {
     reason: ReportReason;
     details: string;
@@ -525,8 +543,8 @@ export default function ChatRoomScreen() {
           <MessageBubble
             message={item}
             isOwn={isOwn}
-            onReport={handleReportMessage}
-            onBlock={handleBlockUser}
+            onPress={handleMessagePress}
+            onLongPress={handleMessagePress}
             onReact={addReaction}
             onRetry={retryMessage}
             hasBlocked={isBlocked(item.userId)}
@@ -536,7 +554,7 @@ export default function ChatRoomScreen() {
         </>
       );
     },
-    [reversedMessages, userId, handleReportMessage, handleBlockUser, addReaction, retryMessage, isBlocked]
+    [reversedMessages, userId, handleMessagePress, addReaction, retryMessage, isBlocked]
   );
 
   // ==========================================================================
@@ -652,6 +670,28 @@ export default function ChatRoomScreen() {
             ? isBlocked(reportConfig.targetData.userId)
             : false
         }
+      />
+
+      {/* Message Context Menu */}
+      <MessageContextMenu
+        isOpen={!!contextMenuMessage}
+        onClose={() => setContextMenuMessage(null)}
+        message={contextMenuMessage}
+        onReact={addReaction}
+        onCopy={handleCopyMessage}
+        onReport={handleReportMessage}
+        onBlock={handleBlockUser}
+        onOpenEmojiPicker={handleOpenEmojiPicker}
+        isOwn={contextMenuMessage?.userId === userId}
+        hasBlocked={contextMenuMessage ? isBlocked(contextMenuMessage.userId) : false}
+      />
+
+      {/* Emoji Picker Drawer */}
+      <EmojiPickerDrawer
+        isOpen={!!emojiPickerMessage}
+        onClose={() => setEmojiPickerMessage(null)}
+        message={emojiPickerMessage}
+        onReact={addReaction}
       />
 
       {/* Blocked User Warning */}

@@ -16,4 +16,5 @@ export { RoomInfoDrawer } from './RoomInfoDrawer';
 export { ReportModal } from './ReportModal';
 export type { ReportReason } from './ReportModal';
 export { ParticipantList } from './ParticipantList';
-
+export { MessageContextMenu } from './MessageContextMenu';
+export { EmojiPickerDrawer } from './EmojiPickerDrawer';
