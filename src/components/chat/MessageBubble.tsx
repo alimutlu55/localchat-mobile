@@ -221,6 +221,18 @@ export function MessageBubble({
     );
   }
 
+  // Calculate reaction layout
+  const reactionRows = message.reactions ? Math.ceil(message.reactions.length / 5) : 0;
+  const reactionsMarginBottom = reactionRows > 0 ? 12 + (reactionRows - 1) * 24 : 0;
+
+  // Helper to chunk reactions
+  const chunkReactions = (reactions: typeof message.reactions, size: number) => {
+    if (!reactions) return [];
+    return Array.from({ length: Math.ceil(reactions.length / size) }, (v, i) =>
+      reactions.slice(i * size, i * size + size)
+    );
+  };
+
   return (
     <>
       <Animated.View
@@ -248,7 +260,7 @@ export function MessageBubble({
 
           {isOwn ? (
             <View style={{ alignItems: 'flex-end' }}>
-              <View style={{ position: 'relative' }}>
+              <View style={{ position: 'relative', marginBottom: reactionsMarginBottom }}>
                 <View style={styles.outgoingContainer}>
 
                   <TouchableOpacity
@@ -268,7 +280,6 @@ export function MessageBubble({
                         styles.bubble,
                         styles.bubbleOwn,
                         message.status === 'failed' && styles.bubbleFailed,
-                        message.reactions && message.reactions.length > 0 && { marginBottom: 12 },
                       ]}
                     >
                       <View style={styles.bubbleInner}>
@@ -294,25 +305,29 @@ export function MessageBubble({
                 </View>
                 {message.reactions && message.reactions.length > 0 && (
                   <View style={[styles.reactionsContainer, styles.reactionsContainerOwn]}>
-                    {message.reactions.map((reaction, idx) => (
-                      <TouchableOpacity
-                        key={idx}
-                        style={[
-                          styles.reactionPill,
-                          styles.reactionPillOwn,
-                          reaction.userReacted && styles.reactionPillActiveOwn
-                        ]}
-                        onPress={() => onReact?.(message.id, reaction.emoji)}
-                      >
-                        <Text style={styles.reactionEmoji}>{reaction.emoji}</Text>
-                        <Text style={[
-                          styles.reactionCount,
-                          styles.reactionCountOwn,
-                          reaction.userReacted && styles.reactionCountActiveOwn
-                        ]}>
-                          {reaction.count}
-                        </Text>
-                      </TouchableOpacity>
+                    {chunkReactions(message.reactions, 5).map((rowReactions, rowIdx) => (
+                      <View key={rowIdx} style={styles.reactionsRow}>
+                        {rowReactions.map((reaction, idx) => (
+                          <TouchableOpacity
+                            key={idx}
+                            style={[
+                              styles.reactionPill,
+                              styles.reactionPillOwn,
+                              reaction.userReacted && styles.reactionPillActiveOwn
+                            ]}
+                            onPress={() => onReact?.(message.id, reaction.emoji)}
+                          >
+                            <Text style={styles.reactionEmoji}>{reaction.emoji}</Text>
+                            <Text style={[
+                              styles.reactionCount,
+                              styles.reactionCountOwn,
+                              reaction.userReacted && styles.reactionCountActiveOwn
+                            ]}>
+                              {reaction.count}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
                     ))}
                   </View>
                 )}
@@ -331,12 +346,11 @@ export function MessageBubble({
             </View>
           ) : (
             <View style={{ alignItems: 'flex-start' }}>
-              <View style={{ position: 'relative' }}>
+              <View style={{ position: 'relative', marginBottom: reactionsMarginBottom }}>
                 <View style={styles.incomingContainer}>
                   <TouchableOpacity
                     style={[
                       styles.bubble,
-                      message.reactions && message.reactions.length > 0 && { marginBottom: 12 },
                       styles.bubbleIncoming
                     ]}
                     onPress={handlePress}
@@ -358,25 +372,29 @@ export function MessageBubble({
                 </View>
                 {message.reactions && message.reactions.length > 0 && (
                   <View style={[styles.reactionsContainer, styles.reactionsContainerIncoming]}>
-                    {message.reactions.map((reaction, idx) => (
-                      <TouchableOpacity
-                        key={idx}
-                        style={[
-                          styles.reactionPill,
-                          styles.reactionPillIncoming,
-                          reaction.userReacted && styles.reactionPillActiveIncoming
-                        ]}
-                        onPress={() => onReact?.(message.id, reaction.emoji)}
-                      >
-                        <Text style={styles.reactionEmoji}>{reaction.emoji}</Text>
-                        <Text style={[
-                          styles.reactionCount,
-                          styles.reactionCountIncoming,
-                          reaction.userReacted && styles.reactionCountActiveIncoming
-                        ]}>
-                          {reaction.count}
-                        </Text>
-                      </TouchableOpacity>
+                    {chunkReactions(message.reactions, 5).map((rowReactions, rowIdx) => (
+                      <View key={rowIdx} style={styles.reactionsRow}>
+                        {rowReactions.map((reaction, idx) => (
+                          <TouchableOpacity
+                            key={idx}
+                            style={[
+                              styles.reactionPill,
+                              styles.reactionPillIncoming,
+                              reaction.userReacted && styles.reactionPillActiveIncoming
+                            ]}
+                            onPress={() => onReact?.(message.id, reaction.emoji)}
+                          >
+                            <Text style={styles.reactionEmoji}>{reaction.emoji}</Text>
+                            <Text style={[
+                              styles.reactionCount,
+                              styles.reactionCountIncoming,
+                              reaction.userReacted && styles.reactionCountActiveIncoming
+                            ]}>
+                              {reaction.count}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
                     ))}
                   </View>
                 )}
@@ -664,18 +682,23 @@ const styles = StyleSheet.create({
     color: theme.tokens.text.tertiary,
   },
   reactionsContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexDirection: 'column',
     position: 'absolute',
-    bottom: -8,
+    top: '100%',
     gap: 4,
     zIndex: 10,
   },
+  reactionsRow: {
+    flexDirection: 'row',
+    gap: 4,
+  },
   reactionsContainerOwn: {
     right: 4,
+    alignItems: 'flex-end',
   },
   reactionsContainerIncoming: {
     left: 4,
+    alignItems: 'flex-start',
   },
   reactionPill: {
     flexDirection: 'row',
