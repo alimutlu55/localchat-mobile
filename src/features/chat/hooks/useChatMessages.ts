@@ -442,11 +442,19 @@ export function useChatMessages(
       if (payload.roomId !== roomId) return;
 
       setMessages((prev) =>
-        prev.map((msg) =>
-          msg.id === payload.messageId
-            ? { ...msg, reactions: payload.reactions }
-            : msg
-        )
+        prev.map((msg) => {
+          if (msg.id !== payload.messageId) return msg;
+
+          // Preserve THIS user's flag if they currently have a reaction
+          // and it matches one of the broadcasted reactions
+          const existingUserReaction = msg.reactions?.find(r => r.userReacted);
+          const reactions = payload.reactions.map(r => ({
+            ...r,
+            userReacted: existingUserReaction?.emoji === r.emoji
+          }));
+
+          return { ...msg, reactions };
+        })
       );
     });
 
@@ -689,43 +697,61 @@ export function useChatMessages(
 
   const addReaction = useCallback(
     (messageId: string, emoji: string) => {
-      // Optimistic update
+      // Remove LayoutAnimation - it causes glitches
+      // The UI should update smoothly without forced animations
+
+      let oldEmoji: string | undefined;
+
       setMessages((prev) =>
         prev.map((msg) => {
           if (msg.id !== messageId) return msg;
 
-          const reactions = [...(msg.reactions || [])];
-          const existingIndex = reactions.findIndex((r) => r.emoji === emoji);
+          const currentReactions = msg.reactions || [];
+          const reactions = [...currentReactions];
 
-          if (existingIndex !== -1) {
-            const reaction = { ...reactions[existingIndex] };
-            if (reaction.userReacted) {
-              reaction.count = Math.max(0, reaction.count - 1);
-              reaction.userReacted = false;
-            } else {
-              reaction.count += 1;
-              reaction.userReacted = true;
-            }
+          // 1. Find if we already have a reaction (for replacement)
+          const prevIndex = reactions.findIndex(r => r.userReacted);
+          if (prevIndex !== -1) {
+            oldEmoji = reactions[prevIndex].emoji;
 
-            if (reaction.count === 0) {
-              reactions.splice(existingIndex, 1);
+            if (oldEmoji === emoji) {
+              // Toggling off the same emoji
+              const r = { ...reactions[prevIndex], count: reactions[prevIndex].count - 1, userReacted: false };
+              if (r.count === 0) reactions.splice(prevIndex, 1);
+              else reactions[prevIndex] = r;
             } else {
-              reactions[existingIndex] = reaction;
+              // Swap: decrement old, increment/add new
+              const oldR = { ...reactions[prevIndex], count: reactions[prevIndex].count - 1, userReacted: false };
+              if (oldR.count === 0) reactions.splice(prevIndex, 1);
+              else reactions[prevIndex] = oldR;
+
+              const newIndex = reactions.findIndex(r => r.emoji === emoji);
+              if (newIndex !== -1) {
+                reactions[newIndex] = { ...reactions[newIndex], count: reactions[newIndex].count + 1, userReacted: true };
+              } else {
+                // Append new to maintain order of existing ones
+                reactions.push({ emoji, count: 1, userReacted: true });
+              }
             }
           } else {
-            reactions.push({ emoji, count: 1, userReacted: true });
+            // New reaction (no previous)
+            const newIndex = reactions.findIndex(r => r.emoji === emoji);
+            if (newIndex !== -1) {
+              reactions[newIndex] = { ...reactions[newIndex], count: reactions[newIndex].count + 1, userReacted: true };
+            } else {
+              reactions.push({ emoji, count: 1, userReacted: true });
+            }
           }
 
           return { ...msg, reactions };
         })
       );
 
-      // Send to server
+      // Send to server (Backend now handles replacement automatically)
       wsService.sendReaction(roomId, messageId, emoji);
     },
     [roomId]
   );
-
   const refresh = useCallback(async () => {
     await loadMessages();
   }, [loadMessages]);
