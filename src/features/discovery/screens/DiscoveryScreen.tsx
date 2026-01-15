@@ -312,6 +312,7 @@ export default function DiscoveryScreen() {
         userLocation,
         category: categoryFilter || undefined,
         isMapReady: isMapReady && hasBoundsInitialized,
+        viewMode, // OPTIMIZATION: Defer list API until user switches to List View
     });
 
     const { join } = useRoomOperations();

@@ -13,10 +13,12 @@ interface UnifiedDiscoveryOptions {
     userLocation: { latitude: number; longitude: number } | null;
     category?: RoomCategory | string;
     isMapReady?: boolean;
+    /** View mode - 'map' or 'list'. List API is only fetched when viewMode is 'list'. */
+    viewMode?: 'map' | 'list';
 }
 
 export function useUnifiedDiscovery(options: UnifiedDiscoveryOptions) {
-    const { bounds, zoom, userLocation, category, isMapReady } = options;
+    const { bounds, zoom, userLocation, category, isMapReady, viewMode = 'map' } = options;
 
     // 1. Map Clustering State (The Source of Truth for Viewport)
     const {
@@ -37,6 +39,8 @@ export function useUnifiedDiscovery(options: UnifiedDiscoveryOptions) {
     });
 
     // 2. Viewport Rooms State (List View Data)
+    // OPTIMIZATION: Only fetch when user is in List View to reduce network calls
+    const isListViewActive = viewMode === 'list';
     const {
         rooms: viewportRooms,
         isLoading: isListLoading,
@@ -50,7 +54,7 @@ export function useUnifiedDiscovery(options: UnifiedDiscoveryOptions) {
         zoom: zoom,
         userLocation,
         category,
-        enabled: !!bounds && !!isMapReady,
+        enabled: isListViewActive && !!bounds && !!isMapReady,
     });
 
     // 3. Unified Metadata
