@@ -531,8 +531,7 @@ export default function RoomDetailsScreen() {
         </TouchableOpacity>
       </View>
 
-      {/* Grounded Bottom Ad Banner - Below the action button */}
-      <View style={[styles.adBannerContainer, { paddingBottom: insets.bottom }]}>
+      <View style={[styles.adBannerContainer, { paddingBottom: insets.bottom + 12 }]}>
         <AdBanner height={50} transparent={false} />
       </View>
     </View>

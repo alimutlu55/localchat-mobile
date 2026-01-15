@@ -8,12 +8,23 @@ import { useAds } from '../context/AdProvider';
  * - Personalized ads: Requires explicit opt-in via personalizedAdsConsent toggle
  */
 export function useAdConsent() {
-    const { canShowAds, hasPersonalizationConsent, isLoading, refresh } = useAds();
-
-    return {
+    const {
+        status,
         canShowAds,
         hasPersonalizationConsent,
+        attStatus,
         isLoading,
+        error,
+        refresh
+    } = useAds();
+
+    return {
+        status,
+        canShowAds,
+        hasPersonalizationConsent,
+        attStatus,
+        isLoading,
+        error,
         refresh
     };
 }

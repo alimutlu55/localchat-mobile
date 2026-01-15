@@ -764,7 +764,7 @@ export default function DiscoveryScreen() {
             {/* Ad Banner - Footer placement respects Safe Area and has dedicated space */}
             <View style={[
                 styles.adBannerContainer,
-                { paddingBottom: insets.bottom }
+                { paddingBottom: insets.bottom + 12 }
             ]}>
                 <AdBanner transparent={false} onVisibilityChange={setIsAdVisible} />
             </View>

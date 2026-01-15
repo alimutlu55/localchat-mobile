@@ -3,7 +3,6 @@ import { View, Text, StyleSheet, ActivityIndicator, AppState, AppStateStatus } f
 import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads';
 import { getBannerAdUnitId, AD_CONFIG } from '../config/adConfig';
 import { useAdConsent } from '../hooks/useAdConsent';
-import { Award, ChevronRight } from 'lucide-react-native';
 
 export interface AdBannerProps {
     /** Optional height for the banner container */
@@ -34,11 +33,23 @@ export const AdBanner: React.FC<AdBannerProps> = ({
     transparent = false,
     onVisibilityChange
 }) => {
-    const { canShowAds, hasPersonalizationConsent, isLoading: isConsentLoading } = useAdConsent();
+    const {
+        canShowAds,
+        hasPersonalizationConsent,
+        isLoading: isConsentLoading,
+    } = useAdConsent();
     const [isAdLoaded, setIsAdLoaded] = useState(false);
     const [adError, setAdError] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
     const appState = useRef(AppState.currentState);
+
+    // Reset error state when consent status changes or refresh is triggered
+    useEffect(() => {
+        if (canShowAds) {
+            setAdError(false);
+            setIsAdLoaded(false);
+        }
+    }, [canShowAds, refreshKey]);
 
     // Refresh Logic
     useEffect(() => {
@@ -46,8 +57,7 @@ export const AdBanner: React.FC<AdBannerProps> = ({
 
         const interval = setInterval(() => {
             if (appState.current === 'active') {
-                setRefreshKey(prev => prev + 1);
-                setIsAdLoaded(false); // Show loader for new ad
+                setRefreshKey(prev => (prev + 1) % 1000);
             }
         }, refreshInterval);
 
@@ -64,9 +74,19 @@ export const AdBanner: React.FC<AdBannerProps> = ({
     const adUnitId = AD_CONFIG.isTestMode ? TestIds.BANNER : getBannerAdUnitId();
     const adSize = BannerAdSize[size as keyof typeof BannerAdSize] || BannerAdSize.ANCHORED_ADAPTIVE_BANNER;
 
-    // Show premium placeholder if ads are disabled or failed
-    // NOTE: This is NOT an ad, it's promotional content for the app's premium features
     const isVisible = canShowAds && !adError;
+
+    // Timeout logic for loading state
+    useEffect(() => {
+        if (isVisible && !isAdLoaded) {
+            const timer = setTimeout(() => {
+                if (!isAdLoaded && isVisible) {
+                    setIsAdLoaded(true); // Stop showing loader even if ad didn't technically "load"
+                }
+            }, 10000); // 10s timeout
+            return () => clearTimeout(timer);
+        }
+    }, [isVisible, isAdLoaded]);
 
     // Notify parent of visibility changes
     useEffect(() => {
@@ -83,13 +103,13 @@ export const AdBanner: React.FC<AdBannerProps> = ({
     }
 
     return (
-        <View style={[styles.container, transparent && styles.transparent, { height: height + 24 }]}>
+        <View style={[styles.container, transparent && styles.transparent, { height }]}>
             {/* Ad Label - Required by Google AdMob policies */}
             <View style={styles.adLabelContainer}>
                 <Text style={styles.adLabel}>Ad</Text>
             </View>
 
-            {/* Ad Container with clear delineation */}
+            {/* Ad Container */}
             <View style={styles.adWrapper}>
                 {!isAdLoaded && (
                     <View style={[styles.loader, transparent && styles.transparent]}>
