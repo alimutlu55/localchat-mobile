@@ -158,7 +158,9 @@ export function Sidebar({
     const panResponder = React.useRef(
         PanResponder.create({
             onMoveShouldSetPanResponder: (_, gestureState) => {
-                return gestureState.dx < -10;
+                // Ignore small movements to prevent conflict with button taps
+                // Also ensure the movement is predominantly horizontal
+                return Math.abs(gestureState.dx) > 25 && Math.abs(gestureState.dx) > Math.abs(gestureState.dy);
             },
             onPanResponderMove: (_, gestureState) => {
                 if (gestureState.dx < 0) {
@@ -317,6 +319,7 @@ export function Sidebar({
                     style={[styles.profileButton, { marginBottom: insets.bottom > 0 ? 0 : 16 }]}
                     onPress={onProfilePress}
                     activeOpacity={0.7}
+                    hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
                 >
                     <AvatarDisplay
                         avatarUrl={avatarUrl ?? undefined}
