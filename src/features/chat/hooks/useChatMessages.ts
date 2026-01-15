@@ -445,15 +445,28 @@ export function useChatMessages(
         prev.map((msg) => {
           if (msg.id !== payload.messageId) return msg;
 
-          // Preserve THIS user's flag if they currently have a reaction
-          // and it matches one of the broadcasted reactions
-          const existingUserReaction = msg.reactions?.find(r => r.userReacted);
-          const reactions = payload.reactions.map(r => ({
+          // 1. Get our existing reaction if any
+          const localUserReaction = msg.reactions?.find(r => r.userReacted);
+
+          // 2. Map server reactions, but restore our userReacted flag if emoji matches
+          // Note: Server broadcast userReacted is always false in centralized broadcasts
+          const serverReactions = payload.reactions.map(r => ({
             ...r,
-            userReacted: existingUserReaction?.emoji === r.emoji
+            userReacted: localUserReaction?.emoji === r.emoji
           }));
 
-          return { ...msg, reactions };
+          // 3. Check if we have an optimistic reaction that hasn't reached the server yet
+          // If the server list DOES NOT contain our local emoji, but we think we reacted,
+          // it's likely a stale broadcast (race condition). We should keep ours.
+          const ourEmojiInServerList = serverReactions.find(r => r.emoji === localUserReaction?.emoji);
+
+          let finalReactions = serverReactions;
+          if (localUserReaction && !ourEmojiInServerList) {
+            // Keep our optimistic reaction in the list
+            finalReactions = [...serverReactions, localUserReaction];
+          }
+
+          return { ...msg, reactions: finalReactions };
         })
       );
     });
