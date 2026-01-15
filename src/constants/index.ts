@@ -27,8 +27,8 @@ const getUrl = (envVar: string | undefined, devDefault: string): string => {
 };
 
 export const API_CONFIG = {
-  BASE_URL: getUrl(process.env.EXPO_PUBLIC_API_URL, 'http://localhost:8080/api/v1'),
-  WS_URL: getUrl(process.env.EXPO_PUBLIC_WS_URL, 'ws://localhost:8080/ws'),
+  BASE_URL: getUrl(process.env.EXPO_PUBLIC_API_URL, 'https://bubbleupapp.com/api/v1'),
+  WS_URL: getUrl(process.env.EXPO_PUBLIC_WS_URL, 'wss://bubbleupapp.com/ws'),
   TIMEOUT: 30000,
   RETRY_ATTEMPTS: 3,
   RETRY_DELAY: 1000,
