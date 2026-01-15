@@ -17,6 +17,7 @@ import {
     StyleSheet,
     TouchableOpacity,
     Linking,
+    Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
@@ -92,7 +93,7 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
 
     // BottomSheet refs and config
     const bottomSheetRef = useRef<BottomSheet>(null);
-    const snapPoints = useMemo(() => ['90%'], []);
+    const snapPoints = useMemo(() => ['92%'], []);
 
     // =========================================================================
     // Effects
@@ -101,10 +102,14 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
     // Control sheet based on isOpen prop
     useEffect(() => {
         if (isOpen) {
-            bottomSheetRef.current?.expand();
+            // Use requestAnimationFrame with snapToIndex(0) for precise height control
+            const rafId = requestAnimationFrame(() => {
+                bottomSheetRef.current?.snapToIndex(0);
+            });
             setCurrentPage('main');
             // Refresh blocked users when drawer opens
             blockedUsers.refresh();
+            return () => cancelAnimationFrame(rafId);
         } else {
             bottomSheetRef.current?.close();
         }
@@ -121,14 +126,7 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
     }, [onClose]);
 
     const renderBackdrop = useCallback(
-        (props: any) => (
-            <BottomSheetBackdrop
-                {...props}
-                disappearsOnIndex={-1}
-                appearsOnIndex={0}
-                opacity={0.5}
-            />
-        ),
+        () => null,
         []
     );
 
@@ -292,6 +290,7 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
                 index={-1}
                 snapPoints={snapPoints}
                 enablePanDownToClose={true}
+                enableOverDrag={false}
                 backdropComponent={renderBackdrop}
                 onChange={handleSheetChanges}
                 backgroundStyle={styles.drawerBackground}

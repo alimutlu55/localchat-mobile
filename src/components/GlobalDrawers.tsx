@@ -1,4 +1,5 @@
 import React, { useCallback } from 'react';
+import { View, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../navigation/types';
@@ -34,10 +35,17 @@ export const GlobalDrawers = React.memo(function GlobalDrawers() {
 
 
     const handleProfilePress = useCallback(() => {
-        closeSidebar();
-        // Delay opening profile drawer slightly to ensure sidebar closing animation starts
-        setTimeout(openProfileDrawer, 50);
-    }, [closeSidebar, openProfileDrawer]);
+        // If already open (in state) but visually closed, we force a toggle
+        // and using requestAnimationFrame to ensure the state update is clean
+        if (isProfileDrawerOpen) {
+            closeProfileDrawer();
+            requestAnimationFrame(() => {
+                openProfileDrawer();
+            });
+        } else {
+            openProfileDrawer();
+        }
+    }, [isProfileDrawerOpen, openProfileDrawer, closeProfileDrawer]);
 
     return (
         <>
@@ -48,11 +56,13 @@ export const GlobalDrawers = React.memo(function GlobalDrawers() {
                 onRoomSelect={handleRoomSelect}
                 onProfilePress={handleProfilePress}
             />
-            <ProfileDrawer
-                isOpen={isProfileDrawerOpen}
-                onClose={closeProfileDrawer}
-                onSignOut={logout}
-            />
+            <View style={[StyleSheet.absoluteFill, { zIndex: 2000 }]} pointerEvents="box-none">
+                <ProfileDrawer
+                    isOpen={isProfileDrawerOpen}
+                    onClose={closeProfileDrawer}
+                    onSignOut={logout}
+                />
+            </View>
         </>
     );
 });
