@@ -118,11 +118,10 @@ const styles = StyleSheet.create({
     button: {
         flexDirection: 'row',
         alignItems: 'center',
-        justifyContent: 'flex-start',
+        justifyContent: 'center',
         backgroundColor: '#000000',
         paddingVertical: 14,
         paddingHorizontal: 24,
-        paddingLeft: 64,
         borderRadius: 12,
         gap: 12,
     },
