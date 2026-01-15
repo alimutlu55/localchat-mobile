@@ -192,6 +192,9 @@ async function cleanupSession(): Promise<void> {
     // 1. Disconnect WebSocket first (stops incoming events)
     wsService.disconnect();
 
+    // 2. Close all UI drawers and sidebar
+    eventBus.emit('ui.closeAllDrawers', {});
+
     // 2. Small delay to allow pending WS operations to complete
     await new Promise((resolve) => setTimeout(resolve, 50));
 

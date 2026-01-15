@@ -770,7 +770,14 @@ export default function DiscoveryScreen() {
             </View>
 
             {/* Top UI Area (Header + Conditional Filters) */}
-            <View style={styles.topContainer} onLayout={handleTopLayout}>
+            <View
+                style={[
+                    styles.topContainer,
+                    authStatus === 'loggingOut' && { opacity: 0 }
+                ]}
+                onLayout={handleTopLayout}
+                pointerEvents={authStatus === 'loggingOut' ? 'none' : 'auto'}
+            >
                 <DiscoveryHeader
                     onOpenSidebar={openSidebar}
                     onCreateRoom={handleCreateRoom}

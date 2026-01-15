@@ -14,6 +14,7 @@ import { View, Text, StyleSheet, Animated, TouchableOpacity, Easing } from 'reac
 import { WifiOff, RefreshCw } from 'lucide-react-native';
 import { useNetworkStatus } from '../../core/network';
 import { wsService } from '../../services/websocket';
+import { useAuth } from '../../features/auth';
 
 export type ConnectionState = 'connected' | 'connecting' | 'disconnected' | 'reconnecting';
 
@@ -30,6 +31,7 @@ const COLORS = {
 export function ConnectionBanner() {
   // Read directly from NetworkStore - single source of truth
   const { wsState, isOnline } = useNetworkStatus();
+  const { status: authStatus } = useAuth();
 
   // Animation values
   const heightAnim = useRef(new Animated.Value(0)).current;
@@ -40,7 +42,15 @@ export function ConnectionBanner() {
   // Priority: offline → reconnecting, then use wsState directly
   const state: ConnectionState = !isOnline ? 'reconnecting' : wsState;
 
-  const isVisible = state !== 'connected';
+  // Transition flags
+  const isTransitioning = authStatus === 'loggingOut' || authStatus === 'authenticating' || authStatus === 'loading';
+  const isGuest = authStatus === 'guest';
+
+  // Hide banner if:
+  // 1. Connected
+  // 2. User is guest (no need for persistent socket alerts)
+  // 3. User is transitioning (logging out/authenticating)
+  const isVisible = state !== 'connected' && !isGuest && !isTransitioning;
   const isSpinning = state === 'reconnecting' || state === 'connecting';
   const showRetryButton = state === 'disconnected';
 

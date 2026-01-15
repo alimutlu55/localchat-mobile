@@ -43,6 +43,7 @@ import { useUserId } from '../../user/store';
 import { useRoom, useRoomOperations, useRoomMembership } from '../hooks';
 import { useUserLocation } from '../../discovery/hooks';
 import { useRoomStore } from '../store';
+import { useAuth } from '../../auth/hooks/useAuth';
 import { BannedUsersModal } from '../components';
 import { ParticipantItem } from '../../../components/room';
 import { ReportModal, ReportReason } from '../../../components/chat/ReportModal';
@@ -133,6 +134,7 @@ export default function RoomDetailsScreen() {
   // Use RoomStore for updates
   const storeUpdateRoom = useRoomStore((s) => s.updateRoom);
   const storeGetRoom = useRoomStore((s) => s.getRoom);
+  const { status: authStatus } = useAuth();
 
   // Use useRoom hook for room data with caching
   const { room: fetchedRoom, isLoading: isRoomLoading } = useRoom(roomId, {
@@ -399,7 +401,10 @@ export default function RoomDetailsScreen() {
   // RENDER
   // ---------------------------------------------------------------------------
   return (
-    <View style={styles.container}>
+    <View style={[
+      styles.container,
+      authStatus === 'loggingOut' && { opacity: 0 }
+    ]} pointerEvents={authStatus === 'loggingOut' ? 'none' : 'auto'}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: Math.max(insets.top, 20) }]}>
         <TouchableOpacity
