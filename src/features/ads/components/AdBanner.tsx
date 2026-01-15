@@ -64,10 +64,7 @@ export const AdBanner: React.FC<AdBannerProps> = ({
     const adUnitId = AD_CONFIG.isTestMode ? TestIds.BANNER : getBannerAdUnitId();
     const adSize = BannerAdSize[size as keyof typeof BannerAdSize] || BannerAdSize.ANCHORED_ADAPTIVE_BANNER;
 
-    // Don't show anything if consent is still loading
-    if (isConsentLoading) {
-        return <View style={[styles.container, transparent && styles.transparent, { height }]} />;
-    }    // Show premium placeholder if ads are disabled or failed
+    // Show premium placeholder if ads are disabled or failed
     // NOTE: This is NOT an ad, it's promotional content for the app's premium features
     const isVisible = canShowAds && !adError;
 
@@ -75,6 +72,11 @@ export const AdBanner: React.FC<AdBannerProps> = ({
     useEffect(() => {
         onVisibilityChange?.(isVisible);
     }, [isVisible, onVisibilityChange]);
+
+    // Don't show anything if consent is still loading
+    if (isConsentLoading) {
+        return <View style={[styles.container, transparent && styles.transparent, { height }]} />;
+    }
 
     if (!isVisible) {
         return null;
