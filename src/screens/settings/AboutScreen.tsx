@@ -39,6 +39,7 @@ import {
     Heart,
     Info,
 } from 'lucide-react-native';
+import { openTermsOfService, openPrivacyPolicy } from '../../shared/utils/legal';
 // Note: Clipboard functionality removed to avoid extra dependency
 import { theme } from '../../core/theme';
 import { APP_VERSION } from '../../version';
@@ -205,14 +206,14 @@ export default function AboutScreen() {
                             icon={<Shield size={20} color={theme.tokens.text.secondary} />}
                             label="Privacy Policy"
                             description="How we protect your data"
-                            onPress={() => navigation.navigate('PrivacyPolicy' as never)}
+                            onPress={openPrivacyPolicy}
                         />
                         <View style={styles.divider} />
                         <LinkItem
                             icon={<FileText size={20} color={theme.tokens.text.secondary} />}
                             label="Terms of Service"
                             description="Rules for using BubbleUp"
-                            onPress={() => navigation.navigate('TermsOfService' as never)}
+                            onPress={openTermsOfService}
                         />
                     </View>
                 </View>

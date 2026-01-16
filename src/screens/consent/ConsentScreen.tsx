@@ -19,6 +19,7 @@
  */
 
 import * as React from 'react';
+import { openTermsOfService, openPrivacyPolicy } from '../../shared/utils/legal';
 import {
     View,
     Text,
@@ -80,15 +81,11 @@ export default function ConsentScreen() {
     };
 
     const handleViewTerms = () => {
-        navigation.navigate('Auth', {
-            screen: 'TermsOfService'
-        });
+        openTermsOfService();
     };
 
     const handleViewPrivacy = () => {
-        navigation.navigate('Auth', {
-            screen: 'PrivacyPolicy'
-        });
+        openPrivacyPolicy();
     };
 
     const guarantees = [

@@ -20,6 +20,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
+import { openTermsOfService, openPrivacyPolicy } from '../../shared/utils/legal';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { ArrowLeft, Mail, Lock, User, Eye, EyeOff } from 'lucide-react-native';
 import { AuthStackParamList } from '../../navigation/types';
@@ -287,11 +288,11 @@ export default function RegisterScreen() {
 
             {/* Legal Links */}
             <Text style={styles.consentText}>
-              <Text style={styles.consentLink} onPress={() => navigation.navigate('TermsOfService')}>
+              <Text style={styles.consentLink} onPress={openTermsOfService}>
                 Terms of Service
               </Text>
               {' · '}
-              <Text style={styles.consentLink} onPress={() => navigation.navigate('PrivacyPolicy')}>
+              <Text style={styles.consentLink} onPress={openPrivacyPolicy}>
                 Privacy Policy
               </Text>
             </Text>

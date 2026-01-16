@@ -29,8 +29,6 @@ import {
 
 import {
     AboutScreen,
-    PrivacyPolicyScreen,
-    TermsOfServiceScreen,
     PrivacySettingsScreen,
 } from '../screens/settings';
 
@@ -134,8 +132,6 @@ export function RootNavigator() {
                         <Stack.Screen name="EditProfile" component={EditProfileScreen} />
                         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
                         <Stack.Screen name="About" component={AboutScreen} />
-                        <Stack.Screen name="PrivacyPolicy" component={PrivacyPolicyScreen} />
-                        <Stack.Screen name="TermsOfService" component={TermsOfServiceScreen} />
                         <Stack.Screen name="PrivacySettings" component={PrivacySettingsScreen} />
                         <Stack.Screen
                             name="ConsentPreferences"

@@ -63,8 +63,6 @@ export type RootStackParamList = {
   Login: undefined;
   // About & Legal screens
   About: undefined;
-  PrivacyPolicy: undefined;
-  TermsOfService: undefined;
   PrivacySettings: undefined;
 };
 
@@ -79,9 +77,7 @@ export type AuthStackParamList = {
   Register: undefined;
   AnonymousLogin: undefined;
   ForgotPassword: undefined;
-  // Legal screens (accessible before login for consent)
-  TermsOfService: undefined;
-  PrivacyPolicy: undefined;
+
 };
 
 /**

@@ -9,6 +9,7 @@ import React, { useState, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, TouchableOpacity, ActivityIndicator, Alert, Linking } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import { openTermsOfService, openPrivacyPolicy } from '../../shared/utils/legal';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { Mail, User } from 'lucide-react-native';
 import * as Location from 'expo-location';
@@ -174,11 +175,11 @@ export default function WelcomeScreen() {
       {/* Footer - Legal Links */}
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          <Text style={styles.footerLink} onPress={() => navigation.navigate('TermsOfService')}>
+          <Text style={styles.footerLink} onPress={openTermsOfService}>
             Terms of Service
           </Text>
           {' · '}
-          <Text style={styles.footerLink} onPress={() => navigation.navigate('PrivacyPolicy')}>
+          <Text style={styles.footerLink} onPress={openPrivacyPolicy}>
             Privacy Policy
           </Text>
         </Text>

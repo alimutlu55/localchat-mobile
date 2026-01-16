@@ -7,6 +7,7 @@
 
 import { useMemo, useCallback, useState, useEffect } from 'react';
 import { Alert, Linking } from 'react-native';
+import * as WebBrowser from 'expo-web-browser';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { RootStackParamList } from '../../../navigation/types';
@@ -26,11 +27,11 @@ import { createLogger } from '../../../shared/utils/logger';
 
 const log = createLogger('useProfileDrawer');
 
-// Legal URLs - should be moved to constants in production
+// Legal URLs
 const LEGAL_URLS = {
-  termsOfService: 'https://bubbleup.app/terms',
-  privacyPolicy: 'https://bubbleup.app/privacy',
-  helpCenter: 'https://bubbleup.app/help',
+  termsOfService: 'https://bubbleupapp.com/terms.html',
+  privacyPolicy: 'https://bubbleupapp.com/privacy.html',
+  helpCenter: 'https://bubbleupapp.com/help.html',
 };
 
 /**
@@ -414,20 +415,44 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
     }
   }, []);
 
-  const openTermsOfService = useCallback((onClose: () => void) => {
+  const openTermsOfService = useCallback(async (onClose: () => void) => {
     onClose();
-    navigation.navigate('TermsOfService');
-  }, [navigation]);
+    try {
+      await WebBrowser.openBrowserAsync(LEGAL_URLS.termsOfService, {
+        presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
+        controlsColor: '#6366f1', // theme.tokens.brand.primary (hardcoded to avoid hook dependency cycle if theme not available here)
+      });
+    } catch (error) {
+      log.error('Failed to open Terms of Service', error);
+      Alert.alert('Error', 'Failed to open Terms of Service');
+    }
+  }, []);
 
-  const openPrivacyPolicy = useCallback((onClose: () => void) => {
+  const openPrivacyPolicy = useCallback(async (onClose: () => void) => {
     onClose();
-    navigation.navigate('PrivacyPolicy');
-  }, [navigation]);
+    try {
+      await WebBrowser.openBrowserAsync(LEGAL_URLS.privacyPolicy, {
+        presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
+        controlsColor: '#6366f1',
+      });
+    } catch (error) {
+      log.error('Failed to open Privacy Policy', error);
+      Alert.alert('Error', 'Failed to open Privacy Policy');
+    }
+  }, []);
 
-  const openHelpCenter = useCallback((onClose: () => void) => {
+  const openHelpCenter = useCallback(async (onClose: () => void) => {
     onClose();
-    navigation.navigate('About');
-  }, [navigation]);
+    try {
+      await WebBrowser.openBrowserAsync(LEGAL_URLS.helpCenter, {
+        presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
+        controlsColor: '#6366f1',
+      });
+    } catch (error) {
+      log.error('Failed to open Help Center', error);
+      Alert.alert('Error', 'Failed to open Help Center');
+    }
+  }, []);
 
   // =========================================================================
   // Consent State & Handlers (GDPR/KVKK)
@@ -492,10 +517,18 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
     );
   }, []);
 
-  const handleViewConsent = useCallback((onClose: () => void) => {
+  const handleViewConsent = useCallback(async (onClose: () => void) => {
     onClose();
-    navigation.navigate('PrivacyPolicy');
-  }, [navigation]);
+    try {
+      await WebBrowser.openBrowserAsync(LEGAL_URLS.privacyPolicy, {
+        presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
+        controlsColor: '#6366f1',
+      });
+    } catch (error) {
+      log.error('Failed to open Privacy Policy', error);
+      Alert.alert('Error', 'Failed to open Privacy Policy');
+    }
+  }, []);
 
   const handleConsentPreferences = useCallback((onClose: () => void) => {
     onClose();
