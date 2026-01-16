@@ -40,7 +40,7 @@ export function AuthNavigator() {
       <Stack.Screen name="Register" component={RegisterScreen} />
       <Stack.Screen name="AnonymousLogin" component={AnonymousLoginScreen} />
       <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-      <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+
     </Stack.Navigator>
   );
 }

@@ -9,11 +9,10 @@ import { View, Text, StyleSheet } from 'react-native';
 import { HelpCircle, Scale, Eye, Globe, MapPin, Languages, AlertCircle, Shield } from 'lucide-react-native';
 import { Section, SettingRow } from './shared';
 
-interface AboutSectionProps {
+export interface AboutSectionProps {
     appVersion: string;
     language: string;
     locationMode: string;
-    onHelpPress: () => void;
     onLanguagePress: () => void;
     onLocationPress: () => void;
     onTermsPress: () => void;
@@ -26,7 +25,6 @@ export function AboutSection({
     appVersion,
     language,
     locationMode,
-    onHelpPress,
     onLanguagePress,
     onLocationPress,
     onTermsPress,
@@ -71,11 +69,6 @@ export function AboutSection({
 
             {/* About */}
             <Section title="ABOUT">
-                <SettingRow
-                    icon={HelpCircle}
-                    label="About & Help"
-                    onPress={onHelpPress}
-                />
                 <SettingRow
                     icon={AlertCircle}
                     label="Report a Problem"

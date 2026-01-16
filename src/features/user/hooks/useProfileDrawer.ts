@@ -31,7 +31,6 @@ const log = createLogger('useProfileDrawer');
 const LEGAL_URLS = {
   termsOfService: 'https://bubbleupapp.com/terms.html',
   privacyPolicy: 'https://bubbleupapp.com/privacy.html',
-  helpCenter: 'https://bubbleupapp.com/help.html',
 };
 
 /**
@@ -144,9 +143,6 @@ interface UseProfileDrawerReturn {
 
   /** Open privacy policy */
   openPrivacyPolicy: (onClose: () => void) => void;
-
-  /** Open help center / about */
-  openHelpCenter: (onClose: () => void) => void;
 
   // =========================================================================
   // Data & Consent (GDPR/KVKK)
@@ -441,18 +437,7 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
     }
   }, []);
 
-  const openHelpCenter = useCallback(async (onClose: () => void) => {
-    onClose();
-    try {
-      await WebBrowser.openBrowserAsync(LEGAL_URLS.helpCenter, {
-        presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
-        controlsColor: '#6366f1',
-      });
-    } catch (error) {
-      log.error('Failed to open Help Center', error);
-      Alert.alert('Error', 'Failed to open Help Center');
-    }
-  }, []);
+
 
   // =========================================================================
   // Consent State & Handlers (GDPR/KVKK)
@@ -629,7 +614,6 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
     handleDeleteAccount,
     openTermsOfService,
     openPrivacyPolicy,
-    openHelpCenter,
 
     // Consent (GDPR/KVKK)
     analyticsConsent,

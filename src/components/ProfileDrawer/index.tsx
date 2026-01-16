@@ -78,7 +78,6 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
         handleSignOut,
         openTermsOfService,
         openPrivacyPolicy,
-        openHelpCenter,
         handleDeleteMyRooms,
         handleHardDeleteAccount,
         handleConsentPreferences,
@@ -166,7 +165,6 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
                 appVersion={appVersion}
                 language={language}
                 locationMode={locationMode}
-                onHelpPress={() => openHelpCenter(onClose)}
                 onLanguagePress={() => setCurrentPage('language')}
                 onLocationPress={() => setCurrentPage('location')}
                 onTermsPress={() => openTermsOfService(onClose)}
@@ -250,20 +248,7 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
                         onBack={() => setCurrentPage('main')}
                     />
                 );
-            case 'help':
-                return renderSubPage(
-                    'Help Center',
-                    <View style={styles.subPageContent}>
-                        <TouchableOpacity onPress={() => Linking.openURL('mailto:localchat.official@gmail.com')}>
-                            <Text style={styles.infoText}>
-                                Need help? Contact us at{' '}
-                                <Text style={{ color: '#FF6410', fontWeight: '500' }}>
-                                    localchat.official@gmail.com
-                                </Text>
-                            </Text>
-                        </TouchableOpacity>
-                    </View>
-                );
+
             case 'data-controls':
                 return (
                     <DataControlsPage

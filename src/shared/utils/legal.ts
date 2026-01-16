@@ -4,7 +4,6 @@ import { Alert } from 'react-native';
 export const LEGAL_URLS = {
     termsOfService: 'https://bubbleupapp.com/terms.html',
     privacyPolicy: 'https://bubbleupapp.com/privacy.html',
-    helpCenter: 'https://bubbleupapp.com/help.html',
 };
 
 const BRAND_PRIMARY = '#6366f1'; // Hardcoded to avoid circular deps with theme
@@ -33,14 +32,4 @@ export const openPrivacyPolicy = async () => {
     }
 };
 
-export const openHelpCenter = async () => {
-    try {
-        await WebBrowser.openBrowserAsync(LEGAL_URLS.helpCenter, {
-            presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
-            controlsColor: BRAND_PRIMARY,
-        });
-    } catch (error) {
-        console.error('Failed to open Help Center', error);
-        Alert.alert('Error', 'Failed to open Help Center');
-    }
-};
+
