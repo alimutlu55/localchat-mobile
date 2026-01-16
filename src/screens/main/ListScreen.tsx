@@ -1,6 +1,5 @@
 /**
- * List Screen
- *
+ * List View Screen (Legacy)
  * List view of nearby rooms with search, filters, and room cards.
  * Uses RoomContext for centralized state management.
  */
@@ -18,18 +17,23 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as Location from 'expo-location';
 import { Menu, Plus, Map as MapIcon, List } from 'lucide-react-native';
-import { RootStackParamList } from '../../navigation/types';
+import { RootStackParamList, MainFlowStackParamList } from '../../navigation/types';
+import { roomService } from '../../services';
 import { Room, serializeRoom } from '../../types';
 import { ROOM_CONFIG, LOCATION_CONFIG } from '../../constants';
 import { getCurrentPositionWithTimeout } from '../../utils/location';
 import { useAuth } from '../../features/auth';
 import { useRoomDiscovery, useRoomOperations, useMyRooms } from '../../features/rooms/hooks';
+import { useRoomStore } from '../../features/rooms/store';
+import { createLogger } from '../../shared/utils/logger';
 import { RoomListView } from '../../features/discovery/components';
 import { Sidebar } from '../../components/Sidebar';
 import { ProfileDrawer } from '../../components/ProfileDrawer';
 import { theme } from '../../core/theme';
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+const log = createLogger('ListScreen');
+
+type NavigationProp = NativeStackNavigationProp<MainFlowStackParamList, 'List'>;
 
 export default function ListScreen() {
     const navigation = useNavigation<NavigationProp>();

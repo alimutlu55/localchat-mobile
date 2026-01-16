@@ -31,12 +31,14 @@ import {
 import * as Location from 'expo-location';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Plus, Menu, Map as MapIcon, List } from 'lucide-react-native';
-import { RootStackParamList } from '../../navigation/types';
-import { Room, serializeRoom } from '../../types';
+import { RootStackParamList, MainFlowStackParamList } from '../../navigation/types';
+import { roomService } from '../../services';
+import { Room, RoomCategory, serializeRoom } from '../../types';
 import { ROOM_CONFIG, MAP_CONFIG, LOCATION_CONFIG } from '../../constants';
 import { getCurrentPositionWithTimeout } from '../../utils/location';
 import { useAuth } from '../../features/auth';
-import { useRoomDiscovery, useMyRooms } from '../../features/rooms/hooks';
+import { useRoomDiscovery, useRoomOperations, useMyRooms } from '../../features/rooms/hooks';
+import { useRoomStore } from '../../features/rooms/store';
 import { Sidebar } from '../../components/Sidebar';
 import { ProfileDrawer } from '../../components/ProfileDrawer';
 import { Bubble, MapCluster } from '../../features/discovery/components';
@@ -89,7 +91,7 @@ const MAP_STYLE = {
   ],
 };
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type NavigationProp = NativeStackNavigationProp<MainFlowStackParamList, 'Map'>;
 
 const { width, height } = Dimensions.get('window');
 

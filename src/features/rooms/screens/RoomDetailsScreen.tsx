@@ -33,7 +33,7 @@ import {
   Award,
   ChevronRight,
 } from 'lucide-react-native';
-import { RootStackParamList } from '../../../navigation/types';
+import { RootStackParamList, MainFlowStackParamList } from '../../../navigation/types';
 import { roomService, ParticipantDTO, messageService } from '../../../services';
 import { eventBus } from '../../../core/events';
 import { theme } from '../../../core/theme';
@@ -54,8 +54,8 @@ import { isUserBanned, isAlreadyReported } from '../../../shared/utils/errors';
 
 const log = createLogger('RoomDetails');
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'RoomDetails'>;
-type RoomDetailsRouteProp = RouteProp<RootStackParamList, 'RoomDetails'>;
+type NavigationProp = NativeStackNavigationProp<MainFlowStackParamList, 'RoomDetails'>;
+type RoomDetailsRouteProp = RouteProp<MainFlowStackParamList, 'RoomDetails'>;
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
@@ -356,24 +356,19 @@ export default function RoomDetailsScreen() {
   const handleJoin = async () => {
     const serializedRoom = serializeRoom(room);
     if (isJoined) {
-      navigation.replace('ChatRoom', { roomId, initialRoom: serializedRoom });
+      navigation.navigate('ChatRoom', { roomId, initialRoom: serializedRoom });
       return;
     }
 
-    // Use user location if available, otherwise fallback to room location (assume user is there)
-    // This allows users without location permission to join rooms they can see.
-    const effectiveLocation = userLocation || {
-      latitude: room.latitude ?? 0,
-      longitude: room.longitude ?? 0
-    };
-
-    const result = await join(room, { latitude: effectiveLocation.latitude, longitude: effectiveLocation.longitude });
+    // Join room using operations hook (handles loading state via store)
+    const result = await join(room, { latitude: userLocation?.latitude || 0, longitude: userLocation?.longitude || 0 });
 
     if (result.success) {
       // Get fresh room data from store
       const freshRoom = storeGetRoom(roomId);
       const freshSerializedRoom = freshRoom ? serializeRoom(freshRoom) : serializedRoom;
-      navigation.replace('ChatRoom', { roomId, initialRoom: freshSerializedRoom });
+
+      navigation.navigate('ChatRoom', { roomId, initialRoom: freshSerializedRoom });
     } else if (result.error && isUserBanned(result.error)) {
       Alert.alert(
         'Access Denied',

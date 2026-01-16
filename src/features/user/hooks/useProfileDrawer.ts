@@ -124,7 +124,7 @@ interface UseProfileDrawerReturn {
   // =========================================================================
 
   /** Navigate to edit profile screen */
-  handleEditProfile: (onClose: () => void) => void;
+  handleEditProfile: () => void;
 
   /** Navigate to a room */
   handleRoomPress: (room: Room, onClose: () => void) => void;
@@ -139,10 +139,10 @@ interface UseProfileDrawerReturn {
   handleDeleteAccount: (onClose: () => void) => void;
 
   /** Open terms of service */
-  openTermsOfService: (onClose: () => void) => void;
+  openTermsOfService: () => void;
 
   /** Open privacy policy */
-  openPrivacyPolicy: (onClose: () => void) => void;
+  openPrivacyPolicy: () => void;
 
   // =========================================================================
   // Data & Consent (GDPR/KVKK)
@@ -164,10 +164,10 @@ interface UseProfileDrawerReturn {
   handleExportData: () => void;
 
   /** View consent preferences */
-  handleViewConsent: (onClose: () => void) => void;
+  handleViewConsent: () => void;
 
-  /** Navigate to consent preferences screen */
-  handleConsentPreferences: (onClose: () => void) => void;
+  /** Navigate to consent preferences screen (fullScreenModal - no drawer close) */
+  handleConsentPreferences: () => void;
 
   // =========================================================================
   // Data Controls
@@ -178,6 +178,25 @@ interface UseProfileDrawerReturn {
 
   /** Hard delete account and all data */
   handleHardDeleteAccount: (onClose: () => void) => Promise<void>;
+
+  // =========================================================================
+  // Profile Drawer Sub-screen Navigation (fullScreenModal - no drawer close)
+  // =========================================================================
+
+  /** Navigate to blocked users screen */
+  handleBlockedUsers: () => void;
+
+  /** Navigate to data controls screen */
+  handleDataControls: () => void;
+
+  /** Navigate to location settings screen */
+  handleLocationSettings: () => void;
+
+  /** Navigate to language settings screen */
+  handleLanguageSettings: () => void;
+
+  /** Navigate to report problem screen */
+  handleReportProblem: () => void;
 }
 
 export function useProfileDrawer(): UseProfileDrawerReturn {
@@ -298,8 +317,7 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
   // =========================================================================
 
   const handleEditProfile = useCallback(
-    (onClose: () => void) => {
-      onClose();
+    () => {
       navigation.navigate('EditProfile');
     },
     [navigation]
@@ -308,7 +326,10 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
   const handleRoomPress = useCallback(
     (room: Room, onClose: () => void) => {
       onClose();
-      navigation.navigate('ChatRoom', { roomId: room.id, initialRoom: serializeRoom(room) });
+      navigation.navigate('MainFlow', {
+        screen: 'ChatRoom',
+        params: { roomId: room.id, initialRoom: serializeRoom(room) }
+      } as any);
     },
     [navigation]
   );
@@ -325,6 +346,46 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
       log.info('Anonymous user initiating sign in - logging out to show auth flow');
     },
     [logout]
+  );
+
+  // =========================================================================
+  // Profile Drawer Sub-screen Navigation
+  // fullScreenModal screens appear on top of drawer - no need to close
+  // =========================================================================
+
+  const handleBlockedUsers = useCallback(
+    () => {
+      navigation.navigate('BlockedUsers');
+    },
+    [navigation]
+  );
+
+  const handleDataControls = useCallback(
+    () => {
+      navigation.navigate('DataControls');
+    },
+    [navigation]
+  );
+
+  const handleLocationSettings = useCallback(
+    () => {
+      navigation.navigate('LocationSettings');
+    },
+    [navigation]
+  );
+
+  const handleLanguageSettings = useCallback(
+    () => {
+      navigation.navigate('LanguageSettings');
+    },
+    [navigation]
+  );
+
+  const handleReportProblem = useCallback(
+    () => {
+      navigation.navigate('ReportProblem');
+    },
+    [navigation]
   );
 
   // =========================================================================
@@ -411,8 +472,7 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
     }
   }, []);
 
-  const openTermsOfService = useCallback(async (onClose: () => void) => {
-    onClose();
+  const openTermsOfService = useCallback(async () => {
     try {
       await WebBrowser.openBrowserAsync(LEGAL_URLS.termsOfService, {
         presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
@@ -424,8 +484,7 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
     }
   }, []);
 
-  const openPrivacyPolicy = useCallback(async (onClose: () => void) => {
-    onClose();
+  const openPrivacyPolicy = useCallback(async () => {
     try {
       await WebBrowser.openBrowserAsync(LEGAL_URLS.privacyPolicy, {
         presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
@@ -502,8 +561,7 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
     );
   }, []);
 
-  const handleViewConsent = useCallback(async (onClose: () => void) => {
-    onClose();
+  const handleViewConsent = useCallback(async () => {
     try {
       await WebBrowser.openBrowserAsync(LEGAL_URLS.privacyPolicy, {
         presentationStyle: WebBrowser.WebBrowserPresentationStyle.PAGE_SHEET,
@@ -515,8 +573,7 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
     }
   }, []);
 
-  const handleConsentPreferences = useCallback((onClose: () => void) => {
-    onClose();
+  const handleConsentPreferences = useCallback(() => {
     navigation.navigate('ConsentPreferences');
   }, [navigation]);
 
@@ -627,6 +684,13 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
     // Data controls
     handleDeleteMyRooms,
     handleHardDeleteAccount,
+
+    // Profile drawer sub-screen navigation
+    handleBlockedUsers,
+    handleDataControls,
+    handleLocationSettings,
+    handleLanguageSettings,
+    handleReportProblem,
   };
 }
 

@@ -16,13 +16,10 @@ import { AuthNavigator } from './AuthNavigator';
 import {
     SplashScreen,
     OnboardingScreen,
-    ChatRoomScreen,
     RoomDetailsScreen,
-    RoomInfoScreen,
     CreateRoomScreen,
     SettingsScreen,
     EditProfileScreen,
-    DiscoveryScreen,
     ConsentScreen,
     ConsentPreferencesScreen,
 } from '../screens';
@@ -30,7 +27,14 @@ import {
 import {
     AboutScreen,
     PrivacySettingsScreen,
+    LocationSettingsScreen,
+    LanguageSettingsScreen,
+    DataControlsScreen,
+    BlockedUsersScreen,
+    ReportProblemScreen,
 } from '../screens/settings';
+
+import MainNavigator from './MainNavigator';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
@@ -90,53 +94,77 @@ export function RootNavigator() {
                         options={{ animation: 'fade' }}
                     />
                 ) : (
-                    // App Flow
+                    // App Flow (MainFlow contains Drawers)
                     <>
+                        {/* MainFlow hosts Discovery, ChatRoom, RoomInfo AND GlobalDrawers */}
                         <Stack.Screen
-                            name="Discovery"
-                            component={DiscoveryScreen}
+                            name="MainFlow"
+                            component={MainNavigator}
                             options={{ animation: 'fade' }}
                         />
-                        <Stack.Screen
-                            name="ChatRoom"
-                            component={ChatRoomScreen}
-                            options={{
-                                headerShown: false,
-                                gestureEnabled: true,
-                                animation: 'slide_from_right',
-                            }}
-                        />
-                        <Stack.Screen
-                            name="RoomDetails"
-                            component={RoomDetailsScreen}
-                            options={{
-                                presentation: 'transparentModal',
-                                animation: 'slide_from_bottom',
-                                contentStyle: { backgroundColor: 'transparent' },
-                            }}
-                        />
-                        <Stack.Screen
-                            name="RoomInfo"
-                            component={RoomInfoScreen}
-                            options={{
-                                headerShown: false,
-                                animation: 'slide_from_right',
-                            }}
-                        />
-                        <Stack.Screen
-                            name="CreateRoom"
-                            component={CreateRoomScreen}
-                            options={{ presentation: 'fullScreenModal' }}
-                        />
+
+                        {/* Standard screens pushed on top of MainFlow stack (and thus on top of its drawers) */}
                         <Stack.Screen name="Settings" component={SettingsScreen} />
-                        <Stack.Screen name="EditProfile" component={EditProfileScreen} />
+                        <Stack.Screen
+                            name="EditProfile"
+                            component={EditProfileScreen}
+                            options={{
+                                animation: 'slide_from_right',
+                                gestureEnabled: true,
+                            }}
+                        />
                         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
                         <Stack.Screen name="About" component={AboutScreen} />
                         <Stack.Screen name="PrivacySettings" component={PrivacySettingsScreen} />
                         <Stack.Screen
                             name="ConsentPreferences"
                             component={ConsentPreferencesScreen}
-                            options={{ animation: 'slide_from_right' }}
+                            options={{
+                                animation: 'slide_from_right',
+                                gestureEnabled: true,
+                            }}
+                        />
+
+                        {/* Profile Drawer Sub-screens - regular card presentation slides OVER drawers */}
+                        <Stack.Screen
+                            name="BlockedUsers"
+                            component={BlockedUsersScreen}
+                            options={{
+                                animation: 'slide_from_right',
+                                gestureEnabled: true,
+                            }}
+                        />
+                        <Stack.Screen
+                            name="LocationSettings"
+                            component={LocationSettingsScreen}
+                            options={{
+                                animation: 'slide_from_right',
+                                gestureEnabled: true,
+                            }}
+                        />
+                        <Stack.Screen
+                            name="LanguageSettings"
+                            component={LanguageSettingsScreen}
+                            options={{
+                                animation: 'slide_from_right',
+                                gestureEnabled: true,
+                            }}
+                        />
+                        <Stack.Screen
+                            name="DataControls"
+                            component={DataControlsScreen}
+                            options={{
+                                animation: 'slide_from_right',
+                                gestureEnabled: true,
+                            }}
+                        />
+                        <Stack.Screen
+                            name="ReportProblem"
+                            component={ReportProblemScreen}
+                            options={{
+                                animation: 'slide_from_right',
+                                gestureEnabled: true,
+                            }}
                         />
                     </>
                 )}

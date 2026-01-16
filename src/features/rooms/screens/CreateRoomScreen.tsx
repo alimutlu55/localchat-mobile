@@ -28,7 +28,7 @@ import {
   MapPin,
 } from 'lucide-react-native';
 
-import { RootStackParamList } from '../../../navigation/types';
+import { RootStackParamList, MainFlowStackParamList } from '../../../navigation/types';
 import { roomService } from '../../../services';
 import { serializeRoom } from '../../../types';
 import { CATEGORIES } from '../../../constants';
@@ -38,8 +38,8 @@ import { useRoomQuota } from '../hooks/useRoomQuota';
 import { PrivacyLocationSelector } from '../components/PrivacyLocationSelector';
 
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'CreateRoom'>;
-type CreateRoomRouteProp = RouteProp<RootStackParamList, 'CreateRoom'>;
+type NavigationProp = NativeStackNavigationProp<MainFlowStackParamList, 'CreateRoom'>;
+type CreateRoomRouteProp = RouteProp<MainFlowStackParamList, 'CreateRoom'>;
 
 const { width } = Dimensions.get('window');
 
@@ -171,7 +171,7 @@ export default function CreateRoomScreen() {
       // Show success and navigate
       addCreatedRoom(roomWithCreatorFlag);
 
-      // Navigate to the new room using new roomId-based pattern
+      // Enter the chat while replacing the creation screen so 'back' goes to Discovery
       navigation.replace('ChatRoom', { roomId: roomWithCreatorFlag.id, initialRoom: serializeRoom(roomWithCreatorFlag) });
     } catch (error) {
       console.error('Failed to create room:', error);

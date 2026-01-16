@@ -2,12 +2,12 @@ import React, { useCallback } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
-import { RootStackParamList } from '../navigation/types';
 import { useUIState, useUIActions } from '../context/UIContext';
 import { useAuth } from '../features/auth';
 import { useMyRooms } from '../features/rooms/hooks';
 import { Sidebar } from './Sidebar';
 import { ProfileDrawer } from './ProfileDrawer';
+import { RootStackParamList, MainFlowStackParamList } from '../navigation/types';
 
 export const GlobalDrawers = React.memo(function GlobalDrawers() {
     const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -26,9 +26,15 @@ export const GlobalDrawers = React.memo(function GlobalDrawers() {
 
         // If user hasn't joined (e.g., creator left the room), show RoomDetails to allow rejoining
         if (!room.hasJoined) {
-            navigation.navigate('RoomDetails', { roomId: room.id, initialRoom: serializedRoom });
+            navigation.navigate('MainFlow', {
+                screen: 'RoomDetails',
+                params: { roomId: room.id, initialRoom: serializedRoom }
+            } as any);
         } else {
-            navigation.navigate('ChatRoom', { roomId: room.id, initialRoom: serializedRoom });
+            navigation.navigate('MainFlow', {
+                screen: 'ChatRoom',
+                params: { roomId: room.id, initialRoom: serializedRoom }
+            } as any);
         }
         closeSidebar();
     }, [navigation, closeSidebar]);

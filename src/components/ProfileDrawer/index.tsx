@@ -10,41 +10,28 @@
  * - Sub-components: specific UI sections (presentational)
  */
 
-import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
+import React, { useCallback, useMemo, useRef, useEffect } from 'react';
 import {
     View,
     Text,
     StyleSheet,
     TouchableOpacity,
-    Linking,
-    Dimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
     LogOut,
     LogIn,
-    ChevronRight,
-    Trash2,
     X,
-    MapPin,
-    ArrowLeft,
-    UserPlus,
 } from 'lucide-react-native';
-import BottomSheet, { BottomSheetScrollView, BottomSheetBackdrop } from '@gorhom/bottom-sheet';
+import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { useProfileDrawer } from '../../features/user';
 
 // Sub-components
 import { ProfileHeader } from './ProfileHeader';
-
 import { ActiveRoomsList } from './ActiveRoomsList';
 import { AccountSettings } from './AccountSettings';
 import { NotificationSettings } from './NotificationSettings';
 import { AboutSection } from './AboutSection';
-import { BlockedUsersPage } from './BlockedUsersPage';
-import { DataControlsPage } from './DataControlsPage';
-import { ReportProblemModal } from './ReportProblemModal';
-import { Section, SettingRow } from './shared';
-import { SubPage } from './shared/types';
 
 interface ProfileDrawerProps {
     isOpen: boolean;
@@ -66,9 +53,7 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
         myRooms,
         blockedUsers,
         notificationSettings,
-        privacySettings,
         updateNotificationSettings,
-        updatePrivacySettings,
         appVersion,
         language,
         locationMode,
@@ -78,17 +63,15 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
         handleSignOut,
         openTermsOfService,
         openPrivacyPolicy,
-        handleDeleteMyRooms,
-        handleHardDeleteAccount,
         handleConsentPreferences,
+        // Profile drawer sub-screen navigation
+        handleBlockedUsers,
+        handleDataControls,
+        handleLocationSettings,
+        handleLanguageSettings,
+        handleReportProblem,
     } = useProfileDrawer();
     const insets = useSafeAreaInsets();
-
-    // =========================================================================
-    // Local State - UI only
-    // =========================================================================
-    const [currentPage, setCurrentPage] = useState<SubPage>('main');
-    const [isReportModalVisible, setIsReportModalVisible] = useState(false);
 
     // BottomSheet refs and config
     const bottomSheetRef = useRef<BottomSheet>(null);
@@ -100,17 +83,34 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
 
     // Control sheet based on isOpen prop
     useEffect(() => {
+        let isMounted = true;
+
         if (isOpen) {
             // Use requestAnimationFrame with snapToIndex(0) for precise height control
+            // Adding a small check to ensure bottomSheetRef.current is available
             const rafId = requestAnimationFrame(() => {
-                bottomSheetRef.current?.snapToIndex(0);
+                if (isMounted && bottomSheetRef.current) {
+                    try {
+                        bottomSheetRef.current.snapToIndex(0);
+                    } catch (err) {
+                        console.warn('[ProfileDrawer] Failed to snap:', err);
+                    }
+                }
             });
-            setCurrentPage('main');
             // Refresh blocked users when drawer opens
             blockedUsers.refresh();
-            return () => cancelAnimationFrame(rafId);
+            return () => {
+                isMounted = false;
+                cancelAnimationFrame(rafId);
+            };
         } else {
-            bottomSheetRef.current?.close();
+            if (bottomSheetRef.current) {
+                try {
+                    bottomSheetRef.current.close();
+                } catch (err) {
+                    console.warn('[ProfileDrawer] Failed to close:', err);
+                }
+            }
         }
     }, [isOpen]);
 
@@ -138,7 +138,7 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
             <ProfileHeader
                 user={user}
                 stats={stats}
-                onEditProfile={() => handleEditProfile(onClose)}
+                onEditProfile={handleEditProfile}
             />
 
 
@@ -150,8 +150,8 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
 
             <AccountSettings
                 blockedUsersCount={blockedUsers.count}
-                onBlockedUsersPress={() => setCurrentPage('blocked')}
-                onDataControlsPress={() => setCurrentPage('data-controls')}
+                onBlockedUsersPress={handleBlockedUsers}
+                onDataControlsPress={handleDataControls}
             />
 
             <NotificationSettings
@@ -165,12 +165,12 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
                 appVersion={appVersion}
                 language={language}
                 locationMode={locationMode}
-                onLanguagePress={() => setCurrentPage('language')}
-                onLocationPress={() => setCurrentPage('location')}
-                onTermsPress={() => openTermsOfService(onClose)}
-                onPrivacyPolicyPress={() => openPrivacyPolicy(onClose)}
-                onReportProblemPress={() => setIsReportModalVisible(true)}
-                onConsentPreferencesPress={() => handleConsentPreferences(onClose)}
+                onLanguagePress={handleLanguageSettings}
+                onLocationPress={handleLocationSettings}
+                onTermsPress={openTermsOfService}
+                onPrivacyPolicyPress={openPrivacyPolicy}
+                onReportProblemPress={handleReportProblem}
+                onConsentPreferencesPress={handleConsentPreferences}
             />
 
             {isAnonymous ? (
@@ -192,77 +192,6 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
             )}
         </View>
     );
-
-    const renderSubPage = (title: string, content: React.ReactNode) => (
-        <View>
-            {/* Header for other subpages */}
-            <View style={styles.subPageHeader}>
-                <TouchableOpacity
-                    style={styles.backButton}
-                    onPress={() => setCurrentPage('main')}
-                >
-                    <ArrowLeft size={20} color="#1f2937" />
-                </TouchableOpacity>
-                <Text style={styles.subPageTitle}>{title}</Text>
-            </View>
-            {content}
-        </View>
-    );
-
-    const renderContent = () => {
-        switch (currentPage) {
-            case 'location':
-                return renderSubPage(
-                    'Location Mode',
-                    <View style={styles.subPageContent}>
-                        <Section title="CURRENT SETTING">
-                            <SettingRow
-                                icon={MapPin}
-                                label="Approximate"
-                                value="Active"
-                                isEnabled={true}
-                                onPress={() => { }}
-                            />
-                        </Section>
-                        <Text style={styles.infoText}>
-                            We use an approximate location to protect your privacy, which is shared only when you create a room and never reveals your exact position.
-                        </Text>
-                    </View>
-                );
-            case 'language':
-                return renderSubPage(
-                    'Language',
-                    <View style={styles.subPageContent}>
-                        <Text style={styles.infoText}>
-                            Language settings coming soon. Currently using: {(language || 'en').toUpperCase()}
-                        </Text>
-                    </View>
-                );
-            case 'blocked':
-                return (
-                    <BlockedUsersPage
-                        blockedUsers={blockedUsers.blockedUsers}
-                        isLoading={blockedUsers.isLoading}
-                        unblockingId={blockedUsers.unblockingId}
-                        onUnblock={blockedUsers.unblockUser}
-                        onBack={() => setCurrentPage('main')}
-                    />
-                );
-
-            case 'data-controls':
-                return (
-                    <DataControlsPage
-                        onBack={() => setCurrentPage('main')}
-                        onDeleteRooms={handleDeleteMyRooms}
-                        onDeleteAccount={() => handleHardDeleteAccount(onClose)}
-                        isAnonymous={isAnonymous}
-                        createdRoomsCount={myRooms.filter(r => r.isCreator).length}
-                    />
-                );
-            default:
-                return renderMainPage();
-        }
-    };
 
     // =========================================================================
     // Main Render
@@ -291,15 +220,9 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
                     </TouchableOpacity>
                 </View>
                 <BottomSheetScrollView contentContainerStyle={styles.contentContainer}>
-                    {renderContent()}
+                    {renderMainPage()}
                 </BottomSheetScrollView>
             </BottomSheet>
-
-            {/* Report a Problem Modal */}
-            <ReportProblemModal
-                visible={isReportModalVisible}
-                onClose={() => setIsReportModalVisible(false)}
-            />
         </>
     );
 }

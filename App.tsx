@@ -38,7 +38,6 @@ import { AdProvider } from './src/features/ads/context/AdProvider';
 import { initializeAuthStore } from './src/features/auth';
 import { sessionManager } from './src/core/session';
 import { RootNavigator } from './src/navigation';
-import { GlobalDrawers } from './src/components/GlobalDrawers';
 import { LoadingScreen } from './src/screens';
 import { ToastProvider } from './src/components/ui';
 import { api } from './src/services';
@@ -112,9 +111,12 @@ export default function App() {
           });
 
           // Navigate to chat room when notification is tapped
-          navigationRef.current?.navigate('ChatRoom', {
-            roomId: data.roomId as string,
-            roomName: (data.roomName as string) || 'Chat Room',
+          navigationRef.current?.navigate('MainFlow', {
+            screen: 'ChatRoom',
+            params: {
+              roomId: data.roomId as string,
+              roomName: (data.roomName as string) || 'Chat Room',
+            },
           });
         }
       }
@@ -145,7 +147,6 @@ export default function App() {
                   <RoomStoreProvider>
                     <StatusBar style="dark" />
                     <RootNavigator />
-                    <GlobalDrawers />
                   </RoomStoreProvider>
                 </AdProvider>
               </UIProvider>

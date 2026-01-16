@@ -33,7 +33,7 @@ import {
 import { MAP_CONFIG, CATEGORIES } from '../../../constants';
 
 // Navigation
-import { RootStackParamList } from '../../../navigation/types';
+import { RootStackParamList, MainFlowStackParamList } from '../../../navigation/types';
 
 // Types
 import { Room, ClusterFeature, RoomCategory, serializeRoom, SerializedRoom } from '../../../types';
@@ -84,7 +84,7 @@ const log = createLogger('Discovery');
 // Types
 // =============================================================================
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+type NavigationProp = NativeStackNavigationProp<MainFlowStackParamList, 'Discovery'>;
 type ViewMode = 'map' | 'list';
 
 // =============================================================================
@@ -104,42 +104,25 @@ export default function DiscoveryScreen() {
 
     const insets = useSafeAreaInsets();
     const { width: screenWidth } = useWindowDimensions();
-
-    // Layout Constants
-    // Layout Constants
-    const TOGGLE_BOTTOM_MARGIN = 24;
-    const TOGGLE_HEIGHT = 52;
-    const CARD_GAP = 30; // 30px distance from toggle
-
-    // Ensure card doesn't touch side buttons (40px margin per side)
-    const emptyStateMaxWidth = Math.min(screenWidth - 80, 360);
-
-    const [isAdVisible, setIsAdVisible] = useState(false);
-
-    // Derived Layout Calculations (Simplified)
-    // Goal: Stack EmptyState exactly above ViewToggle
-    // Since these components now live in the flex-flow content area,
-    // their 'bottom' property is relative to the footer/ad banner automatically.
-    const toggleBottomPosition = TOGGLE_BOTTOM_MARGIN;
-    const emptyStateBottomPosition = toggleBottomPosition + TOGGLE_HEIGHT + CARD_GAP;
-
-    // ==========================================================================
-    // Auth Status & Logout Protection
-    // ==========================================================================
-
     const { status: authStatus } = useAuth();
-
-    // Trigger early preloading of interstitial ads
     useInterstitialAd();
 
-    // Preload interstitial ad so it's ready when user joins a room
-    // This ensures the ad is loaded before they navigate to RoomDetails
-    const { showAd: showInterstitialAd } = useInterstitialAd();
+    // ==========================================================================
+    // Layout & UI State
+    // ==========================================================================
 
-    // Global Filter State
-    const selectedCategory = useRoomStore(selectSelectedCategory);
+    const [isAdVisible, setIsAdVisible] = useState(false);
     const [showMapFilters, setShowMapFilters] = useState(false);
-    const [topContainerHeight, setTopContainerHeight] = useState(100);
+    const selectedCategory = useRoomStore(selectSelectedCategory);
+    const [topContainerHeight, setTopContainerHeight] = useState(120);
+
+    // Normalized bottom padding ensures consistent space even on older models
+    const normalizedBottomInset = insets.bottom > 0 ? insets.bottom : 16;
+
+    // UI elements are positioned relative to the content area (above footer)
+    const toggleBottomPosition = isAdVisible ? 12 : 24;
+    const emptyStateBottomPosition = isAdVisible ? 78 : 94;
+    const emptyStateMaxWidth = Math.min(screenWidth - 80, 420);
 
     const handleTopLayout = useCallback((e: any) => {
         const height = e.nativeEvent.layout.height;
@@ -149,7 +132,6 @@ export default function DiscoveryScreen() {
     }, []);
 
     // Convert 'All' to undefined for the API
-    // AND convert Label to ID because API expects ID (e.g. "LOST_FOUND") not Label ("Lost & Found")
     const categoryConfig = CATEGORIES.find(c => c.label === selectedCategory);
     const categoryFilter = selectedCategory === 'All' ? undefined : (categoryConfig?.id || selectedCategory);
 
@@ -764,7 +746,13 @@ export default function DiscoveryScreen() {
             {/* Ad Banner - Footer placement respects Safe Area and has dedicated space */}
             <View style={[
                 styles.adBannerContainer,
-                { paddingBottom: insets.bottom + 12 }
+                {
+                    paddingTop: 0,
+                    paddingBottom: normalizedBottomInset + 12,
+                    borderTopWidth: 1,
+                    borderTopColor: '#f3f4f6',
+                    backgroundColor: '#ffffff'
+                }
             ]}>
                 <AdBanner transparent={false} onVisibilityChange={setIsAdVisible} />
             </View>

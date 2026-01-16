@@ -143,8 +143,8 @@ const styles = StyleSheet.create({
         width: '100%',
         backgroundColor: 'transparent',
         alignItems: 'center',
-        paddingTop: 4,
-        paddingBottom: 4,
+        paddingTop: 6,
+        paddingBottom: 2,
     },
     adLabelContainer: {
         width: '100%',

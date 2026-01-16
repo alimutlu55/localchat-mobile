@@ -18,11 +18,15 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import { MessageCircle, Plus, Users, Clock, Crown } from 'lucide-react-native';
-import { RootStackParamList } from '../../navigation/types';
+import { RootStackParamList, MainFlowStackParamList } from '../../navigation/types';
 import { roomService } from '../../services';
 import { Room, serializeRoom } from '../../types';
+import { useMyRooms } from '../../features/rooms/hooks';
+import { createLogger } from '../../shared/utils/logger';
 
-type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
+const log = createLogger('RoomsScreen');
+
+type NavigationProp = NativeStackNavigationProp<MainFlowStackParamList, 'Rooms'>;
 
 export default function RoomsScreen() {
   const navigation = useNavigation<NavigationProp>();

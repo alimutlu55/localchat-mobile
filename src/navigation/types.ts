@@ -43,28 +43,55 @@ export type RootStackParamList = {
   // Auth flow
   Auth: NavigatorScreenParams<AuthStackParamList>;
   Main: NavigatorScreenParams<MainTabParamList>;
-  Discovery: undefined;
-  // Room screens support both new and legacy param patterns
-  ChatRoom: RoomNavParams;
-  RoomDetails: RoomNavParams;
-  RoomInfo: RoomNavParams & {
-    isCreator: boolean;
-    currentUserId?: string;
-    onCloseRoom?: () => void; // Legacy callback, consider migrating to EventBus
-    // Note: onCloseSuccess removed - using EventBus 'room.closeInitiated' event instead
-  };
+
+  // Main Flow (Discovery + Chat + Global Drawers)
+  MainFlow: NavigatorScreenParams<MainFlowStackParamList>;
+
+  // Modals & Sub-screens pushed on top of MainFlow
   CreateRoom: { initialLocation?: { latitude: number; longitude: number } };
   Settings: undefined;
   Profile: undefined;
   EditProfile: undefined;
   BlockedUsers: undefined;
   Onboarding: undefined;
-  List: undefined;
   Login: undefined;
   // About & Legal screens
   About: undefined;
   PrivacySettings: undefined;
+  // Profile drawer sub-screens (pushed on top of drawer)
+  LocationSettings: undefined;
+  LanguageSettings: undefined;
+  DataControls: undefined;
+  ReportProblem: undefined;
+
+  // Legacy/Direct access (React Navigation handles nested lookup)
+  Discovery: undefined;
+  ChatRoom: RoomNavParams;
+  RoomInfo: RoomNavParams & {
+    isCreator: boolean;
+    currentUserId?: string;
+    onCloseRoom?: () => void;
+  };
 };
+
+/**
+ * Main Flow Stack Params (Screens that host the Global Drawers)
+ */
+export type MainFlowStackParamList = {
+  Discovery: undefined;
+  ChatRoom: RoomNavParams;
+  RoomDetails: RoomNavParams;
+  CreateRoom: { initialLocation?: { latitude: number; longitude: number } };
+  RoomInfo: RoomNavParams & {
+    isCreator: boolean;
+    currentUserId?: string;
+    onCloseRoom?: () => void;
+  };
+  List: undefined;
+  Map: undefined;
+  Rooms: undefined;
+};
+
 
 
 /**
