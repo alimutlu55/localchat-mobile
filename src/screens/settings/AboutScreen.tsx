@@ -44,6 +44,7 @@ import { openTermsOfService, openPrivacyPolicy } from '../../shared/utils/legal'
 import { theme } from '../../core/theme';
 import { APP_VERSION } from '../../version';
 import { AppIcon } from '../../components/ui/AppIcon';
+import { getAppShareUrl, SHARE_CONFIG } from '../../constants';
 
 // App version info (synced with app.json)
 const BUILD_NUMBER = '1';
@@ -124,8 +125,12 @@ export default function AboutScreen() {
      */
     const handleShareApp = async () => {
         try {
+            const shareUrl = getAppShareUrl();
+            const storeUrl = Platform.OS === 'ios' ? SHARE_CONFIG.IOS_STORE_URL : SHARE_CONFIG.ANDROID_STORE_URL;
+
             await Share.share({
-                message: 'Check out BubbleUp - Connect with people nearby! https://bubbleup.app',
+                message: `Check out BubbleUp - Connect with people nearby!\n\nJoin us: ${shareUrl}`,
+                url: storeUrl,
                 title: 'BubbleUp',
             });
         } catch (error) {

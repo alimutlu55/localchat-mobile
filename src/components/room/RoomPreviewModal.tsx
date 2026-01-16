@@ -14,6 +14,7 @@ import {
     Modal,
     Dimensions,
     Share,
+    Platform,
 } from 'react-native';
 import {
     X,
@@ -25,6 +26,7 @@ import {
     Flag,
 } from 'lucide-react-native';
 import { Room } from '../../types';
+import { getRoomShareUrl, SHARE_CONFIG } from '../../constants';
 
 const { width } = Dimensions.get('window');
 
@@ -47,9 +49,12 @@ export function RoomPreviewModal({
 
     const handleShare = async () => {
         try {
+            const shareUrl = getRoomShareUrl(room.id);
+            const storeUrl = Platform.OS === 'ios' ? SHARE_CONFIG.IOS_STORE_URL : SHARE_CONFIG.ANDROID_STORE_URL;
+
             await Share.share({
-                message: `Check out "${room.title}" on BubbleUp! Nearby conversations happening now.`,
-                url: 'https://bubbleup.app',
+                message: `Check out "${room.title}" on BubbleUp!\n\n${shareUrl}`,
+                url: storeUrl,
             });
         } catch (error) {
             console.error('Error sharing room:', error);

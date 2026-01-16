@@ -3,6 +3,7 @@
     "name": "BubbleUp",
     "slug": "localchat-mobile",
     "version": "1.0.0",
+    "scheme": "bubbleup",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",

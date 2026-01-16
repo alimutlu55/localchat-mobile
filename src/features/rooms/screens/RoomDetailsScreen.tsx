@@ -36,9 +36,9 @@ import {
 import { RootStackParamList, MainFlowStackParamList } from '../../../navigation/types';
 import { roomService, ParticipantDTO, messageService } from '../../../services';
 import { eventBus } from '../../../core/events';
+import { CATEGORIES, getRoomShareUrl, SHARE_CONFIG } from '../../../constants';
 import { theme } from '../../../core/theme';
 import { ChatMessage, serializeRoom, deserializeRoom, Room } from '../../../types';
-import { CATEGORIES } from '../../../constants';
 import { useUserId } from '../../user/store';
 import { useRoom, useRoomOperations, useRoomMembership } from '../hooks';
 import { useUserLocation } from '../../discovery/hooks';
@@ -383,12 +383,16 @@ export default function RoomDetailsScreen() {
 
   const handleShare = async () => {
     try {
+      const shareUrl = getRoomShareUrl(roomId);
+      const storeUrl = Platform.OS === 'ios' ? SHARE_CONFIG.IOS_STORE_URL : SHARE_CONFIG.ANDROID_STORE_URL;
+
       await Share.share({
-        message: `Join "${room.title}" on BubbleUp!\nhttps://bubbleup.app/room/${roomId}`,
-        title: room.title,
+        title: room?.title,
+        message: `Join my local chat room "${room?.title}" on BubbleUp! Nearby rooms for local conversations.\n\n${shareUrl}`,
+        url: storeUrl,
       });
     } catch (error) {
-      // Share cancelled or error - ignore
+      console.error('Error sharing room:', error);
     }
   };
 

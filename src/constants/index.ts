@@ -242,6 +242,44 @@ export const CATEGORIES = [
 ] as const;
 
 /**
+ * Share Configuration
+ * Centralized settings for deep linking and sharing.
+ */
+export const SHARE_CONFIG = {
+  DOMAIN: 'https://bubbleupapp.com',
+  SCHEME: 'bubbleup://',
+  // Official App Store ID: 6757682265
+  IOS_STORE_URL: 'https://apps.apple.com/app/bubbleup-connect-nearby/id6757682265',
+  ANDROID_STORE_URL: 'https://play.google.com/store/apps/details?id=com.localchat.mobile',
+};
+
+
+/**
+ * Generate a shareable URL for a specific room
+ */
+export const getRoomShareUrl = (roomId: string): string => {
+  // We use query parameters because it's easier to handle redirection on a static website
+  // than using path-based routing (which requires server-side configuration).
+  return `${SHARE_CONFIG.DOMAIN}/?roomId=${roomId}`;
+};
+
+/**
+ * Generate a deep link for a specific room (internal app-to-app use)
+ */
+export const getRoomDeepLink = (roomId: string): string => {
+  return `${SHARE_CONFIG.SCHEME}room/${roomId}`;
+};
+
+/**
+ * Generate a shareable URL for the app itself
+ */
+export const getAppShareUrl = (): string => {
+  return SHARE_CONFIG.DOMAIN;
+};
+
+
+
+/**
  * Get emoji for a category ID with fallback
  */
 export function getCategoryEmoji(categoryId?: string): string {

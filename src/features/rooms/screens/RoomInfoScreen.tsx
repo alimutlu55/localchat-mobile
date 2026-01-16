@@ -14,6 +14,7 @@ import {
     ScrollView,
     Share,
     Alert,
+    Platform,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -33,7 +34,9 @@ import {
 } from 'lucide-react-native';
 import { RootStackParamList } from '../../../navigation/types';
 import { Room, deserializeRoom } from '../../../types';
-import { roomService, ParticipantDTO } from '../../../services';
+import { ParticipantDTO } from '../../../services'; // ParticipantDTO remains from here
+import { roomService } from '../../../services/room'; // roomService moves here
+import { getRoomShareUrl, SHARE_CONFIG } from '../../../constants'; // New imports
 import { ParticipantItem } from '../../../components/room';
 import { theme } from '../../../core/theme';
 import { eventBus } from '../../../core/events';
@@ -163,9 +166,12 @@ export default function RoomInfoScreen() {
 
     const handleShare = async () => {
         try {
+            const shareUrl = getRoomShareUrl(room.id);
+            const storeUrl = Platform.OS === 'ios' ? SHARE_CONFIG.IOS_STORE_URL : SHARE_CONFIG.ANDROID_STORE_URL;
+
             await Share.share({
-                message: `Join "${room?.title || 'this room'}" on BubbleUp! Nearby rooms for local conversations.`,
-                url: 'https://bubbleup.app',
+                message: `Join "${room.title}" on BubbleUp!\n\n${shareUrl}`,
+                url: storeUrl,
             });
         } catch (error) {
             console.error('Error sharing room:', error);

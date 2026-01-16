@@ -13,8 +13,10 @@ import {
     TouchableOpacity,
     ScrollView,
     Animated,
+    Linking,
     Share,
     Alert,
+    Platform,
     useWindowDimensions,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -39,6 +41,7 @@ import { roomService, ParticipantDTO } from '../../services';
 import { AvatarDisplay } from '../profile';
 import { BannedUsersModal, ParticipantItem } from '../room';
 import { formatTimeAgo } from '../../utils/format';
+import { getRoomShareUrl, SHARE_CONFIG } from '../../constants';
 
 interface RoomInfoDrawerProps {
     room: Room;
@@ -127,9 +130,12 @@ export function RoomInfoDrawer({
 
     const handleShare = async () => {
         try {
+            const shareUrl = getRoomShareUrl(room.id);
+            const storeUrl = Platform.OS === 'ios' ? SHARE_CONFIG.IOS_STORE_URL : SHARE_CONFIG.ANDROID_STORE_URL;
+
             await Share.share({
-                message: `Join "${room.title}" on BubbleUp! Nearby rooms for local conversations.`,
-                url: 'https://bubbleup.app', // Fallback URL
+                message: `Join "${room.title}" on BubbleUp! Nearby rooms for local conversations.\n\n${shareUrl}`,
+                url: storeUrl, // This provides the "Open" or "Get" functionality
             });
         } catch (error) {
             console.error('Error sharing room:', error);
