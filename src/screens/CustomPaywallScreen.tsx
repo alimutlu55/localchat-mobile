@@ -194,9 +194,9 @@ export function CustomPaywallScreen({ navigation }: CustomPaywallScreenProps) {
                     <Animated.View entering={FadeInDown.delay(200).duration(800)} style={styles.featuresSection}>
                         <View style={styles.featureRow}>
                             <FeatureItem
-                                icon={<Users size={20} color={tokens.brand.primary} />}
-                                title="No Limits"
-                                desc="Join & host with unlimited people"
+                                icon={<ShieldCheck size={20} color={tokens.brand.primary} />}
+                                title="Ad-Free"
+                                desc="Premium ad-free experience"
                             />
                             <FeatureItem
                                 icon={<Clock size={20} color={tokens.brand.primary} />}
@@ -211,9 +211,9 @@ export function CustomPaywallScreen({ navigation }: CustomPaywallScreenProps) {
                                 desc="Create up to 20 rooms per day"
                             />
                             <FeatureItem
-                                icon={<ShieldCheck size={20} color={tokens.brand.primary} />}
-                                title="Ad-Free"
-                                desc="Premium ad-free experience"
+                                icon={<Users size={20} color={tokens.brand.primary} />}
+                                title="No Limits"
+                                desc="Join & host with unlimited people"
                             />
                         </View>
                     </Animated.View>
