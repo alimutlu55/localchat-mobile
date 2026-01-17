@@ -54,9 +54,6 @@ export type RootStackParamList = {
   BlockedUsers: undefined;
   Onboarding: undefined;
   Login: undefined;
-  // About & Legal screens
-  About: undefined;
-  PrivacySettings: undefined;
   // Profile drawer sub-screens (pushed on top of drawer)
   LocationSettings: undefined;
   LanguageSettings: undefined;

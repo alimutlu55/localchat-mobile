@@ -15,7 +15,7 @@ export function useRoomQuota() {
     const setQuota = useRoomStore((s) => s.setQuota);
     const isLoading = useRoomStore((s) => s.isLoading);
     const setLoading = useRoomStore((s) => s.setLoading);
-    const { isPro, hasEntitlement } = useMembership();
+    const { isPro, hasEntitlement, limits } = useMembership();
 
     const fetchQuota = useCallback(async () => {
         try {
@@ -40,7 +40,7 @@ export function useRoomQuota() {
     }, [quota, fetchQuota]);
 
     const effectiveLimit = hasEntitlement('INCREASED_QUOTA')
-        ? ROOM_CONFIG.PRO_LIMITS.DAILY_ROOMS
+        ? limits.dailyRoomLimit
         : (quota?.limit ?? 3);
 
     return {

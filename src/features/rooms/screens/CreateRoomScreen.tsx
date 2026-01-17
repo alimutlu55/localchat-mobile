@@ -665,10 +665,11 @@ const styles = StyleSheet.create({
   },
   durationRow: {
     flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: 10,
   },
   durationButton: {
-    flex: 1,
+    width: (width - 40 - 20) / 3, // Subtracting 40 for horizontal padding and 20 for gaps
   },
   durationGradient: {
     height: 48,

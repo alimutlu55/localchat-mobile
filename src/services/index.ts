@@ -15,6 +15,8 @@ export { settingsService } from './settings';
 export { onboardingService } from './onboarding';
 export { notificationService } from './notifications';
 export { consentService } from './consent';
+export { subscriptionApi } from './subscriptionApi';
+export { revenueCatService } from './revenueCat';
 
 // Re-export constants
 export { STORAGE_KEYS, WS_EVENTS } from '../constants';

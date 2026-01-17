@@ -2,6 +2,7 @@ import Purchases, { CustomerInfo, PurchasesOffering, PurchasesPackage, LOG_LEVEL
 import RevenueCatUI, { PAYWALL_RESULT } from 'react-native-purchases-ui';
 import { Platform, Alert } from 'react-native';
 import { createLogger } from '../shared/utils/logger';
+import { subscriptionApi } from './subscriptionApi';
 
 const log = createLogger('RevenueCatService');
 
@@ -62,6 +63,8 @@ class RevenueCatService {
                     return false;
                 case PAYWALL_RESULT.PURCHASED:
                 case PAYWALL_RESULT.RESTORED:
+                    // Sync with backend after successful purchase/restore
+                    await this.syncWithBackend();
                     return true;
                 default:
                     return false;
@@ -150,10 +153,15 @@ class RevenueCatService {
             // Check if it's a mock package
             if (pack.product.identifier.startsWith('mock_')) {
                 log.info('Simulating purchase for mock product');
-                return this.getMockCustomerInfo();
+                const mockInfo = this.getMockCustomerInfo();
+                // Sync mock purchase with backend
+                await this.syncWithBackend();
+                return mockInfo;
             }
 
             const { customerInfo } = await Purchases.purchasePackage(pack);
+            // Sync with backend after successful purchase
+            await this.syncWithBackend();
             return customerInfo;
         } catch (error: any) {
             if (!error.userCancelled) {
@@ -170,9 +178,14 @@ class RevenueCatService {
         try {
             if (__DEV__) {
                 log.info('Simulating restore for development');
-                return this.getMockCustomerInfo();
+                const mockInfo = this.getMockCustomerInfo();
+                // Sync mock restore with backend
+                await this.syncWithBackend();
+                return mockInfo;
             }
             const customerInfo = await Purchases.restorePurchases();
+            // Sync with backend after successful restore
+            await this.syncWithBackend();
             return customerInfo;
         } catch (error) {
             log.error('Restore failed', error);
@@ -199,6 +212,20 @@ class RevenueCatService {
         if (!customerInfo) return false;
         // Check strict entitlement
         return typeof customerInfo.entitlements.active[ENTITLEMENT_ID] !== 'undefined';
+    }
+
+    /**
+     * Private helper to sync RevenueCat status with our backend
+     */
+    private async syncWithBackend() {
+        try {
+            const customerInfo = await this.getCustomerInfo();
+            if (customerInfo) {
+                await subscriptionApi.syncToBackend(customerInfo);
+            }
+        } catch (error) {
+            log.error('Auto-sync with backend failed', error);
+        }
     }
 
     // --- Mocks for Development ---

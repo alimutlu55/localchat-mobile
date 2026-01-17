@@ -23,6 +23,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'react-native';
 import { User } from '../../../types';
 import { createLogger } from '../../../shared/utils/logger';
+import { SubscriptionLimits, FREE_LIMITS } from '../../../types/subscription';
 
 const log = createLogger('UserStore');
 
@@ -110,6 +111,11 @@ export interface UserStoreState {
    * Membership status - Unlock Pro features
    */
   isPro: boolean;
+
+  /**
+   * Feature limits based on subscription tier
+   */
+  subscriptionLimits: SubscriptionLimits;
 }
 
 export interface UserStoreActions {
@@ -213,6 +219,11 @@ export interface UserStoreActions {
    * Set membership status
    */
   setIsPro: (isPro: boolean) => void;
+
+  /**
+   * Set subscription limits
+   */
+  setSubscriptionLimits: (limits: UserStoreState['subscriptionLimits']) => void;
 }
 
 export type UserStore = UserStoreState & UserStoreActions;
@@ -254,6 +265,7 @@ const initialState: UserStoreState = {
   isUpdating: false,
   lastSyncAt: null,
   isPro: false,
+  subscriptionLimits: FREE_LIMITS,
 };
 
 // Avatar cache max age (1 hour)
@@ -513,6 +525,11 @@ export const useUserStore = create<UserStore>()(
           log.info('Updating membership status', { isPro });
           set({ isPro });
         },
+
+        setSubscriptionLimits: (limits: UserStoreState['subscriptionLimits']) => {
+          log.debug('Updating subscription limits', limits);
+          set({ subscriptionLimits: limits });
+        },
       }),
       {
         name: 'localchat-user-store',
@@ -521,6 +538,7 @@ export const useUserStore = create<UserStore>()(
         partialize: (state) => ({
           preferences: state.preferences,
           isPro: state.isPro,
+          subscriptionLimits: state.subscriptionLimits,
         }),
       }
     )

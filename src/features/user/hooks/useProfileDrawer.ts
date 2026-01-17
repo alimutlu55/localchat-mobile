@@ -204,9 +204,6 @@ interface UseProfileDrawerReturn {
 
   /** Navigate to manage subscription screen */
   handleManageSubscription: () => void;
-
-  /** Navigate to about screen */
-  handleAbout: () => void;
 }
 
 export function useProfileDrawer(): UseProfileDrawerReturn {
@@ -394,13 +391,6 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
   const handleReportProblem = useCallback(
     () => {
       navigation.navigate('ReportProblem');
-    },
-    [navigation]
-  );
-
-  const handleAbout = useCallback(
-    () => {
-      navigation.navigate('About');
     },
     [navigation]
   );
@@ -724,7 +714,6 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
     handleReportProblem,
     handleSubscription,
     handleManageSubscription,
-    handleAbout,
   };
 }
 

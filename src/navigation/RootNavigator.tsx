@@ -25,8 +25,6 @@ import {
 } from '../screens';
 
 import {
-    AboutScreen,
-    PrivacySettingsScreen,
     LocationSettingsScreen,
     LanguageSettingsScreen,
     DataControlsScreen,
@@ -113,8 +111,6 @@ export function RootNavigator() {
                             }}
                         />
                         <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-                        <Stack.Screen name="About" component={AboutScreen} />
-                        <Stack.Screen name="PrivacySettings" component={PrivacySettingsScreen} />
                         <Stack.Screen
                             name="ConsentPreferences"
                             component={ConsentPreferencesScreen}

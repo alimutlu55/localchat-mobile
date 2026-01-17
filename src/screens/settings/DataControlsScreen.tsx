@@ -93,6 +93,34 @@ export default function DataControlsScreen() {
         );
     }, []);
 
+    const handleClearCache = useCallback(async () => {
+        Alert.alert(
+            'Clear App Cache',
+            'This will clear all locally cached messages, rooms, and preferences. Your account and created rooms will NOT be affected and will sync back from the server.',
+            [
+                { text: 'Cancel', style: 'cancel' },
+                {
+                    text: 'Clear Cache',
+                    style: 'destructive',
+                    onPress: async () => {
+                        try {
+                            await storage.clear();
+                            Alert.alert(
+                                'Cache Cleared',
+                                'App data has been cleared. The app will now restart to apply changes.',
+                                [{ text: 'OK', onPress: () => { /* Restarting logic would go here if needed */ } }]
+                            );
+                            log.info('User cleared local app cache');
+                        } catch (error) {
+                            log.error('Failed to clear cache', { error });
+                            Alert.alert('Error', 'Failed to clear cache. Please try again.');
+                        }
+                    },
+                },
+            ]
+        );
+    }, []);
+
     const handleDeleteAccount = useCallback(async () => {
         Alert.alert(
             'Delete Account',
@@ -157,6 +185,22 @@ export default function DataControlsScreen() {
                     <Text style={styles.infoText}>
                         These actions are permanent and cannot be undone. Please proceed with caution.
                     </Text>
+                </View>
+
+                {/* Clear Cache Section */}
+                <View style={[styles.section, styles.cacheSection]}>
+                    <Text style={[styles.sectionTitle, styles.cacheTitle]}>Clear App Cache</Text>
+                    <Text style={[styles.sectionDescription, styles.cacheDescription]}>
+                        Remove all locally stored data. This can help if the app is behaving unexpectedly.
+                    </Text>
+                    <TouchableOpacity
+                        style={styles.cacheButton}
+                        onPress={handleClearCache}
+                        disabled={isDeletingRooms || isDeletingAccount}
+                    >
+                        <Trash2 size={18} color={theme.tokens.text.primary} />
+                        <Text style={styles.cacheButtonText}>Clear Cache</Text>
+                    </TouchableOpacity>
                 </View>
 
                 {/* Delete Rooms Section */}
@@ -322,5 +366,31 @@ const styles = StyleSheet.create({
         fontSize: 14,
         color: theme.tokens.text.secondary,
         lineHeight: 20,
+    },
+    cacheSection: {
+        backgroundColor: theme.tokens.bg.subtle,
+    },
+    cacheTitle: {
+        color: theme.tokens.text.primary,
+    },
+    cacheDescription: {
+        color: theme.tokens.text.secondary,
+    },
+    cacheButton: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: theme.tokens.bg.surface,
+        borderWidth: 1,
+        borderColor: theme.tokens.border.subtle,
+        borderRadius: 12,
+        paddingVertical: 12,
+        paddingHorizontal: 20,
+        gap: 8,
+    },
+    cacheButtonText: {
+        fontSize: 15,
+        fontWeight: '600',
+        color: theme.tokens.text.primary,
     },
 });
