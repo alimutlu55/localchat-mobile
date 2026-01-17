@@ -66,7 +66,13 @@ export default function WelcomeScreen() {
       const { user, isNewUser } = await tryRestoreAnonymousSession();
 
       if (!isNewUser && user) {
-        // Success! User is restored and RootNavigator will take them to the app
+        // Success! User is restored.
+        // If we are already in the App Flow (RegistrationAuth screen), 
+        // we need to explicitly navigate away as RootNavigator won't switch branches.
+        navigation.getParent()?.reset({
+          index: 0,
+          routes: [{ name: 'MainFlow' as any }],
+        });
         return;
       }
 
@@ -129,11 +135,23 @@ export default function WelcomeScreen() {
           </TouchableOpacity>
 
           <GoogleSignInButton
+            onSuccess={() => {
+              navigation.getParent()?.reset({
+                index: 0,
+                routes: [{ name: 'MainFlow' as any }],
+              });
+            }}
             onError={(error: string) => console.error('Google sign-in error:', error)}
             disabled={authLoading}
           />
 
           <AppleSignInButton
+            onSuccess={() => {
+              navigation.getParent()?.reset({
+                index: 0,
+                routes: [{ name: 'MainFlow' as any }],
+              });
+            }}
             onError={(error: string) => console.error('Apple sign-in error:', error)}
             disabled={authLoading}
           />

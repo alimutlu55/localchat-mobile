@@ -84,6 +84,13 @@ export default function RegisterScreen() {
     try {
       await register(email.trim(), password, displayName.trim());
       await onboardingService.markDeviceOnboarded();
+
+      // Explicitly reset to MainFlow to ensure we exit the auth stack
+      // (Required when navigating from RegistrationAuth in the App Flow)
+      navigation.getParent()?.reset({
+        index: 0,
+        routes: [{ name: 'MainFlow' as any }],
+      });
     } catch (err) {
       // Error handled by useAuth
     }

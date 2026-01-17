@@ -79,6 +79,13 @@ export default function LoginScreen() {
       await login(email.trim(), password);
       // Mark device as onboarded
       await onboardingService.markDeviceOnboarded();
+
+      // Explicitly reset to MainFlow to ensure we exit the auth stack
+      // (Required when navigating from RegistrationAuth in the App Flow)
+      navigation.getParent()?.reset({
+        index: 0,
+        routes: [{ name: 'MainFlow' as any }],
+      });
     } catch (err) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       shakeForm();

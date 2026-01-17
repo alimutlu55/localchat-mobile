@@ -42,6 +42,7 @@ export type RootStackParamList = {
   ConsentPreferences: undefined;
   // Auth flow
   Auth: NavigatorScreenParams<AuthStackParamList>;
+  RegistrationAuth: NavigatorScreenParams<AuthStackParamList>;
   Main: NavigatorScreenParams<MainTabParamList>;
 
   // Main Flow (Discovery + Chat + Global Drawers)

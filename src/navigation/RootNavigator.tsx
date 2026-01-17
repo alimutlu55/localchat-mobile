@@ -170,6 +170,13 @@ export function RootNavigator() {
                                 animation: 'slide_from_bottom',
                             }}
                         />
+
+                        {/* Allow navigation back to RegistrationAuth for anonymous user registration */}
+                        <Stack.Screen
+                            name="RegistrationAuth"
+                            component={AuthNavigator}
+                            options={{ animation: 'slide_from_right' }}
+                        />
                     </>
                 )}
             </Stack.Navigator>

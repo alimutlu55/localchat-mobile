@@ -17,8 +17,10 @@ import { LinearGradient } from 'expo-linear-gradient';
 import Animated, { FadeIn, FadeInDown, Layout } from 'react-native-reanimated';
 import { revenueCatService } from '../services/revenueCat';
 import { tokens } from '../core/theme/tokens';
-import { createLogger } from '../shared/utils/logger';
+import { createLogger } from '@/shared/utils/logger';
 import { SHARE_CONFIG } from '../constants';
+import { useUserStore, selectIsAnonymous } from '@/features/user/store/UserStore';
+import { useAuth } from '@/features/auth';
 
 const { width } = Dimensions.get('window');
 const log = createLogger('CustomPaywallScreen');
@@ -32,6 +34,8 @@ export function CustomPaywallScreen({ navigation }: CustomPaywallScreenProps) {
     const [selectedPackage, setSelectedPackage] = useState<PurchasesPackage | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isPurchasing, setIsPurchasing] = useState(false);
+    const isAnonymous = useUserStore(selectIsAnonymous);
+    const { logout } = useAuth();
 
     useEffect(() => {
         loadOfferings();
@@ -55,6 +59,13 @@ export function CustomPaywallScreen({ navigation }: CustomPaywallScreenProps) {
     };
 
     const handlePurchase = async () => {
+        if (isAnonymous) {
+            // Force logout and return to Welcome screen for full registration options
+            // This clears the anonymous session completely
+            await logout();
+            return;
+        }
+
         if (!selectedPackage) return;
 
         setIsPurchasing(true);
@@ -188,6 +199,14 @@ export function CustomPaywallScreen({ navigation }: CustomPaywallScreenProps) {
                             </LinearGradient>
                         </View>
                         <Text style={styles.heroTitle}>BubbleUp Pro</Text>
+                        {isAnonymous && (
+                            <Animated.Text
+                                entering={FadeIn.delay(300)}
+                                style={styles.heroSubtitle}
+                            >
+                                A permanent account is required to ensure your subscription is protected and recoverable.
+                            </Animated.Text>
+                        )}
                     </Animated.View>
 
                     {/* Features Grid */}
@@ -304,7 +323,9 @@ export function CustomPaywallScreen({ navigation }: CustomPaywallScreenProps) {
                                 <ActivityIndicator color="#fff" />
                             ) : (
                                 <View style={styles.ctaInner}>
-                                    <Text style={styles.ctaText}>Continue</Text>
+                                    <Text style={styles.ctaText}>
+                                        {isAnonymous ? 'Create Account to Upgrade' : 'Continue'}
+                                    </Text>
                                 </View>
                             )}
                         </LinearGradient>
