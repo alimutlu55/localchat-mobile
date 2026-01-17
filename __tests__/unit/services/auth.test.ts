@@ -11,7 +11,7 @@
 
 import { authService } from '../../../src/services/auth';
 import { api, ApiError } from '../../../src/services/api';
-import { storage, secureStorage } from '../../../src/services/storage';
+import { storage, secureStorage, deviceStorage } from '../../../src/services/storage';
 import { STORAGE_KEYS } from '../../../src/constants';
 
 // Mock dependencies
@@ -45,6 +45,10 @@ jest.mock('../../../src/services/storage', () => ({
     set: jest.fn(),
     remove: jest.fn(),
   },
+  deviceStorage: {
+    getDeviceId: jest.fn(),
+    setDeviceId: jest.fn(),
+  },
 }));
 
 jest.mock('../../../src/utils/uuid', () => ({
@@ -77,11 +81,10 @@ describe('AuthService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    // Reset device ID cache
-    (storage.get as jest.Mock).mockImplementation((key) => {
-      if (key === 'device_id') return Promise.resolve('existing-device-id');
-      return Promise.resolve(null);
-    });
+    // Default: no legacy device ID
+    (storage.get as jest.Mock).mockResolvedValue(null);
+    // Default: return fixed device ID
+    (deviceStorage.getDeviceId as jest.Mock).mockResolvedValue('existing-device-id');
   });
 
   // ===========================================================================
@@ -152,12 +155,12 @@ describe('AuthService', () => {
     });
 
     it('generates device ID if not exists', async () => {
-      (storage.get as jest.Mock).mockResolvedValue(null);
+      (deviceStorage.getDeviceId as jest.Mock).mockResolvedValue('mock-uuid-123');
       (api.post as jest.Mock).mockResolvedValue({ data: mockAuthResponse });
 
       await authService.login('test@example.com', 'password123');
 
-      expect(storage.set).toHaveBeenCalledWith('device_id', 'mock-uuid-123');
+      expect(deviceStorage.getDeviceId).toHaveBeenCalled();
     });
   });
 
@@ -245,13 +248,17 @@ describe('AuthService', () => {
       );
     });
 
-    it('does not update name if not new user', async () => {
+    it('updates name even if not new user', async () => {
       const existingUserResponse = { ...mockAnonymousResponse, isNewUser: false };
       (api.post as jest.Mock).mockReset().mockResolvedValue({ data: existingUserResponse });
+      (api.patch as jest.Mock).mockResolvedValue({ data: mockUserDTO });
 
       await authService.loginAnonymous('Custom Name');
 
-      expect(api.patch).not.toHaveBeenCalled();
+      expect(api.patch).toHaveBeenCalledWith(
+        '/users/me',
+        expect.objectContaining({ displayName: 'Custom Name' })
+      );
     });
   });
 

@@ -55,6 +55,8 @@ jest.mock('../../../../../src/features/user/store/UserStore', () => {
     setUser: jest.fn((user) => { mockCurrentUser = user; }),
     clearUser: jest.fn(() => { mockCurrentUser = null; }),
     get currentUser() { return mockCurrentUser; },
+    setIsPro: jest.fn(),
+    setSubscriptionLimits: jest.fn(),
   };
   const mockStore = Object.assign(
     jest.fn(() => mockState),

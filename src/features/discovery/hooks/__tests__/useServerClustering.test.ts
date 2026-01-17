@@ -30,7 +30,7 @@ jest.mock('../../../../features/rooms/store', () => {
         removePendingRoom: jest.fn(),
     };
 
-    const mockStore = (selector: any) => selector(mockState);
+    const mockStore = (selector: any) => selector ? selector(mockState) : mockState;
     mockStore.getState = () => mockState;
 
     return {

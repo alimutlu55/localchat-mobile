@@ -86,7 +86,7 @@ describe('CategoryChips', () => {
     it('renders global emoji for "All" option', () => {
       const { getByText } = render(<CategoryChips {...defaultProps} />);
 
-      expect(getByText('🌐')).toBeTruthy();
+      expect(getByText('👥')).toBeTruthy();
     });
   });
 

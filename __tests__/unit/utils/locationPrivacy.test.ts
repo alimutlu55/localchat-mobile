@@ -131,7 +131,7 @@ describe('locationPrivacy', () => {
 
       // Run multiple times
       for (let i = 0; i < 50; i++) {
-        const result = randomizeForRoomCreation(centerLat, centerLng, roomRadius);
+        const result = randomizeForRoomCreation(centerLat, centerLng);
 
         // Calculate distance
         const dLat = result.lat - centerLat;
@@ -150,7 +150,7 @@ describe('locationPrivacy', () => {
     });
 
     it('returns valid coordinates', () => {
-      const result = randomizeForRoomCreation(37.7749, -122.4194, 500);
+      const result = randomizeForRoomCreation(37.7749, -122.4194);
 
       expect(typeof result.lat).toBe('number');
       expect(typeof result.lng).toBe('number');
@@ -158,16 +158,14 @@ describe('locationPrivacy', () => {
       expect(Number.isFinite(result.lng)).toBe(true);
     });
 
-    it('produces different results for same input', () => {
-      const results = new Set<string>();
+    it('produces deterministic results for same input', () => {
+      const lat = 40.7128;
+      const lng = -74.0060;
 
-      for (let i = 0; i < 10; i++) {
-        const result = randomizeForRoomCreation(37.7749, -122.4194, 1000);
-        results.add(`${result.lat.toFixed(6)},${result.lng.toFixed(6)}`);
-      }
+      const res1 = randomizeForRoomCreation(lat, lng);
+      const res2 = randomizeForRoomCreation(lat, lng);
 
-      // Should have more than 1 unique result
-      expect(results.size).toBeGreaterThan(1);
+      expect(res1).toEqual(res2);
     });
   });
 
@@ -200,7 +198,7 @@ describe('locationPrivacy', () => {
 
       // Both functions should return valid coordinates
       const directResult = randomizeLocation(lat, lng, radius);
-      const creationResult = randomizeForRoomCreation(lat, lng, radius);
+      const creationResult = randomizeForRoomCreation(lat, lng);
 
       expect(Number.isFinite(directResult.lat)).toBe(true);
       expect(Number.isFinite(directResult.lng)).toBe(true);

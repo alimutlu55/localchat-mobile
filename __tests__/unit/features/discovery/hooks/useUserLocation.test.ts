@@ -16,6 +16,7 @@ import * as Location from 'expo-location';
 // Mock expo-location
 jest.mock('expo-location', () => ({
   requestForegroundPermissionsAsync: jest.fn(),
+  getForegroundPermissionsAsync: jest.fn(),
   getCurrentPositionAsync: jest.fn(),
   watchPositionAsync: jest.fn(),
   Accuracy: {
@@ -33,7 +34,16 @@ jest.mock('../../../../../src/shared/utils/logger', () => ({
   }),
 }));
 
+// Mock LocationPermissionStore
+jest.mock('../../../../../src/shared/stores/LocationConsentStore', () => ({
+  useLocationPermission: jest.fn(),
+  useLocationPermissionStore: {
+    getState: () => ({ reset: jest.fn() }),
+  },
+}));
+
 import { useUserLocation } from '../../../../../src/features/discovery/hooks/useUserLocation';
+import { useLocationPermission } from '../../../../../src/shared/stores/LocationConsentStore';
 
 describe('useUserLocation', () => {
   const mockLocation = {
@@ -47,15 +57,18 @@ describe('useUserLocation', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    
+
     // Default: permission granted
-    (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
-      status: 'granted',
+    (useLocationPermission as jest.Mock).mockReturnValue({
+      isGranted: true,
+      isChecked: true,
+      checkPermission: jest.fn().mockResolvedValue(true),
+      requestPermission: jest.fn().mockResolvedValue(true),
     });
-    
+
     // Default: location available
     (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue(mockLocation);
-    
+
     // Default: watch returns subscription
     (Location.watchPositionAsync as jest.Mock).mockResolvedValue({
       remove: mockRemove,
@@ -81,10 +94,17 @@ describe('useUserLocation', () => {
     });
 
     it('requests permission on mount', async () => {
+      const checkPermission = jest.fn().mockResolvedValue(true);
+      (useLocationPermission as jest.Mock).mockReturnValue({
+        isGranted: true,
+        isChecked: true,
+        checkPermission,
+      });
+
       renderHook(() => useUserLocation());
 
       await waitFor(() => {
-        expect(Location.requestForegroundPermissionsAsync).toHaveBeenCalled();
+        expect(checkPermission).toHaveBeenCalled();
       });
     });
 
@@ -113,8 +133,11 @@ describe('useUserLocation', () => {
 
   describe('Permission Handling', () => {
     it('sets permissionDenied when permission not granted', async () => {
-      (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
-        status: 'denied',
+      const checkPermission = jest.fn().mockResolvedValue(false);
+      (useLocationPermission as jest.Mock).mockReturnValue({
+        isGranted: false,
+        isChecked: true,
+        checkPermission,
       });
 
       const { result } = renderHook(() => useUserLocation());
@@ -124,18 +147,21 @@ describe('useUserLocation', () => {
       });
 
       expect(result.current.permissionDenied).toBe(true);
-      expect(result.current.error).toBe('Location permission denied');
+      expect(result.current.error).toBe('Location permission not granted');
     });
 
     it('does not fetch location when permission denied', async () => {
-      (Location.requestForegroundPermissionsAsync as jest.Mock).mockResolvedValue({
-        status: 'denied',
+      const checkPermission = jest.fn().mockResolvedValue(false);
+      (useLocationPermission as jest.Mock).mockReturnValue({
+        isGranted: false,
+        isChecked: true,
+        checkPermission,
       });
 
       renderHook(() => useUserLocation());
 
       await waitFor(() => {
-        expect(Location.requestForegroundPermissionsAsync).toHaveBeenCalled();
+        expect(checkPermission).toHaveBeenCalled();
       });
 
       expect(Location.getCurrentPositionAsync).not.toHaveBeenCalled();
@@ -248,7 +274,7 @@ describe('useUserLocation', () => {
       });
 
       jest.clearAllMocks();
-      
+
       // Update mock to return different location
       (Location.getCurrentPositionAsync as jest.Mock).mockResolvedValue({
         coords: { latitude: 40.0, longitude: -74.0 },

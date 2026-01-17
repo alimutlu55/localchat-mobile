@@ -26,6 +26,7 @@ jest.mock('expo-notifications', () => ({
 }));
 
 // Mock lucide-react-native icons
+// Mock lucide-react-native icons
 jest.mock('lucide-react-native', () => {
     const React = require('react');
     const { View } = require('react-native');
@@ -36,9 +37,22 @@ jest.mock('lucide-react-native', () => {
         return MockIcon;
     };
 
-    return new Proxy({}, {
-        get: (_, iconName) => createMockIcon(iconName),
-    });
+    // Use a proxy to handle any icon name import
+    const text = new Proxy(
+        { __esModule: true },
+        {
+            get: (target, prop) => {
+                if (prop === '__esModule') return true;
+                if (prop === 'default') return target;
+                if (typeof prop === 'string') {
+                    return createMockIcon(prop);
+                }
+                return Reflect.get(target, prop);
+            },
+        }
+    );
+
+    return text;
 });
 
 // Mock expo-haptics
@@ -141,4 +155,190 @@ afterEach(() => {
 // Ensure all timers are cleaned up after all tests
 afterAll(() => {
     jest.useRealTimers();
+});
+
+// Mock react-native-purchases
+jest.mock('react-native-purchases', () => ({
+    __esModule: true,
+    default: {
+        configure: jest.fn(),
+        setLogLevel: jest.fn(),
+        logIn: jest.fn(),
+        logOut: jest.fn(),
+        getAppUserID: jest.fn(),
+        getCustomerInfo: jest.fn(),
+        restorePurchases: jest.fn(),
+        purchasePackage: jest.fn(),
+        getOfferings: jest.fn(),
+    },
+    LOG_LEVEL: {
+        DEBUG: 0,
+        INFO: 1,
+        WARN: 2,
+        ERROR: 3,
+        VERBOSE: 4,
+    },
+}));
+
+// Mock react-native-purchases-ui
+jest.mock('react-native-purchases-ui', () => ({
+    __esModule: true,
+    default: {
+        presentPaywall: jest.fn(),
+        presentCustomerCenter: jest.fn(),
+    },
+    PAYWALL_RESULT: {
+        NOT_PRESENTED: 'NOT_PRESENTED',
+        ERROR: 'ERROR',
+        CANCELLED: 'CANCELLED',
+        PURCHASED: 'PURCHASED',
+        RESTORED: 'RESTORED',
+    },
+}));
+
+// Mock EventEmitter for NativeEventEmitter
+jest.mock('react-native/Libraries/EventEmitter/NativeEventEmitter', () => {
+    const { EventEmitter } = require('events');
+    return EventEmitter;
+});
+
+// Mock expo-constants
+jest.mock('expo-constants', () => ({
+    __esModule: true,
+    default: {
+        expoConfig: {
+            version: '1.0.0',
+            extra: {
+                eas: {
+                    projectId: 'mock-project-id',
+                },
+            },
+        },
+    },
+}));
+
+// Mock Keyboard
+jest.mock('react-native/Libraries/Components/Keyboard/Keyboard', () => ({
+    addListener: jest.fn(() => ({ remove: jest.fn() })),
+    removeListener: jest.fn(),
+    removeAllListeners: jest.fn(),
+    dismiss: jest.fn(),
+    isVisible: jest.fn().mockReturnValue(false),
+}));
+
+// Mock expo-web-browser
+jest.mock('expo-web-browser', () => ({
+    openBrowserAsync: jest.fn().mockResolvedValue({ type: 'opened' }),
+    WebBrowserPresentationStyle: {
+        PAGE_SHEET: 'pageSheet',
+    },
+}));
+
+// Mock react-native-google-mobile-ads
+jest.mock('react-native-google-mobile-ads', () => ({
+    BannerAd: jest.fn(({ unitId, size, requestOptions, onAdLoaded, onAdFailedToLoad }) => {
+        // Simulate ad loading behavior if needed, or just render a View
+        const React = require('react');
+        const { View } = require('react-native');
+        return React.createElement(View, { testID: 'mock-banner-ad', unitId, size });
+    }),
+    BannerAdSize: {
+        ANCHORED_ADAPTIVE_BANNER: 'ANCHORED_ADAPTIVE_BANNER',
+        FULL_BANNER: 'FULL_BANNER',
+    },
+    TestIds: {
+        BANNER: 'ca-app-pub-3940256099942544/6300978111',
+    },
+    useForeground: jest.fn(),
+    AdEventType: {
+        LOADED: 'LOADED',
+        ERROR: 'ERROR',
+    },
+}));
+
+// Mock @react-navigation/native
+jest.mock('@react-navigation/native', () => {
+    return {
+        NavigationContainer: ({ children }) => children,
+        useNavigation: () => ({
+            navigate: jest.fn(),
+            goBack: jest.fn(),
+            dispatch: jest.fn(),
+        }),
+        useRoute: () => ({ params: {} }),
+        createNavigationContainerRef: jest.fn(),
+    };
+});
+
+// Mock @maplibre/maplibre-react-native
+jest.mock('@maplibre/maplibre-react-native', () => {
+    const React = require('react');
+    const { View } = require('react-native');
+
+    return {
+        MapView: (props) => React.createElement(View, { testID: 'map-view', ...props }, props.children),
+        Camera: (props) => React.createElement(View, { testID: 'map-camera', ...props }),
+        ShapeSource: (props) => React.createElement(View, { testID: 'shape-source', ...props }, props.children),
+        CircleLayer: (props) => React.createElement(View, { testID: 'circle-layer', ...props }),
+        FillLayer: (props) => React.createElement(View, { testID: 'fill-layer', ...props }),
+        LineLayer: (props) => React.createElement(View, { testID: 'line-layer', ...props }),
+        SymbolLayer: (props) => React.createElement(View, { testID: 'symbol-layer', ...props }),
+        Images: (props) => React.createElement(View, { testID: 'images', ...props }),
+        ImageSource: ({ children }) => React.createElement(View, { testID: 'image-source' }, children),
+        VectorSource: (props) => React.createElement(View, { testID: 'vector-source', ...props }),
+        PointAnnotation: ({ children, ...props }) => React.createElement(View, { testID: 'point-annotation', ...props }, children),
+        Callout: ({ children }) => React.createElement(View, { testID: 'callout' }, children),
+        UserLocation: () => null,
+        setAccessToken: jest.fn(),
+        LocationPuck: () => null,
+        StyleURL: {
+            Street: 'mapbox://styles/mapbox/streets-v11',
+            Dark: 'mapbox://styles/mapbox/dark-v10',
+            Light: 'mapbox://styles/mapbox/light-v10',
+        },
+    };
+});
+
+// Mock supercluster
+jest.mock('supercluster', () => {
+    return class MockSupercluster {
+        load() { }
+        getClusters() { return []; }
+        getLeaves() { return []; }
+        getTile() { return null; }
+        getClusterExpansionZoom() { return 0; }
+    };
+});
+
+// Mock @gorhom/bottom-sheet
+jest.mock('@gorhom/bottom-sheet', () => {
+    const React = require('react');
+    const { View } = require('react-native');
+    const BottomSheet = React.forwardRef(({ children, ...props }, ref) => {
+        return React.createElement(View, { testID: 'bottom-sheet', ...props }, children);
+    });
+    return {
+        __esModule: true,
+        default: BottomSheet,
+        BottomSheetScrollView: React.forwardRef(({ children, ...props }, ref) => {
+            return React.createElement(View, { testID: 'bottom-sheet-scroll-view', ...props }, children);
+        }),
+        BottomSheetView: React.forwardRef(({ children, ...props }, ref) => {
+            return React.createElement(View, { testID: 'bottom-sheet-view', ...props }, children);
+        }),
+        useBottomSheetModal: () => ({
+            present: jest.fn(),
+            dismiss: jest.fn(),
+        }),
+        BottomSheetModal: React.forwardRef(({ children, ...props }, ref) => {
+            return React.createElement(View, { testID: 'bottom-sheet-modal', ...props }, children);
+        }),
+        BottomSheetModalProvider: ({ children }) => children,
+        useBottomSheet: () => ({
+            expand: jest.fn(),
+            collapse: jest.fn(),
+            snapToIndex: jest.fn(),
+            close: jest.fn(),
+        }),
+    };
 });

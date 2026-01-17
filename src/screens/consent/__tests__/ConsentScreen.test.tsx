@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react-native';
+import { render, screen, fireEvent, waitFor, act } from '@testing-library/react-native';
 import ConsentScreen from '../ConsentScreen';
 import { consentService } from '../../../services/consent';
 import { useAuth } from '../../../features/auth/hooks/useAuth';
@@ -7,8 +7,8 @@ import { useAuth } from '../../../features/auth/hooks/useAuth';
 // Mock dependencies
 jest.mock('../../../services/consent', () => ({
     consentService: {
-        acceptAll: jest.fn(),
-        acceptEssentialOnly: jest.fn(),
+        acceptAll: jest.fn().mockResolvedValue(undefined),
+        acceptEssentialOnly: jest.fn().mockResolvedValue(undefined),
     },
 }));
 
@@ -41,12 +41,11 @@ jest.mock('../../../core/theme', () => ({
 }));
 
 describe('ConsentScreen', () => {
-    const mockLogout = jest.fn();
 
     beforeEach(() => {
         jest.clearAllMocks();
         (useAuth as jest.Mock).mockReturnValue({
-            logout: mockLogout,
+            logout: jest.fn().mockResolvedValue(undefined),
         });
     });
 
@@ -77,7 +76,9 @@ describe('ConsentScreen', () => {
 
         fireEvent.press(ageCheckbox); // Now all checked
 
-        fireEvent.press(acceptAllButton);
+        await act(async () => {
+            fireEvent.press(acceptAllButton);
+        });
         await waitFor(() => {
             expect(consentService.acceptAll).toHaveBeenCalled();
         });

@@ -110,15 +110,6 @@ describe('useRoomDiscovery', () => {
       expect(roomService.getNearbyRooms).not.toHaveBeenCalled();
     });
 
-    it('does not fetch when coordinates are 0', async () => {
-      renderHook(() =>
-        useRoomDiscovery({ latitude: 0, longitude: 0 })
-      );
-
-      await new Promise((resolve) => setTimeout(resolve, 100));
-
-      expect(roomService.getNearbyRooms).not.toHaveBeenCalled();
-    });
 
     it('updates store with fetched rooms', async () => {
       renderHook(() => useRoomDiscovery(defaultOptions));

@@ -192,7 +192,7 @@ export function RootNavigator() {
 
             {/* Overlay during logout */}
             {showLoadingOverlay && (
-                <View style={styles.loadingOverlay}>
+                <View style={styles.loadingOverlay} testID="loading-overlay">
                     <View style={styles.logoutIndicator}>
                         <ActivityIndicator size="large" color="#FF6410" />
                     </View>

@@ -28,6 +28,14 @@ jest.mock('../../../src/services', () => ({
   wsService: require('../../mocks/authMocks').mockWsService,
 }));
 
+// Mock ad hooks
+jest.mock('../../../src/features/ads/hooks/useInterstitialAd', () => ({
+  useInterstitialAd: () => ({
+    showAd: jest.fn().mockResolvedValue(false),
+    isLoaded: false,
+  }),
+}));
+
 // Mock user location for join tests
 const mockUserLocation = { latitude: 40.7128, longitude: -74.006 };
 
