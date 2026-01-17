@@ -7,8 +7,7 @@ interface AccountSettingsProps {
     onBlockedUsersPress: () => void;
     onDataControlsPress: () => void;
     isPro: boolean;
-    onProPress: () => void;
-    onManagePress?: () => void;
+    onSubscriptionPress: () => void;
 }
 
 export function AccountSettings({
@@ -16,8 +15,7 @@ export function AccountSettings({
     onBlockedUsersPress,
     onDataControlsPress,
     isPro,
-    onProPress,
-    onManagePress,
+    onSubscriptionPress,
 }: AccountSettingsProps) {
     return (
         <Section title="ACCOUNT">
@@ -25,16 +23,9 @@ export function AccountSettings({
                 icon={Star}
                 label="Subscription"
                 value={isPro ? "Pro Active" : "Upgrade"}
-                onPress={onProPress}
+                onPress={onSubscriptionPress}
                 highlight={!isPro}
             />
-            {isPro && onManagePress && (
-                <SettingRow
-                    icon={Shield}
-                    label="Manage"
-                    onPress={onManagePress}
-                />
-            )}
             <SettingRow
                 icon={UserX}
                 label="Blocked Users"

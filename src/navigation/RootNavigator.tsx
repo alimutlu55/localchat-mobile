@@ -30,6 +30,7 @@ import {
     DataControlsScreen,
     BlockedUsersScreen,
     ReportProblemScreen,
+    ManageSubscriptionScreen,
 } from '../screens/settings';
 
 import MainNavigator from './MainNavigator';
@@ -156,6 +157,14 @@ export function RootNavigator() {
                         <Stack.Screen
                             name="ReportProblem"
                             component={ReportProblemScreen}
+                            options={{
+                                animation: 'slide_from_right',
+                                gestureEnabled: true,
+                            }}
+                        />
+                        <Stack.Screen
+                            name="ManageSubscription"
+                            component={ManageSubscriptionScreen}
                             options={{
                                 animation: 'slide_from_right',
                                 gestureEnabled: true,

@@ -249,51 +249,110 @@ async function bindRevenueCatIdentity(userId: string): Promise<any> {
 }
 
 /**
- * Helper to fetch subscription status from backend (source of truth).
+ * HYBRID Subscription Status Check
  * 
- * IMPORTANT: This only FETCHES from backend, does not sync RevenueCat state.
- * RevenueCat login is handled separately via bindRevenueCatIdentity().
- * The backend is the single source of truth for subscription status.
+ * Strategy:
+ * 1. Check RevenueCat FIRST → Grant immediate Pro UI if entitled
+ * 2. Fetch backend → Use for server-side enforcement and custom limits
+ * 
+ * This ensures:
+ * - Users see Pro immediately if RC says they're entitled
+ * - Backend remains source of truth for server enforcement
+ * - Resilience if either system is slow/down
  * 
  * @param forceRefresh - Force a fresh fetch from backend
- * @param rcCustomerInfo - Optional RevenueCat CustomerInfo for fallback if backend fails
+ * @param rcCustomerInfo - Optional RevenueCat CustomerInfo (skips RC fetch if provided)
  */
-async function syncSubscription(forceRefresh: boolean = false, rcCustomerInfo?: any): Promise<void> {
+export async function syncSubscription(forceRefresh: boolean = false, rcCustomerInfo?: any): Promise<void> {
+    const { DEFAULT_PRO_LIMITS, DEFAULT_FREE_LIMITS } = await import('../../../types/subscription');
+
+    // STEP 1: Check RevenueCat FIRST for immediate Pro access
+    let rcIsPro = false;
+    let customerInfo: any = null;
+    try {
+        const { revenueCatService, ENTITLEMENT_ID } = await import('../../../services/revenueCat');
+
+        // Use provided customerInfo or fetch fresh
+        customerInfo = rcCustomerInfo || await revenueCatService.getCustomerInfo();
+
+        if (customerInfo) {
+            rcIsPro = typeof customerInfo.entitlements?.active?.[ENTITLEMENT_ID] !== 'undefined';
+
+            if (rcIsPro) {
+                // Grant Pro IMMEDIATELY from RevenueCat
+                log.info('RevenueCat confirms Pro - granting immediate access');
+                useUserStore.getState().setIsPro(true);
+                useUserStore.getState().setSubscriptionLimits(DEFAULT_PRO_LIMITS);
+            }
+        }
+    } catch (rcErr) {
+        log.warn('Failed to check RevenueCat entitlements', rcErr);
+    }
+
+    // STEP 2: Fetch backend status (for enforcement and custom limits)
+    // This runs regardless of RC result to keep backend in sync
     try {
         const { subscriptionApi } = await import('../../../services/subscriptionApi');
-        // Only FETCH from backend - don't sync RevenueCat state
         const subInfo = await subscriptionApi.getStatus(forceRefresh);
+
+        // Backend response - use its isPro and limits
         useUserStore.getState().setIsPro(subInfo.isPro);
         if (subInfo.manifest) {
             useUserStore.getState().setSubscriptionLimits(subInfo.manifest as any);
         }
-        log.info('Fetched subscription status from backend', { isPro: subInfo.isPro });
+
+        log.info('Subscription status check', {
+            backendIsPro: subInfo.isPro,
+            rcIsPro,
+            currentResult: useUserStore.getState().isPro
+        });
+
+        // STEP 3: Mismatch Handling
+
+        // CASE A: RC says Pro but backend disagrees (Sync UP)
+        if (rcIsPro && !subInfo.isPro) {
+            log.warn('Mismatch: RevenueCat says Pro but backend says Free - syncing to backend (Sync UP)');
+
+            // Trust RC (source of truth for entitlements)
+            useUserStore.getState().setIsPro(true);
+            useUserStore.getState().setSubscriptionLimits(DEFAULT_PRO_LIMITS);
+
+            // Update backend in background
+            subscriptionApi.syncToBackend(customerInfo).then(syncedInfo => {
+                if (syncedInfo?.isPro) {
+                    log.info('Background sync successful - backend now shows Pro');
+                }
+            }).catch(err => log.error('Background sync failed', err));
+        }
+
+        // CASE B: RC says Free but backend disagrees (Sync DOWN)
+        // This happens after a transfer to another account or manual expiration
+        else if (!rcIsPro && subInfo.isPro) {
+            log.warn('Mismatch: RevenueCat says Free but backend says Pro - syncing to backend (Sync DOWN)');
+
+            // Trust RC (source of truth for App Store status)
+            useUserStore.getState().setIsPro(false);
+            useUserStore.getState().setSubscriptionLimits(DEFAULT_FREE_LIMITS);
+
+            // Update backend in background to deactivate the record
+            subscriptionApi.syncToBackend(customerInfo).then(syncedInfo => {
+                if (!syncedInfo?.isPro) {
+                    log.info('Background sync successful - backend now shows Free');
+                }
+            }).catch(err => log.error('Background sync failed', err));
+        }
     } catch (err) {
         log.warn('Failed to fetch subscription status from backend', err);
 
-        // Fallback: If backend fails but RC says Pro, grant Pro with default limits
-        // This ensures paying customers get access even during backend outages
-        if (rcCustomerInfo) {
-            try {
-                const { revenueCatService, ENTITLEMENT_ID } = await import('../../../services/revenueCat');
-                const rcIsPro = typeof rcCustomerInfo.entitlements?.active?.[ENTITLEMENT_ID] !== 'undefined';
-
-                if (rcIsPro) {
-                    log.info('Backend failed but RevenueCat confirms Pro - granting access');
-                    const { DEFAULT_PRO_LIMITS } = await import('../../../types/subscription');
-                    useUserStore.getState().setIsPro(true);
-                    useUserStore.getState().setSubscriptionLimits(DEFAULT_PRO_LIMITS);
-                    return;
-                }
-            } catch (rcErr) {
-                log.warn('Failed to check RevenueCat fallback', rcErr);
-            }
+        // Backend failed - keep RC's decision if it said Pro
+        if (rcIsPro) {
+            log.info('Backend failed but RevenueCat already granted Pro - keeping Pro access');
+            // Already set above, no action needed
+        } else {
+            // No RC Pro and backend failed - default to free
+            useUserStore.getState().setIsPro(false);
+            useUserStore.getState().setSubscriptionLimits(DEFAULT_FREE_LIMITS);
         }
-
-        // No RC fallback or RC says free - use free tier
-        useUserStore.getState().setIsPro(false);
-        const { DEFAULT_FREE_LIMITS } = await import('../../../types/subscription');
-        useUserStore.getState().setSubscriptionLimits(DEFAULT_FREE_LIMITS);
     }
 }
 

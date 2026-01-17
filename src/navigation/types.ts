@@ -61,6 +61,7 @@ export type RootStackParamList = {
   DataControls: undefined;
   ReportProblem: undefined;
   Subscription: undefined;
+  ManageSubscription: undefined;
   CustomPaywall: undefined;
 
   // Legacy/Direct access (React Navigation handles nested lookup)

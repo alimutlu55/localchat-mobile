@@ -9,3 +9,4 @@ export { default as DataControlsScreen } from './DataControlsScreen';
 export { default as PrivacyPolicyScreen } from './PrivacyPolicyScreen';
 export { default as TermsOfServiceScreen } from './TermsOfServiceScreen';
 export { default as ReportProblemScreen } from './ReportProblemScreen';
+export { default as ManageSubscriptionScreen } from './ManageSubscriptionScreen';

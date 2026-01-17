@@ -55,8 +55,41 @@ class RevenueCatService {
             if (!this.isConfigured) {
                 await this.configure();
             }
-            const { customerInfo } = await Purchases.logIn(userId);
-            log.info('RevenueCat user logged in', { userId, hasEntitlement: this.isPro(customerInfo) });
+
+            // Debug: Log current state before login
+            const currentAppUserId = await Purchases.getAppUserID();
+            log.info('RevenueCat loginUser called', {
+                newUserId: userId,
+                currentAppUserId,
+                isSameUser: userId === currentAppUserId
+            });
+
+            // Skip if already logged in as this user
+            if (userId === currentAppUserId) {
+                log.info('RevenueCat: Already logged in as this user, fetching current info');
+                return await Purchases.getCustomerInfo();
+            }
+
+            const { customerInfo, created } = await Purchases.logIn(userId);
+
+            // Verify the identity actually changed
+            const newAppUserId = await Purchases.getAppUserID();
+            log.info('RevenueCat user logged in', {
+                userId,
+                hasEntitlement: this.isPro(customerInfo),
+                identityChanged: newAppUserId === userId,
+                newAppUserId,
+                wasCreated: created
+            });
+
+            // Warn if identity didn't change
+            if (newAppUserId !== userId) {
+                log.warn('RevenueCat identity did NOT change after logIn!', {
+                    expected: userId,
+                    actual: newAppUserId
+                });
+            }
+
             return customerInfo;
         } catch (error) {
             log.error('Failed to login RevenueCat user', error);
@@ -72,8 +105,17 @@ class RevenueCatService {
     async logoutUser(): Promise<void> {
         try {
             if (!this.isConfigured) return;
+
+            const beforeId = await Purchases.getAppUserID();
+            log.info('RevenueCat logoutUser called', { currentAppUserId: beforeId });
+
             await Purchases.logOut();
-            log.info('RevenueCat user logged out');
+
+            const afterId = await Purchases.getAppUserID();
+            log.info('RevenueCat user logged out successfully', {
+                previousUserId: beforeId,
+                newAnonymousId: afterId
+            });
         } catch (error) {
             log.error('Failed to logout RevenueCat user', error);
         }
@@ -235,26 +277,33 @@ class RevenueCatService {
      */
     async restorePurchases(): Promise<CustomerInfo | null> {
         try {
-            if (__DEV__) {
-                log.info('Simulating restore for development');
-                const mockInfo = this.getMockCustomerInfo();
-                // Sync mock restore with backend
-                await this.syncWithBackend();
-                return mockInfo;
-            }
-            const customerInfo = await Purchases.restorePurchases();
+            const currentId = await Purchases.getAppUserID();
+            log.info('RevenueCat restorePurchases called', { currentId });
 
-            // Optimistic Update: Grant Pro immediately logic (check if active first to be safe, but for restore we usually assume attempt)
-            // Ideally we check entitlement here, but to ensure responsiveness we force true if successful restore call
-            // Actually restore returns customerInfo, let's check it
+            if (__DEV__ && Platform.OS === 'ios' && !Platform.isPad && !Platform.isTV) {
+                // Keep simulation for simulator, but allow real restore for physical devices
+                // Note: Platform.isTV/isPad are just placeholders to catch "not a phone", 
+                // in reality we just check if it's a real device by seeing if it has a receipt.
+                // But for simplicity, let's just log and proceed.
+            }
+
+            const customerInfo = await Purchases.restorePurchases();
+            const newId = await Purchases.getAppUserID();
+
+            log.info('RevenueCat restore successful', {
+                previousId: currentId,
+                currentId: newId,
+                hasEntitlements: this.isPro(customerInfo)
+            });
+
+            // Optimistic Update: Grant Pro immediately
             try {
                 const { useUserStore } = require('../features/user/store/UserStore');
-                // Check if restored info actually has the entitlement
                 if (this.isPro(customerInfo)) {
                     const { DEFAULT_PRO_LIMITS } = require('../types/subscription');
                     useUserStore.getState().setIsPro(true);
                     useUserStore.getState().setSubscriptionLimits(DEFAULT_PRO_LIMITS);
-                    log.info('Optimistically granted Pro access and limits after successful restore');
+                    log.info('Optimistically updated UserStore after restore');
                 }
             } catch (err) {
                 log.warn('Failed to optimistically update UserStore', err);

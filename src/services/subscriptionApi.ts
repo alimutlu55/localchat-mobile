@@ -130,17 +130,27 @@ class SubscriptionApiService {
         }
 
         try {
+            // Get the CURRENT App User ID (not originalAppUserId which is the original anonymous ID)
+            const Purchases = (await import('react-native-purchases')).default;
+            const currentAppUserId = await Purchases.getAppUserID();
+
             // Check entitlement
             const { ENTITLEMENT_ID } = await import('./revenueCat');
             const isPro = typeof rcInfo.entitlements.active[ENTITLEMENT_ID] !== 'undefined';
             const entitlement = rcInfo.entitlements.active[ENTITLEMENT_ID];
 
             const request: SyncSubscriptionRequest = {
-                revenueCatAppUserId: rcInfo.originalAppUserId,
+                revenueCatAppUserId: currentAppUserId,  // Use current ID, not original anonymous ID
                 isPro,
                 productId: entitlement?.productIdentifier ?? undefined,
                 expiresAt: entitlement?.expirationDate ?? undefined,
             };
+
+            log.info('Syncing subscription to backend', {
+                currentAppUserId,
+                originalAppUserId: rcInfo.originalAppUserId,
+                isPro
+            });
 
             const backendInfo = await api.post<SubscriptionInfo>('/subscriptions/sync', request);
 

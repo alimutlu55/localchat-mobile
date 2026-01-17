@@ -25,6 +25,7 @@ import { notificationService } from '../../../services';
 import { subscriptionApi } from '../../../services/subscriptionApi';
 import { revenueCatService } from '../../../services/revenueCat';
 import { DEFAULT_FREE_LIMITS } from '../../../types/subscription';
+import { syncSubscription } from '../../../features/auth/store/AuthStore';
 
 const log = createLogger('UserStoreProvider');
 
@@ -67,77 +68,25 @@ function UserStoreInitializer() {
   useEffect(() => {
     if (!currentUser || authStatus !== 'authenticated') return;
 
-    /**
-     * Fetch subscription status from backend (source of truth).
-     * 
-     * IMPORTANT: We only FETCH from backend here, we don't sync RevenueCat state.
-     * RevenueCat is a payment processor, not a state store.
-     * The backend is the single source of truth for subscription status.
-     */
-    /**
-     * Fetch subscription status from backend (source of truth).
-     */
-    const fetchSubscriptionStatus = async () => {
-      // 1. Get local truth from RevenueCat first (fast, reliable for status)
-      let rcIsPro = false;
-      let rcInfo = null;
-      try {
-        rcInfo = await revenueCatService.getCustomerInfo();
-        rcIsPro = rcInfo ? revenueCatService.isPro(rcInfo) : false;
-      } catch (err) {
-        log.warn('Failed to get RevenueCat info during fetch', err);
-      }
-
-      // 2. Get backend details (manifest, etc.)
-      let backendStatus = null;
-      try {
-        backendStatus = await subscriptionApi.getStatus(true);
-      } catch (err) {
-        log.warn('Failed to fetch subscription status from backend', err);
-      }
-
-      // 3. Determine Final Status (Trust RC for "isPro" flag, use Backend for limits)
-      const finalIsPro = rcIsPro || (backendStatus?.isPro ?? false);
-
-      // Update store with determined Pro status
-      useUserStore.getState().setIsPro(finalIsPro);
-
-      if (finalIsPro) {
-        // If we are Pro, decide which limits to use
-        if (backendStatus?.isPro && backendStatus.manifest) {
-          // Backend is in sync and has manifest - use it
-          useUserStore.getState().setSubscriptionLimits(backendStatus.manifest as any);
-          log.info('Subscription status: Pro (Backend Synced)', { tier: backendStatus.manifest.tierName });
-        } else {
-          // Fallback to default Pro limits if backend is slow/stale but RC says Pro
-          const { DEFAULT_PRO_LIMITS } = require('../../../types/subscription');
-          useUserStore.getState().setSubscriptionLimits(DEFAULT_PRO_LIMITS);
-          log.info('Subscription status: Pro (RevenueCat Fallback)', { backendStatus: backendStatus ? 'Stale' : 'Failed' });
-        }
-      } else {
-        // Not Pro
-        useUserStore.getState().setSubscriptionLimits(DEFAULT_FREE_LIMITS);
-        if (backendStatus) {
-          log.info('Subscription status: Free');
-        }
-      }
-    };
-
     // Initial sync on authenticated mount
-    fetchSubscriptionStatus();
+    syncSubscription(true);
 
-    // Listen for real-time updates from RevenueCat (purchases, restores, renewals)
+    // Listen for real-time updates from RevenueCat (purchases, restores, renewals, TRANSFERS)
     log.debug('Registering global RevenueCat CustomerInfo listener');
     const listener = async (info: CustomerInfo) => {
-      log.info('RevenueCat customer info updated, triggering debounced sync...');
-      await fetchSubscriptionStatus();
+      log.info('RevenueCat customer info updated, triggering central sync...', {
+        isPro: revenueCatService.isPro(info),
+        appUserID: info.originalAppUserId
+      });
+      // Use the central hybrid logic to handle potential Sync UP/DOWN
+      await syncSubscription(true, info);
     };
 
-    const subscription = Purchases.addCustomerInfoUpdateListener(listener);
+    const listenerHolder = Purchases.addCustomerInfoUpdateListener(listener);
 
     return () => {
       log.debug('Removing global RevenueCat CustomerInfo listener');
-      (subscription as any)?.remove();
+      (listenerHolder as any)?.remove();
     };
   }, [currentUser?.id, authStatus]);
 

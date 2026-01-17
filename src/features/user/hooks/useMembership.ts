@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import Purchases, { CustomerInfo } from 'react-native-purchases';
 import { useUserStore } from '../store/UserStore';
 import { revenueCatService } from '../../../services/revenueCat';
@@ -45,14 +45,43 @@ export function useMembership() {
         }
     }, [isPro, limits.tierName]);
 
-    // Emit EventBus events when status changes
+    // Debounced event emission to prevent spam during rapid store updates
+    const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
+    const lastEmittedRef = useRef<{ isPro: boolean; tierName: string | undefined } | null>(null);
+
     useEffect(() => {
-        eventBus.emit('subscription.statusChanged', {
-            isPro,
-            tier: limits.tierName,
-            limits
-        });
-        log.debug('Emitted subscription.statusChanged event', { isPro, tier: limits.tierName });
+        // Clear any pending debounce
+        if (debounceTimerRef.current) {
+            clearTimeout(debounceTimerRef.current);
+        }
+
+        // Debounce: wait 300ms before emitting to coalesce rapid changes
+        debounceTimerRef.current = setTimeout(() => {
+            const currentTierName = limits.tierName;
+            const lastEmitted = lastEmittedRef.current;
+
+            // Skip if no actual change from last emission
+            if (lastEmitted && lastEmitted.isPro === isPro && lastEmitted.tierName === currentTierName) {
+                return;
+            }
+
+            // Emit the event
+            eventBus.emit('subscription.statusChanged', {
+                isPro,
+                tier: currentTierName,
+                limits
+            });
+            log.debug('Emitted subscription.statusChanged event', { isPro, tier: currentTierName });
+
+            // Track what we emitted
+            lastEmittedRef.current = { isPro, tierName: currentTierName };
+        }, 300);
+
+        return () => {
+            if (debounceTimerRef.current) {
+                clearTimeout(debounceTimerRef.current);
+            }
+        };
     }, [isPro, JSON.stringify(limits)]); // Stable dependency for limits
 
     /**

@@ -404,9 +404,9 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
 
   const handleManageSubscription = useCallback(
     () => {
-      revenueCatService.presentCustomerCenter();
+      navigation.navigate('ManageSubscription');
     },
-    []
+    [navigation]
   );
 
   // =========================================================================

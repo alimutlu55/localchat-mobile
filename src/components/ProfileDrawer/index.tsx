@@ -157,8 +157,7 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
                 onBlockedUsersPress={handleBlockedUsers}
                 onDataControlsPress={handleDataControls}
                 isPro={isPro}
-                onProPress={handleSubscription}
-                onManagePress={handleManageSubscription}
+                onSubscriptionPress={isPro ? handleManageSubscription : handleSubscription}
             />
 
             <NotificationSettings

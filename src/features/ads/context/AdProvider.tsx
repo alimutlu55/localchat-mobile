@@ -142,16 +142,39 @@ export const AdProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     }, []);
 
     const showConsentFormIfRequired = useCallback(async () => {
+        // Guard: Don't try to show if already showing
+        if (isShowingConsentForm.current) {
+            console.log('[AdProvider] Consent form already showing, skipping');
+            return;
+        }
+
         try {
+            isShowingConsentForm.current = true;
             const consentInfo = await AdsConsent.requestInfoUpdate();
             if (consentInfo.isConsentFormAvailable && consentInfo.status === AdsConsentStatus.REQUIRED) {
                 await AdsConsent.loadAndShowConsentFormIfRequired();
                 await checkConsent(); // Refresh state after form interaction
             }
-        } catch (err) {
+        } catch (err: any) {
+            // Handle iOS modal conflict gracefully
+            if (err?.message?.includes('already presenting')) {
+                console.warn('[AdProvider] Modal conflict detected, will retry consent form later');
+                // Schedule retry after modals settle
+                setTimeout(() => {
+                    isShowingConsentForm.current = false;
+                    showConsentFormIfRequired();
+                }, 1000);
+                return; // Don't reset flag yet
+            }
             console.error('[AdProvider] Error showing consent form:', err);
+        } finally {
+            isShowingConsentForm.current = false;
         }
     }, [checkConsent]);
+
+    // Refs for debouncing subscription events and tracking consent form state
+    const subscriptionDebounceRef = useRef<NodeJS.Timeout | null>(null);
+    const isShowingConsentForm = useRef(false);
 
     useEffect(() => {
         checkConsent();
@@ -160,11 +183,18 @@ export const AdProvider: React.FC<{ children: React.ReactNode }> = ({ children }
             checkConsent();
         });
 
-        // Re-check ads if membership status changes
-        // This ensures ads are immediately disabled/enabled when user upgrades or tier changes
+        // Re-check ads if membership status changes (debounced to prevent spam)
         const unsubscribeSubscription = eventBus.on('subscription.statusChanged', () => {
-            console.log('[AdProvider] Subscription status changed, refreshing ad state...');
-            checkConsent();
+            // Clear any pending debounce
+            if (subscriptionDebounceRef.current) {
+                clearTimeout(subscriptionDebounceRef.current);
+            }
+
+            // Debounce: wait 500ms before processing to coalesce rapid events
+            subscriptionDebounceRef.current = setTimeout(() => {
+                console.log('[AdProvider] Subscription status changed (debounced), refreshing ad state...');
+                checkConsent();
+            }, 500);
         });
 
         const unsubscribeSession = eventBus.on('session.consentChanged', () => {
@@ -175,6 +205,10 @@ export const AdProvider: React.FC<{ children: React.ReactNode }> = ({ children }
             unsubscribeSession();
             unsubscribeConsent();
             unsubscribeSubscription();
+            // Clean up debounce timer
+            if (subscriptionDebounceRef.current) {
+                clearTimeout(subscriptionDebounceRef.current);
+            }
         };
     }, [checkConsent]);
 
