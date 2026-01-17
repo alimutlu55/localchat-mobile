@@ -27,6 +27,7 @@ import { useMyRooms, useRoomStore, selectSelectedCategory } from '../../rooms';
 import { CATEGORIES } from '../../../constants';
 import { theme } from '../../../core/theme';
 import { roomService } from '../../../services/room';
+import { calculateDistance } from '../../../utils/geo';
 
 // Decomposed components
 import { ListViewSearch } from '../list/ListViewSearch';
@@ -281,15 +282,26 @@ export const RoomListView = memo(function RoomListView({
     // Use passed user location or null
     const userLocation = userLocationProp;
 
-    // Get room distance - use backend-calculated value directly
+    // Get room distance - use backend-calculated value directly or calculate locally
     // Backend calculates distance relative to user location when fetching
     const getRoomDistance = useCallback((room: Room): number | null => {
         // Return backend-calculated distance if available
         if (room.distance !== undefined && room.distance > 0) {
             return room.distance;
         }
+
+        // Calculate locally if user location is available
+        if (userLocation && room.latitude && room.longitude) {
+            const lat = userLocation.latitude ?? userLocation.lat;
+            const lng = userLocation.longitude ?? userLocation.lng;
+
+            if (lat !== undefined && lng !== undefined) {
+                return calculateDistance(lat, lng, room.latitude, room.longitude);
+            }
+        }
+
         return null;
-    }, []);
+    }, [userLocation]);
 
     // Backend search effect - debounced
     React.useEffect(() => {

@@ -60,6 +60,7 @@ import { useRoom, useRoomOperations, useRoomMembership } from '../../rooms/hooks
 import { useRoomStore, useIsRoomMutedStore } from '../../rooms/store';
 import { useNetworkState } from '../../../hooks';
 import { useBlockedUsers } from '../../user/hooks';
+import { useUserLocation } from '../../discovery/hooks/useUserLocation';
 
 // Components
 import {
@@ -77,6 +78,7 @@ import {
 import { createLogger } from '../../../shared/utils/logger';
 import { isAlreadyReported } from '../../../shared/utils/errors';
 import { eventBus } from '../../../core/events/EventBus';
+import { calculateDistance } from '../../../utils/geo';
 
 const log = createLogger('ChatRoom');
 
@@ -183,7 +185,28 @@ export default function ChatRoomScreen() {
   });
 
   // Prefer cached room (has WebSocket updates), fallback to initial
-  const room = cachedRoom || initialRoom;
+  const rawRoom = cachedRoom || initialRoom;
+
+  // Get user location for distance calculation
+  const { location: userLocation } = useUserLocation({ watch: false });
+
+  // Calculate distance if missing so "Nearby" or distance shows correctly
+  const room = useMemo(() => {
+    if (!rawRoom) return undefined;
+    if (rawRoom.distance !== undefined && rawRoom.distance !== null) {
+      return rawRoom;
+    }
+    if (userLocation && rawRoom.latitude && rawRoom.longitude) {
+      const dist = calculateDistance(
+        userLocation.latitude,
+        userLocation.longitude,
+        rawRoom.latitude,
+        rawRoom.longitude
+      );
+      return { ...rawRoom, distance: dist };
+    }
+    return rawRoom;
+  }, [rawRoom, userLocation]);
 
   // UI State
   const [showMenu, setShowMenu] = useState(false);

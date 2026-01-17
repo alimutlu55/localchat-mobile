@@ -44,6 +44,8 @@ import { BannedUsersModal } from '../components';
 import { useRoom } from '../hooks';
 import { useRoomStore } from '../store/RoomStore';
 import { formatTimeAgo, formatDistance } from '../../../utils/format';
+import { useUserLocation } from '../../discovery/hooks/useUserLocation';
+import { calculateDistance } from '../../../utils/geo';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList, 'RoomInfo'>;
 type RoomInfoRouteProp = RouteProp<RootStackParamList, 'RoomInfo'>;
@@ -74,7 +76,28 @@ export default function RoomInfoScreen() {
     // Use the useRoom hook for reactive data (WebSocket updates)
     const { room: cachedRoom, isLoading: isRoomLoading } = useRoom(roomId, { skipFetchIfCached: true });
     // Prefer cached room (has real-time updates), fallback to route params
-    const room = cachedRoom || initialRoom;
+    const rawRoom = cachedRoom || initialRoom;
+
+    // Get user location for distance calculation
+    const { location: userLocation } = useUserLocation({ watch: false });
+
+    // Calculate distance if missing
+    const room = React.useMemo(() => {
+        if (!rawRoom) return undefined;
+        if (rawRoom.distance !== undefined && rawRoom.distance !== null) {
+            return rawRoom;
+        }
+        if (userLocation && rawRoom.latitude && rawRoom.longitude) {
+            const dist = calculateDistance(
+                userLocation.latitude,
+                userLocation.longitude,
+                rawRoom.latitude,
+                rawRoom.longitude
+            );
+            return { ...rawRoom, distance: dist };
+        }
+        return rawRoom;
+    }, [rawRoom, userLocation]);
 
     const [participants, setParticipants] = useState<ParticipantDTO[]>([]);
     const [isLoadingParticipants, setIsLoadingParticipants] = useState(false);
