@@ -72,13 +72,8 @@ function UserStoreInitializer() {
     syncSubscription(true);
 
     // Listen for real-time updates from RevenueCat (purchases, restores, renewals, TRANSFERS)
-    log.debug('Registering global RevenueCat CustomerInfo listener');
     const listener = async (info: CustomerInfo) => {
-      log.info('RevenueCat customer info updated, triggering central sync...', {
-        isPro: revenueCatService.isPro(info),
-        appUserID: info.originalAppUserId
-      });
-      // Use the central hybrid logic to handle potential Sync UP/DOWN
+      log.info('RevenueCat update received', { isPro: revenueCatService.isPro(info) });
       await syncSubscription(true, info);
     };
 

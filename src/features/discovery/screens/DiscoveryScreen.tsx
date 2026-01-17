@@ -107,6 +107,8 @@ export default function DiscoveryScreen() {
     const insets = useSafeAreaInsets();
     const { width: screenWidth } = useWindowDimensions();
     const { status: authStatus } = useAuth();
+    const { isPro } = useMembership();
+    const { canShowAds } = useAds();
     useInterstitialAd();
 
     // ==========================================================================
@@ -121,8 +123,10 @@ export default function DiscoveryScreen() {
     const normalizedBottomInset = insets.bottom > 0 ? insets.bottom : 16;
 
     // UI elements are positioned relative to the content area (above footer)
-    const toggleBottomPosition = 12; // Fixed position above ad banner
-    const emptyStateBottomPosition = 78;
+    // For Pro users (no ads), we need to account for safe area manually
+    const adsVisible = !isPro && canShowAds;
+    const toggleBottomPosition = adsVisible ? 12 : (normalizedBottomInset + 12);
+    const emptyStateBottomPosition = adsVisible ? 78 : (normalizedBottomInset + 78);
     const emptyStateMaxWidth = Math.min(screenWidth - 80, 420);
 
     const handleTopLayout = useCallback((e: any) => {

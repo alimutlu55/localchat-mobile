@@ -301,45 +301,28 @@ export async function syncSubscription(forceRefresh: boolean = false, rcCustomer
             useUserStore.getState().setSubscriptionLimits(subInfo.manifest as any);
         }
 
-        log.info('Subscription status check', {
+        log.debug('Subscription status check', {
             backendIsPro: subInfo.isPro,
-            rcIsPro,
-            currentResult: useUserStore.getState().isPro
+            rcIsPro
         });
 
         // STEP 3: Mismatch Handling
 
         // CASE A: RC says Pro but backend disagrees (Sync UP)
         if (rcIsPro && !subInfo.isPro) {
-            log.warn('Mismatch: RevenueCat says Pro but backend says Free - syncing to backend (Sync UP)');
-
-            // Trust RC (source of truth for entitlements)
+            log.warn('Mismatch: RC=Pro, Backend=Free - Syncing UP');
             useUserStore.getState().setIsPro(true);
             useUserStore.getState().setSubscriptionLimits(DEFAULT_PRO_LIMITS);
-
-            // Update backend in background
-            subscriptionApi.syncToBackend(customerInfo).then(syncedInfo => {
-                if (syncedInfo?.isPro) {
-                    log.info('Background sync successful - backend now shows Pro');
-                }
-            }).catch(err => log.error('Background sync failed', err));
+            subscriptionApi.syncToBackend(customerInfo).catch(err => log.error('Sync UP failed', err));
         }
 
         // CASE B: RC says Free but backend disagrees (Sync DOWN)
         // This happens after a transfer to another account or manual expiration
         else if (!rcIsPro && subInfo.isPro) {
-            log.warn('Mismatch: RevenueCat says Free but backend says Pro - syncing to backend (Sync DOWN)');
-
-            // Trust RC (source of truth for App Store status)
+            log.warn('Mismatch: RC=Free, Backend=Pro - Syncing DOWN');
             useUserStore.getState().setIsPro(false);
             useUserStore.getState().setSubscriptionLimits(DEFAULT_FREE_LIMITS);
-
-            // Update backend in background to deactivate the record
-            subscriptionApi.syncToBackend(customerInfo).then(syncedInfo => {
-                if (!syncedInfo?.isPro) {
-                    log.info('Background sync successful - backend now shows Free');
-                }
-            }).catch(err => log.error('Background sync failed', err));
+            subscriptionApi.syncToBackend(customerInfo).catch(err => log.error('Sync DOWN failed', err));
         }
     } catch (err) {
         log.warn('Failed to fetch subscription status from backend', err);

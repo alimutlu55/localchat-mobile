@@ -44,7 +44,7 @@ export const DEFAULT_FREE_LIMITS: SubscriptionLimits = {
     tierName: 'free',
     dailyRoomLimit: 3,
     maxRoomDurationHours: 6,
-    maxParticipants: 50,
+    maxParticipants: 100,
     showAds: true,
 };
 

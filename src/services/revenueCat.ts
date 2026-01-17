@@ -74,20 +74,15 @@ class RevenueCatService {
 
             // Verify the identity actually changed
             const newAppUserId = await Purchases.getAppUserID();
-            log.info('RevenueCat user logged in', {
-                userId,
-                hasEntitlement: this.isPro(customerInfo),
-                identityChanged: newAppUserId === userId,
-                newAppUserId,
-                wasCreated: created
-            });
 
-            // Warn if identity didn't change
+            // Warn if identity didn't change (critical for identity-based subscriptions)
             if (newAppUserId !== userId) {
                 log.warn('RevenueCat identity did NOT change after logIn!', {
                     expected: userId,
                     actual: newAppUserId
                 });
+            } else {
+                log.info('RevenueCat user logged in successfully', { userId });
             }
 
             return customerInfo;
@@ -112,10 +107,7 @@ class RevenueCatService {
             await Purchases.logOut();
 
             const afterId = await Purchases.getAppUserID();
-            log.info('RevenueCat user logged out successfully', {
-                previousUserId: beforeId,
-                newAnonymousId: afterId
-            });
+            log.info('RevenueCat logged out', { newAnonymousId: afterId });
         } catch (error) {
             log.error('Failed to logout RevenueCat user', error);
         }
@@ -250,18 +242,8 @@ class RevenueCatService {
 
             const { customerInfo } = await Purchases.purchasePackage(pack);
 
-            // Optimistic Update: Grant Pro immediately
-            try {
-                const { useUserStore } = require('../features/user/store/UserStore');
-                const { DEFAULT_PRO_LIMITS } = require('../types/subscription');
-                useUserStore.getState().setIsPro(true);
-                useUserStore.getState().setSubscriptionLimits(DEFAULT_PRO_LIMITS);
-                log.info('Optimistically granted Pro access and limits after successful package purchase');
-            } catch (err) {
-                log.warn('Failed to optimistically update UserStore', err);
-            }
-
             // Sync with backend after successful purchase
+            // No need for redundant internal store update here, syncWithBackend/syncSubscription handles it
             await this.syncWithBackend();
             return customerInfo;
         } catch (error: any) {
@@ -280,34 +262,10 @@ class RevenueCatService {
             const currentId = await Purchases.getAppUserID();
             log.info('RevenueCat restorePurchases called', { currentId });
 
-            if (__DEV__ && Platform.OS === 'ios' && !Platform.isPad && !Platform.isTV) {
-                // Keep simulation for simulator, but allow real restore for physical devices
-                // Note: Platform.isTV/isPad are just placeholders to catch "not a phone", 
-                // in reality we just check if it's a real device by seeing if it has a receipt.
-                // But for simplicity, let's just log and proceed.
-            }
-
             const customerInfo = await Purchases.restorePurchases();
             const newId = await Purchases.getAppUserID();
 
-            log.info('RevenueCat restore successful', {
-                previousId: currentId,
-                currentId: newId,
-                hasEntitlements: this.isPro(customerInfo)
-            });
-
-            // Optimistic Update: Grant Pro immediately
-            try {
-                const { useUserStore } = require('../features/user/store/UserStore');
-                if (this.isPro(customerInfo)) {
-                    const { DEFAULT_PRO_LIMITS } = require('../types/subscription');
-                    useUserStore.getState().setIsPro(true);
-                    useUserStore.getState().setSubscriptionLimits(DEFAULT_PRO_LIMITS);
-                    log.info('Optimistically updated UserStore after restore');
-                }
-            } catch (err) {
-                log.warn('Failed to optimistically update UserStore', err);
-            }
+            log.info('RevenueCat restore successful', { hasEntitlements: this.isPro(customerInfo) });
 
             // Sync with backend after successful restore
             await this.syncWithBackend();

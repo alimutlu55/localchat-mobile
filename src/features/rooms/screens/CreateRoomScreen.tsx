@@ -506,41 +506,40 @@ export default function CreateRoomScreen() {
                   </Text>
                 </View>
                 <View style={styles.participantOptions}>
-                  <FeatureGate
-                    feature="maxParticipants"
-                    requirement={val => val > 500}
-                    fallback={[50, 100, 200, 500].map(val => (
+                  {[50, 100, 200, 500, 1000, 5000, UNLIMITED_PARTICIPANTS].map((val) => {
+                    const isLocked = !isPro && val > 100;
+                    const isActive = maxParticipants === val && !isLocked;
+
+                    return (
                       <TouchableOpacity
                         key={val}
                         style={[
                           styles.participantChip,
-                          maxParticipants === val && styles.participantChipActive
+                          isActive && styles.participantChipActive,
+                          isLocked && styles.participantChipLocked
                         ]}
-                        onPress={() => setMaxParticipants(val)}
+                        onPress={() => {
+                          if (isLocked) {
+                            navigation.navigate('CustomPaywall' as never);
+                          } else {
+                            setMaxParticipants(val);
+                          }
+                        }}
+                        activeOpacity={0.7}
                       >
                         <Text style={[
                           styles.participantChipText,
-                          maxParticipants === val && styles.participantChipTextActive
-                        ]}>{val}</Text>
+                          isActive && styles.participantChipTextActive,
+                          isLocked && styles.participantChipTextLocked
+                        ]}>
+                          {val === UNLIMITED_PARTICIPANTS ? 'Unlimited' : val}
+                        </Text>
+                        {isLocked && (
+                          <Lock size={10} color="#94a3b8" style={{ marginLeft: 4 }} />
+                        )}
                       </TouchableOpacity>
-                    ))}
-                  >
-                    {[50, 100, 500, 1000, 5000, UNLIMITED_PARTICIPANTS].map(val => (
-                      <TouchableOpacity
-                        key={val}
-                        style={[
-                          styles.participantChip,
-                          maxParticipants === val && styles.participantChipActive
-                        ]}
-                        onPress={() => setMaxParticipants(val)}
-                      >
-                        <Text style={[
-                          styles.participantChipText,
-                          maxParticipants === val && styles.participantChipTextActive
-                        ]}>{val === UNLIMITED_PARTICIPANTS ? 'Unlimited' : val}</Text>
-                      </TouchableOpacity>
-                    ))}
-                  </FeatureGate>
+                    );
+                  })}
                 </View>
               </View>
             )}
@@ -905,19 +904,32 @@ const styles = StyleSheet.create({
   },
   participantOptions: {
     flexDirection: 'row',
-    gap: 8,
+    flexWrap: 'wrap',
+    marginTop: 4,
+    alignItems: 'flex-start', // Ensure children don't stretch vertically
   },
   participantChip: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 16,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
     backgroundColor: '#fff',
     borderWidth: 1,
     borderColor: '#e2e8f0',
+    marginRight: 8,
+    marginBottom: 8,
+    minWidth: 50,
+    alignItems: 'center',
+    justifyContent: 'center',
+    alignSelf: 'flex-start', // Prevent stretching to full width
   },
   participantChipActive: {
     backgroundColor: '#fff7ed',
     borderColor: '#FF6410',
+  },
+  participantChipLocked: {
+    backgroundColor: '#f8fafc',
+    borderColor: '#e2e8f0',
+    flexDirection: 'row',
   },
   participantChipText: {
     fontSize: 13,
@@ -926,6 +938,9 @@ const styles = StyleSheet.create({
   participantChipTextActive: {
     color: '#FF6410',
     fontWeight: '500',
+  },
+  participantChipTextLocked: {
+    color: '#94a3b8',
   },
   footer: {
     padding: 16,
