@@ -232,15 +232,19 @@ const MIN_LOGOUT_DURATION_MS = 400;
  * 
  * This should be called after successful authentication so that future purchases
  * are associated with the correct user.
+ * 
+ * @returns CustomerInfo from RevenueCat for immediate Pro detection, or null if failed
  */
-async function bindRevenueCatIdentity(userId: string): Promise<void> {
+async function bindRevenueCatIdentity(userId: string): Promise<any> {
     try {
         const { revenueCatService } = await import('../../../services/revenueCat');
-        await revenueCatService.loginUser(userId);
-        log.info('Bound RevenueCat identity for user', { userId });
+        const customerInfo = await revenueCatService.loginUser(userId);
+        log.info('Bound RevenueCat identity for user', { userId, hasInfo: !!customerInfo });
+        return customerInfo;
     } catch (err) {
         // Non-fatal: purchases will still work, just may not be associated correctly
         log.warn('Failed to bind RevenueCat identity', err);
+        return null;
     }
 }
 
@@ -250,8 +254,11 @@ async function bindRevenueCatIdentity(userId: string): Promise<void> {
  * IMPORTANT: This only FETCHES from backend, does not sync RevenueCat state.
  * RevenueCat login is handled separately via bindRevenueCatIdentity().
  * The backend is the single source of truth for subscription status.
+ * 
+ * @param forceRefresh - Force a fresh fetch from backend
+ * @param rcCustomerInfo - Optional RevenueCat CustomerInfo for fallback if backend fails
  */
-async function syncSubscription(forceRefresh: boolean = false): Promise<void> {
+async function syncSubscription(forceRefresh: boolean = false, rcCustomerInfo?: any): Promise<void> {
     try {
         const { subscriptionApi } = await import('../../../services/subscriptionApi');
         // Only FETCH from backend - don't sync RevenueCat state
@@ -263,7 +270,27 @@ async function syncSubscription(forceRefresh: boolean = false): Promise<void> {
         log.info('Fetched subscription status from backend', { isPro: subInfo.isPro });
     } catch (err) {
         log.warn('Failed to fetch subscription status from backend', err);
-        // Backend is source of truth - if it fails, assume free tier
+
+        // Fallback: If backend fails but RC says Pro, grant Pro with default limits
+        // This ensures paying customers get access even during backend outages
+        if (rcCustomerInfo) {
+            try {
+                const { revenueCatService, ENTITLEMENT_ID } = await import('../../../services/revenueCat');
+                const rcIsPro = typeof rcCustomerInfo.entitlements?.active?.[ENTITLEMENT_ID] !== 'undefined';
+
+                if (rcIsPro) {
+                    log.info('Backend failed but RevenueCat confirms Pro - granting access');
+                    const { DEFAULT_PRO_LIMITS } = await import('../../../types/subscription');
+                    useUserStore.getState().setIsPro(true);
+                    useUserStore.getState().setSubscriptionLimits(DEFAULT_PRO_LIMITS);
+                    return;
+                }
+            } catch (rcErr) {
+                log.warn('Failed to check RevenueCat fallback', rcErr);
+            }
+        }
+
+        // No RC fallback or RC says free - use free tier
         useUserStore.getState().setIsPro(false);
         const { DEFAULT_FREE_LIMITS } = await import('../../../types/subscription');
         useUserStore.getState().setSubscriptionLimits(DEFAULT_FREE_LIMITS);
@@ -306,11 +333,11 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             // Connect WebSocket
             await wsService.connect();
 
-            // Bind RevenueCat identity for purchase tracking (does NOT sync state to backend)
-            await bindRevenueCatIdentity(user.id);
+            // Bind RevenueCat identity for purchase tracking (returns CustomerInfo for fallback)
+            const rcInfo = await bindRevenueCatIdentity(user.id);
 
-            // Fetch subscription status from backend (source of truth)
-            await syncSubscription(true);
+            // Fetch subscription status from backend (source of truth, with RC fallback)
+            await syncSubscription(true, rcInfo);
 
             set({
                 status: 'authenticated',
@@ -358,11 +385,11 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             // Connect WebSocket
             await wsService.connect();
 
-            // Bind RevenueCat identity for purchase tracking (does NOT sync state to backend)
-            await bindRevenueCatIdentity(user.id);
+            // Bind RevenueCat identity for purchase tracking (returns CustomerInfo for fallback)
+            const rcInfo = await bindRevenueCatIdentity(user.id);
 
-            // Fetch subscription status from backend (source of truth)
-            await syncSubscription(true);
+            // Fetch subscription status from backend (source of truth, with RC fallback)
+            await syncSubscription(true, rcInfo);
 
             set({
                 status: 'authenticated',
@@ -410,11 +437,11 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
                 useUserStore.getState().setUser(result.user);
                 await wsService.connect();
 
-                // Bind RevenueCat identity for purchase tracking (does NOT sync state to backend)
-                await bindRevenueCatIdentity(result.user.id);
+                // Bind RevenueCat identity for purchase tracking (returns CustomerInfo for fallback)
+                const rcInfo = await bindRevenueCatIdentity(result.user.id);
 
-                // Fetch subscription status from backend (source of truth)
-                await syncSubscription();
+                // Fetch subscription status from backend (source of truth, with RC fallback)
+                await syncSubscription(false, rcInfo);
 
                 set({
                     status: 'authenticated',
@@ -475,11 +502,11 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             // Connect WebSocket
             await wsService.connect();
 
-            // Bind RevenueCat identity for purchase tracking (does NOT sync state to backend)
-            await bindRevenueCatIdentity(user.id);
+            // Bind RevenueCat identity for purchase tracking (returns CustomerInfo for fallback)
+            const rcInfo = await bindRevenueCatIdentity(user.id);
 
-            // Fetch subscription status from backend (source of truth)
-            await syncSubscription(true);
+            // Fetch subscription status from backend (source of truth, with RC fallback)
+            await syncSubscription(true, rcInfo);
 
             set({
                 status: 'authenticated',
@@ -528,11 +555,11 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             // Connect WebSocket
             await wsService.connect();
 
-            // Bind RevenueCat identity for purchase tracking (does NOT sync state to backend)
-            await bindRevenueCatIdentity(user.id);
+            // Bind RevenueCat identity for purchase tracking (returns CustomerInfo for fallback)
+            const rcInfo = await bindRevenueCatIdentity(user.id);
 
-            // Fetch subscription status from backend (source of truth)
-            await syncSubscription(true);
+            // Fetch subscription status from backend (source of truth, with RC fallback)
+            await syncSubscription(true, rcInfo);
 
             set({
                 status: 'authenticated',
@@ -578,11 +605,11 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             // Connect WebSocket
             await wsService.connect();
 
-            // Bind RevenueCat identity for purchase tracking (does NOT sync state to backend)
-            await bindRevenueCatIdentity(user.id);
+            // Bind RevenueCat identity for purchase tracking (returns CustomerInfo for fallback)
+            const rcInfo = await bindRevenueCatIdentity(user.id);
 
-            // Fetch subscription status from backend (source of truth)
-            await syncSubscription(true);
+            // Fetch subscription status from backend (source of truth, with RC fallback)
+            await syncSubscription(true, rcInfo);
 
             set({
                 status: 'authenticated',

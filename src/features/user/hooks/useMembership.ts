@@ -12,15 +12,28 @@ const log = createLogger('useMembership');
 /**
  * Hook to access and manage the user's Pro membership status.
  * Intergrates with RevenueCat AND the backend to ensure synced enforcement.
+ * 
+ * SECURITY: Anonymous users are always treated as FREE tier regardless of cache.
  */
 export function useMembership() {
-    const isPro = useUserStore((s) => s.isPro);
+    const rawIsPro = useUserStore((s) => s.isPro);
     const setIsPro = useUserStore((s) => s.setIsPro);
     const storedLimits = useUserStore((s) => s.subscriptionLimits);
     const setLimits = useUserStore((s) => s.setSubscriptionLimits);
+    const currentUser = useUserStore((s) => s.currentUser);
+
+    // SECURITY: Anonymous users cannot be Pro - force free tier regardless of cache
+    const isAnonymous = currentUser?.isAnonymous ?? true;
+    const isPro = isAnonymous ? false : rawIsPro;
 
     // Defensive check: ensure limits is never undefined to prevent crashes
-    const limits = storedLimits || DEFAULT_FREE_LIMITS;
+    // Anonymous users always get free limits, even if cached limits say otherwise
+    const limits = isAnonymous ? DEFAULT_FREE_LIMITS : (storedLimits || DEFAULT_FREE_LIMITS);
+
+    // Log warning if we're blocking cached Pro status for anonymous user
+    if (isAnonymous && rawIsPro) {
+        log.warn('Anonymous user has cached Pro status - ignoring for security');
+    }
 
     // Proactive Sync: If we think we are pro but have free limits, trigger a sync
     useEffect(() => {

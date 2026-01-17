@@ -17,6 +17,9 @@ export interface MembershipGateProps {
 /**
  * MembershipGate - Declaratively control UI based on membership
  * 
+ * Includes error boundary to prevent crashes if UserStore is corrupted.
+ * Falls back to showing fallback (or nothing) on error.
+ * 
  * Usage:
  * <MembershipGate proOnly fallback={<UpgradeButton />}>
  *   <ExclusiveFeature />
@@ -29,7 +32,20 @@ export const MembershipGate: React.FC<MembershipGateProps> = ({
     fallback = null,
     children
 }) => {
-    const { isPro, isTier } = useMembership();
+    // Error boundary: Catch potential errors from useMembership hook
+    // This prevents app crashes if UserStore is in an invalid state
+    let isPro = false;
+    let isTier: (tiers: string | string[]) => boolean = () => false;
+
+    try {
+        const membership = useMembership();
+        isPro = membership.isPro;
+        isTier = membership.isTier;
+    } catch (error) {
+        // Log error but don't crash - fallback to showing fallback prop
+        console.error('[MembershipGate] Error accessing membership:', error);
+        return <>{fallback}</>;
+    }
 
     let hasAccess = true;
 

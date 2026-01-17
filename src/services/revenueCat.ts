@@ -291,9 +291,14 @@ class RevenueCatService {
     }
 
     /**
-     * Private helper to sync RevenueCat status with our backend
+     * Private helper to sync RevenueCat status with our backend.
+     * 
+     * Uses exponential backoff retry (max 3 attempts) to ensure
+     * backend eventually receives purchase info even during transient failures.
      */
-    private async syncWithBackend() {
+    private async syncWithBackend(retryCount: number = 0): Promise<void> {
+        const MAX_RETRIES = 3;
+
         try {
             const customerInfo = await this.getCustomerInfo();
             if (customerInfo) {
@@ -311,7 +316,13 @@ class RevenueCatService {
                 }
             }
         } catch (error) {
-            log.error('Auto-sync with backend failed', error);
+            if (retryCount < MAX_RETRIES) {
+                const delayMs = 1000 * Math.pow(2, retryCount); // 1s, 2s, 4s
+                log.warn(`Backend sync failed, retrying in ${delayMs}ms...`, { retryCount, error });
+                await new Promise(resolve => setTimeout(resolve, delayMs));
+                return this.syncWithBackend(retryCount + 1);
+            }
+            log.error('Backend sync failed after max retries', { retryCount, error });
         }
     }
 
