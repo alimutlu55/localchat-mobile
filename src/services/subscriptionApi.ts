@@ -70,7 +70,12 @@ class SubscriptionApiService {
 
     /**
      * Sync subscription from RevenueCat to backend
-     * Caller should provide customer info
+     * 
+     * ⚠️ IMPORTANT: Only call this after a successful PURCHASE or RESTORE.
+     * Do NOT call on login - use getStatus() instead.
+     * 
+     * The backend is the source of truth for subscription status.
+     * This method is for syncing purchase events if webhooks fail.
      * 
      * DEBOUNCED: Prevents multiple concurrent sync requests from racing.
      * If a sync is in progress, returns the existing promise.
@@ -125,8 +130,8 @@ class SubscriptionApiService {
         }
 
         try {
-            // Check entitlement - hardcoded here to avoid circular dep on revenueCatService
-            const ENTITLEMENT_ID = 'BubbleUp Pro';
+            // Check entitlement
+            const { ENTITLEMENT_ID } = await import('./revenueCat');
             const isPro = typeof rcInfo.entitlements.active[ENTITLEMENT_ID] !== 'undefined';
             const entitlement = rcInfo.entitlements.active[ENTITLEMENT_ID];
 
@@ -183,6 +188,24 @@ class SubscriptionApiService {
             entitlements: [],
             manifest: DEFAULT_FREE_LIMITS,
         };
+    }
+
+    /**
+     * Force a sync and update UserStore
+     */
+    async forceSync(): Promise<void> {
+        log.info('Forcing subscription sync...');
+        const info = await this.syncToBackend();
+        if (info) {
+            try {
+                const { useUserStore } = await import('../features/user/store/UserStore');
+                useUserStore.getState().setIsPro(info.isPro);
+                useUserStore.getState().setSubscriptionLimits(info.manifest as any);
+                log.info('Force sync completed and UserStore updated');
+            } catch (err) {
+                log.warn('Failed to update UserStore after force sync', err);
+            }
+        }
     }
 }
 

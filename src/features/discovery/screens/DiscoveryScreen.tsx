@@ -44,6 +44,8 @@ import { useUIActions } from '../../../context';
 // Features
 import { useAuth } from '../../auth/hooks/useAuth';
 import { useRoomOperations, useMyRooms, useRoomStore, selectSelectedCategory } from '../../rooms';
+import { useMembership } from '../../user/hooks/useMembership';
+import { AdGate } from '../../ads/components/AdGate';
 
 // Components
 import {
@@ -111,7 +113,6 @@ export default function DiscoveryScreen() {
     // Layout & UI State
     // ==========================================================================
 
-    const [isAdVisible, setIsAdVisible] = useState(false);
     const [showMapFilters, setShowMapFilters] = useState(false);
     const selectedCategory = useRoomStore(selectSelectedCategory);
     const [topContainerHeight, setTopContainerHeight] = useState(120);
@@ -120,8 +121,8 @@ export default function DiscoveryScreen() {
     const normalizedBottomInset = insets.bottom > 0 ? insets.bottom : 16;
 
     // UI elements are positioned relative to the content area (above footer)
-    const toggleBottomPosition = isAdVisible ? 12 : 24;
-    const emptyStateBottomPosition = isAdVisible ? 78 : 94;
+    const toggleBottomPosition = 12; // Fixed position above ad banner
+    const emptyStateBottomPosition = 78;
     const emptyStateMaxWidth = Math.min(screenWidth - 80, 420);
 
     const handleTopLayout = useCallback((e: any) => {
@@ -743,8 +744,8 @@ export default function DiscoveryScreen() {
                 />
             </View>
 
-            {/* Ad Banner - Footer placement respects Safe Area and has dedicated space */}
-            {isAdVisible && (
+            {/* Ad Banner - Managed by AdGate */}
+            <AdGate>
                 <View style={[
                     styles.adBannerContainer,
                     {
@@ -755,9 +756,9 @@ export default function DiscoveryScreen() {
                         backgroundColor: '#ffffff'
                     }
                 ]}>
-                    <AdBanner transparent={false} onVisibilityChange={setIsAdVisible} />
+                    <AdBanner transparent={false} />
                 </View>
-            )}
+            </AdGate>
 
             {/* Top UI Area (Header + Conditional Filters) */}
             <View

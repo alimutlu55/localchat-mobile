@@ -80,6 +80,15 @@ export const AdBanner: React.FC<AdBannerProps> = ({
     const isAdsDisabledByMembership = hasEntitlement('NO_ADS');
     const isVisible = canShowAds && !adError && !isAdsDisabledByMembership;
 
+    // Debug logging for ad visibility
+    console.log('[AdBanner] Visibility check:', {
+        canShowAds,
+        adError,
+        isAdsDisabledByMembership,
+        isVisible,
+        isConsentLoading
+    });
+
     // Timeout logic for loading state
     useEffect(() => {
         if (isVisible && !isAdLoaded) {

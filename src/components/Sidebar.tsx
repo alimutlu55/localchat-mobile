@@ -27,9 +27,10 @@ import {
 } from 'lucide-react-native';
 import { Room } from '../types';
 import { useCurrentUser } from '../features/user/store';
+import { useMembership } from '../features/user/hooks/useMembership';
 import { AvatarDisplay } from './profile';
 import { theme } from '../core/theme';
-import { MembershipGate } from './gates/MembershipGate';
+import { FeatureGate } from './gates/FeatureGate';
 import { LinearGradient } from 'expo-linear-gradient';
 
 const SIDEBAR_WIDTH = Dimensions.get('window').width * 0.80;
@@ -131,6 +132,7 @@ export function Sidebar({
 }: SidebarProps) {
     const insets = useSafeAreaInsets();
     const user = useCurrentUser();
+    const { isPro } = useMembership();
     const avatarUrl = user?.profilePhotoUrl;
     const displayName = user?.displayName || 'User';
     const isAnonymous = user?.isAnonymous ?? true;
@@ -335,7 +337,7 @@ export function Sidebar({
                         {isAnonymous && (
                             <Text style={styles.profileType}>Anonymous</Text>
                         )}
-                        <MembershipGate proOnly>
+                        <FeatureGate entitlement="PRO_BADGE" collapse={true}>
                             <LinearGradient
                                 colors={['#FF6410', '#f43f5e']}
                                 start={{ x: 0, y: 0 }}
@@ -344,7 +346,7 @@ export function Sidebar({
                             >
                                 <Text style={styles.proBadgeText}>PRO</Text>
                             </LinearGradient>
-                        </MembershipGate>
+                        </FeatureGate>
                     </View>
                     <ChevronRight size={16} color={theme.tokens.text.tertiary} />
                 </TouchableOpacity>

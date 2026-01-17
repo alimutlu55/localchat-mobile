@@ -12,6 +12,12 @@ export interface SubscriptionLimits {
     showAds: boolean;
 }
 
+export type Entitlement = 'NO_ADS' | 'EXTENDED_ROOMS' | 'INCREASED_QUOTA' | 'UNLIMITED_PARTICIPANTS' | 'PRO_BADGE';
+
+export interface Entitlements {
+    [key: string]: boolean;
+}
+
 export interface SubscriptionInfo {
     isPro: boolean;
     planType?: string;

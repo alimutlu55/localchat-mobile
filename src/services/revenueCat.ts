@@ -12,7 +12,7 @@ const API_KEYS = {
 };
 
 // As requested by the user
-const ENTITLEMENT_ID = 'BubbleUp Pro';
+export const ENTITLEMENT_ID = 'BubbleUp Pro';
 
 class RevenueCatService {
     private isConfigured = false;
@@ -44,6 +44,42 @@ class RevenueCatService {
     }
 
     /**
+     * Login to RevenueCat with the backend user ID.
+     * This binds the RevenueCat session to the authenticated user,
+     * preventing old anonymous subscriptions from carrying over.
+     * 
+     * Call this after successful login (Google/Apple/email/register).
+     */
+    async loginUser(userId: string): Promise<CustomerInfo | null> {
+        try {
+            if (!this.isConfigured) {
+                await this.configure();
+            }
+            const { customerInfo } = await Purchases.logIn(userId);
+            log.info('RevenueCat user logged in', { userId, hasEntitlement: this.isPro(customerInfo) });
+            return customerInfo;
+        } catch (error) {
+            log.error('Failed to login RevenueCat user', error);
+            return null;
+        }
+    }
+
+    /**
+     * Logout from RevenueCat, resetting to anonymous state.
+     * 
+     * Call this on user logout to prevent subscription state from persisting.
+     */
+    async logoutUser(): Promise<void> {
+        try {
+            if (!this.isConfigured) return;
+            await Purchases.logOut();
+            log.info('RevenueCat user logged out');
+        } catch (error) {
+            log.error('Failed to logout RevenueCat user', error);
+        }
+    }
+
+    /**
      * Present the Paywall (RevenueCat UI)
      * Handles the entire purchase flow for Monthly/Yearly/Lifetime
      */
@@ -63,6 +99,17 @@ class RevenueCatService {
                     return false;
                 case PAYWALL_RESULT.PURCHASED:
                 case PAYWALL_RESULT.RESTORED:
+                    // Optimistic Update: Grant Pro immediately to update UI
+                    try {
+                        const { useUserStore } = require('../features/user/store/UserStore');
+                        const { DEFAULT_PRO_LIMITS } = require('../types/subscription');
+                        useUserStore.getState().setIsPro(true);
+                        useUserStore.getState().setSubscriptionLimits(DEFAULT_PRO_LIMITS);
+                        log.info('Optimistically granted Pro access and limits after successful purchase/restore');
+                    } catch (err) {
+                        log.warn('Failed to optimistically update UserStore', err);
+                    }
+
                     // Sync with backend after successful purchase/restore
                     await this.syncWithBackend();
                     return true;
@@ -160,6 +207,18 @@ class RevenueCatService {
             }
 
             const { customerInfo } = await Purchases.purchasePackage(pack);
+
+            // Optimistic Update: Grant Pro immediately
+            try {
+                const { useUserStore } = require('../features/user/store/UserStore');
+                const { DEFAULT_PRO_LIMITS } = require('../types/subscription');
+                useUserStore.getState().setIsPro(true);
+                useUserStore.getState().setSubscriptionLimits(DEFAULT_PRO_LIMITS);
+                log.info('Optimistically granted Pro access and limits after successful package purchase');
+            } catch (err) {
+                log.warn('Failed to optimistically update UserStore', err);
+            }
+
             // Sync with backend after successful purchase
             await this.syncWithBackend();
             return customerInfo;
@@ -184,6 +243,23 @@ class RevenueCatService {
                 return mockInfo;
             }
             const customerInfo = await Purchases.restorePurchases();
+
+            // Optimistic Update: Grant Pro immediately logic (check if active first to be safe, but for restore we usually assume attempt)
+            // Ideally we check entitlement here, but to ensure responsiveness we force true if successful restore call
+            // Actually restore returns customerInfo, let's check it
+            try {
+                const { useUserStore } = require('../features/user/store/UserStore');
+                // Check if restored info actually has the entitlement
+                if (this.isPro(customerInfo)) {
+                    const { DEFAULT_PRO_LIMITS } = require('../types/subscription');
+                    useUserStore.getState().setIsPro(true);
+                    useUserStore.getState().setSubscriptionLimits(DEFAULT_PRO_LIMITS);
+                    log.info('Optimistically granted Pro access and limits after successful restore');
+                }
+            } catch (err) {
+                log.warn('Failed to optimistically update UserStore', err);
+            }
+
             // Sync with backend after successful restore
             await this.syncWithBackend();
             return customerInfo;
@@ -221,7 +297,18 @@ class RevenueCatService {
         try {
             const customerInfo = await this.getCustomerInfo();
             if (customerInfo) {
-                await subscriptionApi.syncToBackend(customerInfo);
+                const backendInfo = await subscriptionApi.syncToBackend(customerInfo);
+
+                // If backend sync succeeded, update UserStore with the latest limits
+                if (backendInfo) {
+                    try {
+                        const { useUserStore } = require('../features/user/store/UserStore');
+                        useUserStore.getState().setSubscriptionLimits(backendInfo.manifest);
+                        log.info('Updated UserStore limits after backend sync', { tier: backendInfo.manifest.tierName });
+                    } catch (err) {
+                        log.warn('Failed to update UserStore limits after sync', err);
+                    }
+                }
             }
         } catch (error) {
             log.error('Auto-sync with backend failed', error);

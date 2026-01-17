@@ -198,13 +198,21 @@ async function cleanupSession(): Promise<void> {
     // 2. Small delay to allow pending WS operations to complete
     await new Promise((resolve) => setTimeout(resolve, 50));
 
-    // 3. Clear room store (removes all room subscriptions and data)
+    // 3. Logout from RevenueCat to reset subscription identity
+    try {
+        const { revenueCatService } = await import('../../../services/revenueCat');
+        await revenueCatService.logoutUser();
+    } catch (err) {
+        log.warn('Failed to logout RevenueCat user during cleanup', err);
+    }
+
+    // 4. Clear room store (removes all room subscriptions and data)
     useRoomStore.getState().reset();
 
-    // 4. Clear user store
+    // 5. Clear user store
     useUserStore.getState().clearUser();
 
-    // 5. Clear auth tokens from storage
+    // 6. Clear auth tokens from storage
     await authService.logout();
 
     log.debug('Session cleanup complete');
@@ -217,18 +225,48 @@ async function cleanupSession(): Promise<void> {
 const MIN_LOGOUT_DURATION_MS = 400;
 
 /**
- * Helper to sync subscription status to UserStore
+ * Bind user identity to RevenueCat for purchase tracking.
+ * 
+ * IMPORTANT: This only binds identity - it does NOT sync RevenueCat entitlements
+ * to the backend. The backend remains the source of truth for subscription status.
+ * 
+ * This should be called after successful authentication so that future purchases
+ * are associated with the correct user.
+ */
+async function bindRevenueCatIdentity(userId: string): Promise<void> {
+    try {
+        const { revenueCatService } = await import('../../../services/revenueCat');
+        await revenueCatService.loginUser(userId);
+        log.info('Bound RevenueCat identity for user', { userId });
+    } catch (err) {
+        // Non-fatal: purchases will still work, just may not be associated correctly
+        log.warn('Failed to bind RevenueCat identity', err);
+    }
+}
+
+/**
+ * Helper to fetch subscription status from backend (source of truth).
+ * 
+ * IMPORTANT: This only FETCHES from backend, does not sync RevenueCat state.
+ * RevenueCat login is handled separately via bindRevenueCatIdentity().
+ * The backend is the single source of truth for subscription status.
  */
 async function syncSubscription(forceRefresh: boolean = false): Promise<void> {
     try {
         const { subscriptionApi } = await import('../../../services/subscriptionApi');
+        // Only FETCH from backend - don't sync RevenueCat state
         const subInfo = await subscriptionApi.getStatus(forceRefresh);
         useUserStore.getState().setIsPro(subInfo.isPro);
         if (subInfo.manifest) {
             useUserStore.getState().setSubscriptionLimits(subInfo.manifest as any);
         }
+        log.info('Fetched subscription status from backend', { isPro: subInfo.isPro });
     } catch (err) {
-        log.warn('Failed to sync subscription in AuthStore', err);
+        log.warn('Failed to fetch subscription status from backend', err);
+        // Backend is source of truth - if it fails, assume free tier
+        useUserStore.getState().setIsPro(false);
+        const { DEFAULT_FREE_LIMITS } = await import('../../../types/subscription');
+        useUserStore.getState().setSubscriptionLimits(DEFAULT_FREE_LIMITS);
     }
 }
 
@@ -268,7 +306,10 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             // Connect WebSocket
             await wsService.connect();
 
-            // Fetch and sync subscription status
+            // Bind RevenueCat identity for purchase tracking (does NOT sync state to backend)
+            await bindRevenueCatIdentity(user.id);
+
+            // Fetch subscription status from backend (source of truth)
             await syncSubscription(true);
 
             set({
@@ -317,7 +358,10 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             // Connect WebSocket
             await wsService.connect();
 
-            // Fetch and sync subscription status
+            // Bind RevenueCat identity for purchase tracking (does NOT sync state to backend)
+            await bindRevenueCatIdentity(user.id);
+
+            // Fetch subscription status from backend (source of truth)
             await syncSubscription(true);
 
             set({
@@ -366,7 +410,10 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
                 useUserStore.getState().setUser(result.user);
                 await wsService.connect();
 
-                // Fetch and sync subscription status
+                // Bind RevenueCat identity for purchase tracking (does NOT sync state to backend)
+                await bindRevenueCatIdentity(result.user.id);
+
+                // Fetch subscription status from backend (source of truth)
                 await syncSubscription();
 
                 set({
@@ -428,7 +475,10 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             // Connect WebSocket
             await wsService.connect();
 
-            // Fetch and sync subscription status
+            // Bind RevenueCat identity for purchase tracking (does NOT sync state to backend)
+            await bindRevenueCatIdentity(user.id);
+
+            // Fetch subscription status from backend (source of truth)
             await syncSubscription(true);
 
             set({
@@ -478,7 +528,10 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             // Connect WebSocket
             await wsService.connect();
 
-            // Fetch and sync subscription status
+            // Bind RevenueCat identity for purchase tracking (does NOT sync state to backend)
+            await bindRevenueCatIdentity(user.id);
+
+            // Fetch subscription status from backend (source of truth)
             await syncSubscription(true);
 
             set({
@@ -525,7 +578,10 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             // Connect WebSocket
             await wsService.connect();
 
-            // Fetch and sync subscription status
+            // Bind RevenueCat identity for purchase tracking (does NOT sync state to backend)
+            await bindRevenueCatIdentity(user.id);
+
+            // Fetch subscription status from backend (source of truth)
             await syncSubscription(true);
 
             set({
@@ -814,7 +870,10 @@ export async function initializeAuthStore(): Promise<void> {
             // Connect WebSocket
             await wsService.connect();
 
-            // Fetch and sync subscription status
+            // Bind RevenueCat identity for purchase tracking (does NOT sync state to backend)
+            await bindRevenueCatIdentity(user.id);
+
+            // Fetch subscription status from backend (source of truth)
             await syncSubscription();
 
             // Transition to authenticated with user data

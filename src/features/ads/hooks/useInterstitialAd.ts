@@ -19,11 +19,11 @@ let sessionStats = {
  */
 export function useInterstitialAd() {
     const { canShowAds } = useAdConsent();
-    const { hasEntitlement } = useMembership();
+    const { entitlements } = useMembership();
     const [, setTick] = useState(0); // Force re-render on load
 
     const loadAd = useCallback(() => {
-        if (!canShowAds || hasEntitlement('NO_ADS') || globalAd) return;
+        if (!canShowAds || entitlements.NO_ADS || globalAd) return;
 
         const adUnitId = AD_CONFIG.isTestMode ? TestIds.INTERSTITIAL : getInterstitialAdUnitId();
         const interstitial = InterstitialAd.createForAdRequest(adUnitId, {
@@ -51,7 +51,7 @@ export function useInterstitialAd() {
             unsubscribeLoaded();
             unsubscribeClosed();
         };
-    }, [canShowAds]);
+    }, [canShowAds, entitlements.NO_ADS]);
 
     useEffect(() => {
         if (canShowAds && !globalAd) {
@@ -64,7 +64,8 @@ export function useInterstitialAd() {
 
         sessionStats.joinsCount++;
 
-        if (!canShowAds || hasEntitlement('NO_ADS')) return false;
+        // Use entitlements object directly for fresh state
+        if (!canShowAds || entitlements.NO_ADS) return false;
         if (sessionStats.joinsCount <= AD_CONFIG.INTERSTITIAL_SKIP_FIRST_JOINS) return false;
         if (sessionStats.adsShown >= AD_CONFIG.INTERSTITIAL_MAX_PER_SESSION) return false;
 
@@ -87,7 +88,7 @@ export function useInterstitialAd() {
         }
 
         return false;
-    }, [canShowAds]);
+    }, [canShowAds, entitlements.NO_ADS]);
 
     return {
         showAd,

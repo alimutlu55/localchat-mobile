@@ -50,6 +50,8 @@ import { ParticipantItem } from '../../../components/room';
 import { ReportModal, ReportReason } from '../../../components/chat/ReportModal';
 import { AvatarDisplay } from '../../../components/profile';
 import { AdBanner } from '../../ads';
+import { useMembership } from '../../user/hooks/useMembership';
+import { AdGate } from '../../ads/components/AdGate';
 import { createLogger } from '../../../shared/utils/logger';
 import { isUserBanned, isAlreadyReported } from '../../../shared/utils/errors';
 
@@ -142,6 +144,7 @@ export default function RoomDetailsScreen() {
     skipFetchIfCached: false,
   });
 
+
   // Priority: fetched room > initial room from params
   const room = fetchedRoom || initialRoom;
 
@@ -151,8 +154,6 @@ export default function RoomDetailsScreen() {
     isCreator,
     roleLabel,
   } = useRoomMembership(roomId);
-
-  const [isAdVisible, setIsAdVisible] = useState(false);
 
   const {
     join,
@@ -540,11 +541,12 @@ export default function RoomDetailsScreen() {
         </TouchableOpacity>
       </View>
 
-      {isAdVisible && (
+      {/* Ad Banner - Managed by AdGate */}
+      <AdGate>
         <View style={[styles.adBannerContainer, { paddingBottom: insets.bottom + 12 }]}>
-          <AdBanner height={50} transparent={false} onVisibilityChange={setIsAdVisible} />
+          <AdBanner height={50} transparent={false} />
         </View>
-      )}
+      </AdGate>
     </View>
   );
 }

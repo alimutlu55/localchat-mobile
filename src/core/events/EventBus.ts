@@ -251,9 +251,20 @@ export interface DiscoveryEvents {
 }
 
 /**
+ * Subscription Events - Related to membership and entitlements
+ */
+export interface SubscriptionEvents {
+  'subscription.statusChanged': {
+    isPro: boolean;
+    tier?: string;
+    limits: any;
+  };
+}
+
+/**
  * All events combined
  */
-export interface AllEvents extends RoomEvents, MessageEvents, TypingEvents, ConnectionEvents, UserEvents, UIEvents, ConsentEvents, SessionEvents, DiscoveryEvents { }
+export interface AllEvents extends RoomEvents, MessageEvents, TypingEvents, ConnectionEvents, UserEvents, UIEvents, ConsentEvents, SessionEvents, DiscoveryEvents, SubscriptionEvents { }
 
 /**
  * Event names as a union type

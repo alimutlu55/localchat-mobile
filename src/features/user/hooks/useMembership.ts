@@ -4,7 +4,8 @@ import { useUserStore } from '../store/UserStore';
 import { revenueCatService } from '../../../services/revenueCat';
 import { subscriptionApi } from '../../../services/subscriptionApi';
 import { createLogger } from '../../../shared/utils/logger';
-import { DEFAULT_FREE_LIMITS } from '../../../types/subscription';
+import { DEFAULT_FREE_LIMITS, Entitlement, Entitlements } from '../../../types/subscription';
+import { eventBus } from '../../../core/events';
 
 const log = createLogger('useMembership');
 
@@ -31,22 +32,52 @@ export function useMembership() {
         }
     }, [isPro, limits.tierName]);
 
+    // Emit EventBus events when status changes
+    useEffect(() => {
+        eventBus.emit('subscription.statusChanged', {
+            isPro,
+            tier: limits.tierName,
+            limits
+        });
+        log.debug('Emitted subscription.statusChanged event', { isPro, tier: limits.tierName });
+    }, [isPro, JSON.stringify(limits)]); // Stable dependency for limits
+
     /**
-     * Helper to manually trigger a sync if needed (e.g., Pull to Refresh)
+     * Helper to manually refresh membership status from backend (e.g., Pull to Refresh).
+     * 
+     * IMPORTANT: This only FETCHES from backend, does not sync RevenueCat state.
+     * The backend is the single source of truth.
      */
     const refreshMembershipStatus = async () => {
         try {
-            const info = await subscriptionApi.syncToBackend();
+            // Only FETCH from backend - don't sync RevenueCat state
+            const info = await subscriptionApi.getStatus(true);
             if (info) {
-                if (info.isPro !== isPro) {
-                    setIsPro(info.isPro);
+                // If backend says FREE, but we are currently PRO, double check RC before downgrading
+                // This prevents flickering if the background refresh happens during a purchase flow
+                let finalIsPro = info.isPro;
+                if (isPro && !info.isPro) {
+                    try {
+                        const rcInfo = await revenueCatService.getCustomerInfo();
+                        if (rcInfo && revenueCatService.isPro(rcInfo)) {
+                            finalIsPro = true;
+                            log.info('Backend says Free but RevenueCat says Pro - maintaining Pro status');
+                        }
+                    } catch (rcErr) {
+                        log.warn('Failed to double check RC during refresh', rcErr);
+                    }
                 }
-                const newLimits = await subscriptionApi.getLimits();
-                setLimits(newLimits);
-                log.info('Manually synced membership with backend', { tier: info.manifest.tierName });
+
+                if (finalIsPro !== isPro) {
+                    setIsPro(finalIsPro);
+                }
+
+                // Always update limits (backend manifest is source of truth for features)
+                setLimits(info.manifest as any);
+                log.info('Refreshed membership status', { tier: info.manifest?.tierName, isPro: finalIsPro });
             }
         } catch (err) {
-            log.warn('Manual sync failed', err);
+            log.warn('Failed to refresh membership from backend', err);
         }
     };
 
@@ -102,10 +133,22 @@ export function useMembership() {
      */
     const getLimit = <K extends keyof typeof limits>(key: K) => limits[key];
 
+    /**
+     * Entitlements - Optimized for easy consumption in UI gates
+     */
+    const entitlements: Entitlements = {
+        'NO_ADS': !limits.showAds,
+        'EXTENDED_ROOMS': limits.maxRoomDurationHours > 24,
+        'INCREASED_QUOTA': limits.dailyRoomLimit > 3,
+        'UNLIMITED_PARTICIPANTS': limits.maxParticipants > 500,
+        'PRO_BADGE': isPro,
+    };
+
     return {
         isPro,
         tier: limits.tierName,
         limits,
+        entitlements,
         isTier,
         canAccess,
         hasEntitlement,

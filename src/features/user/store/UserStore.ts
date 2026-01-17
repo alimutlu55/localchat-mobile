@@ -331,6 +331,9 @@ export const useUserStore = create<UserStore>()(
             currentUser: null,
             userId: null,
             lastSyncAt: null,
+            // Reset subscription state to defaults on logout
+            isPro: false,
+            subscriptionLimits: DEFAULT_FREE_LIMITS,
           });
         },
 

@@ -157,7 +157,7 @@ export function useRoomOperations(): UseRoomOperationsReturn {
                 stopOp('join', roomId);
             }
         },
-        [startOp, stopOp, setRoom, addJoinedRoom, updateRoom, removeJoinedRoom]
+        [startOp, stopOp, setRoom, addJoinedRoom, updateRoom, removeJoinedRoom, showInterstitialAd]
     );
 
     /**
