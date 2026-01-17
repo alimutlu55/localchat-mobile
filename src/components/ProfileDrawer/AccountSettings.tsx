@@ -1,26 +1,40 @@
-/**
- * AccountSettings Component
- * 
- * Account-related settings section (Privacy, Blocked Users, Data Controls)
- */
-
 import React from 'react';
-import { Lock, UserX, Database } from 'lucide-react-native';
+import { Lock, UserX, Database, CreditCard, Star, Shield } from 'lucide-react-native';
 import { Section, SettingRow } from './shared';
 
 interface AccountSettingsProps {
     blockedUsersCount: number;
     onBlockedUsersPress: () => void;
     onDataControlsPress: () => void;
+    isPro: boolean;
+    onProPress: () => void;
+    onManagePress?: () => void;
 }
 
 export function AccountSettings({
     blockedUsersCount,
     onBlockedUsersPress,
     onDataControlsPress,
+    isPro,
+    onProPress,
+    onManagePress,
 }: AccountSettingsProps) {
     return (
         <Section title="ACCOUNT">
+            <SettingRow
+                icon={Star}
+                label="Subscription"
+                value={isPro ? "Pro Active" : "Upgrade"}
+                onPress={onProPress}
+                highlight={!isPro}
+            />
+            {isPro && onManagePress && (
+                <SettingRow
+                    icon={Shield}
+                    label="Manage"
+                    onPress={onManagePress}
+                />
+            )}
             <SettingRow
                 icon={UserX}
                 label="Blocked Users"

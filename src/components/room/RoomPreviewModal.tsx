@@ -24,7 +24,9 @@ import {
     MessageCircle,
     Share2,
     Flag,
+    Lock,
 } from 'lucide-react-native';
+import { useMembership } from '../../features/user/hooks/useMembership';
 import { Room } from '../../types';
 import { getRoomShareUrl, SHARE_CONFIG } from '../../constants';
 
@@ -45,6 +47,7 @@ export function RoomPreviewModal({
     onEnter,
     onReport,
 }: RoomPreviewModalProps) {
+    const { isPro } = useMembership();
     if (!room) return null;
 
     const handleShare = async () => {
@@ -111,7 +114,12 @@ export function RoomPreviewModal({
                                 <Users size={16} color="#64748b" />
                                 <Text style={styles.gridLabel}>Participants</Text>
                             </View>
-                            <Text style={styles.gridValue}>{room.participantCount}/{room.maxParticipants}</Text>
+                            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                                <Text style={styles.gridValue}>{room.participantCount}/{room.maxParticipants}</Text>
+                                {!isPro && room.maxParticipants > 50 && (
+                                    <Lock size={12} color="#94a3b8" />
+                                )}
+                            </View>
                         </View>
 
                         <View style={styles.gridItem}>

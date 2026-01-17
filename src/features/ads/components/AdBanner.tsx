@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ActivityIndicator, AppState, AppStateStatus } from 'react-native';
 import { BannerAd, BannerAdSize, TestIds } from 'react-native-google-mobile-ads';
-import { getBannerAdUnitId, AD_CONFIG } from '../config/adConfig';
+import { AD_CONFIG, getBannerAdUnitId } from '../config/adConfig';
 import { useAdConsent } from '../hooks/useAdConsent';
+import { useMembership } from '../../user/hooks/useMembership';
 
 export interface AdBannerProps {
     /** Optional height for the banner container */
@@ -38,6 +39,8 @@ export const AdBanner: React.FC<AdBannerProps> = ({
         hasPersonalizationConsent,
         isLoading: isConsentLoading,
     } = useAdConsent();
+    const { hasEntitlement } = useMembership();
+
     const [isAdLoaded, setIsAdLoaded] = useState(false);
     const [adError, setAdError] = useState(false);
     const [refreshKey, setRefreshKey] = useState(0);
@@ -96,6 +99,11 @@ export const AdBanner: React.FC<AdBannerProps> = ({
     // Don't show anything if consent is still loading
     if (isConsentLoading) {
         return <View style={[styles.container, transparent && styles.transparent, { height }]} />;
+    }
+
+    // Monetization: Hide ads for Pro members
+    if (hasEntitlement('NO_ADS')) {
+        return null;
     }
 
     if (!isVisible) {

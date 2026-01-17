@@ -26,16 +26,18 @@ import {
   ChevronDown,
   ChevronUp,
   MapPin,
+  Lock,
 } from 'lucide-react-native';
 
 import { RootStackParamList, MainFlowStackParamList } from '../../../navigation/types';
 import { roomService } from '../../../services';
 import { serializeRoom } from '../../../types';
 import { CATEGORIES } from '../../../constants';
-import { useRoomStore } from '../store';
 import { useMyRooms } from '../hooks';
 import { useRoomQuota } from '../hooks/useRoomQuota';
+import { useMembership } from '../../user/hooks/useMembership';
 import { PrivacyLocationSelector } from '../components/PrivacyLocationSelector';
+import { ROOM_CONFIG } from '../../../constants';
 
 
 type NavigationProp = NativeStackNavigationProp<MainFlowStackParamList, 'CreateRoom'>;
@@ -49,12 +51,19 @@ const { width } = Dimensions.get('window');
 // CATEGORY_OPTIONS removed in favor of centralized CATEGORIES from constants
 
 /**
- * Duration option data (matching web)
+ * Duration option data (standard)
  */
-const DURATION_OPTIONS: Array<{ label: string; value: number; id: '1h' | '3h' | '6h' }> = [
+const STANDARD_DURATION_OPTIONS: Array<{ label: string; value: number; id: '1h' | '3h' | '6h' }> = [
   { label: '1h', value: 1, id: '1h' },
   { label: '3h', value: 3, id: '3h' },
   { label: '6h', value: 6, id: '6h' },
+];
+
+const PRO_DURATION_OPTIONS: Array<{ label: string; value: number; id: '1h' | '3h' | '6h' | '24h' | '3d' | '7d' }> = [
+  ...STANDARD_DURATION_OPTIONS,
+  { label: '1d', value: 24, id: '24h' },
+  { label: '3d', value: 72, id: '3d' },
+  { label: '7d', value: 168, id: '7d' },
 ];
 
 /**
@@ -97,6 +106,9 @@ export default function CreateRoomScreen() {
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { quota, refreshQuota, isLimitReached } = useRoomQuota();
+  const { isPro, hasEntitlement } = useMembership();
+
+  const DURATION_OPTIONS = PRO_DURATION_OPTIONS; // Show all options to everyone to encourage Pro upgrade
 
   // Mode is handled internally by PrivacyLocationSelector, we just need the coord and a flag if we want
   const [locationMode, setLocationMode] = useState<'gps' | 'custom' | null>(null);
@@ -148,7 +160,7 @@ export default function CreateRoomScreen() {
         title: title.trim(),
         description: description.trim() || undefined,
         category: categoryId,
-        duration: durationId as '1h' | '3h' | '6h',
+        duration: durationId as any,
         maxParticipants,
         latitude: location.latitude,
         longitude: location.longitude,
@@ -320,31 +332,41 @@ export default function CreateRoomScreen() {
           <View style={styles.section}>
             <Text style={styles.label}>Duration</Text>
             <View style={styles.durationRow}>
-              {DURATION_OPTIONS.map((dur) => (
-                <TouchableOpacity
-                  key={dur.label}
-                  style={styles.durationButton}
-                  onPress={() => setDurationValue(dur.value)}
-                  activeOpacity={0.7}
-                >
-                  {durationValue === dur.value ? (
-                    <LinearGradient
-                      colors={['#FF6410', '#f43f5e']}
-                      start={{ x: 0, y: 0 }}
-                      end={{ x: 1, y: 0 }}
-                      style={styles.durationGradient}
-                    >
-                      <Text style={[styles.durationText, { color: '#fff' }]}>
-                        {dur.label}
-                      </Text>
-                    </LinearGradient>
-                  ) : (
-                    <View style={styles.durationInactive}>
-                      <Text style={styles.durationText}>{dur.label}</Text>
-                    </View>
-                  )}
-                </TouchableOpacity>
-              ))}
+              {DURATION_OPTIONS.map((dur) => {
+                const isExtended = dur.value > 6;
+                const isLocked = isExtended && !isPro;
+
+                return (
+                  <TouchableOpacity
+                    key={dur.id}
+                    style={styles.durationButton}
+                    onPress={() => {
+                      if (isLocked) {
+                        navigation.navigate('CustomPaywall' as never);
+                      } else {
+                        setDurationValue(dur.value);
+                      }
+                    }}
+                    activeOpacity={0.7}
+                  >
+                    {durationValue === dur.value && !isLocked ? (
+                      <LinearGradient
+                        colors={['#FF6410', '#FF8C42']}
+                        style={styles.durationGradient}
+                      >
+                        <Text style={styles.durationTextActive}>{dur.label}</Text>
+                      </LinearGradient>
+                    ) : (
+                      <View style={[styles.durationInactive, isLocked && styles.durationLocked]}>
+                        <Text style={[styles.durationText, isLocked && styles.durationTextLocked]}>
+                          {dur.label}
+                        </Text>
+                        {isLocked && <Lock size={10} color="#94a3b8" style={styles.lockIcon} />}
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
             </View>
             <View style={styles.expiryRow}>
               <Clock size={14} color="#94a3b8" />
@@ -469,7 +491,7 @@ export default function CreateRoomScreen() {
                   <Text style={styles.advancedValue}>{maxParticipants}</Text>
                 </View>
                 <View style={styles.participantOptions}>
-                  {[50, 100, 200, 500].map(val => (
+                  {(hasEntitlement('UNLIMITED_PARTICIPANTS') ? [50, 100, 500, 1000, 5000, 9999] : [50, 100, 200, 500]).map(val => (
                     <TouchableOpacity
                       key={val}
                       style={[
@@ -481,7 +503,7 @@ export default function CreateRoomScreen() {
                       <Text style={[
                         styles.participantChipText,
                         maxParticipants === val && styles.participantChipTextActive
-                      ]}>{val}</Text>
+                      ]}>{val === 9999 ? '999+' : val}</Text>
                     </TouchableOpacity>
                   ))}
                 </View>
@@ -517,7 +539,7 @@ export default function CreateRoomScreen() {
           </LinearGradient>
         </TouchableOpacity>
         <Text style={[styles.dailyLimitText, isLimitReached && styles.limitReachedText]}>
-          Daily limit: {quota?.used ?? 0}/{quota?.limit ?? 3} rooms
+          Daily limit: {quota?.used ?? 0}/{hasEntitlement('INCREASED_QUOTA') ? ROOM_CONFIG.PRO_LIMITS.DAILY_ROOMS : (quota?.limit ?? 3)} rooms
         </Text>
       </View>
 
@@ -665,6 +687,24 @@ const styles = StyleSheet.create({
     fontSize: 15,
     fontWeight: '600',
     color: '#64748b',
+  },
+  durationTextActive: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#fff',
+  },
+  durationLocked: {
+    backgroundColor: '#f1f5f9',
+    borderColor: '#e2e8f0',
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  durationTextLocked: {
+    color: '#94a3b8',
+  },
+  lockIcon: {
+    marginTop: 1,
   },
   expiryRow: {
     flexDirection: 'row',

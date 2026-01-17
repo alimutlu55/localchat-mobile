@@ -25,6 +25,7 @@ import {
 } from 'lucide-react-native';
 import BottomSheet, { BottomSheetScrollView } from '@gorhom/bottom-sheet';
 import { useProfileDrawer } from '../../features/user';
+import { useMembership } from '../../features/user/hooks/useMembership';
 
 // Sub-components
 import { ProfileHeader } from './ProfileHeader';
@@ -70,7 +71,10 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
         handleLocationSettings,
         handleLanguageSettings,
         handleReportProblem,
+        handleSubscription,
+        handleManageSubscription,
     } = useProfileDrawer();
+    const { isPro } = useMembership();
     const insets = useSafeAreaInsets();
 
     // BottomSheet refs and config
@@ -152,6 +156,9 @@ export function ProfileDrawer({ isOpen, onClose, onSignOut }: ProfileDrawerProps
                 blockedUsersCount={blockedUsers.count}
                 onBlockedUsersPress={handleBlockedUsers}
                 onDataControlsPress={handleDataControls}
+                isPro={isPro}
+                onProPress={handleSubscription}
+                onManagePress={handleManageSubscription}
             />
 
             <NotificationSettings

@@ -49,7 +49,6 @@ export type RootStackParamList = {
 
   // Modals & Sub-screens pushed on top of MainFlow
   CreateRoom: { initialLocation?: { latitude: number; longitude: number } };
-  Settings: undefined;
   Profile: undefined;
   EditProfile: undefined;
   BlockedUsers: undefined;
@@ -63,6 +62,8 @@ export type RootStackParamList = {
   LanguageSettings: undefined;
   DataControls: undefined;
   ReportProblem: undefined;
+  Subscription: undefined;
+  CustomPaywall: undefined;
 
   // Legacy/Direct access (React Navigation handles nested lookup)
   Discovery: undefined;

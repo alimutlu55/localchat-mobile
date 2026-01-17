@@ -22,6 +22,7 @@ import { Room, serializeRoom } from '../../../types';
 import { storage } from '../../../services/storage';
 import { authService } from '../../../services/auth';
 import { consentService } from '../../../services/consent';
+import { revenueCatService } from '../../../services/revenueCat';
 import { eventBus } from '../../../core/events/EventBus';
 import { createLogger } from '../../../shared/utils/logger';
 
@@ -197,6 +198,15 @@ interface UseProfileDrawerReturn {
 
   /** Navigate to report problem screen */
   handleReportProblem: () => void;
+
+  /** Navigate to subscription screen */
+  handleSubscription: () => void;
+
+  /** Navigate to manage subscription screen */
+  handleManageSubscription: () => void;
+
+  /** Navigate to about screen */
+  handleAbout: () => void;
 }
 
 export function useProfileDrawer(): UseProfileDrawerReturn {
@@ -386,6 +396,27 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
       navigation.navigate('ReportProblem');
     },
     [navigation]
+  );
+
+  const handleAbout = useCallback(
+    () => {
+      navigation.navigate('About');
+    },
+    [navigation]
+  );
+
+  const handleSubscription = useCallback(
+    () => {
+      navigation.navigate('CustomPaywall');
+    },
+    [navigation]
+  );
+
+  const handleManageSubscription = useCallback(
+    () => {
+      revenueCatService.presentCustomerCenter();
+    },
+    []
   );
 
   // =========================================================================
@@ -691,6 +722,9 @@ export function useProfileDrawer(): UseProfileDrawerReturn {
     handleLocationSettings,
     handleLanguageSettings,
     handleReportProblem,
+    handleSubscription,
+    handleManageSubscription,
+    handleAbout,
   };
 }
 

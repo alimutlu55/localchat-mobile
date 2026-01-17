@@ -18,7 +18,6 @@ import { useNavigation } from '@react-navigation/native';
 import { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   User,
-  Settings,
   HelpCircle,
   Shield,
   LogOut,
@@ -173,11 +172,6 @@ export default function ProfileScreen() {
               icon={<User size={20} color="#6b7280" />}
               label="Edit Profile"
               onPress={() => navigation.navigate('EditProfile')}
-            />
-            <MenuItem
-              icon={<Settings size={20} color="#6b7280" />}
-              label="Settings"
-              onPress={() => navigation.navigate('Settings')}
             />
           </View>
         </View>

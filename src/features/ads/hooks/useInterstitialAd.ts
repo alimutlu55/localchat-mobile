@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { InterstitialAd, AdEventType, TestIds } from 'react-native-google-mobile-ads';
 import { getInterstitialAdUnitId, AD_CONFIG } from '../config/adConfig';
 import { useAdConsent } from './useAdConsent';
+import { useMembership } from '../../user/hooks/useMembership';
 
 // Global state to persist ad instance and stats across hook mounts
 let globalAd: InterstitialAd | null = null;
@@ -18,10 +19,11 @@ let sessionStats = {
  */
 export function useInterstitialAd() {
     const { canShowAds } = useAdConsent();
+    const { hasEntitlement } = useMembership();
     const [, setTick] = useState(0); // Force re-render on load
 
     const loadAd = useCallback(() => {
-        if (!canShowAds || globalAd) return;
+        if (!canShowAds || hasEntitlement('NO_ADS') || globalAd) return;
 
         const adUnitId = AD_CONFIG.isTestMode ? TestIds.INTERSTITIAL : getInterstitialAdUnitId();
         const interstitial = InterstitialAd.createForAdRequest(adUnitId, {
@@ -62,7 +64,7 @@ export function useInterstitialAd() {
 
         sessionStats.joinsCount++;
 
-        if (!canShowAds) return false;
+        if (!canShowAds || hasEntitlement('NO_ADS')) return false;
         if (sessionStats.joinsCount <= AD_CONFIG.INTERSTITIAL_SKIP_FIRST_JOINS) return false;
         if (sessionStats.adsShown >= AD_CONFIG.INTERSTITIAL_MAX_PER_SESSION) return false;
 

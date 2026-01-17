@@ -18,10 +18,10 @@ import {
     OnboardingScreen,
     RoomDetailsScreen,
     CreateRoomScreen,
-    SettingsScreen,
     EditProfileScreen,
     ConsentScreen,
     ConsentPreferencesScreen,
+    CustomPaywallScreen,
 } from '../screens';
 
 import {
@@ -104,7 +104,6 @@ export function RootNavigator() {
                         />
 
                         {/* Standard screens pushed on top of MainFlow stack (and thus on top of its drawers) */}
-                        <Stack.Screen name="Settings" component={SettingsScreen} />
                         <Stack.Screen
                             name="EditProfile"
                             component={EditProfileScreen}
@@ -164,6 +163,15 @@ export function RootNavigator() {
                             options={{
                                 animation: 'slide_from_right',
                                 gestureEnabled: true,
+                            }}
+                        />
+
+                        <Stack.Screen
+                            name="CustomPaywall"
+                            component={CustomPaywallScreen}
+                            options={{
+                                presentation: 'modal',
+                                animation: 'slide_from_bottom',
                             }}
                         />
                     </>

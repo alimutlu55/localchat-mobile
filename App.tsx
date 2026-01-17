@@ -43,6 +43,7 @@ import { ToastProvider } from './src/components/ui';
 import { api } from './src/services';
 import { wsService } from './src/services';
 import { notificationService } from './src/services';
+import { revenueCatService } from './src/services/revenueCat';
 import { RootStackParamList } from './src/navigation/types';
 
 // Initialize i18n
@@ -80,6 +81,9 @@ export default function App() {
 
         // Initialize SessionManager (coordinates auth + consent atomically)
         await sessionManager.initialize();
+
+        // Initialize RevenueCat
+        await revenueCatService.configure();
 
         // Check current OS location permission status
         const { getLocationPermissionStore } = await import('./src/shared/stores/LocationConsentStore');

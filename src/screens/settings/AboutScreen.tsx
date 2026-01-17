@@ -21,6 +21,7 @@ import {
     Alert,
     Share,
     Platform,
+    Switch,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
@@ -38,8 +39,11 @@ import {
     ExternalLink,
     Heart,
     Info,
+    Star,
+    Sparkles,
 } from 'lucide-react-native';
 import { openTermsOfService, openPrivacyPolicy } from '../../shared/utils/legal';
+import { useMembership } from '../../features/user/hooks/useMembership';
 // Note: Clipboard functionality removed to avoid extra dependency
 import { theme } from '../../core/theme';
 import { APP_VERSION } from '../../version';
@@ -104,6 +108,7 @@ function LinkItem({ icon, label, description, onPress, external }: LinkItemProps
  */
 export default function AboutScreen() {
     const navigation = useNavigation();
+    const { isPro, setIsPro } = useMembership();
 
     /**
      * Show version info (useful for bug reports)
@@ -220,6 +225,30 @@ export default function AboutScreen() {
                             description="Rules for using BubbleUp"
                             onPress={openTermsOfService}
                         />
+                    </View>
+                </View>
+
+                {/* Premium / Simulation Section */}
+                <View style={styles.section}>
+                    <Text style={styles.sectionTitle}>BubbleUp Pro</Text>
+                    <View style={styles.sectionCard}>
+                        <View style={styles.linkItem}>
+                            <View style={[styles.linkIcon, { backgroundColor: '#fdf2f8' }]}>
+                                <Star size={20} color="#db2777" fill={isPro ? "#db2777" : "none"} />
+                            </View>
+                            <View style={styles.linkContent}>
+                                <Text style={styles.linkLabel}>Pro Status</Text>
+                                <Text style={styles.linkDescription}>
+                                    {isPro ? "Unlimited participants, 7-day rooms, No ads" : "Basic features enabled"}
+                                </Text>
+                            </View>
+                            <Switch
+                                value={isPro}
+                                onValueChange={setIsPro}
+                                trackColor={{ false: theme.tokens.border.subtle, true: "#fbcfe8" }}
+                                thumbColor={isPro ? "#db2777" : "#f4f4f5"}
+                            />
+                        </View>
                     </View>
                 </View>
 

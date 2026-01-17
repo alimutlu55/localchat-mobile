@@ -17,6 +17,7 @@ interface SettingRowProps {
     isEnabled?: boolean;
     onToggle?: (value: boolean) => void;
     danger?: boolean;
+    highlight?: boolean;
 }
 
 export function SettingRow({
@@ -28,9 +29,10 @@ export function SettingRow({
     isEnabled,
     onToggle,
     danger,
+    highlight,
 }: SettingRowProps) {
-    const iconColor = danger ? '#ef4444' : '#6b7280';
-    const textColor = danger ? '#ef4444' : '#1f2937';
+    const iconColor = danger ? '#ef4444' : highlight ? '#FF6410' : '#6b7280';
+    const textColor = danger ? '#ef4444' : highlight ? '#FF6410' : '#1f2937';
 
     if (isToggle) {
         return (

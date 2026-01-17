@@ -105,6 +105,11 @@ export interface UserStoreState {
    * Last sync timestamp
    */
   lastSyncAt: number | null;
+
+  /**
+   * Membership status - Unlock Pro features
+   */
+  isPro: boolean;
 }
 
 export interface UserStoreActions {
@@ -203,6 +208,11 @@ export interface UserStoreActions {
    * Reset store to initial state
    */
   reset: () => void;
+
+  /**
+   * Set membership status
+   */
+  setIsPro: (isPro: boolean) => void;
 }
 
 export type UserStore = UserStoreState & UserStoreActions;
@@ -243,6 +253,7 @@ const initialState: UserStoreState = {
   isLoading: false,
   isUpdating: false,
   lastSyncAt: null,
+  isPro: false,
 };
 
 // Avatar cache max age (1 hour)
@@ -497,13 +508,19 @@ export const useUserStore = create<UserStore>()(
             preferences: get().preferences,
           });
         },
+
+        setIsPro: (isPro: boolean) => {
+          log.info('Updating membership status', { isPro });
+          set({ isPro });
+        },
       }),
       {
         name: 'localchat-user-store',
         storage: createJSONStorage(() => AsyncStorage),
-        // Only persist preferences, not user data (that's in secure storage)
+        // Persist preferences and membership status
         partialize: (state) => ({
           preferences: state.preferences,
+          isPro: state.isPro,
         }),
       }
     )

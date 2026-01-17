@@ -28,10 +28,14 @@ import {
   UserX,
   FileText,
   HelpCircle,
+  Star,
+  Info,
 } from 'lucide-react-native';
 import { useAuth } from '../features/auth';
 import { useCurrentUser } from '../features/user/store';
+import { useMembership } from '../features/user/hooks/useMembership';
 import { storage, STORAGE_KEYS } from '../services';
+import { revenueCatService } from '../services/revenueCat';
 import { theme } from '../core/theme';
 import { APP_VERSION } from '../version';
 
@@ -96,6 +100,7 @@ export default function SettingsScreen() {
   const { logout, deleteAccount } = useAuth();
   const user = useCurrentUser();
   const isAnonymous = user?.isAnonymous ?? true;
+  const { isPro } = useMembership();
 
   const [notifications, setNotifications] = useState(true);
   const [locationEnabled, setLocationEnabled] = useState(true);
@@ -288,21 +293,43 @@ export default function SettingsScreen() {
           </View>
         </View>
 
-        {/* Danger Zone - Only show for authenticated users */}
-        {!isAnonymous && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Account</Text>
-            <View style={styles.sectionCard}>
-              <SettingLink
-                icon={<Trash2 size={20} color={theme.tokens.text.error} />}
-                label="Delete Account"
-                description="Permanently delete your account"
-                onPress={handleDeleteAccount}
-                danger
-              />
-            </View>
+        {/* Account Section */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Account</Text>
+          <View style={styles.sectionCard}>
+            <SettingLink
+              icon={<Star size={20} color={isPro ? "#FF6410" : theme.tokens.text.secondary} />}
+              label="Subscription"
+              description={isPro ? "BubbleUp Pro Active" : "Upgrade to BubbleUp Pro"}
+              onPress={() => navigation.navigate('CustomPaywall' as never)}
+            />
+            <View style={styles.divider} />
+            <SettingLink
+              icon={<Shield size={20} color={theme.tokens.text.secondary} />}
+              label="Manage Subscription"
+              description={isPro ? "Cancel or change your plan" : "View your billing history"}
+              onPress={() => revenueCatService.presentCustomerCenter()}
+            />
+            <View style={styles.divider} />
+            <SettingLink
+              icon={<Info size={20} color={theme.tokens.text.secondary} />}
+              label="About BubbleUp"
+              onPress={() => navigation.navigate('About' as never)}
+            />
+            {!isAnonymous && (
+              <>
+                <View style={styles.divider} />
+                <SettingLink
+                  icon={<Trash2 size={20} color={theme.tokens.text.error} />}
+                  label="Delete Account"
+                  description="Permanently delete your account"
+                  onPress={handleDeleteAccount}
+                  danger
+                />
+              </>
+            )}
           </View>
-        )}
+        </View>
 
         {/* App Info */}
         <View style={styles.appInfo}>

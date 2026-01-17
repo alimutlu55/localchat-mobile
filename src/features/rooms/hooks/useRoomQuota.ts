@@ -1,6 +1,8 @@
 import { useCallback, useEffect } from 'react';
 import { roomService } from '../../../services/room';
 import { useRoomStore } from '../store';
+import { useMembership } from '../../user/hooks/useMembership';
+import { ROOM_CONFIG } from '../../../constants';
 import { createLogger } from '../../../shared/utils/logger';
 
 const log = createLogger('useRoomQuota');
@@ -13,6 +15,7 @@ export function useRoomQuota() {
     const setQuota = useRoomStore((s) => s.setQuota);
     const isLoading = useRoomStore((s) => s.isLoading);
     const setLoading = useRoomStore((s) => s.setLoading);
+    const { isPro, hasEntitlement } = useMembership();
 
     const fetchQuota = useCallback(async () => {
         try {
@@ -36,10 +39,14 @@ export function useRoomQuota() {
         }
     }, [quota, fetchQuota]);
 
+    const effectiveLimit = hasEntitlement('INCREASED_QUOTA')
+        ? ROOM_CONFIG.PRO_LIMITS.DAILY_ROOMS
+        : (quota?.limit ?? 3);
+
     return {
-        quota,
+        quota: quota ? { ...quota, limit: effectiveLimit } : null,
         isLoading,
         refreshQuota: fetchQuota,
-        isLimitReached: quota ? quota.used >= quota.limit : false,
+        isLimitReached: quota ? quota.used >= effectiveLimit : false,
     };
 }

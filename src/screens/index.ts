@@ -35,5 +35,5 @@ export { ChatRoomScreen } from '../features/chat';
 export { RoomDetailsScreen, RoomInfoScreen, CreateRoomScreen } from '../features/rooms';
 
 // Settings screens
-export { default as SettingsScreen } from './SettingsScreen';
 export { default as EditProfileScreen } from './EditProfileScreen';
+export { CustomPaywallScreen } from './CustomPaywallScreen';

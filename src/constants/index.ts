@@ -60,12 +60,21 @@ export const ROOM_CONFIG = {
   // Maximum participants per room
   MAX_PARTICIPANTS: 50,
 
+  // Pro limits (extendible for future tiers)
+  PRO_LIMITS: {
+    DAILY_ROOMS: 20,
+    MAX_PARTICIPANTS: 9999,
+    MAX_DURATION_DAYS: 7,
+  },
+
   // Duration options in minutes
   DURATION_OPTIONS: {
     short: 60,      // 1 hour
     medium: 180,    // 3 hours
     long: 480,      // 8 hours
     extended: 1440, // 24 hours
+    day3: 4320,     // 3 days
+    day7: 10080,    // 7 days
   },
 
   // Refresh interval for room list (ms)
