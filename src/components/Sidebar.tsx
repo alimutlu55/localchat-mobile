@@ -29,6 +29,8 @@ import { Room } from '../types';
 import { useCurrentUser } from '../features/user/store';
 import { AvatarDisplay } from './profile';
 import { theme } from '../core/theme';
+import { MembershipGate } from './gates/MembershipGate';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const SIDEBAR_WIDTH = Dimensions.get('window').width * 0.80;
 
@@ -333,6 +335,16 @@ export function Sidebar({
                         {isAnonymous && (
                             <Text style={styles.profileType}>Anonymous</Text>
                         )}
+                        <MembershipGate proOnly>
+                            <LinearGradient
+                                colors={['#FF6410', '#f43f5e']}
+                                start={{ x: 0, y: 0 }}
+                                end={{ x: 1, y: 0 }}
+                                style={styles.proBadge}
+                            >
+                                <Text style={styles.proBadgeText}>PRO</Text>
+                            </LinearGradient>
+                        </MembershipGate>
                     </View>
                     <ChevronRight size={16} color={theme.tokens.text.tertiary} />
                 </TouchableOpacity>
@@ -531,6 +543,18 @@ const styles = StyleSheet.create({
     profileType: {
         fontSize: 12,
         color: theme.tokens.text.tertiary,
+    },
+    proBadge: {
+        alignSelf: 'flex-start',
+        paddingHorizontal: 6,
+        paddingVertical: 1,
+        borderRadius: 4,
+        marginTop: 2,
+    },
+    proBadgeText: {
+        fontSize: 10,
+        fontWeight: 'bold',
+        color: '#fff',
     },
 });
 

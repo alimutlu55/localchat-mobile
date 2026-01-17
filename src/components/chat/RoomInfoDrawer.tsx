@@ -35,6 +35,7 @@ import {
     PlusCircle,
 } from 'lucide-react-native';
 import { theme } from '../../core/theme';
+import { UNLIMITED_PARTICIPANTS } from '../../types/subscription';
 import { Room } from '../../types';
 import { ParticipantList } from './ParticipantList';
 import { roomService, ParticipantDTO } from '../../services';
@@ -254,7 +255,9 @@ export function RoomInfoDrawer({
                                     <Users size={18} color={theme.tokens.text.tertiary} />
                                     <Text style={styles.gridLabel}>Participants</Text>
                                 </View>
-                                <Text style={styles.gridValue}>{room.participantCount}/{room.maxParticipants}</Text>
+                                <Text style={styles.gridValue}>
+                                    {room.maxParticipants === UNLIMITED_PARTICIPANTS ? room.participantCount : `${room.participantCount}/${room.maxParticipants}`}
+                                </Text>
                             </View>
 
                             <View style={styles.gridItem}>

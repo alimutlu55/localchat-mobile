@@ -21,6 +21,7 @@ import { MessageCircle, Plus, Users, Clock, Crown } from 'lucide-react-native';
 import { RootStackParamList, MainFlowStackParamList } from '../../navigation/types';
 import { roomService } from '../../services';
 import { Room, serializeRoom } from '../../types';
+import { UNLIMITED_PARTICIPANTS } from '../../types/subscription';
 import { useMyRooms } from '../../features/rooms/hooks';
 import { createLogger } from '../../shared/utils/logger';
 
@@ -122,7 +123,7 @@ export default function RoomsScreen() {
           <View style={styles.metaItem}>
             <Users size={14} color="#9ca3af" />
             <Text style={styles.metaText}>
-              {room.participantCount}/{room.maxParticipants}
+              {room.maxParticipants === UNLIMITED_PARTICIPANTS ? room.participantCount : `${room.participantCount}/${room.maxParticipants}`}
             </Text>
           </View>
           <View style={styles.metaItem}>

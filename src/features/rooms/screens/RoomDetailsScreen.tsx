@@ -41,6 +41,7 @@ import { theme } from '../../../core/theme';
 import { ChatMessage, serializeRoom, deserializeRoom, Room } from '../../../types';
 import { useUserId } from '../../user/store';
 import { useRoom, useRoomOperations, useRoomMembership } from '../hooks';
+import { UNLIMITED_PARTICIPANTS } from '../../../types/subscription';
 import { useUserLocation } from '../../discovery/hooks';
 import { useRoomStore } from '../store';
 import { useAuth } from '../../auth/hooks/useAuth';
@@ -441,7 +442,9 @@ export default function RoomDetailsScreen() {
             <View style={styles.statItem}>
               <Users size={16} color="#6b7280" />
               <Text style={styles.statText}>
-                {room.participantCount}/{room.maxParticipants}
+                {room.maxParticipants === UNLIMITED_PARTICIPANTS
+                  ? room.participantCount
+                  : `${room.participantCount}/${room.maxParticipants}`}
               </Text>
             </View>
             <View style={styles.statItem}>

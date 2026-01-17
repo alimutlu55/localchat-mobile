@@ -39,9 +39,7 @@ export function useRoomQuota() {
         }
     }, [quota, fetchQuota]);
 
-    const effectiveLimit = hasEntitlement('INCREASED_QUOTA')
-        ? limits.dailyRoomLimit
-        : (quota?.limit ?? 3);
+    const effectiveLimit = limits.dailyRoomLimit;
 
     return {
         quota: quota ? { ...quota, limit: effectiveLimit } : null,

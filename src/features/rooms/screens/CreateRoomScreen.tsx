@@ -38,6 +38,9 @@ import { useRoomQuota } from '../hooks/useRoomQuota';
 import { useMembership } from '../../user/hooks/useMembership';
 import { PrivacyLocationSelector } from '../components/PrivacyLocationSelector';
 import { ROOM_CONFIG } from '../../../constants';
+import { FeatureGate } from '../../../components/gates/FeatureGate';
+import { MembershipGate } from '../../../components/gates/MembershipGate';
+import { UNLIMITED_PARTICIPANTS } from '../../../types/subscription';
 
 
 type NavigationProp = NativeStackNavigationProp<MainFlowStackParamList, 'CreateRoom'>;
@@ -106,7 +109,7 @@ export default function CreateRoomScreen() {
   const [location, setLocation] = useState<{ latitude: number; longitude: number } | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const { quota, refreshQuota, isLimitReached } = useRoomQuota();
-  const { isPro, hasEntitlement } = useMembership();
+  const { isPro, limits, hasEntitlement, canAccess } = useMembership();
 
   const DURATION_OPTIONS = PRO_DURATION_OPTIONS; // Show all options to everyone to encourage Pro upgrade
 
@@ -344,8 +347,7 @@ export default function CreateRoomScreen() {
             <Text style={styles.label}>Duration</Text>
             <View style={styles.durationRow}>
               {DURATION_OPTIONS.map((dur) => {
-                const isExtended = dur.value > 6;
-                const isLocked = isExtended && !isPro;
+                const isLocked = !canAccess('maxRoomDurationHours', (val: number) => dur.value <= val);
 
                 return (
                   <TouchableOpacity
@@ -499,24 +501,46 @@ export default function CreateRoomScreen() {
                 <View style={styles.advancedRow}>
                   <Users size={16} color="#64748b" />
                   <Text style={styles.advancedLabel}>Max Participants</Text>
-                  <Text style={styles.advancedValue}>{maxParticipants}</Text>
+                  <Text style={styles.advancedValue}>
+                    {maxParticipants === UNLIMITED_PARTICIPANTS ? 'Unlimited' : maxParticipants}
+                  </Text>
                 </View>
                 <View style={styles.participantOptions}>
-                  {(hasEntitlement('UNLIMITED_PARTICIPANTS') ? [50, 100, 500, 1000, 5000, 9999] : [50, 100, 200, 500]).map(val => (
-                    <TouchableOpacity
-                      key={val}
-                      style={[
-                        styles.participantChip,
-                        maxParticipants === val && styles.participantChipActive
-                      ]}
-                      onPress={() => setMaxParticipants(val)}
-                    >
-                      <Text style={[
-                        styles.participantChipText,
-                        maxParticipants === val && styles.participantChipTextActive
-                      ]}>{val === 9999 ? '999+' : val}</Text>
-                    </TouchableOpacity>
-                  ))}
+                  <FeatureGate
+                    feature="maxParticipants"
+                    requirement={val => val > 500}
+                    fallback={[50, 100, 200, 500].map(val => (
+                      <TouchableOpacity
+                        key={val}
+                        style={[
+                          styles.participantChip,
+                          maxParticipants === val && styles.participantChipActive
+                        ]}
+                        onPress={() => setMaxParticipants(val)}
+                      >
+                        <Text style={[
+                          styles.participantChipText,
+                          maxParticipants === val && styles.participantChipTextActive
+                        ]}>{val}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  >
+                    {[50, 100, 500, 1000, 5000, UNLIMITED_PARTICIPANTS].map(val => (
+                      <TouchableOpacity
+                        key={val}
+                        style={[
+                          styles.participantChip,
+                          maxParticipants === val && styles.participantChipActive
+                        ]}
+                        onPress={() => setMaxParticipants(val)}
+                      >
+                        <Text style={[
+                          styles.participantChipText,
+                          maxParticipants === val && styles.participantChipTextActive
+                        ]}>{val === UNLIMITED_PARTICIPANTS ? 'Unlimited' : val}</Text>
+                      </TouchableOpacity>
+                    ))}
+                  </FeatureGate>
                 </View>
               </View>
             )}
@@ -550,7 +574,7 @@ export default function CreateRoomScreen() {
           </LinearGradient>
         </TouchableOpacity>
         <Text style={[styles.dailyLimitText, isLimitReached && styles.limitReachedText]}>
-          Daily limit: {quota?.used ?? 0}/{hasEntitlement('INCREASED_QUOTA') ? ROOM_CONFIG.PRO_LIMITS.DAILY_ROOMS : (quota?.limit ?? 3)} rooms
+          Daily limit: {quota?.used ?? 0}/{limits.dailyRoomLimit} rooms
         </Text>
       </View>
 

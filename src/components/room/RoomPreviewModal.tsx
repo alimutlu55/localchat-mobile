@@ -27,7 +27,9 @@ import {
     Lock,
 } from 'lucide-react-native';
 import { useMembership } from '../../features/user/hooks/useMembership';
+import { FeatureGate } from '../gates/FeatureGate';
 import { Room } from '../../types';
+import { UNLIMITED_PARTICIPANTS } from '../../types/subscription';
 import { getRoomShareUrl, SHARE_CONFIG } from '../../constants';
 
 const { width } = Dimensions.get('window');
@@ -115,10 +117,17 @@ export function RoomPreviewModal({
                                 <Text style={styles.gridLabel}>Participants</Text>
                             </View>
                             <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-                                <Text style={styles.gridValue}>{room.participantCount}/{room.maxParticipants}</Text>
-                                {!isPro && room.maxParticipants > 50 && (
+                                <Text style={styles.gridValue}>
+                                    {room.maxParticipants === UNLIMITED_PARTICIPANTS
+                                        ? room.participantCount
+                                        : `${room.participantCount}/${room.maxParticipants}`}
+                                </Text>
+                                <FeatureGate
+                                    feature="maxParticipants"
+                                    requirement={val => room.maxParticipants > val}
+                                >
                                     <Lock size={12} color="#94a3b8" />
-                                )}
+                                </FeatureGate>
                             </View>
                         </View>
 

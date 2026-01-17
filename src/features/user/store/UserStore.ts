@@ -23,7 +23,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Image } from 'react-native';
 import { User } from '../../../types';
 import { createLogger } from '../../../shared/utils/logger';
-import { SubscriptionLimits, FREE_LIMITS } from '../../../types/subscription';
+import { SubscriptionLimits, DEFAULT_FREE_LIMITS } from '../../../types/subscription';
 
 const log = createLogger('UserStore');
 
@@ -265,7 +265,7 @@ const initialState: UserStoreState = {
   isUpdating: false,
   lastSyncAt: null,
   isPro: false,
-  subscriptionLimits: FREE_LIMITS,
+  subscriptionLimits: DEFAULT_FREE_LIMITS,
 };
 
 // Avatar cache max age (1 hour)

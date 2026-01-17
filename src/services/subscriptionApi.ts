@@ -12,12 +12,10 @@ import {
     IsProResponse,
     SyncSubscriptionRequest,
     SubscriptionLimits,
-    FREE_LIMITS
+    DEFAULT_FREE_LIMITS
 } from '../types/subscription';
 
 const log = createLogger('SubscriptionApi');
-
-// Types moved to src/types/subscription.ts
 
 // ============================================================================
 // Subscription API Service
@@ -48,7 +46,7 @@ class SubscriptionApiService {
             const info = await api.get<SubscriptionInfo>('/subscriptions/status');
             this.cachedInfo = info;
             this.cacheExpiry = Date.now() + this.CACHE_TTL_MS;
-            log.info('Fetched subscription status', { tier: info.tier, isPro: info.isPro });
+            log.info('Fetched subscription status', { tier: info.manifest.tierName, isPro: info.isPro });
             return info;
         } catch (error) {
             log.error('Failed to fetch subscription status', error);
@@ -145,7 +143,7 @@ class SubscriptionApiService {
             this.cachedInfo = backendInfo;
             this.cacheExpiry = Date.now() + this.CACHE_TTL_MS;
 
-            log.info('Synced subscription to backend', { tier: backendInfo.tier, isPro: backendInfo.isPro });
+            log.info('Synced subscription to backend', { tier: backendInfo.manifest.tierName, isPro: backendInfo.isPro });
             return backendInfo;
         } catch (error) {
             log.error('Failed to sync subscription to backend', error);
@@ -158,7 +156,13 @@ class SubscriptionApiService {
      */
     async getLimits(): Promise<SubscriptionLimits> {
         const info = await this.getStatus();
-        return info.limits;
+        return {
+            tierName: info.manifest.tierName || 'free',
+            dailyRoomLimit: info.manifest.dailyRoomLimit,
+            maxRoomDurationHours: info.manifest.maxRoomDurationHours,
+            maxParticipants: info.manifest.maxParticipants,
+            showAds: info.manifest.showAds,
+        };
     }
 
     /**
@@ -175,10 +179,9 @@ class SubscriptionApiService {
      */
     private getDefaultFreeInfo(): SubscriptionInfo {
         return {
-            userId: '',
             isPro: false,
-            tier: 'free',
-            limits: FREE_LIMITS,
+            entitlements: [],
+            manifest: DEFAULT_FREE_LIMITS,
         };
     }
 }

@@ -3,7 +3,7 @@ import mobileAds, { AdsConsent, AdsConsentStatus } from 'react-native-google-mob
 import { consentService } from '../../../services/consent';
 import { eventBus } from '../../../core/events';
 import { useUserStore } from '../../user/store/UserStore';
-import { FREE_LIMITS } from '../../../types/subscription';
+import { DEFAULT_FREE_LIMITS } from '../../../types/subscription';
 
 export type AdStatus = 'idle' | 'checking_consent' | 'initializing_sdk' | 'ready' | 'error';
 
@@ -32,7 +32,7 @@ export const AdProvider: React.FC<{ children: React.ReactNode }> = ({ children }
 
     // Membership state
     const isPro = useUserStore(s => s.isPro);
-    const subscriptionLimits = useUserStore(s => s.subscriptionLimits || FREE_LIMITS);
+    const subscriptionLimits = useUserStore(s => s.subscriptionLimits || DEFAULT_FREE_LIMITS);
     const isAdsDisabledByMembership = isPro || !subscriptionLimits.showAds;
 
     const isInitialized = useRef(false);

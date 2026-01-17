@@ -2,7 +2,10 @@
  * Subscription Related Types
  */
 
+export const UNLIMITED_PARTICIPANTS = 2147483647;
+
 export interface SubscriptionLimits {
+    tierName: string;
     dailyRoomLimit: number;
     maxRoomDurationHours: number;
     maxParticipants: number;
@@ -10,12 +13,11 @@ export interface SubscriptionLimits {
 }
 
 export interface SubscriptionInfo {
-    userId: string;
     isPro: boolean;
-    tier: 'free' | 'pro';
-    productId?: string;
+    planType?: string;
     expiresAt?: string;
-    limits: SubscriptionLimits;
+    entitlements: string[];
+    manifest: Record<string, any>;
 }
 
 export interface IsProResponse {
@@ -29,16 +31,21 @@ export interface SyncSubscriptionRequest {
     expiresAt?: string;
 }
 
-export const FREE_LIMITS: SubscriptionLimits = {
+/**
+ * Fallback limits used only when backend is unreachable
+ */
+export const DEFAULT_FREE_LIMITS: SubscriptionLimits = {
+    tierName: 'free',
     dailyRoomLimit: 3,
     maxRoomDurationHours: 6,
     maxParticipants: 50,
     showAds: true,
 };
 
-export const PRO_LIMITS: SubscriptionLimits = {
+export const DEFAULT_PRO_LIMITS: SubscriptionLimits = {
+    tierName: 'pro',
     dailyRoomLimit: 20,
     maxRoomDurationHours: 168,
-    maxParticipants: 9999,
+    maxParticipants: UNLIMITED_PARTICIPANTS,
     showAds: false,
 };

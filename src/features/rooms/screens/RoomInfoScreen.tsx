@@ -34,6 +34,7 @@ import {
 } from 'lucide-react-native';
 import { RootStackParamList } from '../../../navigation/types';
 import { Room, deserializeRoom } from '../../../types';
+import { UNLIMITED_PARTICIPANTS } from '../../../types/subscription';
 import { ParticipantDTO } from '../../../services'; // ParticipantDTO remains from here
 import { roomService } from '../../../services/room'; // roomService moves here
 import { getRoomShareUrl, SHARE_CONFIG } from '../../../constants'; // New imports
@@ -353,7 +354,9 @@ export default function RoomInfoScreen() {
                                 <Text style={styles.gridLabel}>Participants</Text>
                             </View>
                             <Text style={styles.gridValue}>
-                                {Math.max(room.participantCount || 0, participants.length)}/{room.maxParticipants}
+                                {room.maxParticipants === UNLIMITED_PARTICIPANTS
+                                    ? Math.max(room.participantCount || 0, participants.length)
+                                    : `${Math.max(room.participantCount || 0, participants.length)}/${room.maxParticipants}`}
                             </Text>
                         </View>
 

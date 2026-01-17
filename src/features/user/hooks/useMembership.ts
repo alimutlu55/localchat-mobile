@@ -4,13 +4,13 @@ import { useUserStore } from '../store/UserStore';
 import { revenueCatService } from '../../../services/revenueCat';
 import { subscriptionApi } from '../../../services/subscriptionApi';
 import { createLogger } from '../../../shared/utils/logger';
-import { FREE_LIMITS } from '../../../types/subscription';
+import { DEFAULT_FREE_LIMITS } from '../../../types/subscription';
 
 const log = createLogger('useMembership');
 
 /**
  * Hook to access and manage the user's Pro membership status.
- * Integrates with RevenueCat AND the backend to ensure synced enforcement.
+ * Intergrates with RevenueCat AND the backend to ensure synced enforcement.
  */
 export function useMembership() {
     const isPro = useUserStore((s) => s.isPro);
@@ -19,7 +19,17 @@ export function useMembership() {
     const setLimits = useUserStore((s) => s.setSubscriptionLimits);
 
     // Defensive check: ensure limits is never undefined to prevent crashes
-    const limits = storedLimits || FREE_LIMITS;
+    const limits = storedLimits || DEFAULT_FREE_LIMITS;
+
+    // Proactive Sync: If we think we are pro but have free limits, trigger a sync
+    useEffect(() => {
+        const tierName = limits.tierName?.toLowerCase() || '';
+        const isDefaultFree = tierName === 'free' && limits.maxRoomDurationHours === 6;
+        if (isPro && isDefaultFree) {
+            log.info('Pro user detected with default limits, triggering manifest sync...');
+            refreshMembershipStatus();
+        }
+    }, [isPro, limits.tierName]);
 
     /**
      * Helper to manually trigger a sync if needed (e.g., Pull to Refresh)
@@ -31,8 +41,9 @@ export function useMembership() {
                 if (info.isPro !== isPro) {
                     setIsPro(info.isPro);
                 }
-                setLimits(info.limits);
-                log.info('Manually synced membership with backend', { tier: info.tier });
+                const newLimits = await subscriptionApi.getLimits();
+                setLimits(newLimits);
+                log.info('Manually synced membership with backend', { tier: info.manifest.tierName });
             }
         } catch (err) {
             log.warn('Manual sync failed', err);
@@ -40,7 +51,36 @@ export function useMembership() {
     };
 
     /**
-     * Check entitlement or limit
+     * Check if user belongs to one or more tiers
+     */
+    const isTier = (tiers: string | string[]) => {
+        const tierList = (Array.isArray(tiers) ? tiers : [tiers]).map(t => t.toLowerCase());
+        const currentTier = (limits.tierName || '').toLowerCase();
+        return tierList.includes(currentTier);
+    };
+
+    /**
+     * Granular feature check based on manifest values
+     */
+    const canAccess = (feature: string, requirement?: (value: any) => boolean) => {
+        const featureKey = feature as keyof typeof limits;
+        const value = limits[featureKey];
+
+        if (value === undefined) {
+            // Fallback for known boolean features if missing from manifest
+            if (feature === 'showAds') return true;
+            return false;
+        }
+
+        if (requirement) return requirement(value);
+
+        // Default boolean check if no requirement predicate provided
+        if (typeof value === 'boolean') return value;
+        return true;
+    };
+
+    /**
+     * Check entitlement or limit (Legacy support + convenience)
      */
     const hasEntitlement = (feature: 'NO_ADS' | 'EXTENDED_ROOMS' | 'INCREASED_QUOTA' | 'UNLIMITED_PARTICIPANTS') => {
         switch (feature) {
@@ -64,7 +104,10 @@ export function useMembership() {
 
     return {
         isPro,
+        tier: limits.tierName,
         limits,
+        isTier,
+        canAccess,
         hasEntitlement,
         getLimit,
         refreshMembershipStatus,

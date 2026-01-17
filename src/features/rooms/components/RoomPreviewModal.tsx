@@ -26,6 +26,7 @@ import {
     Flag,
 } from 'lucide-react-native';
 import { Room } from '../../../types';
+import { UNLIMITED_PARTICIPANTS } from '../../../types/subscription';
 import { getRoomShareUrl, SHARE_CONFIG } from '../../../constants';
 
 const { width } = Dimensions.get('window');
@@ -111,7 +112,9 @@ export function RoomPreviewModal({
                                 <Users size={16} color="#64748b" />
                                 <Text style={styles.gridLabel}>Participants</Text>
                             </View>
-                            <Text style={styles.gridValue}>{room.participantCount}/{room.maxParticipants}</Text>
+                            <Text style={styles.gridValue}>
+                                {room.maxParticipants === UNLIMITED_PARTICIPANTS ? room.participantCount : `${room.participantCount}/${room.maxParticipants}`}
+                            </Text>
                         </View>
 
                         <View style={styles.gridItem}>

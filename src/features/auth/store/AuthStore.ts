@@ -216,6 +216,22 @@ async function cleanupSession(): Promise<void> {
  */
 const MIN_LOGOUT_DURATION_MS = 400;
 
+/**
+ * Helper to sync subscription status to UserStore
+ */
+async function syncSubscription(forceRefresh: boolean = false): Promise<void> {
+    try {
+        const { subscriptionApi } = await import('../../../services/subscriptionApi');
+        const subInfo = await subscriptionApi.getStatus(forceRefresh);
+        useUserStore.getState().setIsPro(subInfo.isPro);
+        if (subInfo.manifest) {
+            useUserStore.getState().setSubscriptionLimits(subInfo.manifest as any);
+        }
+    } catch (err) {
+        log.warn('Failed to sync subscription in AuthStore', err);
+    }
+}
+
 // =============================================================================
 // Store Implementation
 // =============================================================================
@@ -251,6 +267,9 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
 
             // Connect WebSocket
             await wsService.connect();
+
+            // Fetch and sync subscription status
+            await syncSubscription(true);
 
             set({
                 status: 'authenticated',
@@ -298,6 +317,9 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             // Connect WebSocket
             await wsService.connect();
 
+            // Fetch and sync subscription status
+            await syncSubscription(true);
+
             set({
                 status: 'authenticated',
                 isAuthenticated: true,
@@ -343,6 +365,9 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
                 // Existing user restored!
                 useUserStore.getState().setUser(result.user);
                 await wsService.connect();
+
+                // Fetch and sync subscription status
+                await syncSubscription();
 
                 set({
                     status: 'authenticated',
@@ -403,6 +428,9 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             // Connect WebSocket
             await wsService.connect();
 
+            // Fetch and sync subscription status
+            await syncSubscription(true);
+
             set({
                 status: 'authenticated',
                 isAuthenticated: true,
@@ -450,6 +478,9 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
             // Connect WebSocket
             await wsService.connect();
 
+            // Fetch and sync subscription status
+            await syncSubscription(true);
+
             set({
                 status: 'authenticated',
                 isAuthenticated: true,
@@ -493,6 +524,9 @@ export const useAuthStore = create<AuthStore>()((set, get) => ({
 
             // Connect WebSocket
             await wsService.connect();
+
+            // Fetch and sync subscription status
+            await syncSubscription(true);
 
             set({
                 status: 'authenticated',
@@ -779,6 +813,9 @@ export async function initializeAuthStore(): Promise<void> {
 
             // Connect WebSocket
             await wsService.connect();
+
+            // Fetch and sync subscription status
+            await syncSubscription();
 
             // Transition to authenticated with user data
             useAuthStore.setState({
