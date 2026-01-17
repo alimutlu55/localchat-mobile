@@ -22,9 +22,9 @@ export function useMembership() {
     const limits = storedLimits || FREE_LIMITS;
 
     /**
-     * Sync local RevenueCat status to backend and update the store
+     * Helper to manually trigger a sync if needed (e.g., Pull to Refresh)
      */
-    const syncWithBackend = async () => {
+    const refreshMembershipStatus = async () => {
         try {
             const info = await subscriptionApi.syncToBackend();
             if (info) {
@@ -32,36 +32,12 @@ export function useMembership() {
                     setIsPro(info.isPro);
                 }
                 setLimits(info.limits);
-                log.info('Synced membership and limits with backend', { tier: info.tier });
+                log.info('Manually synced membership with backend', { tier: info.tier });
             }
         } catch (err) {
-            log.warn('Failed to sync membership with backend', err);
-
-            // Fallback: sync local RevenueCat status directly if backend fails
-            const info = await revenueCatService.getCustomerInfo();
-            const proStatus = revenueCatService.isPro(info);
-            if (proStatus !== isPro) {
-                setIsPro(proStatus);
-            }
+            log.warn('Manual sync failed', err);
         }
     };
-
-    // Sync status on mount and listen for updates
-    useEffect(() => {
-        syncWithBackend();
-
-        // Listen for real-time updates from RevenueCat (purchases, restores)
-        const listener = async (info: CustomerInfo) => {
-            log.info('RevenueCat customer info updated, syncing with backend...');
-            await syncWithBackend();
-        };
-
-        const subscription = Purchases.addCustomerInfoUpdateListener(listener);
-
-        return () => {
-            (subscription as any)?.remove();
-        };
-    }, []);
 
     /**
      * Check entitlement or limit
@@ -91,6 +67,6 @@ export function useMembership() {
         limits,
         hasEntitlement,
         getLimit,
-        refreshMembershipStatus: syncWithBackend,
+        refreshMembershipStatus,
     };
 }

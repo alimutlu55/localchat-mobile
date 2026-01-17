@@ -129,7 +129,13 @@ export function formatTimeRemaining(expiresAt: Date | string | number | undefine
 
   const minutes = Math.floor(diffMs / 60000);
   const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  const remainingHours = hours % 24;
   const remainingMinutes = minutes % 60;
+
+  if (days > 0) {
+    return `${days}d ${remainingHours}h left`;
+  }
 
   if (hours > 0) {
     return `${hours}h ${remainingMinutes}m left`;
@@ -151,7 +157,13 @@ export function formatTimeRemainingMs(ms: number): string {
 
   const minutes = Math.floor(ms / 60000);
   const hours = Math.floor(minutes / 60);
+  const days = Math.floor(hours / 24);
+  const remainingHours = hours % 24;
   const remainingMinutes = minutes % 60;
+
+  if (days > 0) {
+    return `${days}d ${remainingHours}h`;
+  }
 
   if (hours > 0) {
     return `${hours}h ${remainingMinutes}m`;

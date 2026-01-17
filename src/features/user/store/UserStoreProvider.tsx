@@ -16,11 +16,14 @@
  */
 
 import React, { useEffect, useRef } from 'react';
+import Purchases, { CustomerInfo } from 'react-native-purchases';
 import { useUserStore, useCurrentUser } from './UserStore';
 import { useAppStore, selectAuthStatus } from '../../../shared/stores';
 import { eventBus } from '../../../core/events';
 import { createLogger } from '../../../shared/utils/logger';
 import { notificationService } from '../../../services';
+import { subscriptionApi } from '../../../services/subscriptionApi';
+import { revenueCatService } from '../../../services/revenueCat';
 
 const log = createLogger('UserStoreProvider');
 
@@ -55,6 +58,51 @@ function UserStoreInitializer() {
     });
     log.debug('Notification settings getter configured');
   }, []);
+
+  // Sync subscription status on login and handle RevenueCat updates
+  useEffect(() => {
+    if (!currentUser || authStatus !== 'authenticated') return;
+
+    /**
+     * Sync local RevenueCat status to backend and update the store
+     */
+    const syncSubscription = async () => {
+      try {
+        const info = await subscriptionApi.syncToBackend();
+        if (info) {
+          useUserStore.getState().setIsPro(info.isPro);
+          useUserStore.getState().setSubscriptionLimits(info.limits);
+          log.info('Synced membership and limits with backend', { tier: info.tier, isPro: info.isPro });
+        }
+      } catch (err) {
+        log.warn('Failed to sync membership with backend', err);
+
+        // Fallback: sync local RevenueCat status directly if backend fails
+        const info = await revenueCatService.getCustomerInfo();
+        if (info) {
+          const proStatus = revenueCatService.isPro(info);
+          useUserStore.getState().setIsPro(proStatus);
+        }
+      }
+    };
+
+    // Initial sync on authenticated mount
+    syncSubscription();
+
+    // Listen for real-time updates from RevenueCat (purchases, restores, renewals)
+    log.debug('Registering global RevenueCat CustomerInfo listener');
+    const listener = async (info: CustomerInfo) => {
+      log.info('RevenueCat customer info updated, triggering debounced sync...');
+      await syncSubscription();
+    };
+
+    const subscription = Purchases.addCustomerInfoUpdateListener(listener);
+
+    return () => {
+      log.debug('Removing global RevenueCat CustomerInfo listener');
+      (subscription as any)?.remove();
+    };
+  }, [currentUser?.id, authStatus]);
 
   // Subscribe to EventBus profile updates (from other devices/sessions)
   useEffect(() => {

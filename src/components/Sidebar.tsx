@@ -78,7 +78,7 @@ const RoomItem = React.memo(function RoomItem({
                 <Text style={styles.roomMeta}>
                     {isExpired
                         ? 'Expired'
-                        : `${room.participantCount} ${room.participantCount === 1 ? 'member' : 'members'}`}
+                        : `${room.participantCount} ${room.participantCount === 1 ? 'member' : 'members'} • ${room.timeRemaining}`}
                 </Text>
             </View>
             <ChevronRight size={16} color={theme.tokens.text.tertiary} />

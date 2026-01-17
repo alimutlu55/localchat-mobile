@@ -744,18 +744,20 @@ export default function DiscoveryScreen() {
             </View>
 
             {/* Ad Banner - Footer placement respects Safe Area and has dedicated space */}
-            <View style={[
-                styles.adBannerContainer,
-                {
-                    paddingTop: 0,
-                    paddingBottom: normalizedBottomInset + 12,
-                    borderTopWidth: 1,
-                    borderTopColor: '#f3f4f6',
-                    backgroundColor: '#ffffff'
-                }
-            ]}>
-                <AdBanner transparent={false} onVisibilityChange={setIsAdVisible} />
-            </View>
+            {isAdVisible && (
+                <View style={[
+                    styles.adBannerContainer,
+                    {
+                        paddingTop: 0,
+                        paddingBottom: normalizedBottomInset + 12,
+                        borderTopWidth: 1,
+                        borderTopColor: '#f3f4f6',
+                        backgroundColor: '#ffffff'
+                    }
+                ]}>
+                    <AdBanner transparent={false} onVisibilityChange={setIsAdVisible} />
+                </View>
+            )}
 
             {/* Top UI Area (Header + Conditional Filters) */}
             <View

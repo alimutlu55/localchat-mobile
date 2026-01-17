@@ -77,7 +77,8 @@ export const AdBanner: React.FC<AdBannerProps> = ({
     const adUnitId = AD_CONFIG.isTestMode ? TestIds.BANNER : getBannerAdUnitId();
     const adSize = BannerAdSize[size as keyof typeof BannerAdSize] || BannerAdSize.ANCHORED_ADAPTIVE_BANNER;
 
-    const isVisible = canShowAds && !adError;
+    const isAdsDisabledByMembership = hasEntitlement('NO_ADS');
+    const isVisible = canShowAds && !adError && !isAdsDisabledByMembership;
 
     // Timeout logic for loading state
     useEffect(() => {
@@ -102,10 +103,6 @@ export const AdBanner: React.FC<AdBannerProps> = ({
     }
 
     // Monetization: Hide ads for Pro members
-    if (hasEntitlement('NO_ADS')) {
-        return null;
-    }
-
     if (!isVisible) {
         return null;
     }

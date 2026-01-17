@@ -151,6 +151,8 @@ export default function RoomDetailsScreen() {
     roleLabel,
   } = useRoomMembership(roomId);
 
+  const [isAdVisible, setIsAdVisible] = useState(false);
+
   const {
     join,
     leave,
@@ -535,9 +537,11 @@ export default function RoomDetailsScreen() {
         </TouchableOpacity>
       </View>
 
-      <View style={[styles.adBannerContainer, { paddingBottom: insets.bottom + 12 }]}>
-        <AdBanner height={50} transparent={false} />
-      </View>
+      {isAdVisible && (
+        <View style={[styles.adBannerContainer, { paddingBottom: insets.bottom + 12 }]}>
+          <AdBanner height={50} transparent={false} onVisibilityChange={setIsAdVisible} />
+        </View>
+      )}
     </View>
   );
 }

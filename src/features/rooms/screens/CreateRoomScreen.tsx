@@ -118,8 +118,19 @@ export default function CreateRoomScreen() {
    */
   const expirationTime = useMemo(() => {
     const now = new Date();
-    now.setHours(now.getHours() + durationValue);
-    return now.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const expiry = new Date(now.getTime() + durationValue * 60 * 60 * 1000);
+
+    // Check if it's tomorrow or later
+    const isToday = expiry.toDateString() === now.toDateString();
+
+    if (isToday) {
+      return `today at ${expiry.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+    } else {
+      // Show date and time for multi-day rooms
+      const dateStr = expiry.toLocaleDateString([], { month: 'short', day: 'numeric' });
+      const timeStr = expiry.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      return `${dateStr} at ${timeStr}`;
+    }
   }, [durationValue]);
 
   /**

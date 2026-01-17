@@ -2,6 +2,8 @@ import React, { createContext, useContext, useState, useEffect, useCallback, use
 import mobileAds, { AdsConsent, AdsConsentStatus } from 'react-native-google-mobile-ads';
 import { consentService } from '../../../services/consent';
 import { eventBus } from '../../../core/events';
+import { useUserStore } from '../../user/store/UserStore';
+import { FREE_LIMITS } from '../../../types/subscription';
 
 export type AdStatus = 'idle' | 'checking_consent' | 'initializing_sdk' | 'ready' | 'error';
 
@@ -27,6 +29,11 @@ export const AdProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     const [hasPersonalizationConsent, setHasPersonalizationConsent] = useState(false);
     const [attStatus, setAttStatus] = useState<string | null>(null);
     const [error, setError] = useState<Error | null>(null);
+
+    // Membership state
+    const isPro = useUserStore(s => s.isPro);
+    const subscriptionLimits = useUserStore(s => s.subscriptionLimits || FREE_LIMITS);
+    const isAdsDisabledByMembership = isPro || !subscriptionLimits.showAds;
 
     const isInitialized = useRef(false);
     const activeCheckPromise = useRef<Promise<void> | null>(null);
@@ -58,6 +65,14 @@ export const AdProvider: React.FC<{ children: React.ReactNode }> = ({ children }
 
         const checkTask = (async () => {
             if (!isMounted.current) return;
+
+            // Monetization Guard: Don't even check consent if ads are disabled by membership
+            if (isAdsDisabledByMembership) {
+                setCanShowAds(false);
+                setHasPersonalizationConsent(false);
+                setStatus('ready');
+                return;
+            }
 
             setStatus('checking_consent');
             setError(null);
@@ -122,7 +137,7 @@ export const AdProvider: React.FC<{ children: React.ReactNode }> = ({ children }
 
         activeCheckPromise.current = checkTask;
         return checkTask;
-    }, []);
+    }, [isAdsDisabledByMembership]);
 
     const showConsentFormIfRequired = useCallback(async () => {
         try {
@@ -139,11 +154,15 @@ export const AdProvider: React.FC<{ children: React.ReactNode }> = ({ children }
     useEffect(() => {
         checkConsent();
 
-        const unsubscribeSession = eventBus.on('session.consentChanged', () => {
+        const unsubscribeConsent = eventBus.on('consent.updated', () => {
             checkConsent();
         });
 
-        const unsubscribeConsent = eventBus.on('consent.updated', () => {
+        // Re-check ads if membership status changes
+        // This ensures ads are immediately disabled/enabled when user upgrades or tier changes
+        checkConsent();
+
+        const unsubscribeSession = eventBus.on('session.consentChanged', () => {
             checkConsent();
         });
 

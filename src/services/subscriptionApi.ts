@@ -28,6 +28,12 @@ class SubscriptionApiService {
     private cacheExpiry: number = 0;
     private readonly CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 
+    // Prevent concurrent sync requests
+    private syncInProgress: boolean = false;
+    private pendingSyncPromise: Promise<SubscriptionInfo | null> | null = null;
+    private lastSyncTime: number = 0;
+    private readonly SYNC_DEBOUNCE_MS = 2000; // 2 second debounce
+
     /**
      * Get subscription status from backend
      * Cached for 5 minutes to reduce API calls
@@ -67,8 +73,44 @@ class SubscriptionApiService {
     /**
      * Sync subscription from RevenueCat to backend
      * Caller should provide customer info
+     * 
+     * DEBOUNCED: Prevents multiple concurrent sync requests from racing.
+     * If a sync is in progress, returns the existing promise.
+     * If synced recently (within 2 seconds), skips and returns cached.
      */
     async syncToBackend(customerInfo?: any): Promise<SubscriptionInfo | null> {
+        const now = Date.now();
+
+        // If synced very recently, return cached to prevent rapid fire
+        if (now - this.lastSyncTime < this.SYNC_DEBOUNCE_MS && this.cachedInfo) {
+            log.debug('Skipping sync - recently synced');
+            return this.cachedInfo;
+        }
+
+        // If a sync is already in progress, return the pending promise
+        if (this.syncInProgress && this.pendingSyncPromise) {
+            log.debug('Sync already in progress, waiting for existing request');
+            return this.pendingSyncPromise;
+        }
+
+        // Start a new sync
+        this.syncInProgress = true;
+        this.pendingSyncPromise = this.performSync(customerInfo);
+
+        try {
+            const result = await this.pendingSyncPromise;
+            this.lastSyncTime = Date.now();
+            return result;
+        } finally {
+            this.syncInProgress = false;
+            this.pendingSyncPromise = null;
+        }
+    }
+
+    /**
+     * Internal method to actually perform the sync
+     */
+    private async performSync(customerInfo?: any): Promise<SubscriptionInfo | null> {
         let rcInfo = customerInfo;
         if (!rcInfo) {
             try {
